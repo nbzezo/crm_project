@@ -435,6 +435,13 @@ export interface Reminder {
   note: string;
   due_at: string;
   is_done: number;
+  /**
+   * Chi co trong `GET /api/reminders?upcoming=1` (v11): danh sach do gop ca
+   * nhac hen va lich ca nhan, nen id co the trung giua hai nguon.
+   */
+  source?: 'reminder' | 'event';
+  /** Gio bat dau cua su kien lich — de hien "còn N phút". */
+  event_start_at?: string | null;
   card_id: number | null;
   card_title?: string | null;
   customer_id: number | null;
@@ -478,8 +485,63 @@ export interface TaskRow {
   label_ids: number[];
 }
 
-export type CalendarEvent =
+/** Loai lich ca nhan (bang calendar_events, v11). */
+export type CalEventType =
+  | 'task'
+  | 'meeting'
+  | 'call'
+  | 'reminder'
+  | 'appointment'
+  | 'deadline'
+  | 'other';
 
+export type CalEventStatus = 'pending' | 'done' | 'cancelled';
+
+/**
+ * Su kien lich ca nhan — thuc the co that trong CSDL.
+ *
+ * `start_at`/`end_at` luon dang 'YYYY-MM-DDTHH:mm' gio dia phuong va la
+ * NUA KHOANG [start, end): `end_at` la moc LOAI TRU. Su kien ca ngay co ca
+ * hai dau mut o 'T00:00'.
+ */
+export interface CalendarEventRow {
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  event_type: CalEventType;
+  start_at: string;
+  end_at: string;
+  all_day: number;
+  status: CalEventStatus;
+  completed_at: string | null;
+  reminder_minutes: number | null;
+  recurrence_rule: string | null;
+  recurrence_parent_id: number | null;
+  original_start_at: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Tinh khi doc o server — khong luu. */
+  is_overdue: number;
+  reminder_at: string | null;
+}
+
+export interface CalendarConflict {
+  id: number;
+  title: string;
+  start_at: string;
+  end_at: string;
+}
+
+/**
+ * Mot muc bat ky hien tren lich: lich ca nhan tu tao, hoac moc sinh ra tu
+ * du lieu khac (the, nhac hen, co hoi, hop dong).
+ *
+ * Truoc day kieu nay ten la `CalendarEvent` — doi ten de danh ten do cho
+ * thuc the that su o tren, neu khong hai khai niem se lan lon vinh vien.
+ */
+export type CalendarItem =
+  | ({ kind: 'event' } & CalendarEventRow)
   | {
       kind: 'card';
       id: number;

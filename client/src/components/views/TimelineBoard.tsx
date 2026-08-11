@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { TimelineView, type Zoom } from '../timeline/TimelineView';
-import { ErrorState, Skeleton } from '../common/ui';
+import { ErrorState, Segmented, Skeleton } from '../common/ui';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import type { Priority, TimelineItem } from '../../types';
@@ -104,30 +104,3 @@ export function TimelineBoard({ boardId }: { boardId?: number }) {
   );
 }
 
-function Segmented({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div className="inline-flex rounded-lg border border-tr-border bg-tr-panel p-0.5">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          onClick={() => onChange(option.value)}
-          className={`rounded-md px-3 py-1 text-sm transition ${
-            value === option.value
-              ? 'bg-tr-primary font-medium text-tr-on-primary'
-              : 'text-tr-subtle hover:bg-tr-hover'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}

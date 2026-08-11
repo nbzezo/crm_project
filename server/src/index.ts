@@ -19,6 +19,7 @@ import services from './routes/services.ts';
 import revenues from './routes/revenues.ts';
 import interactions from './routes/interactions.ts';
 import reminders from './routes/reminders.ts';
+import calendarEvents from './routes/calendarEvents.ts';
 import views from './routes/views.ts';
 import scoring from './routes/scoring.ts';
 import system from './routes/system.ts';
@@ -47,6 +48,7 @@ app.use('/api/services', services);
 app.use('/api/revenues', revenues);
 app.use('/api/interactions', interactions);
 app.use('/api/reminders', reminders);
+app.use('/api/calendar', calendarEvents);
 app.use('/api/views', views);
 // Cham diem co hoi: duong dan deu >= 2 doan nen khong dung cham route /:id cua deals
 app.use('/api', scoring);

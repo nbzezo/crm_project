@@ -17,10 +17,16 @@ export function ReminderBell() {
     refetchInterval: 60_000,
   });
 
+  // Sau v11 danh sach `upcoming` gop hai nguon nen id CO THE TRUNG NHAU —
+  // phai dinh tuyen theo `source`, tuyet doi khong ne bang id am hay offset.
   const markDone = useMutation({
-    mutationFn: (id: number) => api.patch(`/api/reminders/${id}`, { is_done: true }),
+    mutationFn: (r: Reminder) =>
+      r.source === 'event'
+        ? api.patch(`/api/calendar/events/${r.id}`, { status: 'done' })
+        : api.patch(`/api/reminders/${r.id}`, { is_done: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -70,7 +76,7 @@ export function ReminderBell() {
                 const late = r.due_at <= now;
                 return (
                   <div
-                    key={r.id}
+                    key={`${r.source ?? 'reminder'}-${r.id}`}
                     className="flex items-start gap-2 border-b border-tr-border px-4 py-2.5 last:border-0"
                   >
                     <div className="min-w-0 flex-1">
@@ -86,7 +92,7 @@ export function ReminderBell() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => markDone.mutate(r.id)}
+                      onClick={() => markDone.mutate(r)}
                       disabled={markDone.isPending}
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-success focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary disabled:opacity-50 sm:h-8 sm:w-8"
                       aria-label={`${t.reminder.markDone}: ${r.title}`}

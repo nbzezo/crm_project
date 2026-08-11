@@ -48,6 +48,49 @@ export function Button({
   );
 }
 
+/* ---------- Segmented (nhom nut chon mot trong nhieu) ---------- */
+/**
+ * Dung cho thanh doi dang xem. `role="tablist"` + `aria-selected` de trinh doc
+ * man hinh hieu day la mot nhom lua chon loai tru, khong phai vai nut roi rac.
+ */
+export function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string; icon?: ReactNode }[];
+  label?: string;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={label}
+      className="inline-flex rounded-lg border border-tr-border bg-tr-panel p-0.5"
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="tab"
+          aria-selected={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm transition ${focusRing} ${
+            value === option.value
+              ? 'bg-tr-primary font-medium text-tr-on-primary'
+              : 'text-tr-subtle hover:bg-tr-hover'
+          }`}
+        >
+          {option.icon}
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- Field wrappers ---------- */
 /**
  * Gan nhan tuong minh bang htmlFor/id (khong dung nhan ngam) va noi

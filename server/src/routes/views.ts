@@ -105,8 +105,35 @@ router.get('/calendar', (req, res) => {
     )
     .all(from, to, boardId, boardId) as Record<string, unknown>[];
 
-  const crm = boardId === null;
+  // Chi khung nhin toan cuc moi co du lieu khong thuoc bang nao:
+  // lich ca nhan (v11) va cac moc CRM.
+  const global = boardId === null;
+  const crm = global;
 
+  /**
+   * Lich ca nhan — tra NGUYEN ban ghi chu khong lam phang nhu 5 loai kia,
+   * de ngan keo chi tiet mo duoc ngay ma khong phai goi them mot request.
+   *
+   * `to` cua endpoint nay la ngay BAO GOM (5 nhanh cu deu dung BETWEEN), con
+   * `end_at` la moc LOAI TRU — nen phai doi `to` thanh dau ngay hom sau.
+   */
+  const events = (global
+    ? db
+        .prepare(
+          `SELECT e.*,
+                  CASE WHEN e.status = 'pending'
+                        AND e.end_at <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime'))
+                       THEN 1 ELSE 0 END AS is_overdue,
+                  CASE WHEN e.reminder_minutes IS NULL THEN NULL
+                       ELSE strftime('%Y-%m-%dT%H:%M',
+                                     datetime(e.start_at, '-' || e.reminder_minutes || ' minutes'))
+                  END AS reminder_at
+             FROM calendar_events e
+            WHERE e.start_at < strftime('%Y-%m-%dT%H:%M', datetime(?, '+1 day'))
+              AND e.end_at > ? || 'T00:00'`
+        )
+        .all(to, from)
+    : []) as Record<string, unknown>[];
   const deals = (crm
     ? db
         .prepare(
@@ -140,6 +167,7 @@ router.get('/calendar', (req, res) => {
     : []) as Record<string, unknown>[];
 
   res.json([
+    ...events.map((e) => ({ ...e, kind: 'event' as const })),
     ...cards.map((k) => ({
       kind: 'card' as const,
       id: k.id,

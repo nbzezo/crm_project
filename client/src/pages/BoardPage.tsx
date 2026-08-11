@@ -7,7 +7,7 @@ import { BoardView } from '../components/kanban/BoardView';
 import { BoardMenu } from '../components/kanban/BoardMenu';
 import { BoardFilter } from '../components/kanban/BoardFilter';
 import { BoardViewChip, BoardViewDock, type BoardViewMode } from '../components/kanban/BoardViews';
-import { CalendarView } from '../components/views/CalendarView';
+import { LazyCalendarView } from '../components/calendar/LazyCalendarView';
 import { TimelineBoard } from '../components/views/TimelineBoard';
 import { TaskTable } from '../components/tasks/TaskTable';
 import { usePopover } from '../components/common/Popover';
@@ -193,8 +193,10 @@ export default function BoardPage() {
       <div className="min-h-0 flex-1 overflow-auto">
         {view === 'board' && <BoardView board={board} />}
         {view === 'calendar' && (
-          <div className="p-4 pb-20">
-            <CalendarView boardId={id} />
+          /* Cung cong thuc full-height nhu trang Lich. Giu `pb-20` vi
+             BoardViewDock noi o day — khong co no thi hang cuoi bi che khuat. */
+          <div className="flex h-full min-h-[520px] flex-col p-4 pb-20">
+            <LazyCalendarView boardId={id} />
           </div>
         )}
         {view === 'timeline' && (

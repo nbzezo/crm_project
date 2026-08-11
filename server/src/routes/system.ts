@@ -28,6 +28,8 @@ const TABLES = [
   'card_comments',
   'interactions',
   'reminders',
+  // v11 — lich ca nhan
+  'calendar_events',
   // v10 — cham diem co hoi. deal_scorecard la VIEW nen khong xuat.
   'deal_scores',
   'deal_committee',

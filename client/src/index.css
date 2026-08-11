@@ -95,6 +95,28 @@
   --tr-nav-hover: #091e420f;
   --tr-nav-active-bg: #e9f2ff;
   --tr-nav-active-text: #0c66e4;
+
+  /* Mau loai su kien tren Lich — truoc day la hang so hex trong CalendarView
+     nen sang/toi giong het nhau. Moi loai co cap nen + muc da kiem tra tuong phan. */
+  --cal-reminder-bg: #eda100;
+  --cal-reminder-fg: #1d2125;
+  --cal-next-action-bg: #c9481a;
+  --cal-next-action-fg: #ffffff;
+  --cal-deal-close-bg: #7857d6;
+  --cal-deal-close-fg: #ffffff;
+  --cal-contract-end-bg: #6cc3e0;
+  --cal-contract-end-fg: #1d2125;
+
+  /* Loai lich ca nhan (v11). Muc ln dung mot mau toi cho ca bay — cac nen deu
+     du sang o che do sang. */
+  --cal-type-ink: #1d2125;
+  --cal-type-task: #4c9aff;
+  --cal-type-meeting: #b39dfb;
+  --cal-type-call: #79e2c4;
+  --cal-type-reminder: #f5cd47;
+  --cal-type-appointment: #85d3f2;
+  --cal-type-deadline: #ff8f73;
+  --cal-type-other: #b3bac5;
 }
 
 /* ---------- Che do toi (giong Trello dark) ---------- */
@@ -137,6 +159,26 @@
   --tr-nav-hover: #a6c5e214;
   --tr-nav-active-bg: #1c2b41;
   --tr-nav-active-text: #579dff;
+
+  /* Nen toi: nang do sang cua mau loai su kien, muc luon dung mau nen toi. */
+  --cal-reminder-bg: #f5cd47;
+  --cal-reminder-fg: #1d2125;
+  --cal-next-action-bg: #fea362;
+  --cal-next-action-fg: #1d2125;
+  --cal-deal-close-bg: #b8acf6;
+  --cal-deal-close-fg: #1d2125;
+  --cal-contract-end-bg: #9dd9ee;
+  --cal-contract-end-fg: #1d2125;
+
+  /* Nen toi: mau loai lich giu nguyen do sang cao, muc van la mau toi. */
+  --cal-type-ink: #1d2125;
+  --cal-type-task: #85b8ff;
+  --cal-type-meeting: #b8acf6;
+  --cal-type-call: #7ee2b8;
+  --cal-type-reminder: #f5cd47;
+  --cal-type-appointment: #9dd9ee;
+  --cal-type-deadline: #fd9891;
+  --cal-type-other: #9fadbc;
 }
 
 html,
@@ -263,6 +305,152 @@ body {
   border: none;
 }
 
+/* Chieu cao co dinh mot dong: `dayMaxEvents` tinh so o "+N" tu chieu cao do duoc,
+   nen chip co chieu cao thay doi se lam con so nhay lien tuc. */
+/* 24px chu khong phai 22px: emoji dat truoc tieu de (se thay bang icon o Phase 3)
+   lam hop dong chu cao 24px, de o 22px thi phan duoi cua chu bi got mat 2px.
+   `align-items: center` la luoi an toan cho font co hop dong con cao hon nua. */
+.fc .fc-daygrid-event {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  line-height: 22px;
+  padding-block: 0;
+  overflow: hidden;
+}
+.fc .fc-daygrid-event .fc-event-main {
+  width: 100%;
+}
+/* Cat chu bang dau ba cham phai dat o dung the chua chu.
+   Cac lop boc deu la flex nen phai co `min-width: 0`, neu khong chung se
+   gian rong theo noi dung va chu bi cat cut giua tu thay vi hien "…". */
+.fc .fc-daygrid-event .fc-event-main,
+.fc .fc-daygrid-event .fc-event-main-frame,
+.fc .fc-daygrid-event .fc-event-title-container {
+  min-width: 0;
+}
+.fc .fc-daygrid-event .fc-event-time {
+  flex-shrink: 0;
+}
+.fc .fc-daygrid-event .fc-event-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Muc 9 — hom nay phai nhan ra ngay: nen dam hon `--tr-hover` va so ngay trong vong tron. */
+.fc .fc-daygrid-day.fc-day-today {
+  background-color: color-mix(in srgb, var(--tr-primary) 14%, transparent);
+}
+.fc .fc-day-today .fc-daygrid-day-number {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background-color: var(--tr-primary);
+  color: var(--tr-on-primary);
+  font-weight: 600;
+}
+
+/* Muc 10 — ngay cua thang truoc/sau: mo di nhung van doc duoc, su kien giu nguyen do ro. */
+.fc .fc-daygrid-day.fc-day-other {
+  background-color: var(--tr-hover);
+}
+.fc .fc-day-other .fc-daygrid-day-number {
+  opacity: 0.55;
+}
+
+/* Muc 38 — su kien da hoan thanh: mo di + gach nhe, khong chi dua vao mau. */
+.fc-event.cal-done {
+  opacity: 0.6;
+}
+.fc-event.cal-done .fc-event-title {
+  text-decoration: line-through;
+}
+
+/* Muc 36 — qua han: vien trai day + dam chu, khong chi dung mau do. */
+.fc-event.cal-overdue {
+  box-shadow: inset 3px 0 0 var(--tr-danger);
+  font-weight: 600;
+}
+
+/* Su kien chi-doc (sinh tu CRM/the) — khong co con tro keo. */
+.fc-event.cal-static {
+  cursor: default;
+}
+
+.fc .fc-more-link {
+  color: var(--tr-primary);
+  font-weight: 500;
+}
+
+/* Muc 8 — popover "+N lịch khác". FullCalendar dung mau trang mac dinh nen
+   o che do toi no loe hang trang giua man hinh neu khong ap token. */
+.fc .fc-popover {
+  border: 1px solid var(--tr-border);
+  border-radius: var(--radius-panel);
+  background-color: var(--tr-panel);
+  box-shadow: var(--tr-popover-shadow);
+}
+.fc .fc-popover-header {
+  background-color: var(--tr-hover);
+  color: var(--tr-text);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+.fc .fc-popover-close {
+  color: var(--tr-muted);
+  opacity: 1;
+}
+.fc .fc-popover-body {
+  padding: 6px;
+}
+
+/* ----- Week / Day (timegrid) ----- */
+/* Su kien 30 phut chi cao ~30px. Bo cuc cot mac dinh cua FullCalendar xep gio
+   tren, tieu de duoi va xuong dong — o do cao do chi vua mot dong ruoi nen dong
+   thu hai bi cat ngang than chu. Doi sang MOT DONG ngang + dau ba cham: luon
+   doc duoc, khong bao gio cat cut giua chu. */
+.fc .fc-timegrid-event {
+  overflow: hidden;
+  padding: 1px 4px;
+}
+.fc .fc-timegrid-event .fc-event-main-frame {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  overflow: hidden;
+}
+.fc .fc-timegrid-event .fc-event-time {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+.fc .fc-timegrid-event .fc-event-title-container {
+  min-width: 0;
+}
+.fc .fc-timegrid-event .fc-event-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-timegrid-axis-cushion {
+  color: var(--tr-muted);
+  font-size: 0.75rem;
+}
+/* Muc 13 — duong chi gio hien tai phai noi bat hon vien luoi. */
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--tr-danger);
+  border-top-width: 2px;
+}
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: var(--tr-danger);
+  color: var(--tr-danger);
+}
+
 /* ---------- Input trong che do toi ---------- */
 [data-theme='dark'] input[type='date'],
 [data-theme='dark'] input[type='datetime-local'] {
@@ -287,6 +475,11 @@ body {
     transform: translateX(-100%);
   }
 }
+@keyframes tr-slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
 @keyframes tr-toast-in {
   from {
     opacity: 0;
@@ -307,6 +500,9 @@ body {
 }
 .tr-anim-slide-left {
   animation: tr-slide-in-left 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tr-anim-slide-right {
+  animation: tr-slide-in-right 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .tr-anim-toast {
   animation: tr-toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
