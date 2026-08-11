@@ -1,0 +1,80 @@
+# WorkFlow — Quản lý công việc cá nhân + CRM khách hàng B2B
+
+Ứng dụng web chạy local, một người dùng (không đăng nhập, không tính năng cộng tác).
+Kết hợp bảng Kanban kiểu Trello với CRM bán hàng B2B, giao diện tiếng Việt.
+
+Giao diện và thao tác mô phỏng Trello, **mặc định chế độ tối**: phông nền bảng đổi được, cột và thẻ theo tông Trello, menu popover cho mọi thiết lập.
+
+## Tính năng
+
+- **Bảng công việc (Kanban)** — bảng → danh sách → thẻ, kéo thả đầy đủ; thẻ có mô tả, ngày bắt đầu, hạn hoàn thành, mức ưu tiên, việc cần làm (checklist), nhãn, ảnh bìa màu.
+- **Thiết lập động kiểu Trello**:
+  - *Bảng*: đổi phông nền (10 màu đơn + 6 chuyển sắc), đổi tên tại chỗ, gắn sao (bảng gắn sao hiện ở thanh bên), lưu trữ, xóa.
+  - *Danh sách*: đổi tên tại chỗ, sao chép cả danh sách kèm thẻ, sắp xếp thẻ (ngày tạo / hạn / tên / ưu tiên), thu gọn thành cột dọc, xóa.
+  - *Giao diện*: Sáng / Tối / Theo hệ thống — đổi ở nút mặt trăng trên thanh trên, ghi nhớ giữa các lần mở.
+  - *Thẻ*: cửa sổ theo bố cục Trello mới — chip danh sách ở góc trái (bấm để chuyển danh sách), vòng tròn đánh dấu hoàn thành cạnh tiêu đề, hàng nút Thêm / Ngày / Ưu tiên / Khách hàng, và cột **Nhận xét và hoạt động** bên phải để ghi chú tiến độ. Menu `···` có Di chuyển, Sao chép, Lưu trữ, Xóa.
+  - *Bộ lọc thẻ ngay trên bảng*: từ khóa (không dấu), trạng thái, hạn (quá hạn / hôm nay / 7 ngày tới / không có ngày), mức ưu tiên, nhãn, khách hàng — kèm số bộ lọc đang bật.
+  - Nút bật/tắt hiện tên trên nhãn (thanh màu ↔ có chữ), giống Trello.
+- **Khách hàng B2B (Account)** — hồ sơ công ty (tên viết tắt, MST, ngành, quy mô, nguồn, trạng thái Tiềm năng/Khách hàng/Ngừng hợp tác), cảnh báo trùng khi tạo mới.
+- **Người liên hệ (Contact)** — chức vụ, phòng ban, Zalo, LinkedIn, vai trò trong quyết định mua, mức độ quan hệ.
+- **Cơ hội bán hàng (Opportunity)** — pipeline 7 giai đoạn (Tiềm năng → Đang tiếp cận → Đang trao đổi → Gửi báo giá → Đàm phán → Thành công / Thất bại), xác suất tự gợi ý theo giai đoạn, **Next Action + ngày thực hiện**, nhu cầu, đối thủ, nguồn. Kéo sang Thất bại **bắt buộc chọn lý do**; chốt Thành công thì nhập giá trị thật và tạo hợp đồng ngay.
+- **Báo giá (Quotation)** — mã, phiên bản tự tăng, hiệu lực, 6 trạng thái, đính kèm tệp.
+- **Hợp đồng (Contract) & Gia hạn** — giá trị, ngày ký/hiệu lực, trạng thái, đếm ngược ngày còn lại, danh sách sắp hết hạn theo mốc 30/60/90 ngày và nút tạo cơ hội gia hạn.
+- **Doanh thu khách hàng hiện hữu (Revenue)** — bảng 12 tháng theo từng dòng *khách hàng × dịch vụ*: AM, loại hợp đồng (Mới / Mở rộng), thời hạn (Lâu dài / Ngắn hạn / Dùng thử), tình trạng sử dụng. Mỗi tháng là **một khoản tiền có trạng thái**, chuyển tiếp theo vòng đời **Dự kiến → Đã đối soát → Đã xuất hóa đơn → Đã thanh toán** (tiền không nhân đôi giữa các bước). Đối soát có thể sửa lại số tiền — ví dụ dự kiến 100k, đối soát thực tế 95k — hệ thống giữ số dự kiến ban đầu để báo chênh lệch. Gõ số ngay trên ô, bấm chấm màu trong ô để chuyển trạng thái, bấm tiêu đề tháng để chuyển trạng thái cả cột, hoặc mở bảng 12 tháng (dự kiến / thực tế / trạng thái / ghi chú). Có tổng theo dòng, theo tháng, cả năm, phễu lũy kế theo trạng thái, tỷ lệ thu tiền và biểu đồ cột chồng theo trạng thái.
+- **Danh mục dịch vụ (Service)** — CRM tự quản lý danh sách dịch vụ (mã, nhóm, đơn giá tham khảo, ngừng cung cấp); hồ sơ khách hàng có tab *Dịch vụ sử dụng* để gán dịch vụ và xem doanh thu của riêng khách đó.
+- **Tài liệu (Document)** — tải lên PDF/Word/Excel/PowerPoint/ảnh (tối đa 25 MB), gắn với khách hàng / cơ hội / hợp đồng / báo giá, tìm kiếm không dấu.
+- **Lịch sử tương tác** — 9 loại (Gọi, Email, Gặp mặt, Demo, Proposal, Follow-up, Ghi chú, Zalo, Khác), có kết quả và tạo luôn công việc tiếp theo.
+- **Nhắc hẹn** gắn với thẻ / khách hàng / cơ hội.
+- **Nhiều cách xem công việc**: Kanban · Lịch · Dòng thời gian · Báo cáo (biểu đồ). Trang *Công việc* có hai chế độ trong cùng một màn hình — **Dạng cây** (việc cha–con, thêm nhanh, nhóm theo) và **Dạng bảng** (sắp xếp theo cột kiểu bảng tính).
+- **Đổi dạng xem ngay trong bảng**: ở mỗi bảng công việc, chip cạnh tên bảng và thanh dock dưới đáy chuyển giữa Bảng / Lịch / Dòng thời gian / Bảng tính mà **không rời khỏi bảng** — dữ liệu chỉ của bảng đó, dạng xem lưu trong URL nên F5 hay chia sẻ link vẫn giữ nguyên.
+- **Việc cha – việc con** — mỗi công việc có thể chứa việc con (một cấp). Trang *Công việc* là bảng cây: bấm mũi tên để mở/thu việc con, bấm tên để sửa tại chỗ, đổi ưu tiên / ngày bắt đầu / hạn / khách hàng ngay trên dòng, thêm việc mới hoặc việc con trực tiếp, xóa có xác nhận. Bảng kanban ẩn việc con và hiện huy hiệu `x/y` trên thẻ cha; cửa sổ thẻ có mục *Việc con* riêng.
+- **Tìm kiếm không dấu** (gõ "vinh phat" ra "Vĩnh Phát") — nhấn `Ctrl + K`.
+- **Tổng quan (Dashboard)** — 6 chỉ số đầu trang (cơ hội đang mở, tổng pipeline, **weighted pipeline** = Σ giá trị × xác suất, dự kiến chốt tháng này, việc quá hạn, HĐ sắp hết hạn); việc cần làm theo Quá hạn / Hôm nay / Ngày mai / 7 ngày tới; **cơ hội cần chú ý** (quá ngày chốt, chưa có Next Action, quá hạn Next Action, không tương tác > 14 ngày).
+- **Sao lưu** một chạm, xuất dữ liệu JSON và **xuất CSV** (khách hàng, người liên hệ, cơ hội, hợp đồng, công việc, doanh thu theo tháng) mở được bằng Excel.
+
+## Yêu cầu
+
+- Node.js 22 trở lên (đã kiểm thử trên Node 24)
+- Windows / macOS / Linux
+
+## Cài đặt và chạy
+
+```bash
+npm install
+npm run dev
+```
+
+Mở http://localhost:5173 — API chạy ở cổng 3001, Vite tự chuyển tiếp `/api`.
+
+> Nếu npm chặn install script của `better-sqlite3` (npm 12 trở lên), chạy:
+> `npm install-scripts approve better-sqlite3 esbuild && npm install`
+
+### Nạp dữ liệu mẫu (tùy chọn)
+
+```bash
+npm run seed
+```
+
+Chỉ chạy khi cơ sở dữ liệu còn trống. Tạo 3 khách hàng, 6 cơ hội, 3 bảng và 15 thẻ mẫu.
+
+## Dữ liệu và sao lưu
+
+- Toàn bộ dữ liệu nằm trong một file SQLite: `server/data/app.db`.
+- Nút **Sao lưu ngay** trong mục *Cài đặt* tạo bản sao an toàn (dùng `db.backup()`, đúng cả khi bật WAL) vào `server/data/backups/`.
+- Nút **Xuất dữ liệu JSON** tải toàn bộ bảng về dạng JSON.
+- Muốn chuyển sang máy khác: copy cả thư mục `server/data/`.
+
+## Cấu trúc
+
+```
+├── server/            Express + better-sqlite3 (cổng 3001)
+│   └── src/
+│       ├── db/        schema.sql, migrate, seed
+│       ├── lib/       vị trí kéo thả, tìm kiếm bỏ dấu, kiểm tra dữ liệu
+│       └── routes/    boards, cards, customers, deals, views, system…
+└── client/            React 19 + Vite + Tailwind 4 (cổng 5173)
+    └── src/
+        ├── components/  kanban, crm, timeline, dùng chung
+        ├── pages/       12 trang
+        └── i18n/vi.ts   toàn bộ chuỗi giao diện
+```

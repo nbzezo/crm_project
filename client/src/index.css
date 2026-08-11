@@ -1,0 +1,330 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Muc uu tien — bang mau da kiem dinh mu mau */
+  --color-priority-urgent: #d03b3b;
+  --color-priority-high: #eda100;
+  --color-priority-medium: #2a78d6;
+  --color-priority-low: #1baf7a;
+
+  /* Token giao dien — gia tri thuc dat o :root / [data-theme='dark'] ben duoi */
+  --color-tr-nav: var(--tr-nav);
+  --color-tr-surface: var(--tr-surface);
+  --color-tr-panel: var(--tr-panel);
+  --color-tr-list: var(--tr-list);
+  --color-tr-card: var(--tr-card);
+  --color-tr-text: var(--tr-text);
+  --color-tr-subtle: var(--tr-subtle);
+  --color-tr-muted: var(--tr-muted);
+  --color-tr-border: var(--tr-border);
+  --color-tr-primary: var(--tr-primary);
+  --color-tr-primary-hover: var(--tr-primary-hover);
+  --color-tr-on-primary: var(--tr-on-primary);
+  --color-tr-danger: var(--tr-danger);
+  --color-tr-on-danger: var(--tr-on-danger);
+  --color-tr-success: var(--tr-success);
+  --color-tr-on-success: var(--tr-on-success);
+  --color-tr-warning: var(--tr-warning);
+  --color-tr-hover: var(--tr-hover);
+  --color-tr-hover-strong: var(--tr-hover-strong);
+  --color-tr-overlay: var(--tr-overlay);
+  /* Vung nav luon nen toi — can bo mau rieng, khong theo che do */
+  --color-tr-navfg: var(--tr-navfg);
+  --color-tr-navfg-muted: var(--tr-navfg-muted);
+  --color-tr-navfg-border: var(--tr-navfg-border);
+
+  /* Bo chu — bo sung cap 11px dang dung rai rac duoi dang text-[11px] */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.45;
+
+  /* Ban kinh bo goc — 3 muc thay cho 8 bien the roi rac */
+  --radius-control: 3px;
+  --radius-panel: 8px;
+  --radius-modal: 12px;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Helvetica Neue',
+    sans-serif;
+}
+
+/* ---------- Che do sang ---------- */
+:root {
+  color-scheme: light;
+  --tr-nav: #1d2125;
+  --tr-surface: #f7f8f9;
+  --tr-panel: #ffffff;
+  --tr-list: #f1f2f4;
+  --tr-card: #ffffff;
+  --tr-text: #172b4d;
+  --tr-subtle: #44546f;
+  --tr-muted: #626f86;
+  --tr-border: #dfe1e6;
+  --tr-primary: #0c66e4;
+  --tr-primary-hover: #0055cc;
+  --tr-on-primary: #ffffff;
+  --tr-danger: #c9372c;
+  --tr-on-danger: #ffffff;
+  --tr-success: #216e4e;
+  --tr-on-success: #ffffff;
+  --tr-warning: #a54800;
+  --tr-hover: #091e420f;
+  --tr-hover-strong: #091e4224;
+  --tr-overlay: #091e4266;
+  --tr-card-shadow: 0 1px 1px #091e4240, 0 0 1px #091e424f;
+  --tr-popover-shadow: 0 8px 12px #091e4226, 0 0 1px #091e424f;
+  --tr-scroll-thumb: #091e4224;
+  --tr-scroll-thumb-hover: #091e424f;
+  --tr-badge-done-bg: #dcfff1;
+  --tr-badge-done-fg: #164b35;
+  --tr-badge-overdue-bg: #ffd5d2;
+  --tr-badge-overdue-fg: #ae2e24;
+  --tr-badge-soon-bg: #f8e6a0;
+  --tr-badge-soon-fg: #533f04;
+
+  /* Thanh tren cung luon nen toi (--tr-nav) o ca hai che do,
+     nen bo mau chu cua no khong duoc doi theo theme.
+     Chi khai bao o :root — khoi [data-theme='dark'] khong ghi de. */
+  --tr-navfg: #dee4ea; /* 12.1:1 tren #1d2125 */
+  --tr-navfg-muted: #9fadbc; /* 6.4:1 tren #1d2125 */
+  --tr-navfg-border: #a6c5e229;
+
+  /* Thanh ben trai — sang mau trong che do sang */
+  --tr-nav-panel: #ffffff;
+  --tr-nav-text: #44546f;
+  --tr-nav-border: #dfe1e6;
+  --tr-nav-hover: #091e420f;
+  --tr-nav-active-bg: #e9f2ff;
+  --tr-nav-active-text: #0c66e4;
+}
+
+/* ---------- Che do toi (giong Trello dark) ---------- */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --tr-nav: #1d2125;
+  --tr-surface: #1d2125;
+  --tr-panel: #22272b;
+  --tr-list: #10120480;
+  --tr-card: #22272b;
+  --tr-text: #b6c2cf;
+  --tr-subtle: #9fadbc;
+  --tr-muted: #8c9bab;
+  --tr-border: #a6c5e229;
+  --tr-primary: #579dff;
+  --tr-primary-hover: #85b8ff;
+  --tr-on-primary: #1d2125;
+  --tr-danger: #f87168;
+  --tr-on-danger: #1d2125;
+  --tr-success: #7ee2b8;
+  --tr-on-success: #1d2125;
+  --tr-warning: #f5cd47;
+  --tr-hover: #a6c5e214;
+  --tr-hover-strong: #a6c5e229;
+  --tr-overlay: #0304048f;
+  --tr-card-shadow: 0 1px 1px #03040442, 0 0 1px #03040447;
+  --tr-popover-shadow: 0 8px 12px #0304045c, 0 0 1px #03040480;
+  --tr-scroll-thumb: #a6c5e229;
+  --tr-scroll-thumb-hover: #a6c5e24f;
+  --tr-badge-done-bg: #164b35;
+  --tr-badge-done-fg: #7ee2b8;
+  --tr-badge-overdue-bg: #42221f;
+  --tr-badge-overdue-fg: #fd9891;
+  --tr-badge-soon-bg: #533f04;
+  --tr-badge-soon-fg: #f5cd47;
+
+  --tr-nav-panel: #22272b;
+  --tr-nav-text: #b6c2cf;
+  --tr-nav-border: #a6c5e229;
+  --tr-nav-hover: #a6c5e214;
+  --tr-nav-active-bg: #1c2b41;
+  --tr-nav-active-text: #579dff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Thanh cuon ---------- */
+.tr-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.tr-scroll::-webkit-scrollbar-thumb {
+  background: var(--tr-scroll-thumb);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.tr-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--tr-scroll-thumb-hover);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+.tr-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Thanh cuon tren nen bang mau */
+.tr-scroll-onboard::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.tr-scroll-onboard::-webkit-scrollbar-thumb {
+  background: #ffffff59;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.tr-scroll-onboard::-webkit-scrollbar-thumb:hover {
+  background: #ffffff8c;
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+.tr-scroll-onboard::-webkit-scrollbar-track {
+  background: #00000014;
+  border-radius: 8px;
+}
+
+/* ---------- Hieu ung dung chung ---------- */
+.tr-card-shadow {
+  box-shadow: var(--tr-card-shadow);
+}
+.tr-popover-shadow {
+  box-shadow: var(--tr-popover-shadow);
+}
+
+/* Huy hieu ngay han tren the — doi mau theo che do */
+.tr-badge-done {
+  background-color: var(--tr-badge-done-bg);
+  color: var(--tr-badge-done-fg);
+}
+.tr-badge-overdue {
+  background-color: var(--tr-badge-overdue-bg);
+  color: var(--tr-badge-overdue-fg);
+}
+.tr-badge-soon {
+  background-color: var(--tr-badge-soon-bg);
+  color: var(--tr-badge-soon-fg);
+}
+
+.tr-header-btn {
+  @apply inline-flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-sm font-medium text-white transition;
+  background-color: #ffffff29;
+}
+.tr-header-btn:hover {
+  background-color: #ffffff42;
+}
+
+/* ---------- FullCalendar ---------- */
+.fc {
+  --fc-border-color: var(--tr-border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--tr-hover);
+  --fc-today-bg-color: var(--tr-hover);
+  font-size: 0.875rem;
+  color: var(--tr-text);
+}
+.fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--tr-text);
+}
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: var(--tr-subtle);
+}
+.fc .fc-button {
+  background-color: var(--tr-hover);
+  border-color: var(--tr-border);
+  color: var(--tr-text);
+  box-shadow: none;
+  text-transform: none;
+  font-weight: 500;
+}
+.fc .fc-button:not(:disabled):hover {
+  background-color: var(--tr-hover-strong);
+  border-color: var(--tr-border);
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background-color: var(--tr-primary);
+  border-color: var(--tr-primary);
+  color: var(--tr-on-primary);
+}
+.fc-event {
+  cursor: pointer;
+  border: none;
+}
+
+/* ---------- Input trong che do toi ---------- */
+[data-theme='dark'] input[type='date'],
+[data-theme='dark'] input[type='datetime-local'] {
+  color-scheme: dark;
+}
+
+/* ---------- Chuyen dong ---------- */
+/* Ba tang thoi luong: 120ms cho hover/nut, 180ms cho lop phu, 240ms cho panel truot */
+@keyframes tr-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes tr-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes tr-slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes tr-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes tr-skeleton {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.tr-anim-fade {
+  animation: tr-fade-in 180ms ease-out;
+}
+.tr-anim-pop {
+  animation: tr-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tr-anim-slide-left {
+  animation: tr-slide-in-left 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tr-anim-toast {
+  animation: tr-toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tr-skeleton {
+  background-color: var(--tr-hover-strong);
+  border-radius: var(--radius-control);
+  animation: tr-skeleton 1.4s ease-in-out infinite;
+}
+
+/* Ton trong tuy chon giam chuyen dong cua he dieu hanh */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

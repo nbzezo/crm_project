@@ -1,0 +1,261 @@
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowRight,
+  CalendarCheck,
+  FileText,
+  Mail,
+  MessageCircle,
+  MonitorPlay,
+  MoreHorizontal,
+  Phone,
+  Plus,
+  StickyNote,
+  Trash2,
+} from 'lucide-react';
+import { api } from '../../api/client';
+import {
+  Button,
+  DateInput,
+  EmptyState,
+  Field,
+  FormError,
+  Input,
+  Select,
+  Textarea,
+  focusRing,
+} from '../common/ui';
+import { NEXT_ACTIONS, t } from '../../i18n/vi';
+import { formatDateTime, nowLocalInput } from '../../lib/format';
+import { invalidateCrmViews } from '../../lib/queryKeys';
+import { useUiStore } from '../../stores/uiStore';
+import type { Contact, Deal, Interaction, InteractionType } from '../../types';
+
+const ICONS: Record<InteractionType, typeof Phone> = {
+  call: Phone,
+  email: Mail,
+  meeting: CalendarCheck,
+  demo: MonitorPlay,
+  proposal: FileText,
+  followup: ArrowRight,
+  note: StickyNote,
+  zalo: MessageCircle,
+  other: MoreHorizontal,
+};
+
+const COLORS: Record<InteractionType, string> = {
+  call: 'bg-[#e9f2ff] text-[#0c66e4]',
+  email: 'bg-[#f3f0ff] text-[#6e5dc6]',
+  meeting: 'bg-[#dcfff1] text-[#216e4e]',
+  demo: 'bg-[#fff7d6] text-[#7f5f01]',
+  proposal: 'bg-[#ffedeb] text-[#ae2e24]',
+  followup: 'bg-[#e3fafc] text-[#164555]',
+  note: 'bg-tr-hover text-tr-subtle',
+  zalo: 'bg-[#e9f2ff] text-[#0055cc]',
+  other: 'bg-tr-hover text-tr-subtle',
+};
+
+export function InteractionTimeline({
+  customerId,
+  interactions,
+  contacts,
+  deals,
+}: {
+  customerId: number;
+  interactions: Interaction[];
+  contacts: Contact[];
+  deals: Deal[];
+}) {
+  const queryClient = useQueryClient();
+  const pushToast = useUiStore((s) => s.pushToast);
+  const [adding, setAdding] = useState(false);
+  const [type, setType] = useState<InteractionType>('call');
+  const [occurredAt, setOccurredAt] = useState(nowLocalInput);
+  const [summary, setSummary] = useState('');
+  const [result, setResult] = useState('');
+  const [contactId, setContactId] = useState('');
+  const [dealId, setDealId] = useState('');
+  const [nextAction, setNextAction] = useState('');
+  const [nextActionDate, setNextActionDate] = useState<string | null>(null);
+  const [createTask, setCreateTask] = useState(true);
+
+  const refresh = () => invalidateCrmViews(queryClient, customerId);
+
+  const create = useMutation({
+    mutationFn: () =>
+      api.post<{ created_task_id: number | null }>('/api/interactions', {
+        customer_id: customerId,
+        type,
+        occurred_at: occurredAt,
+        summary: summary.trim(),
+        result: result.trim() || null,
+        contact_id: contactId === '' ? null : Number(contactId),
+        deal_id: dealId === '' ? null : Number(dealId),
+        next_action: nextAction.trim() || null,
+        next_action_date: nextActionDate,
+        create_task: createTask && Boolean(nextAction.trim()),
+      }),
+    onSuccess: (created) => {
+      refresh();
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['board'] });
+      if (created?.created_task_id) pushToast('Đã tạo công việc tiếp theo', 'success');
+      setSummary('');
+      setResult('');
+      setNextAction('');
+      setNextActionDate(null);
+      setAdding(false);
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: number) => api.del(`/api/interactions/${id}`),
+    onSuccess: refresh,
+  });
+
+  return (
+    <div>
+      <div className="mb-3 flex justify-end">
+        <Button variant="primary" onClick={() => setAdding((v) => !v)}>
+          <Plus size={15} /> {t.interaction.newInteraction}
+        </Button>
+      </div>
+
+      {adding && <FormError error={create.error} />}
+      {adding && (
+        <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-tr-border bg-tr-panel p-4 sm:grid-cols-2">
+          <Field label="Loại">
+            <Select value={type} onChange={(e) => setType(e.target.value as InteractionType)}>
+              {(Object.keys(t.interactionType) as InteractionType[]).map((k) => (
+                <option key={k} value={k}>
+                  {t.interactionType[k]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t.interaction.occurredAt}>
+            <Input
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+            />
+          </Field>
+          <Field label={t.interaction.relatedContact}>
+            <Select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+              <option value="">— {t.common.none} —</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.full_name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t.interaction.relatedDeal}>
+            <Select value={dealId} onChange={(e) => setDealId(e.target.value)}>
+              <option value="">— {t.common.none} —</option>
+              {deals.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label={t.interaction.summary}>
+              <Textarea rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} />
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Kết quả" hint={t.common.optional}>
+              <Input
+                value={result}
+                onChange={(e) => setResult(e.target.value)}
+                placeholder="Khách đồng ý demo, cần gửi lại báo giá…"
+              />
+            </Field>
+          </div>
+
+          {/* FR-ACT-04: tạo ngay việc tiếp theo sau khi ghi nhận tương tác */}
+          <Field label="Hành động tiếp theo" hint="Sẽ cập nhật Next Action của cơ hội">
+            <Input
+              list="interaction-next-actions"
+              value={nextAction}
+              onChange={(e) => setNextAction(e.target.value)}
+            />
+            <datalist id="interaction-next-actions">
+              {NEXT_ACTIONS.map((a) => (
+                <option key={a} value={a} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="Ngày thực hiện">
+            <DateInput value={nextActionDate} onChange={setNextActionDate} />
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-tr-subtle sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={createTask}
+              disabled={!nextAction.trim()}
+              onChange={(e) => setCreateTask(e.target.checked)}
+              className="h-4 w-4 rounded border-tr-border"
+            />
+            Tạo luôn công việc cho hành động tiếp theo
+          </label>
+
+          <div className="flex gap-2 sm:col-span-2">
+            <Button
+              variant="primary"
+              disabled={!summary.trim() || create.isPending}
+              onClick={() => create.mutate()}
+            >
+              {create.isPending ? t.common.saving : t.common.save}
+            </Button>
+            <Button onClick={() => setAdding(false)}>{t.common.cancel}</Button>
+          </div>
+        </div>
+      )}
+
+      {interactions.length === 0 ? (
+        <EmptyState message={t.interaction.noInteractions} />
+      ) : (
+        <ol className="relative space-y-3 border-l border-tr-border pl-6">
+          {interactions.map((item) => {
+            const Icon = ICONS[item.type] ?? MoreHorizontal;
+            return (
+              <li key={item.id} className="group relative">
+                <span
+                  className={`absolute -left-[2.15rem] flex h-6 w-6 items-center justify-center rounded-full ${COLORS[item.type] ?? COLORS.other}`}
+                >
+                  <Icon size={13} />
+                </span>
+                <div className="rounded-lg border border-tr-border bg-tr-panel p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-xs text-tr-muted">
+                      {t.interactionType[item.type]} · {formatDateTime(item.occurred_at)}
+                      {item.contact_name && ` · ${item.contact_name}`}
+                      {item.deal_title && ` · ${item.deal_title}`}
+                    </div>
+                    <button
+                      onClick={() => remove.mutate(item.id)}
+                      className="rounded p-1 text-tr-muted opacity-0 transition group-hover:opacity-100 hover:bg-tr-hover hover:text-tr-danger"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-tr-text">
+                    {item.summary}
+                  </p>
+                  {item.result && (
+                    <p className="mt-1 text-xs text-tr-subtle">
+                      <span className="font-medium">Kết quả:</span> {item.result}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
