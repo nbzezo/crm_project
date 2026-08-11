@@ -239,6 +239,16 @@ export interface Deal {
   last_activity_at?: string | null;
   quotation_count?: number;
   contract_count?: number;
+  /* Chấm điểm BANT + 4P (v10) — ô ma trận và cờ veto tính khi đọc qua VIEW. */
+  bant_total?: number;
+  p4_total?: number;
+  score_updated_at?: string | null;
+  score_snapshot?: string | null;
+  quadrant?: Quadrant;
+  score_age_days?: number | null;
+  v1_no_event?: number;
+  v2_no_economic?: number;
+  v3_shaped?: number;
   created_at: string;
   updated_at: string;
 }
@@ -469,6 +479,7 @@ export interface TaskRow {
 }
 
 export type CalendarEvent =
+
   | {
       kind: 'card';
       id: number;
@@ -527,4 +538,133 @@ export interface TimelineItem {
 export interface DealsResponse {
   stages: Record<Stage, Deal[]>;
   totals: Record<Stage, { count: number; sum_vnd: number; weighted_vnd: number }>;
+}
+
+/* ---------- Chấm điểm cơ hội BANT + 4P (v10) ---------- */
+
+export type Factor =
+  | 'budget'
+  | 'authority'
+  | 'need'
+  | 'timeline'
+  | 'price'
+  | 'relationship'
+  | 'fit'
+  | 'process';
+
+export type Quadrant = 'pursue' | 'reshape' | 'nurture' | 'disqualify';
+
+export type VetoCode =
+  | 'V1_NO_COMPELLING_EVENT'
+  | 'V2_NO_ECONOMIC_BUYER'
+  | 'V3_COMPETITOR_SHAPED';
+
+export interface ScoreItem {
+  factor: Factor;
+  axis: 'bant' | 'p4';
+  score: number;
+  status: 'suggested' | 'confirmed';
+  evidence: string;
+  source_type: string | null;
+  source_id: number | null;
+  verified: number;
+  challenge: string;
+  scored_at: string | null;
+  /** Trần điểm hiện tại theo dữ liệu có thật (BR-SCR-01…08); 3 = không bị chặn. */
+  max_allowed: number;
+  /** Mã việc cần làm để gỡ trần, tra ở `BLOCKED_REASONS`. */
+  blocked_by: string | null;
+}
+
+export interface Recommendation {
+  code: 'veto' | 'lift_factor' | 'reverify';
+  factor: Factor | null;
+  veto_code: VetoCode | null;
+}
+
+export interface Scorecard {
+  deal_id: number;
+  stage: Stage;
+  /** Cơ hội đã chốt thì scorecard chỉ đọc (BR-SCR-10). */
+  locked: boolean;
+  items: ScoreItem[];
+  bant_total: number;
+  p4_total: number;
+  quadrant: Quadrant;
+  /** Khoảng cách tới ngưỡng lật ô — âm là còn thiếu, 0 là đúng ranh giới. */
+  distance_to_boundary: { bant: number; p4: number };
+  score_age_days: number | null;
+  stale: boolean;
+  veto: { code: VetoCode; blocking: boolean }[];
+  forecast_eligible: boolean;
+  scored_count: number;
+  verified_count: number;
+  confidence: number | null;
+  challenge_required: boolean;
+  recommendations: Recommendation[];
+}
+
+export interface CommitteeMember {
+  contact_id: number;
+  full_name: string;
+  title: string | null;
+  role: string | null;
+  stance: 'supporter' | 'neutral' | 'opposed' | 'unknown';
+  is_champion: number;
+  influence: number;
+  note: string;
+  /** Tính từ lịch sử tương tác, không lưu trong bảng nhóm quyết định. */
+  last_contact_at: string | null;
+}
+
+export interface CommitteeResponse {
+  members: CommitteeMember[];
+  candidates: { contact_id: number; full_name: string; title: string | null; role: string | null }[];
+}
+
+export interface DealEvent {
+  id: number;
+  deal_id: number;
+  event_type: string;
+  description: string;
+  event_date: string | null;
+  confirmed: number;
+  is_primary: number;
+}
+
+export interface DealCompetitor {
+  id: number;
+  deal_id: number;
+  name: string;
+  incumbent: number;
+  shaped_requirements: number;
+  price_position: string;
+  note: string;
+}
+
+export interface EvidenceSource {
+  id: number;
+  source_type: 'interaction' | 'document';
+  kind: string;
+  occurred_at: string;
+  summary: string;
+  result: string | null;
+  contact_name: string | null;
+}
+
+export interface ScoreHistoryEntry {
+  id: number;
+  factor: string;
+  old_score: number | null;
+  new_score: number | null;
+  reason: string;
+  changed_at: string;
+}
+
+export interface ScoringSettings {
+  stageGate: Partial<Record<Stage, number>>;
+  staleDays: number;
+  v3Mode: 'warn' | 'veto';
+  challengeThresholdVnd: number;
+  winlossMinDeals: number;
 }

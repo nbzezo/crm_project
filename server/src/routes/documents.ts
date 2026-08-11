@@ -7,6 +7,7 @@ import { db, FILES_DIR } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { DOC_TYPES } from '../lib/crm.ts';
+import { unverifyBySource } from '../lib/scoring.ts';
 
 const router = Router();
 
@@ -161,6 +162,8 @@ router.delete('/:id', (req, res) => {
   const doc = db.prepare(`SELECT stored_name FROM documents WHERE id = ?`).get(id) as
     | { stored_name: string }
     | undefined;
+  // C5: diem dang lay tai lieu nay lam bang chung mat dau da xac thuc, diem giu nguyen
+  unverifyBySource(db, 'document', id);
   db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
   if (doc) {
     const filePath = path.join(FILES_DIR, doc.stored_name);

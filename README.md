@@ -18,6 +18,10 @@ Giao diện và thao tác mô phỏng Trello, **mặc định chế độ tối*
 - **Khách hàng B2B (Account)** — hồ sơ công ty (tên viết tắt, MST, ngành, quy mô, nguồn, trạng thái Tiềm năng/Khách hàng/Ngừng hợp tác), cảnh báo trùng khi tạo mới.
 - **Người liên hệ (Contact)** — chức vụ, phòng ban, Zalo, LinkedIn, vai trò trong quyết định mua, mức độ quan hệ.
 - **Cơ hội bán hàng (Opportunity)** — pipeline 7 giai đoạn (Tiềm năng → Đang tiếp cận → Đang trao đổi → Gửi báo giá → Đàm phán → Thành công / Thất bại), xác suất tự gợi ý theo giai đoạn, **Next Action + ngày thực hiện**, nhu cầu, đối thủ, nguồn. Kéo sang Thất bại **bắt buộc chọn lý do**; chốt Thành công thì nhập giá trị thật và tạo hợp đồng ngay.
+- **Chấm điểm cơ hội (BANT + 4P)** — mỗi cơ hội có trang riêng với 8 yếu tố chấm 0–3 trên hai trục: **BANT** (đây có phải cơ hội thật không) và **4P** (ta có khả năng thắng không). Điểm ≥ 1 **bắt buộc có bằng chứng**, và bằng chứng lấy thẳng từ *Lịch sử tương tác* hoặc *Tài liệu* của chính cơ hội đó — chọn xong thì điểm được đánh dấu *đã xác thực*. Điểm cao nhất của mỗi yếu tố còn bị ràng buộc bởi dữ liệu có thật: không có sự kiện bắt buộc được khách xác nhận thì không chấm Thời gian 3 điểm được, chưa gặp người duyệt ngân sách thì Quyền hạn tối đa 2. Hai tổng điểm quyết định **ô ma trận** (Theo đuổi / Tái định hình / Nuôi dưỡng / Loại bỏ) và ba **quy tắc phủ quyết** loại deal khỏi forecast bất kể tổng điểm. Ghi xong một cuộc gọi, hệ thống hỏi luôn *"cuộc trao đổi này thay đổi yếu tố nào?"*. Kèm nhóm ra quyết định (vai trò, thái độ, champion, ai chưa được tiếp xúc), sự kiện bắt buộc kèm **lịch triển khai ngược**, và đối thủ (ai đang cung cấp, ai đã tham gia soạn tiêu chí thầu).
+  - **Cổng giai đoạn**: mặc định phải đạt BANT ≥ 7 để sang *Gửi báo giá*, ≥ 9 và đã tiếp cận người duyệt ngân sách để sang *Đàm phán*. Bị chặn thì thẻ bật về cột cũ kèm danh sách yếu tố đang thiếu; ghi đè được nhưng **lý do là bắt buộc** và được lưu vào lịch sử. Kéo sang *Thất bại* không bao giờ bị chặn.
+  - **Sức khỏe pipeline** — ma trận phân tán toàn bộ cơ hội trên hai trục, và hai con số forecast đặt cạnh nhau: theo giai đoạn (như cũ) và đã lọc theo phủ quyết + tuổi điểm. **Chênh lệch giữa chúng là mức thổi phồng pipeline.** Kèm *phiên rà soát* đi qua từng deal quá hạn để giữ / chấm lại / đóng.
+  - Điểm chất lượng **không bao giờ ghi đè xác suất theo giai đoạn** — hai chỉ số được phép khác nhau, đó chính là phép đo.
 - **Báo giá (Quotation)** — mã, phiên bản tự tăng, hiệu lực, 6 trạng thái, đính kèm tệp.
 - **Hợp đồng (Contract) & Gia hạn** — giá trị, ngày ký/hiệu lực, trạng thái, đếm ngược ngày còn lại, danh sách sắp hết hạn theo mốc 30/60/90 ngày và nút tạo cơ hội gia hạn.
 - **Doanh thu khách hàng hiện hữu (Revenue)** — bảng 12 tháng theo từng dòng *khách hàng × dịch vụ*: AM, loại hợp đồng (Mới / Mở rộng), thời hạn (Lâu dài / Ngắn hạn / Dùng thử), tình trạng sử dụng. Mỗi tháng là **một khoản tiền có trạng thái**, chuyển tiếp theo vòng đời **Dự kiến → Đã đối soát → Đã xuất hóa đơn → Đã thanh toán** (tiền không nhân đôi giữa các bước). Đối soát có thể sửa lại số tiền — ví dụ dự kiến 100k, đối soát thực tế 95k — hệ thống giữ số dự kiến ban đầu để báo chênh lệch. Gõ số ngay trên ô, bấm chấm màu trong ô để chuyển trạng thái, bấm tiêu đề tháng để chuyển trạng thái cả cột, hoặc mở bảng 12 tháng (dự kiến / thực tế / trạng thái / ghi chú). Có tổng theo dòng, theo tháng, cả năm, phễu lũy kế theo trạng thái, tỷ lệ thu tiền và biểu đồ cột chồng theo trạng thái.
@@ -29,8 +33,8 @@ Giao diện và thao tác mô phỏng Trello, **mặc định chế độ tối*
 - **Đổi dạng xem ngay trong bảng**: ở mỗi bảng công việc, chip cạnh tên bảng và thanh dock dưới đáy chuyển giữa Bảng / Lịch / Dòng thời gian / Bảng tính mà **không rời khỏi bảng** — dữ liệu chỉ của bảng đó, dạng xem lưu trong URL nên F5 hay chia sẻ link vẫn giữ nguyên.
 - **Việc cha – việc con** — mỗi công việc có thể chứa việc con (một cấp). Trang *Công việc* là bảng cây: bấm mũi tên để mở/thu việc con, bấm tên để sửa tại chỗ, đổi ưu tiên / ngày bắt đầu / hạn / khách hàng ngay trên dòng, thêm việc mới hoặc việc con trực tiếp, xóa có xác nhận. Bảng kanban ẩn việc con và hiện huy hiệu `x/y` trên thẻ cha; cửa sổ thẻ có mục *Việc con* riêng.
 - **Tìm kiếm không dấu** (gõ "vinh phat" ra "Vĩnh Phát") — nhấn `Ctrl + K`.
-- **Tổng quan (Dashboard)** — 6 chỉ số đầu trang (cơ hội đang mở, tổng pipeline, **weighted pipeline** = Σ giá trị × xác suất, dự kiến chốt tháng này, việc quá hạn, HĐ sắp hết hạn); việc cần làm theo Quá hạn / Hôm nay / Ngày mai / 7 ngày tới; **cơ hội cần chú ý** (quá ngày chốt, chưa có Next Action, quá hạn Next Action, không tương tác > 14 ngày).
-- **Sao lưu** một chạm, xuất dữ liệu JSON và **xuất CSV** (khách hàng, người liên hệ, cơ hội, hợp đồng, công việc, doanh thu theo tháng) mở được bằng Excel.
+- **Tổng quan (Dashboard)** — 6 chỉ số đầu trang (cơ hội đang mở, tổng pipeline, **weighted pipeline** = Σ giá trị × xác suất, dự kiến chốt tháng này, việc quá hạn, HĐ sắp hết hạn); việc cần làm theo Quá hạn / Hôm nay / Ngày mai / 7 ngày tới; **cơ hội cần chú ý** (quá ngày chốt, chưa có Next Action, quá hạn Next Action, không tương tác > 14 ngày); và **chất lượng cơ hội** (đang bị chặn khỏi forecast, điểm quá hạn, rơi vào ô Tái định hình, sự kiện bắt buộc trong 14 ngày, giai đoạn cao mà BANT thấp).
+- **Sao lưu** một chạm, xuất dữ liệu JSON và **xuất CSV** (khách hàng, người liên hệ, cơ hội kèm cột điểm BANT/4P/ô/veto, chi tiết chấm điểm từng yếu tố kèm bằng chứng, hợp đồng, công việc, doanh thu theo tháng) mở được bằng Excel.
 
 ## Yêu cầu
 
@@ -75,6 +79,6 @@ Chỉ chạy khi cơ sở dữ liệu còn trống. Tạo 3 khách hàng, 6 cơ 
 └── client/            React 19 + Vite + Tailwind 4 (cổng 5173)
     └── src/
         ├── components/  kanban, crm, timeline, dùng chung
-        ├── pages/       12 trang
+        ├── pages/       14 trang
         └── i18n/vi.ts   toàn bộ chuỗi giao diện
 ```

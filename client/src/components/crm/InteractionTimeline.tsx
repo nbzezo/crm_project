@@ -14,6 +14,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '../../api/client';
+import { ScoringPrompt } from './ScoringPrompt';
 import {
   Button,
   DateInput,
@@ -60,11 +61,14 @@ export function InteractionTimeline({
   interactions,
   contacts,
   deals,
+  defaultDealId,
 }: {
   customerId: number;
   interactions: Interaction[];
   contacts: Contact[];
   deals: Deal[];
+  /** Khi mở từ trang Cơ hội: chọn sẵn cơ hội và bật dải chấm điểm sau khi ghi (F-12). */
+  defaultDealId?: number;
 }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
@@ -74,7 +78,9 @@ export function InteractionTimeline({
   const [summary, setSummary] = useState('');
   const [result, setResult] = useState('');
   const [contactId, setContactId] = useState('');
-  const [dealId, setDealId] = useState('');
+  const [dealId, setDealId] = useState(defaultDealId ? String(defaultDealId) : '');
+  /** F-12: hoạt động vừa ghi, dùng làm bằng chứng gợi ý cho 8 yếu tố. */
+  const [justLogged, setJustLogged] = useState<{ dealId: number; summary: string } | null>(null);
   const [nextAction, setNextAction] = useState('');
   const [nextActionDate, setNextActionDate] = useState<string | null>(null);
   const [createTask, setCreateTask] = useState(true);
@@ -100,6 +106,9 @@ export function InteractionTimeline({
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['board'] });
       if (created?.created_task_id) pushToast('Đã tạo công việc tiếp theo', 'success');
+      // F-12: chỉ hoạt động thực tế mới làm thay đổi điểm (Mục 3.6) — hỏi ngay tại đây,
+      // thay vì để người dùng chấm dồn một lần trước kỳ báo cáo.
+      if (dealId !== '') setJustLogged({ dealId: Number(dealId), summary: summary.trim() });
       setSummary('');
       setResult('');
       setNextAction('');
@@ -120,6 +129,14 @@ export function InteractionTimeline({
           <Plus size={15} /> {t.interaction.newInteraction}
         </Button>
       </div>
+
+      {justLogged && (
+        <ScoringPrompt
+          dealId={justLogged.dealId}
+          summary={justLogged.summary}
+          onDismiss={() => setJustLogged(null)}
+        />
+      )}
 
       {adding && <FormError error={create.error} />}
       {adding && (

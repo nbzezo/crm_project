@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { AlertTriangle, ArrowRight, Building2, CalendarClock, RefreshCw, User } from 'lucide-react';
 import { LabelChips } from '../labels/LabelChips';
 import { t } from '../../i18n/vi';
+import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
 import { formatDateShort, formatVND, isOverdue, todayStr } from '../../lib/format';
 import type { Deal, Label } from '../../types';
 
@@ -65,6 +66,8 @@ export function DealCardBody({
   const nextActionOverdue = Boolean(deal.next_action_date && deal.next_action_date < todayStr());
   const stale = (deal.days_idle ?? 0) >= STALE_DAYS && !closed;
   const noNextAction = !deal.next_action && !closed;
+  /* V1/V2 luôn chặn forecast nên viền đỏ ở mọi vị trí trong ma trận (F-02). */
+  const vetoed = !closed && Boolean(deal.v1_no_event || deal.v2_no_economic);
 
   return (
     <div
@@ -74,7 +77,7 @@ export function DealCardBody({
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
       className={`tr-card-shadow w-full cursor-pointer rounded-lg bg-tr-card p-2.5 text-left transition hover:ring-2 hover:ring-tr-primary ${
         dragging ? 'rotate-3 shadow-lg' : ''
-      }`}
+      } ${vetoed ? 'ring-1 ring-tr-danger' : ''}`}
     >
       <div className="flex items-start gap-1.5">
         <span className="flex-1 text-sm leading-snug font-medium text-tr-text">{deal.title}</span>
@@ -85,9 +88,21 @@ export function DealCardBody({
         )}
       </div>
 
-      <div className="mt-1 flex items-baseline gap-2">
+      <div className="mt-1 flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-semibold text-tr-success">{formatVND(deal.value_vnd)}</span>
         <span className="text-2xs text-tr-muted">{deal.probability}%</span>
+        {/* Điểm chất lượng đứng cạnh xác suất theo giai đoạn — hai chỉ số độc lập,
+            chênh lệch giữa chúng chính là mức thổi phồng pipeline (F-08). */}
+        {deal.quadrant && (deal.bant_total || deal.p4_total) ? (
+          <span
+            title={`BANT ${deal.bant_total}/12 · 4P ${deal.p4_total}/12 — ${QUADRANT_LABELS[deal.quadrant]}`}
+            className="inline-flex items-center gap-1 text-2xs tabular-nums"
+            style={{ color: QUADRANT_COLORS[deal.quadrant] }}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'currentColor' }} />
+            {deal.bant_total}/{deal.p4_total}
+          </span>
+        ) : null}
       </div>
 
       {/* FR-TAG-26: card cơ hội chỉ hiện vài nhãn đầu, phần còn lại gom "+N" */}

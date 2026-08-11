@@ -3,9 +3,17 @@ import type { ZodType } from 'zod';
 
 export class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /**
+   * Du lieu kem theo loi, duoc gop thang vao body tra ve.
+   * Dung cho truong hop giao dien can biet CHINH XAC viec phai lam:
+   * cong giai doan tra ve yeu to nao dang thieu, rang buoc rubric tra ve
+   * diem toi da va viec can lam de nang len.
+   */
+  details?: Record<string, unknown>;
+  constructor(status: number, message: string, details?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.details = details;
   }
 }
 

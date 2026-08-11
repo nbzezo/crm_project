@@ -5,6 +5,7 @@ import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { LOST_REASONS, STAGES, STAGE_PROBABILITY, isClosed } from '../lib/crm.ts';
+import { checkStageGate, snapshotScores } from '../lib/scoring.ts';
 
 const router = Router();
 
@@ -46,10 +47,12 @@ const DEAL_SELECT = `
               julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.deal_id = d.id),
                                  substr(d.created_at,1,10))) AS INTEGER) AS days_idle,
          (SELECT COUNT(*) FROM quotations q WHERE q.deal_id = d.id) AS quotation_count,
-         (SELECT COUNT(*) FROM contracts k WHERE k.deal_id = d.id) AS contract_count
+         (SELECT COUNT(*) FROM contracts k WHERE k.deal_id = d.id) AS contract_count,
+         s.quadrant, s.score_age_days, s.v1_no_event, s.v2_no_economic, s.v3_shaped
     FROM deals d
     JOIN customers c ON c.id = d.customer_id
-    LEFT JOIN contacts ct ON ct.id = d.contact_id`;
+    LEFT JOIN contacts ct ON ct.id = d.contact_id
+    JOIN deal_scorecard s ON s.deal_id = d.id`;
 
 function reload(id: number) {
   return db.prepare(`${DEAL_SELECT} WHERE d.id = ?`).get(id);
@@ -176,6 +179,59 @@ function applyStageRules(
   }
 }
 
+/**
+ * F-04 cong giai doan: chan chuyen giai doan khi diem BANT chua du.
+ *
+ * Ba rang buoc bat buoc theo muc C15/C16/C17 cua ban ra soat:
+ * - keo sang 'lost' KHONG BAO GIO bi chan (neu khong se khong dong duoc deal xau);
+ * - bi chan thi tra 409 kem danh sach viec dang thieu de giao dien chi dung cho;
+ * - ghi de duoc, nhung ly do la bat buoc va duoc ghi vao deal_score_history.
+ */
+function enforceStageGate(
+  id: number,
+  target: string,
+  currentStage: string,
+  req: { query: Record<string, unknown> }
+): void {
+  if (target === currentStage) return;
+  const result = checkStageGate(db, id, target as never);
+  if (result.ok) return;
+
+  if (String(req.query.override ?? '') !== '1')
+    throw new HttpError(409, 'STAGE_GATE_BLOCKED', {
+      code: 'STAGE_GATE_BLOCKED',
+      target,
+      required: result.required,
+      bant_total: result.bant_total,
+      blocked_by: result.blocked_by,
+    });
+
+  const reason = String(req.query.reason ?? '').trim();
+  if (reason.length < 10)
+    throw new HttpError(422, 'Ghi de cong giai doan phai co ly do tu 10 ky tu tro len', {
+      code: 'OVERRIDE_REASON_REQUIRED',
+    });
+  db.prepare(
+    `INSERT INTO deal_score_history (deal_id, factor, old_score, new_score, reason)
+     VALUES (?, 'stage_gate_override', NULL, NULL, ?)`
+  ).run(id, `${currentStage} -> ${target}: ${reason}`);
+}
+
+/** FR-SCR-35: chup diem khi chot, mo khoa khi mo lai deal da chot. */
+function syncScoreSnapshot(id: number, target: string, currentStage: string): void {
+  if (isClosed(target as never) && !isClosed(currentStage as never)) {
+    snapshotScores(db, id);
+    return;
+  }
+  if (!isClosed(target as never) && isClosed(currentStage as never)) {
+    db.prepare(`UPDATE deals SET score_snapshot = NULL WHERE id = ?`).run(id);
+    db.prepare(
+      `INSERT INTO deal_score_history (deal_id, factor, old_score, new_score, reason)
+       VALUES (?, 'score_unlocked', NULL, NULL, ?)`
+    ).run(id, `mo lai co hoi da chot: ${currentStage} -> ${target}`);
+  }
+}
+
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(dealSchema.partial(), req);
@@ -215,6 +271,7 @@ router.patch('/:id', (req, res) => {
   if (body.is_renewal !== undefined) set('is_renewal = ?', body.is_renewal ? 1 : 0);
 
   if (body.stage !== undefined && body.stage !== current.stage) {
+    enforceStageGate(id, body.stage, current.stage as string, req);
     applyStageRules(fields, values, body.stage, body);
     set('position = ?', nextPosition({ table: 'deals', scopeCol: 'stage', scopeVal: body.stage }));
   } else if (body.probability !== undefined) {
@@ -239,6 +296,8 @@ router.patch('/:id', (req, res) => {
     fields.push(`updated_at = datetime('now','localtime')`);
     db.prepare(`UPDATE deals SET ${fields.join(', ')} WHERE id = ?`).run(...values, id);
   }
+  if (body.stage !== undefined && body.stage !== current.stage)
+    syncScoreSnapshot(id, body.stage, current.stage as string);
   res.json(reload(id));
 });
 
@@ -263,6 +322,9 @@ router.patch('/:id/move', (req, res) => {
   if (body.stage === 'lost' && !(body.lost_reason ?? current.lost_reason))
     throw new HttpError(409, 'NEED_LOST_REASON');
 
+  // F-04: kiem tra truoc khi mo giao dich de khong ghi nua chung
+  enforceStageGate(id, body.stage, current.stage as string, req);
+
   db.transaction(() => {
     if (body.stage !== current.stage) {
       const fields: string[] = [];
@@ -279,6 +341,7 @@ router.patch('/:id/move', (req, res) => {
     db.prepare(`UPDATE deals SET position = ? WHERE id = ?`).run(pos, id);
   })();
 
+  syncScoreSnapshot(id, body.stage, current.stage as string);
   res.json(reload(id));
 });
 

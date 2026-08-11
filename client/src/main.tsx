@@ -11,6 +11,8 @@ import BoardPage from './pages/BoardPage';
 import CustomersPage from './pages/CustomersPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import PipelinePage from './pages/PipelinePage';
+import DealDetailPage from './pages/DealDetailPage';
+import PipelineHealthPage from './pages/PipelineHealthPage';
 import ContractsPage from './pages/ContractsPage';
 import RevenuePage from './pages/RevenuePage';
 import DocumentsPage from './pages/DocumentsPage';
@@ -43,6 +45,8 @@ const router = createBrowserRouter([
       { path: 'customers', element: <CustomersPage /> },
       { path: 'customers/:customerId', element: <CustomerDetailPage /> },
       { path: 'pipeline', element: <PipelinePage /> },
+      { path: 'deals/:dealId', element: <DealDetailPage /> },
+      { path: 'pipeline-health', element: <PipelineHealthPage /> },
       { path: 'contracts', element: <ContractsPage /> },
       { path: 'revenue', element: <RevenuePage /> },
       { path: 'documents', element: <DocumentsPage /> },

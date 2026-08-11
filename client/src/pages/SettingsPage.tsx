@@ -3,6 +3,7 @@ import { Database, Download, HardDriveDownload } from 'lucide-react';
 import { api } from '../api/client';
 import { Button, Panel } from '../components/common/ui';
 import { LabelManager } from '../components/labels/LabelManager';
+import { ScoringSettings } from '../components/crm/ScoringSettings';
 import { t } from '../i18n/vi';
 import { formatBytes } from '../components/crm/DocumentUpload';
 import { formatDateTime } from '../lib/format';
@@ -98,6 +99,10 @@ export default function SettingsPage() {
 
       <Panel title={t.settings.manageLabels}>
         <LabelManager />
+      </Panel>
+
+      <Panel title="Chấm điểm cơ hội (BANT + 4P)">
+        <ScoringSettings />
       </Panel>
 
       <Panel title="Dữ liệu mẫu">

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
+  Activity,
   BarChart3,
   CalendarDays,
   ChevronLeft,
@@ -32,6 +33,7 @@ const NAV = [
   { to: '/boards', label: t.nav.boards, icon: Trello },
   { to: '/customers', label: t.nav.customers, icon: Users },
   { to: '/pipeline', label: t.nav.pipeline, icon: Target },
+  { to: '/pipeline-health', label: t.nav.pipelineHealth, icon: Activity },
   { to: '/contracts', label: t.nav.contracts, icon: FileSignature },
   { to: '/revenue', label: t.nav.revenue, icon: CircleDollarSign },
   { to: '/documents', label: t.nav.documents, icon: FolderOpen },

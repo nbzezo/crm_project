@@ -34,7 +34,8 @@ import {
   formatVNDShort,
   todayStr,
 } from '../lib/format';
-import type { InteractionType, Priority, Stage } from '../types';
+import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
+import type { Factor, InteractionType, Priority, Quadrant, Stage } from '../types';
 
 interface ReportsData {
   from: string;
@@ -47,6 +48,13 @@ interface ReportsData {
   win_rate: { won: number; lost: number; rate: number };
   top_customers: { id: number; name: string; won_vnd: number; won_count: number }[];
   summary: { overdue_count: number; due_week_count: number; open_pipeline_vnd: number };
+  /** F-10 + F-16 — đối chiếu điểm lúc chốt với kết quả thắng/thua. */
+  score_winloss: {
+    by_quadrant: Record<Quadrant, { won: number; lost: number }>;
+    lost_reason_by_factor: Record<string, Record<string, number>>;
+    scored_closed_count: number;
+    min_deals: number;
+  };
 }
 
 type RangeKey = 'month' | 'quarter' | 'six' | 'custom';
@@ -325,7 +333,118 @@ export default function ReportsPage() {
           )}
         </Panel>
       </div>
+
+      <ScoreWinLoss data={data.score_winloss} />
     </div>
+  );
+}
+
+/**
+ * F-10 + F-16 — kiểm chứng rubric bằng dữ liệu thật của chính tổ chức.
+ *
+ * Bảng chéo *lý do thua × yếu tố thấp nhất lúc chốt*: ô lệch (thua vì giá mà PRICE lúc
+ * đó chấm cao) là bằng chứng **rubric đang bị chấm sai**, không phải rubric sai.
+ *
+ * Dưới ngưỡng số deal đã chốt thì chỉ hiện số đếm, không đưa khuyến nghị hiệu chỉnh
+ * ngưỡng — dưới cỡ mẫu đó mọi kết luận đều là khớp nhiễu.
+ */
+function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
+  const quadrants = Object.keys(data.by_quadrant) as Quadrant[];
+  const enough = data.scored_closed_count >= data.min_deals;
+  const reasons = Object.keys(data.lost_reason_by_factor);
+
+  return (
+    <Panel
+      title="Thắng/thua theo điểm lúc chốt"
+      action={
+        <span className="text-xs text-tr-muted">
+          {data.scored_closed_count} cơ hội đã chốt có điểm
+        </span>
+      }
+      className="mt-4"
+    >
+      {data.scored_closed_count === 0 ? (
+        <p className="py-6 text-center text-sm text-tr-muted">
+          Chưa có cơ hội nào được chấm điểm rồi chốt. Bảng này sẽ có dữ liệu sau khi các cơ hội
+          đang chấm được đóng lại.
+        </p>
+      ) : (
+        <>
+          {!enough && (
+            <p className="mb-3 rounded-control border border-tr-warning/50 bg-tr-warning/10 px-2.5 py-2 text-xs text-tr-text">
+              Mới có {data.scored_closed_count}/{data.min_deals} cơ hội đã chốt có điểm. Số liệu
+              dưới đây chỉ để tham khảo — chưa đủ cỡ mẫu để hiệu chỉnh ngưỡng.
+            </p>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {quadrants.map((quadrant) => {
+              const row = data.by_quadrant[quadrant];
+              const total = row.won + row.lost;
+              return (
+                <div key={quadrant} className="rounded-control border border-tr-border p-2.5">
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: QUADRANT_COLORS[quadrant] }}
+                  >
+                    {QUADRANT_LABELS[quadrant]}
+                  </span>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-tr-text">
+                    {total === 0 ? '—' : formatPercent(row.won / total)}
+                  </p>
+                  <p className="text-xs text-tr-muted">
+                    {row.won} thắng / {row.lost} thua
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {reasons.length > 0 && (
+            <div className="mt-4 overflow-x-auto">
+              <h3 className="mb-2 text-xs font-semibold text-tr-subtle">
+                Lý do thua × yếu tố thấp nhất lúc chốt
+              </h3>
+              <table className="w-full min-w-[32rem] text-sm">
+                <thead>
+                  <tr className="border-b border-tr-border text-left text-xs text-tr-muted">
+                    <th className="py-1.5 pr-3 font-medium">Lý do thua</th>
+                    <th className="py-1.5 font-medium">Yếu tố yếu nhất khi chốt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reasons.map((reason) => (
+                    <tr key={reason} className="border-b border-tr-border/60">
+                      <th scope="row" className="py-1.5 pr-3 text-left font-normal text-tr-text">
+                        {t.lostReason[reason] ?? reason}
+                      </th>
+                      <td className="py-1.5">
+                        <span className="flex flex-wrap gap-1.5">
+                          {Object.entries(data.lost_reason_by_factor[reason]).map(
+                            ([factor, count]) => (
+                              <span
+                                key={factor}
+                                className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle"
+                              >
+                                {FACTOR_LABELS[factor as Factor] ?? factor} × {count}
+                              </span>
+                            )
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-tr-muted">
+                Ô lệch — ví dụ thua vì giá mà yếu tố yếu nhất lại không phải Giá cả — là bằng
+                chứng rubric đang bị chấm sai, không phải rubric sai.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
   );
 }
 

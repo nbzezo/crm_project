@@ -28,6 +28,13 @@ const TABLES = [
   'card_comments',
   'interactions',
   'reminders',
+  // v10 — cham diem co hoi. deal_scorecard la VIEW nen khong xuat.
+  'deal_scores',
+  'deal_committee',
+  'deal_events',
+  'deal_competitors',
+  'deal_score_history',
+  'app_settings',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
@@ -166,8 +173,27 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
                  d.won_value_vnd AS "Giá trị chốt", d.expected_close_date AS "Dự kiến chốt",
                  d.next_action AS "Hành động tiếp theo", d.next_action_date AS "Ngày hành động",
                  d.source AS "Nguồn", d.competitor AS "Đối thủ", d.lost_reason AS "Lý do thua",
+                 d.bant_total AS "BANT", d.p4_total AS "4P", s.quadrant AS "Ô ma trận",
+                 CASE WHEN s.v1_no_event = 1 OR s.v2_no_economic = 1 THEN 'Có' ELSE '' END AS "Veto",
+                 s.score_age_days AS "Tuổi điểm (ngày)",
                  d.notes AS "Ghi chú"
-            FROM deals d JOIN customers c ON c.id = d.customer_id ORDER BY d.updated_at DESC`,
+            FROM deals d JOIN customers c ON c.id = d.customer_id
+            JOIN deal_scorecard s ON s.deal_id = d.id
+           ORDER BY d.updated_at DESC`,
+  },
+  /* Xuat chi tiet cham diem: moi dong mot yeu to, kem bang chung — de ra soat
+     xem diem nao dang duoc cham ma khong co can cu. */
+  scores: {
+    label: 'cham-diem-co-hoi',
+    sql: `SELECT d.title AS "Cơ hội", c.name AS "Doanh nghiệp", sc.factor AS "Yếu tố",
+                 CASE WHEN sc.factor IN ('budget','authority','need','timeline') THEN 'BANT' ELSE '4P' END AS "Trục",
+                 sc.score AS "Điểm", sc.status AS "Trạng thái",
+                 CASE sc.verified WHEN 1 THEN 'Đã xác thực' ELSE 'Chưa xác thực' END AS "Xác thực",
+                 sc.evidence AS "Bằng chứng", sc.challenge AS "Phản biện", sc.scored_at AS "Chấm lúc"
+            FROM deal_scores sc
+            JOIN deals d ON d.id = sc.deal_id
+            JOIN customers c ON c.id = d.customer_id
+           ORDER BY d.id, sc.factor`,
   },
   tasks: {
     label: 'cong-viec',

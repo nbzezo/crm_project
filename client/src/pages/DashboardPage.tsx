@@ -61,6 +61,12 @@ interface DashboardData {
     stale: AttentionDeal[];
     next_action_overdue: AttentionDeal[];
     top_value: AttentionDeal[];
+    /* F-07 — cảnh báo của module chấm điểm, tính động trong cùng endpoint này. */
+    score_stale: AttentionDeal[];
+    score_veto: AttentionDeal[];
+    score_reshape: AttentionDeal[];
+    event_near: (AttentionDeal & { event_date: string; event_description: string })[];
+    stage_score_gap: (AttentionDeal & { bant_total: number })[];
   };
   expiring_contracts: { d30: ExpiringContract[]; d60: ExpiringContract[]; d90: ExpiringContract[] };
   upcoming_reminders: Reminder[];
@@ -235,6 +241,53 @@ export default function DashboardPage() {
             render={(d) => `${d.days_idle} ngày`}
           />
         </div>
+      </Panel>
+
+      {/* F-07 — cảnh báo chất lượng cơ hội. Tính động cùng chỗ với 4 nhóm trên,
+          nên không bao giờ nói ngược với scorecard. */}
+      <Panel
+        title="Chất lượng cơ hội"
+        action={
+          <Link to="/pipeline-health" className="text-xs text-tr-primary hover:underline">
+            Sức khỏe pipeline
+          </Link>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <AttentionList
+            title="Đang bị chặn khỏi forecast"
+            deals={data.attention.score_veto}
+            render={(d) => formatVNDShort(d.value_vnd)}
+          />
+          <AttentionList
+            title="Điểm quá hạn"
+            deals={data.attention.score_stale}
+            render={(d) => formatVNDShort(d.value_vnd)}
+          />
+          <AttentionList
+            title="Rơi vào ô Tái định hình"
+            deals={data.attention.score_reshape}
+            render={(d) => formatVNDShort(d.value_vnd)}
+          />
+          <AttentionList
+            title="Sự kiện bắt buộc trong 14 ngày"
+            deals={data.attention.event_near}
+            render={(d) => formatDate((d as { event_date?: string }).event_date ?? null)}
+          />
+        </div>
+
+        {/* F-19: giai đoạn nói một đằng, điểm nói một nẻo */}
+        {data.attention.stage_score_gap.length > 0 && (
+          <div className="mt-4 border-t border-tr-border pt-3">
+            <AttentionList
+              title="Giai đoạn cao nhưng BANT thấp"
+              deals={data.attention.stage_score_gap}
+              render={(d) =>
+                `${t.stage[d.stage]} · BANT ${(d as { bant_total?: number }).bant_total ?? 0}/12`
+              }
+            />
+          </div>
+        )}
       </Panel>
 
       {/* FR-DSH-06: hợp đồng sắp hết hạn */}
@@ -435,7 +488,8 @@ function AttentionList({
         <ul className="space-y-1.5">
           {deals.slice(0, 5).map((d) => (
             <li key={d.id} className="text-sm">
-              <Link to="/pipeline" className="text-tr-text hover:text-tr-primary">
+              {/* Mở thẳng trang cơ hội để chấm lại, thay vì đổ về danh sách pipeline */}
+              <Link to={`/deals/${d.id}`} className="text-tr-text hover:text-tr-primary">
                 {d.title}
               </Link>
               <div className="truncate text-xs text-tr-muted">

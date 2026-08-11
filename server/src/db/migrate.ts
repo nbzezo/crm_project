@@ -6,7 +6,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const LATEST_VERSION = 9;
+const LATEST_VERSION = 10;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -97,6 +97,23 @@ function fillLabelNameNorm(db: Database): void {
   db.exec(`CREATE UNIQUE INDEX idx_labels_unique ON labels(IFNULL(parent_id, 0), name_norm)`);
   if (renamed.length > 0) {
     console.warn('[db] v9: doi ten nhan bi trung trong cung nhom:', renamed.join(', '));
+  }
+}
+
+/**
+ * v10: dien name_norm cho doi thu vua chuyen tu deals.competitor sang deal_competitors.
+ *
+ * Giong fillLabelNameNorm: SQLite khong bo dau tieng Viet duoc nen phai tinh o TypeScript.
+ * Khong co chi muc duy nhat o day — name_norm chi dung de goi y ten da nhap truoc do.
+ */
+function fillCompetitorNameNorm(db: Database): void {
+  const rows = db.prepare(`SELECT id, name FROM deal_competitors`).all() as {
+    id: number;
+    name: string;
+  }[];
+  const update = db.prepare(`UPDATE deal_competitors SET name_norm = ? WHERE id = ?`);
+  for (const row of rows) {
+    update.run(fold(row.name).replace(/\s+/g, ' ').trim(), row.id);
   }
 }
 
@@ -193,4 +210,15 @@ export function migrate(db: Database): void {
     console.log('[db] Da nang cap schema len v9 (nhan 2 cap, gan cho Account/Opportunity)');
     current = 9;
   }
+
+  if (current === 9) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v10.sql'));
+      fillCompetitorNameNorm(db);
+      db.pragma('user_version = 10');
+    })();
+    console.log('[db] Da nang cap schema len v10 (cham diem co hoi BANT + 4P)');
+    current = 10;
+  }
+
 }

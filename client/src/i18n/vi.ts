@@ -18,6 +18,7 @@ export const t = {
     boards: 'Bảng công việc',
     customers: 'Khách hàng',
     pipeline: 'Cơ hội bán hàng',
+    pipelineHealth: 'Sức khỏe pipeline',
     contracts: 'Hợp đồng',
     revenue: 'Doanh thu',
     documents: 'Tài liệu',

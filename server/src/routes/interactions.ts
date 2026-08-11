@@ -4,6 +4,7 @@ import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
+import { unverifyBySource } from '../lib/scoring.ts';
 
 const router = Router();
 
@@ -151,6 +152,8 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  // C5: diem dang lay hoat dong nay lam bang chung mat dau da xac thuc, diem giu nguyen
+  unverifyBySource(db, 'interaction', id);
   db.prepare(`DELETE FROM interactions WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

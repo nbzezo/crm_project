@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { db } from '../db/connection.ts';
 import { fold } from '../lib/viSearch.ts';
-import { STAGES, STALE_DAYS } from '../lib/crm.ts';
+import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
+import { getScoringSettings } from '../lib/scoring.ts';
 
 const router = Router();
 
@@ -105,6 +106,7 @@ router.get('/calendar', (req, res) => {
     .all(from, to, boardId, boardId) as Record<string, unknown>[];
 
   const crm = boardId === null;
+
   const deals = (crm
     ? db
         .prepare(
@@ -289,7 +291,9 @@ router.get('/dashboard', (_req, res) => {
       weighted_vnd: row.weighted_vnd,
     };
 
-  // FR-DSH-05: deal can chu y — 4 nhom canh bao
+  const scoringSettings = getScoringSettings(db);
+
+  // FR-DSH-05: deal can chu y — 4 nhom canh bao cu + 5 nhom cua module cham diem
   const attention = {
     close_overdue: db
       .prepare(
@@ -317,6 +321,54 @@ router.get('/dashboard', (_req, res) => {
       )
       .all(),
     top_value: db.prepare(`${DEAL_ATTENTION_SELECT} ORDER BY d.value_vnd DESC LIMIT 5`).all(),
+
+    /* F-07 — bon nhom canh bao cua module cham diem.
+       Tinh dong ngay tai day, KHONG dung hang doi thong bao rieng: neu luu tinh,
+       diem duoc cap nhat xong thong bao cu se noi nguoc voi Tong quan. */
+    score_stale: db
+      .prepare(
+        `${DEAL_ATTENTION_SELECT} AND d.score_updated_at IS NOT NULL
+           AND julianday(date('now','localtime')) - julianday(date(d.score_updated_at)) > ?
+          ORDER BY d.score_updated_at LIMIT 10`
+      )
+      .all(scoringSettings.staleDays),
+    score_veto: db
+      .prepare(
+        `SELECT * FROM (${DEAL_ATTENTION_SELECT}) x
+           JOIN deal_scorecard s ON s.deal_id = x.id
+          WHERE s.v1_no_event = 1 OR s.v2_no_economic = 1
+          ORDER BY x.value_vnd DESC LIMIT 10`
+      )
+      .all(),
+    score_reshape: db
+      .prepare(
+        `SELECT * FROM (${DEAL_ATTENTION_SELECT}) x
+           JOIN deal_scorecard s ON s.deal_id = x.id
+          WHERE s.quadrant = 'reshape'
+          ORDER BY x.value_vnd DESC LIMIT 10`
+      )
+      .all(),
+    // Su kien bat buoc den gan ma deal chua toi giai doan cuoi
+    event_near: db
+      .prepare(
+        `SELECT x.*, e.event_date, e.description AS event_description
+           FROM (${DEAL_ATTENTION_SELECT}) x
+           JOIN deal_events e ON e.deal_id = x.id
+          WHERE e.confirmed = 1 AND e.event_date IS NOT NULL
+            AND e.event_date <= date('now','localtime','+14 days')
+            AND x.stage NOT IN ('negotiating')
+          ORDER BY e.event_date LIMIT 10`
+      )
+      .all(),
+    // F-19: giai doan noi mot dang, diem noi mot neo
+    stage_score_gap: db
+      .prepare(
+        `SELECT * FROM (${DEAL_ATTENTION_SELECT}) x
+           JOIN deal_scorecard s ON s.deal_id = x.id
+          WHERE x.probability >= 60 AND s.bant_total <= 6
+          ORDER BY x.value_vnd DESC LIMIT 10`
+      )
+      .all(),
   };
 
   // FR-DSH-06: hop dong sap het han theo 3 moc
@@ -415,6 +467,131 @@ router.get('/dashboard', (_req, res) => {
   });
 });
 
+/**
+ * F-02 — ma tran co hoi: moi deal dang mo la mot diem tren hai truc BANT x 4P.
+ * Loc theo giai doan, nganh va quy mo deal.
+ */
+router.get('/matrix', (req, res) => {
+  const stage = req.query.stage ? String(req.query.stage) : null;
+  const industry = req.query.industry ? String(req.query.industry) : null;
+  const minValue = req.query.min_value ? Number(req.query.min_value) : 0;
+
+  const rows = db
+    .prepare(
+      `SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
+              c.name AS customer_name, c.industry,
+              s.bant_total, s.p4_total, s.quadrant, s.score_age_days,
+              s.v1_no_event, s.v2_no_economic, s.v3_shaped
+         FROM deals d
+         JOIN customers c ON c.id = d.customer_id
+         JOIN deal_scorecard s ON s.deal_id = d.id
+        WHERE d.stage NOT IN ('won','lost')
+          AND (? IS NULL OR d.stage = ?)
+          AND (? IS NULL OR c.industry = ?)
+          AND d.value_vnd >= ?
+        ORDER BY d.value_vnd DESC`
+    )
+    .all(stage, stage, industry, industry, minValue);
+
+  const industries = db
+    .prepare(
+      `SELECT DISTINCT industry FROM customers
+        WHERE industry IS NOT NULL AND industry <> '' ORDER BY industry`
+    )
+    .all() as { industry: string }[];
+
+  res.json({ deals: rows, industries: industries.map((r) => r.industry) });
+});
+
+/**
+ * F-08 — forecast dua tren chat luong.
+ *
+ * Tra ve HAI con so va chenh lech giua chung. Chenh lech chinh la san pham cua man
+ * nay: phan pipeline dang duoc tinh vao forecast truyen thong nhung khong vuot noi
+ * bo loc veto + staleness. Xac suat theo giai doan KHONG bi dong toi.
+ */
+router.get('/pipeline-health', (_req, res) => {
+  const settings = getScoringSettings(db);
+
+  const rows = db
+    .prepare(
+      `SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
+              c.name AS customer_name,
+              s.bant_total, s.p4_total, s.quadrant, s.score_age_days,
+              s.v1_no_event, s.v2_no_economic, s.v3_shaped
+         FROM deals d
+         JOIN customers c ON c.id = d.customer_id
+         JOIN deal_scorecard s ON s.deal_id = d.id
+        WHERE d.stage NOT IN ('won','lost')`
+    )
+    .all() as {
+    id: number;
+    value_vnd: number;
+    probability: number;
+    quadrant: string;
+    score_age_days: number | null;
+    v1_no_event: number;
+    v2_no_economic: number;
+    v3_shaped: number;
+  }[];
+
+  const blockedBy = (row: (typeof rows)[number]): string[] => {
+    const flags: string[] = [];
+    if (row.v1_no_event) flags.push('V1_NO_COMPELLING_EVENT');
+    if (row.v2_no_economic) flags.push('V2_NO_ECONOMIC_BUYER');
+    if (row.v3_shaped && settings.v3Mode === 'veto') flags.push('V3_COMPETITOR_SHAPED');
+    if (row.score_age_days === null || row.score_age_days > settings.staleDays) flags.push('STALE');
+    return flags;
+  };
+
+  let stageWeighted = 0;
+  let filteredWeighted = 0;
+  const quadrantTotals: Record<string, { count: number; sum_vnd: number }> = {};
+  for (const q of QUADRANTS) quadrantTotals[q] = { count: 0, sum_vnd: 0 };
+  const excluded: Record<string, unknown>[] = [];
+
+  for (const row of rows) {
+    const weighted = Math.round((row.value_vnd * row.probability) / 100);
+    stageWeighted += weighted;
+    quadrantTotals[row.quadrant].count += 1;
+    quadrantTotals[row.quadrant].sum_vnd += row.value_vnd;
+
+    const flags = blockedBy(row);
+    if (flags.length === 0) filteredWeighted += weighted;
+    else excluded.push({ ...row, weighted_vnd: weighted, blocked_by: flags });
+  }
+
+  excluded.sort((a, b) => (b.weighted_vnd as number) - (a.weighted_vnd as number));
+
+  // F-18: deal dang tut diem trong 30 ngay gan nhat
+  const declining = db
+    .prepare(
+      `SELECT d.id, d.title, c.name AS customer_name, d.value_vnd, d.stage,
+              h.factor, h.old_score, h.new_score, h.changed_at
+         FROM deal_score_history h
+         JOIN deals d ON d.id = h.deal_id
+         JOIN customers c ON c.id = d.customer_id
+        WHERE d.stage NOT IN ('won','lost')
+          AND h.old_score IS NOT NULL AND h.new_score < h.old_score
+          AND date(h.changed_at) >= date('now','localtime','-30 days')
+        ORDER BY h.changed_at DESC LIMIT 20`
+    )
+    .all();
+
+  res.json({
+    stage_weighted_vnd: stageWeighted,
+    filtered_weighted_vnd: filteredWeighted,
+    inflation_vnd: stageWeighted - filteredWeighted,
+    inflation_ratio: stageWeighted === 0 ? 0 : (stageWeighted - filteredWeighted) / stageWeighted,
+    open_count: rows.length,
+    excluded_count: excluded.length,
+    quadrant_totals: quadrantTotals,
+    excluded: excluded.slice(0, 20),
+    declining,
+    settings: { stale_days: settings.staleDays, v3_mode: settings.v3Mode },
+  });
+});
+
 /** So lieu tong hop cho trang Bao cao. */
 router.get('/reports', (req, res) => {
   const defaultFrom = db
@@ -490,6 +667,52 @@ router.get('/reports', (req, res) => {
   const won = winRow.won ?? 0;
   const lost = winRow.lost ?? 0;
 
+  /**
+   * F-10 + F-16: doi chieu diem TAI THOI DIEM CHOT voi ket qua thang/thua.
+   * Doc tu score_snapshot (chup luc chot), khong dung lai tu lich su.
+   */
+  const closedWithScores = db
+    .prepare(
+      `SELECT id, stage, lost_reason, score_snapshot, COALESCE(won_value_vnd, value_vnd) AS value_vnd
+         FROM deals
+        WHERE closed_at IS NOT NULL AND score_snapshot IS NOT NULL
+          AND substr(closed_at, 1, 10) BETWEEN ? AND ?`
+    )
+    .all(from, to) as {
+    stage: string;
+    lost_reason: string | null;
+    score_snapshot: string;
+  }[];
+
+  const byQuadrant: Record<string, { won: number; lost: number }> = {};
+  for (const q of QUADRANTS) byQuadrant[q] = { won: 0, lost: 0 };
+  /** F-16: ly do thua x yeu to thap nhat luc chot — o lech la bang chung rubric bi cham sai. */
+  const lostReasonByFactor: Record<string, Record<string, number>> = {};
+
+  for (const row of closedWithScores) {
+    let snapshot: {
+      quadrant: string;
+      scores: Record<string, { score: number }>;
+    };
+    try {
+      snapshot = JSON.parse(row.score_snapshot);
+    } catch {
+      continue;
+    }
+    if (byQuadrant[snapshot.quadrant])
+      byQuadrant[snapshot.quadrant][row.stage === 'won' ? 'won' : 'lost'] += 1;
+
+    if (row.stage === 'lost' && snapshot.scores) {
+      const entries = Object.entries(snapshot.scores);
+      if (entries.length > 0) {
+        const lowest = entries.reduce((a, b) => (b[1].score < a[1].score ? b : a));
+        const reason = row.lost_reason ?? 'other';
+        lostReasonByFactor[reason] ??= {};
+        lostReasonByFactor[reason][lowest[0]] = (lostReasonByFactor[reason][lowest[0]] ?? 0) + 1;
+      }
+    }
+  }
+
   const top_customers = db
     .prepare(
       `SELECT c.id, c.name, COALESCE(SUM(COALESCE(d.won_value_vnd, d.value_vnd)), 0) AS won_vnd,
@@ -526,6 +749,14 @@ router.get('/reports', (req, res) => {
     win_rate: { won, lost, rate: won + lost > 0 ? won / (won + lost) : 0, won_vnd: winRow.won_vnd },
     top_customers,
     summary,
+    /* F-10 / F-16 — chi co y nghia khi da du so deal chot; duoi nguong thi
+       giao dien chi hien so dem, khong dua khuyen nghi hieu chinh nguong (C11). */
+    score_winloss: {
+      by_quadrant: byQuadrant,
+      lost_reason_by_factor: lostReasonByFactor,
+      scored_closed_count: closedWithScores.length,
+      min_deals: getScoringSettings(db).winlossMinDeals,
+    },
   });
 });
 
