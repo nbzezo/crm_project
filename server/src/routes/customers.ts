@@ -210,7 +210,9 @@ router.get('/:id/full', (req, res) => {
     )
     .all(id);
   const documents = db
-    .prepare(`SELECT * FROM documents WHERE customer_id = ? ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT * FROM documents WHERE customer_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`
+    )
     .all(id);
   // Dich vu dang su dung + doanh thu da nhap (moi nam) cua tung dong
   const services = db
@@ -295,7 +297,7 @@ router.get('/:id/impact', (req, res) => {
            (SELECT COUNT(*) FROM deals WHERE customer_id = ?) AS deals,
            (SELECT COUNT(*) FROM contracts WHERE customer_id = ?) AS contracts,
            (SELECT COUNT(*) FROM quotations WHERE customer_id = ?) AS quotations,
-           (SELECT COUNT(*) FROM documents WHERE customer_id = ?) AS documents,
+           (SELECT COUNT(*) FROM documents WHERE customer_id = ? AND deleted_at IS NULL) AS documents,
            (SELECT COUNT(*) FROM interactions WHERE customer_id = ?) AS interactions,
            (SELECT COUNT(*) FROM customer_services WHERE customer_id = ?) AS services,
            (SELECT COUNT(*) FROM cards WHERE customer_id = ?) AS tasks`

@@ -16,8 +16,8 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-tr-primary text-tr-on-primary hover:bg-tr-primary-hover',
-  secondary: 'bg-tr-hover text-tr-text hover:bg-tr-hover-strong',
+  primary: 'bg-tr-primary text-tr-on-primary shadow-sm hover:bg-tr-primary-hover',
+  secondary: 'border border-tr-border bg-tr-panel text-tr-text shadow-sm hover:bg-tr-hover-strong',
   ghost: 'text-tr-subtle hover:bg-tr-hover',
   danger: 'bg-tr-danger text-tr-on-danger hover:brightness-110',
 };
@@ -68,7 +68,7 @@ export function Segmented<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-lg border border-tr-border bg-tr-panel p-0.5"
+      className="inline-flex rounded-full border border-tr-border bg-tr-panel p-1 shadow-sm"
     >
       {options.map((option) => (
         <button
@@ -76,7 +76,7 @@ export function Segmented<T extends string>({
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm transition ${focusRing} ${
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition ${focusRing} ${
             value === option.value
               ? 'bg-tr-primary font-medium text-tr-on-primary'
               : 'text-tr-subtle hover:bg-tr-hover'
@@ -150,7 +150,7 @@ export function Field({
 }
 
 const inputBase =
-  'w-full rounded-control border border-tr-border bg-tr-panel px-3 py-1.5 text-sm text-tr-text outline-none transition-[border-color,box-shadow] duration-150 focus:border-tr-primary focus:ring-1 focus:ring-tr-primary disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
+  'w-full rounded-control border border-tr-border bg-tr-list px-3 py-2 text-sm text-tr-text outline-none transition-[border-color,box-shadow] duration-150 hover:border-tr-primary/20 focus:border-tr-primary focus:ring-2 focus:ring-tr-primary/15 disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputBase} ${className}`} />;
@@ -274,7 +274,7 @@ export function ColorBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md font-medium whitespace-nowrap ${
+      className={`inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap ${
         small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
       }`}
       style={{ backgroundColor: color, color: contrastInk(color) }}
@@ -386,11 +386,11 @@ export function Panel({
 }) {
   return (
     <section
-      className={`rounded-panel border border-tr-border bg-tr-panel p-4 shadow-sm ${className}`}
+      className={`tr-bento-card rounded-panel border border-tr-border bg-tr-panel p-3.5 sm:p-4 ${className}`}
     >
       {(title || action) && (
         <header className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-tr-subtle">{title}</h2>
+          <h2 className="text-[13px] font-bold tracking-[-0.01em] text-tr-text">{title}</h2>
           {action}
         </header>
       )}

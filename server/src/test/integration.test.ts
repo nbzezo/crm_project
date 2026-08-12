@@ -203,3 +203,62 @@ test('upload sai metadata khong de lai file mo coi', async () => {
     .filter((entry) => entry.isFile());
   assert.equal(storedFiles.length, 0);
 });
+
+test('tai lieu ho tro metadata, cap nhat hang loat, ZIP va thung rac', async () => {
+  const customerId = await createCustomer('Khach hang tai lieu v12');
+  const ids: number[] = [];
+
+  for (const [index, name] of ['ho-so-a.txt', 'ho-so-b.txt'].entries()) {
+    const form = new FormData();
+    form.set('file', new Blob([`noi dung ${index}`], { type: 'text/plain' }), name);
+    form.set('customer_id', String(customerId));
+    form.set('doc_type', 'proposal');
+    form.set('description', 'Ho so kiem thu tich hop');
+    form.set('tags', 'kiem thu, ho so');
+    form.set('owner', 'Nguyen Van A');
+    form.set('effective_date', '2026-08-12');
+    form.set('expires_at', '2027-08-12');
+    form.set('confidentiality', 'confidential');
+    const response = await fetch(`${baseUrl}/api/documents`, { method: 'POST', body: form });
+    assert.equal(response.status, 201);
+    const document = (await response.json()) as Record<string, unknown>;
+    assert.equal(document.description, 'Ho so kiem thu tich hop');
+    assert.equal(document.confidentiality, 'confidential');
+    ids.push(Number(document.id));
+  }
+
+  const search = await json('GET', '/api/search?q=ho%20so');
+  assert.equal(search.status, 200);
+  assert.equal((search.data.documents as unknown[]).length, 2);
+
+  const bulk = await json('PATCH', '/api/documents/bulk', {
+    ids,
+    doc_type: 'contract',
+    owner: 'Tran Thi B',
+  });
+  assert.equal(bulk.status, 200);
+  assert.equal(bulk.data.updated, 2);
+
+  const zip = await fetch(`${baseUrl}/api/documents/download.zip?ids=${ids.join(',')}`);
+  assert.equal(zip.status, 200);
+  assert.match(zip.headers.get('content-type') ?? '', /application\/zip/);
+  const zipBytes = Buffer.from(await zip.arrayBuffer());
+  assert.equal(zipBytes.readUInt32LE(0), 0x04034b50);
+
+  const trashed = await json('POST', '/api/documents/bulk/trash', { ids });
+  assert.equal(trashed.status, 200);
+  assert.equal(trashed.data.trashed, 2);
+  const activeList = await json('GET', `/api/documents?customer_id=${customerId}`);
+  assert.deepEqual(activeList.data, []);
+  const trashList = await json('GET', `/api/documents?customer_id=${customerId}&trash=1`);
+  assert.equal((trashList.data as unknown as unknown[]).length, 2);
+
+  const restored = await json('POST', '/api/documents/bulk/restore', { ids });
+  assert.equal(restored.status, 200);
+  assert.equal(restored.data.restored, 2);
+
+  await json('POST', '/api/documents/bulk/trash', { ids: [ids[0]] });
+  const permanent = await json('DELETE', `/api/documents/${ids[0]}/permanent`);
+  assert.equal(permanent.status, 200);
+  assert.equal(db.prepare(`SELECT id FROM documents WHERE id = ?`).get(ids[0]), undefined);
+});

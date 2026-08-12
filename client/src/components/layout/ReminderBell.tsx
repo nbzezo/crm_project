@@ -39,7 +39,7 @@ export function ReminderBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-11 w-11 items-center justify-center rounded-panel text-tr-navfg-muted transition hover:bg-white/10 hover:text-tr-navfg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-tr-border bg-tr-panel text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary sm:h-9 sm:w-9"
         aria-label={
           overdueCount > 0
             ? `${t.reminder.reminders} — ${overdueCount} quá hạn`

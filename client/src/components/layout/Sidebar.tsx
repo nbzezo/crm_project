@@ -46,7 +46,7 @@ const NAV = [
 
 /* Muc dieu huong cao 44px tren cam ung, thu gon con 32px tu breakpoint sm. */
 const ITEM_BASE =
-  'flex min-h-[44px] items-center gap-3 rounded-control px-3 text-sm transition sm:min-h-0 sm:py-1.5';
+  'flex min-h-[44px] items-center gap-2.5 rounded-full px-3 text-sm transition sm:min-h-0 sm:py-1.5';
 
 function useBoards() {
   return useQuery({
@@ -64,7 +64,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <>
-      <nav aria-label={t.app.name} className="space-y-0.5 px-2 py-3">
+      <nav aria-label={t.app.name} className="space-y-0.5 px-2.5 py-3">
         {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -86,7 +86,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {starred.length > 0 && (
-        <div className="border-t border-[var(--tr-nav-border)] px-2 py-3">
+        <div className="border-t border-[var(--tr-nav-border)] px-2.5 py-3">
           <h3 className="mb-1 flex items-center gap-1.5 px-3 text-xs font-semibold text-tr-muted">
             <Star size={12} aria-hidden="true" /> Bảng đã gắn sao
           </h3>
@@ -174,11 +174,11 @@ export function Sidebar() {
       <NavDrawer />
 
       {collapsed ? (
-        <aside className="hidden w-4 shrink-0 items-start justify-center border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] pt-3 md:flex">
+        <aside className="hidden w-4 shrink-0 items-start justify-center border-r border-[var(--tr-nav-border)] bg-transparent pt-4 md:flex">
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className={`-mr-3 rounded-full border border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] p-2 text-[var(--tr-nav-text)] transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
+            className={`-mr-3 rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
             aria-label="Mở rộng thanh điều hướng"
             aria-expanded={false}
           >
@@ -186,11 +186,11 @@ export function Sidebar() {
           </button>
         </aside>
       ) : (
-        <aside className="relative z-30 hidden w-60 shrink-0 flex-col border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] md:flex">
+        <aside className="relative z-30 hidden w-56 shrink-0 flex-col border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
           <button
             type="button"
             onClick={() => setCollapsed(true)}
-            className={`absolute -right-3 top-3 z-30 rounded-full border border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] p-2 text-[var(--tr-nav-text)] transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
+            className={`absolute -right-3 top-3 z-30 rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
             aria-label="Thu gọn thanh điều hướng"
             aria-expanded
           >

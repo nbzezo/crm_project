@@ -19,12 +19,15 @@ export function ThemeToggle() {
       <button
         type="button"
         onClick={pop.toggle}
-        className="flex h-11 w-11 items-center justify-center rounded-panel text-tr-navfg-muted transition hover:bg-white/10 hover:text-tr-navfg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
+        className="flex h-11 w-11 items-center justify-center gap-2 rounded-full border border-tr-border bg-tr-panel text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary sm:h-9 sm:w-9 xl:w-auto xl:px-2.5"
         aria-label={`Giao diện: ${OPTIONS.find((o) => o.mode === mode)!.label}`}
         aria-haspopup="dialog"
         aria-expanded={pop.open}
       >
         <Current size={18} aria-hidden="true" />
+        <span className="hidden text-xs font-semibold xl:inline">
+          {OPTIONS.find((o) => o.mode === mode)!.label}
+        </span>
       </button>
 
       <Popover

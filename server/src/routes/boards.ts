@@ -83,7 +83,7 @@ router.get('/:id/full', (req, res) => {
               (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
               (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
               (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
-              (SELECT COUNT(*) FROM documents dc WHERE dc.card_id = k.id) AS attachment_total
+              (SELECT COUNT(*) FROM documents dc WHERE dc.card_id = k.id AND dc.deleted_at IS NULL) AS attachment_total
          FROM cards k
          JOIN lists l ON l.id = k.list_id
          LEFT JOIN customers c ON c.id = k.customer_id

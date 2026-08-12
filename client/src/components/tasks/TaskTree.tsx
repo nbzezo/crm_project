@@ -36,6 +36,10 @@ const ALL_COLUMNS: Required<TaskColumns> = {
   labels: true,
 };
 
+/** Header va row bat buoc dung chung template nay de khong lech cot khi doi breakpoint. */
+const TASK_TREE_GRID =
+  'grid-cols-[auto_auto_minmax(220px,1fr)_100px_110px_132px_140px_80px] 2xl:grid-cols-[auto_auto_minmax(240px,1fr)_100px_110px_132px_150px_150px_180px_80px]';
+
 /** Gom danh sách phẳng thành cây cha – con (tối đa 1 cấp). */
 export function buildTree(tasks: TaskRow[]): { task: TaskRow; children: TaskRow[] }[] {
   const byId = new Map(tasks.map((task) => [task.id, task]));
@@ -163,7 +167,7 @@ export function TaskTree({
     return (
       <div
         key={task.id}
-        className={`group grid min-h-12 grid-cols-[auto_auto_minmax(220px,1fr)_100px_110px_132px_140px_80px] items-center gap-2 px-3 py-1.5 transition hover:bg-tr-hover 2xl:grid-cols-[auto_auto_minmax(240px,1fr)_100px_110px_132px_150px_150px_180px_80px] ${
+        className={`group grid min-h-12 ${TASK_TREE_GRID} items-center gap-2 px-3 py-1.5 transition hover:bg-tr-hover ${
           isChild ? 'bg-tr-hover/40' : ''
         }`}
       >
@@ -325,9 +329,13 @@ export function TaskTree({
     <>
       <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
         <div className="min-w-[870px] 2xl:min-w-[1260px]">
-          <div className="sticky top-0 z-10 grid grid-cols-[auto_auto_minmax(220px,1fr)_100px_110px_132px_140px_80px] items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase 2xl:grid-cols-[auto_auto_minmax(240px,1fr)_100px_110px_132px_150px_150px_180px_80px]">
+          <div
+            className={`sticky top-0 z-10 grid ${TASK_TREE_GRID} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase`}
+          >
             <span className="w-5" />
-            <span className="sr-only">Hoàn thành</span>
+            {/* Khong dat `sr-only` truc tiep tren grid item: class nay dung position:absolute,
+                lam mat cot checkbox va day toan bo header sang trai. */}
+            <span className="block w-4" aria-hidden="true" />
             <span>Công việc</span>
             <span>Ưu tiên</span>
             <span>Bắt đầu</span>

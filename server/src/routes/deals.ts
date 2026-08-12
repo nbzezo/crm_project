@@ -137,7 +137,9 @@ router.get('/:id', (req, res) => {
     .all(id);
   const contracts = db.prepare(`SELECT * FROM contracts WHERE deal_id = ?`).all(id);
   const documents = db
-    .prepare(`SELECT * FROM documents WHERE deal_id = ? ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT * FROM documents WHERE deal_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`
+    )
     .all(id);
   const activities = db
     .prepare(

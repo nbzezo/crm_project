@@ -12,6 +12,12 @@ fs.mkdirSync(DOCUMENT_TEMP_DIR, { recursive: true });
 export interface DocumentInput extends EntityLinks {
   name?: string;
   doc_type?: string;
+  description?: string;
+  tags?: string;
+  owner?: string | null;
+  effective_date?: string | null;
+  expires_at?: string | null;
+  confidentiality?: 'public' | 'internal' | 'confidential';
 }
 
 /** Dua file tu kho tam sang kho chinh va chi commit metadata khi ca hai buoc thanh cong. */
@@ -26,8 +32,10 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
       const info = db
         .prepare(
           `INSERT INTO documents (name, doc_type, file_name, stored_name, mime, size,
-                                  customer_id, contact_id, deal_id, contract_id, quotation_id, card_id, search_text)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                  customer_id, contact_id, deal_id, contract_id, quotation_id, card_id,
+                                  description, tags, owner, effective_date, expires_at, confidentiality,
+                                  search_text, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
         )
         .run(
           name,
@@ -42,7 +50,13 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
           body.contract_id ?? null,
           body.quotation_id ?? null,
           body.card_id ?? null,
-          buildSearchText(name, file.originalname)
+          body.description ?? '',
+          body.tags ?? '',
+          body.owner ?? null,
+          body.effective_date ?? null,
+          body.expires_at ?? null,
+          body.confidentiality ?? 'internal',
+          buildSearchText(name, file.originalname, body.description, body.tags, body.owner)
         );
       return Number(info.lastInsertRowid);
     })();
@@ -58,7 +72,7 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
 }
 
 /** Xoa theo kieu hai pha: dua file vao kho tam, commit DB, sau do huy file. */
-export function deleteDocument(id: number): void {
+export function permanentlyDeleteDocument(id: number): void {
   const document = required(
     db.prepare(`SELECT stored_name FROM documents WHERE id = ?`).get(id) as
       { stored_name: string } | undefined,

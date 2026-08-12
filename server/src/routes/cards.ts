@@ -32,7 +32,7 @@ function reloadCard(id: number) {
               (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
               (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
               (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
-              (SELECT COUNT(*) FROM documents dc WHERE dc.card_id = k.id) AS attachment_total
+              (SELECT COUNT(*) FROM documents dc WHERE dc.card_id = k.id AND dc.deleted_at IS NULL) AS attachment_total
          FROM cards k
          LEFT JOIN customers c ON c.id = k.customer_id
          LEFT JOIN deals d ON d.id = k.deal_id
@@ -133,7 +133,9 @@ router.get('/:id', (req, res) => {
     : null;
 
   const attachments = db
-    .prepare(`SELECT * FROM documents WHERE card_id = ? ORDER BY created_at DESC, id DESC`)
+    .prepare(
+      `SELECT * FROM documents WHERE card_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC`
+    )
     .all(id);
 
   // Truong thong tin cua bang chua the (kem truong dung chung) + gia tri da nhap

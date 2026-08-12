@@ -17,28 +17,34 @@ export default function App() {
   const pageTitle = pageHandle?.title ?? 'WorkFlow';
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="tr-app-stage">
       <a
         href="#main-content"
         className="sr-only z-[100] rounded bg-tr-primary px-4 py-2 text-tr-on-primary focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
       >
         Bỏ qua đến nội dung chính
       </a>
-      <Topbar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-auto outline-none">
-          {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}
-          <Suspense
-            fallback={
-              <div role="status" className="p-6 text-sm text-tr-muted">
-                Đang tải trang…
-              </div>
-            }
+      <div className="tr-app-shell flex flex-col">
+        <Topbar />
+        <div className="flex min-h-0 flex-1">
+          <Sidebar />
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="min-w-0 flex-1 overflow-auto bg-transparent outline-none"
           >
-            <Outlet />
-          </Suspense>
-        </main>
+            {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}
+            <Suspense
+              fallback={
+                <div role="status" className="p-6 text-sm text-tr-muted">
+                  Đang tải trang…
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
       </div>
       <Suspense fallback={null}>
         <CardModal />

@@ -106,7 +106,7 @@ router.get('/deals/:id/evidence-sources', (req, res) => {
     .prepare(
       `SELECT id, 'document' AS source_type, doc_type AS kind, substr(created_at, 1, 10) AS occurred_at,
               name AS summary, NULL AS result, NULL AS contact_name
-         FROM documents WHERE deal_id = ? ORDER BY created_at DESC LIMIT 100`
+         FROM documents WHERE deal_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 100`
     )
     .all(dealId) as Record<string, unknown>[];
 

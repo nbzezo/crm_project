@@ -101,6 +101,7 @@ interface MetricItem {
   value: string;
   hint?: string;
   tone: MetricTone;
+  featured?: boolean;
   to?: string;
   onClick?: () => void;
 }
@@ -114,17 +115,19 @@ export function KpiSummary({
 }) {
   const metrics: MetricItem[] = [
     {
+      icon: Layers,
+      label: 'Tổng pipeline',
+      value: formatVNDShort(data.kpi.pipeline_vnd),
+      hint: `${data.kpi.open_opportunity_count} cơ hội đang mở`,
+      tone: 'business',
+      featured: true,
+      to: '/pipeline',
+    },
+    {
       icon: Target,
       label: 'Cơ hội đang mở',
       value: String(data.kpi.open_opportunity_count),
       hint: 'Cơ hội',
-      tone: 'business',
-      to: '/pipeline',
-    },
-    {
-      icon: Layers,
-      label: 'Tổng pipeline',
-      value: formatVNDShort(data.kpi.pipeline_vnd),
       tone: 'business',
       to: '/pipeline',
     },
@@ -163,14 +166,11 @@ export function KpiSummary({
   ];
 
   return (
-    <section
-      aria-labelledby="kpi-summary-title"
-      className="overflow-hidden rounded-panel border border-tr-border bg-tr-border shadow-sm"
-    >
+    <section aria-labelledby="kpi-summary-title">
       <h2 id="kpi-summary-title" className="sr-only">
         Tình hình kinh doanh và cảnh báo chính
       </h2>
-      <div className="grid grid-cols-2 gap-px sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-12">
         {metrics.map((metric) => (
           <Metric key={metric.label} {...metric} />
         ))}
@@ -179,30 +179,52 @@ export function KpiSummary({
   );
 }
 
-function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricItem) {
-  const toneClass =
-    tone === 'danger'
+function Metric({ icon: Icon, label, value, hint, tone, featured, to, onClick }: MetricItem) {
+  const toneClass = featured
+    ? 'tr-bento-hero text-tr-text'
+    : tone === 'danger'
       ? 'bg-tr-danger/10 text-tr-danger hover:bg-tr-danger/15'
       : tone === 'warning'
         ? 'bg-tr-warning/10 text-tr-warning hover:bg-tr-warning/15'
         : 'bg-tr-panel text-tr-text hover:bg-tr-hover';
-  const className = `group flex min-h-[82px] min-w-0 flex-col justify-between p-3 text-left transition ${toneClass} ${focusRing}`;
+  const gridClass = featured ? 'sm:col-span-2 md:col-span-8 md:row-span-2' : 'md:col-span-4';
+  const className = `tr-bento-card group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border text-left ${
+    featured ? 'min-h-[156px] p-4 sm:p-5' : 'min-h-[76px] p-3'
+  } ${gridClass} ${toneClass} ${focusRing}`;
   const supportingTextClass = tone === 'business' ? 'text-tr-muted' : 'text-tr-subtle';
   const content = (
     <>
       <span
-        className={`flex min-w-0 items-center gap-1.5 text-xs font-medium ${supportingTextClass}`}
+        className={`flex min-w-0 items-center gap-1.5 font-medium ${featured ? 'text-sm' : 'text-xs'} ${supportingTextClass}`}
         title={label}
       >
-        <Icon size={14} className="shrink-0" aria-hidden="true" />
+        <span
+          className={`flex shrink-0 items-center justify-center rounded-full ${
+            featured ? 'h-8 w-8 bg-tr-primary text-tr-on-primary' : 'h-6 w-6 bg-tr-hover'
+          }`}
+        >
+          <Icon size={featured ? 16 : 13} aria-hidden="true" />
+        </span>
         <span className="truncate">{label}</span>
       </span>
-      <span className="mt-1 flex min-w-0 items-end justify-between gap-2">
-        <span className="truncate text-xl font-bold tracking-tight tabular-nums sm:text-2xl">
+      <span
+        className={`flex min-w-0 gap-1.5 ${featured ? 'mt-4 flex-col items-start' : 'mt-1.5 items-end justify-between'}`}
+      >
+        <span
+          className={`truncate font-bold tracking-[-0.035em] tabular-nums ${
+            featured ? 'text-3xl sm:text-4xl' : 'text-xl'
+          }`}
+        >
           {value}
         </span>
         {hint && (
-          <span className={`truncate pb-0.5 text-2xs font-normal ${supportingTextClass}`}>
+          <span
+            className={`truncate text-2xs font-medium ${
+              featured
+                ? 'rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-[var(--tr-on-yellow)]'
+                : `pb-0.5 ${supportingTextClass}`
+            }`}
+          >
             {hint}
           </span>
         )}
@@ -601,7 +623,7 @@ export function ReminderWidget({
   const upcoming = items.filter((item) => !item.presentation.missed);
 
   return (
-    <Panel title="Nhắc hẹn" className="h-full">
+    <Panel title="Nhắc hẹn" className="tr-bento-dark h-full">
       {items.length === 0 ? (
         <CompactSuccess message="Không có nhắc hẹn đang chờ." />
       ) : (

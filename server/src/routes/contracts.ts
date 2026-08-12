@@ -35,7 +35,7 @@ const CONTRACT_SELECT = `
          CASE WHEN k.end_date IS NULL THEN NULL
               ELSE CAST(julianday(k.end_date) - julianday(date('now','localtime')) AS INTEGER)
          END AS days_left,
-         (SELECT COUNT(*) FROM documents dc WHERE dc.contract_id = k.id) AS document_count
+         (SELECT COUNT(*) FROM documents dc WHERE dc.contract_id = k.id AND dc.deleted_at IS NULL) AS document_count
     FROM contracts k
     JOIN customers c ON c.id = k.customer_id
     LEFT JOIN deals d ON d.id = k.deal_id`;
@@ -115,7 +115,9 @@ router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const contract = required(reload(id), 'Khong tim thay hop dong') as Record<string, unknown>;
   const documents = db
-    .prepare(`SELECT * FROM documents WHERE contract_id = ? ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT * FROM documents WHERE contract_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`
+    )
     .all(id);
   res.json({ ...contract, documents });
 });

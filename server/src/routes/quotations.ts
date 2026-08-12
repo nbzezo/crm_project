@@ -28,7 +28,7 @@ const QUOTATION_SELECT = `
   SELECT q.*, c.name AS customer_name, d.title AS deal_title,
          CASE WHEN q.valid_until IS NULL THEN 0
               WHEN q.valid_until < date('now','localtime') THEN 1 ELSE 0 END AS is_expired,
-         (SELECT COUNT(*) FROM documents dc WHERE dc.quotation_id = q.id) AS document_count
+         (SELECT COUNT(*) FROM documents dc WHERE dc.quotation_id = q.id AND dc.deleted_at IS NULL) AS document_count
     FROM quotations q
     JOIN customers c ON c.id = q.customer_id
     LEFT JOIN deals d ON d.id = q.deal_id`;

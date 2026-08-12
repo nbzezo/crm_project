@@ -105,7 +105,8 @@ router.get('/search', (req, res) => {
     .prepare(
       `SELECT dc.id, dc.name, dc.doc_type, dc.file_name, c.name AS customer_name
          FROM documents dc LEFT JOIN customers c ON c.id = dc.customer_id
-        WHERE dc.search_text LIKE ? ORDER BY dc.created_at DESC LIMIT 8`
+        WHERE dc.deleted_at IS NULL
+          AND dc.search_text LIKE ? ORDER BY dc.created_at DESC LIMIT 8`
     )
     .all(like);
 

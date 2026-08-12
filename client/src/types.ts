@@ -417,8 +417,17 @@ export interface CrmDocument {
   contract_id: number | null;
   contract_name?: string | null;
   quotation_id: number | null;
+  quotation_code?: string | null;
   card_id: number | null;
+  description: string;
+  tags: string;
+  owner: string | null;
+  effective_date: string | null;
+  expires_at: string | null;
+  confidentiality: 'public' | 'internal' | 'confidential';
+  deleted_at: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 export interface Interaction {

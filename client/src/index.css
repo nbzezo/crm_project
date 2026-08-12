@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @theme {
@@ -36,65 +37,75 @@
   /* Bo chu — bo sung cap 11px dang dung rai rac duoi dang text-[11px] */
   --text-2xs: 11px;
   --text-2xs--line-height: 1.45;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.45;
 
-  /* Ban kinh bo goc — 3 muc thay cho 8 bien the roi rac */
-  --radius-control: 3px;
-  --radius-panel: 8px;
-  --radius-modal: 12px;
+  /* Bo goc phan cap theo Bento: control < card < lop noi */
+  --radius-control: 14px;
+  --radius-panel: 20px;
+  --radius-modal: 26px;
 
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Helvetica Neue',
-    sans-serif;
+    'Plus Jakarta Sans', Inter, Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Noto Sans', Ubuntu, 'Helvetica Neue', sans-serif;
 }
 
 /* ---------- Che do sang ---------- */
 :root {
   color-scheme: light;
-  --tr-nav: #1d2125;
-  --tr-surface: #f7f8f9;
-  --tr-panel: #ffffff;
-  --tr-list: #f1f2f4;
-  --tr-card: #ffffff;
-  --tr-text: #172b4d;
-  --tr-subtle: #44546f;
-  --tr-muted: #626f86;
-  --tr-border: #dfe1e6;
-  --tr-primary: #0c66e4;
-  --tr-primary-hover: #0055cc;
-  --tr-on-primary: #ffffff;
-  --tr-danger: #c9372c;
+  --tr-page-bg: #a7adb8;
+  --tr-shell-gradient: linear-gradient(120deg, #e5e5e6 0%, #faf8f0 58%, #f3e8b8 100%);
+  --tr-shell-border: rgba(48, 48, 47, 0.08);
+  --tr-shell-shadow: 0 28px 65px rgba(37, 40, 44, 0.24);
+  --tr-yellow: #f8d65c;
+  --tr-yellow-soft: #f4e9b5;
+  --tr-on-yellow: #70540a;
+
+  --tr-nav: #30302f;
+  --tr-surface: #f2f1ea;
+  --tr-panel: #fbf9f1;
+  --tr-list: #f4f0de;
+  --tr-card: #fbf9f1;
+  --tr-text: #282827;
+  --tr-subtle: #5f5d58;
+  --tr-muted: #68665f;
+  --tr-border: rgba(48, 48, 47, 0.1);
+  --tr-primary: #30302f;
+  --tr-primary-hover: #1f1f1e;
+  --tr-on-primary: #fbf9f1;
+  --tr-danger: #d6493b;
   --tr-on-danger: #ffffff;
-  --tr-success: #216e4e;
+  --tr-success: #1f8a50;
   --tr-on-success: #ffffff;
-  --tr-warning: #a54800;
-  --tr-hover: #091e420f;
-  --tr-hover-strong: #091e4224;
-  --tr-overlay: #091e4266;
-  --tr-card-shadow: 0 1px 1px #091e4240, 0 0 1px #091e424f;
-  --tr-popover-shadow: 0 8px 12px #091e4226, 0 0 1px #091e424f;
-  --tr-scroll-thumb: #091e4224;
-  --tr-scroll-thumb-hover: #091e424f;
-  --tr-badge-done-bg: #dcfff1;
-  --tr-badge-done-fg: #164b35;
-  --tr-badge-overdue-bg: #ffd5d2;
-  --tr-badge-overdue-fg: #ae2e24;
-  --tr-badge-soon-bg: #f8e6a0;
-  --tr-badge-soon-fg: #533f04;
+  --tr-warning: #9a6509;
+  --tr-hover: rgba(48, 48, 47, 0.06);
+  --tr-hover-strong: rgba(48, 48, 47, 0.12);
+  --tr-overlay: rgba(36, 36, 35, 0.48);
+  --tr-card-shadow: 0 1px 2px rgba(37, 40, 44, 0.04), 0 6px 18px rgba(37, 40, 44, 0.06);
+  --tr-popover-shadow: 0 14px 40px rgba(37, 40, 44, 0.14);
+  --tr-scroll-thumb: rgba(48, 48, 47, 0.18);
+  --tr-scroll-thumb-hover: rgba(48, 48, 47, 0.3);
+  --tr-badge-done-bg: #dff3e6;
+  --tr-badge-done-fg: #17643b;
+  --tr-badge-overdue-bg: #f9dcd6;
+  --tr-badge-overdue-fg: #a72f25;
+  --tr-badge-soon-bg: #f4e9b5;
+  --tr-badge-soon-fg: #70540a;
 
   /* Thanh tren cung luon nen toi (--tr-nav) o ca hai che do,
      nen bo mau chu cua no khong duoc doi theo theme.
      Chi khai bao o :root — khoi [data-theme='dark'] khong ghi de. */
-  --tr-navfg: #dee4ea; /* 12.1:1 tren #1d2125 */
-  --tr-navfg-muted: #9fadbc; /* 6.4:1 tren #1d2125 */
-  --tr-navfg-border: #a6c5e229;
+  --tr-navfg: #282827;
+  --tr-navfg-muted: #6f6e69;
+  --tr-navfg-border: rgba(48, 48, 47, 0.12);
 
   /* Thanh ben trai — sang mau trong che do sang */
-  --tr-nav-panel: #ffffff;
-  --tr-nav-text: #44546f;
-  --tr-nav-border: #dfe1e6;
-  --tr-nav-hover: #091e420f;
-  --tr-nav-active-bg: #e9f2ff;
-  --tr-nav-active-text: #0c66e4;
+  --tr-nav-panel: rgba(251, 249, 241, 0.42);
+  --tr-nav-text: #5f5d58;
+  --tr-nav-border: rgba(48, 48, 47, 0.08);
+  --tr-nav-hover: rgba(48, 48, 47, 0.07);
+  --tr-nav-active-bg: #30302f;
+  --tr-nav-active-text: #fbf9f1;
 
   /* Mau loai su kien tren Lich — truoc day la hang so hex trong CalendarView
      nen sang/toi giong het nhau. Moi loai co cap nen + muc da kiem tra tuong phan. */
@@ -122,6 +133,13 @@
 /* ---------- Che do toi (giong Trello dark) ---------- */
 [data-theme='dark'] {
   color-scheme: dark;
+  --tr-page-bg: #0e0e10;
+  --tr-shell-gradient: linear-gradient(120deg, #202022 0%, #19191b 58%, #211f16 100%);
+  --tr-shell-border: rgba(255, 255, 255, 0.09);
+  --tr-shell-shadow: 0 28px 65px rgba(0, 0, 0, 0.6);
+  --tr-yellow: #f8d65c;
+  --tr-yellow-soft: #4b4325;
+  --tr-on-yellow: #f8d65c;
   --tr-nav: #1d2125;
   --tr-surface: #15191e;
   --tr-panel: #20262d;
@@ -188,10 +206,94 @@ body,
 }
 
 body {
-  background-color: var(--tr-surface);
+  background-color: var(--tr-page-bg);
   color: var(--tr-text);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Bento app shell ---------- */
+.tr-app-stage {
+  height: 100%;
+  padding: 20px;
+  background: var(--tr-page-bg);
+}
+
+.tr-app-shell {
+  height: 100%;
+  width: min(1760px, 100%);
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--tr-shell-border);
+  border-radius: 30px;
+  background: var(--tr-shell-gradient);
+  box-shadow: var(--tr-shell-shadow);
+}
+
+.tr-bento-hero {
+  background: linear-gradient(
+    135deg,
+    var(--tr-panel),
+    color-mix(in srgb, var(--tr-yellow) 30%, var(--tr-panel))
+  );
+}
+
+.tr-bento-card {
+  box-shadow: var(--tr-card-shadow);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+
+.tr-bento-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tr-popover-shadow);
+}
+
+/* Local token remap: activity/reminder card becomes the charcoal anchor. */
+.tr-bento-dark {
+  --tr-panel: #30302f;
+  --tr-text: #f4f2ea;
+  --tr-subtle: #d5d1c7;
+  --tr-muted: #aaa79f;
+  --tr-border: rgba(255, 255, 255, 0.1);
+  --tr-hover: rgba(255, 255, 255, 0.07);
+  --tr-hover-strong: rgba(255, 255, 255, 0.13);
+  --tr-primary: #f8d65c;
+  --tr-primary-hover: #ffdf70;
+  --tr-on-primary: #211c0c;
+  --tr-danger: #f0796c;
+  --tr-success: #7ee2b8;
+  --tr-warning: #f8d65c;
+  --color-tr-panel: #30302f;
+  --color-tr-text: #f4f2ea;
+  --color-tr-subtle: #d5d1c7;
+  --color-tr-muted: #aaa79f;
+  --color-tr-border: rgba(255, 255, 255, 0.1);
+  --color-tr-hover: rgba(255, 255, 255, 0.07);
+  --color-tr-hover-strong: rgba(255, 255, 255, 0.13);
+  --color-tr-primary: #f8d65c;
+  --color-tr-primary-hover: #ffdf70;
+  --color-tr-on-primary: #211c0c;
+  --color-tr-danger: #f0796c;
+  --color-tr-success: #7ee2b8;
+  --color-tr-warning: #f8d65c;
+  background-color: var(--tr-panel);
+}
+
+@media (max-width: 760px) {
+  .tr-app-stage {
+    padding: 0;
+  }
+
+  .tr-app-shell {
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 
 /* ---------- Thanh cuon ---------- */

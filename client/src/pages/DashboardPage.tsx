@@ -39,11 +39,16 @@ function DashboardHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight text-tr-text sm:text-3xl">Tổng quan</h1>
-        <p className="mt-0.5 text-sm text-tr-muted">Tình hình công việc &amp; kinh doanh</p>
+        <span className="mb-1.5 inline-flex items-center rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-2xs font-bold tracking-wide text-[var(--tr-on-yellow)] uppercase">
+          Trung tâm điều hành
+        </span>
+        <h1 className="text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
+          Tổng quan
+        </h1>
+        <p className="mt-0.5 text-sm text-tr-muted">Toàn cảnh công việc &amp; kinh doanh của bạn</p>
       </div>
       <div className="flex items-center gap-2 self-start sm:self-auto">
-        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-2.5 text-xs text-tr-subtle">
+        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm">
           <CalendarDays size={14} className="text-tr-muted" aria-hidden="true" />
           {currentDateLabel()}
         </span>
@@ -51,7 +56,7 @@ function DashboardHeader({
           type="button"
           onClick={onRefresh}
           disabled={refreshing}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-control border border-tr-border bg-tr-panel text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-tr-border bg-tr-panel text-tr-subtle shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
           aria-label={refreshing ? 'Đang làm mới Tổng quan' : 'Làm mới Tổng quan'}
           title="Làm mới dữ liệu"
         >
@@ -84,7 +89,7 @@ export default function DashboardPage() {
 
   if (error)
     return (
-      <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
+      <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-5">
         <DashboardHeader refreshing={isFetching} onRefresh={() => void refetch()} />
         <ErrorState onRetry={() => void refetch()} />
       </div>
@@ -95,19 +100,22 @@ export default function DashboardPage() {
       <div
         role="status"
         aria-label={t.common.loading}
-        className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6"
+        className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-5"
       >
         <DashboardHeader refreshing onRefresh={() => void refetch()} />
-        <div className="grid grid-cols-2 gap-0.5 overflow-hidden rounded-panel border border-tr-border sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-12">
           {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-[82px] rounded-none" />
+            <Skeleton
+              key={index}
+              className={`rounded-panel ${index === 0 ? 'h-40 sm:col-span-2 md:col-span-8 md:row-span-2' : 'h-[76px] md:col-span-4'}`}
+            />
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-          <Skeleton className="h-80 rounded-panel lg:col-span-3" />
-          <Skeleton className="h-80 rounded-panel lg:col-span-2" />
-          <Skeleton className="h-64 rounded-panel lg:col-span-3" />
-          <Skeleton className="h-64 rounded-panel lg:col-span-2" />
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+          <Skeleton className="h-72 rounded-panel lg:col-span-7" />
+          <Skeleton className="h-72 rounded-panel lg:col-span-5" />
+          <Skeleton className="h-56 rounded-panel lg:col-span-7" />
+          <Skeleton className="h-56 rounded-panel lg:col-span-5" />
         </div>
       </div>
     );
@@ -115,13 +123,13 @@ export default function DashboardPage() {
   const recommendations = buildRecommendedActions(data);
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6">
+    <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
       <DashboardHeader refreshing={isFetching} onRefresh={() => void refetch()} />
 
       <KpiSummary data={data} onOpenOverdueTasks={() => openTaskBucket('overdue')} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className="min-w-0 lg:col-span-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+        <div className="min-w-0 lg:col-span-7">
           <ActionWidget
             data={data}
             recommendations={recommendations}
@@ -129,25 +137,25 @@ export default function DashboardPage() {
             onShowTasks={openTaskBucket}
           />
         </div>
-        <div className="min-w-0 lg:col-span-2">
+        <div className="min-w-0 lg:col-span-5">
           <ReminderWidget reminders={data.upcoming_reminders} onOpenTask={openCard} />
         </div>
 
-        <div className="min-w-0 lg:col-span-3">
+        <div className="min-w-0 lg:col-span-7">
           <PipelineWidget data={data} />
         </div>
-        <div className="min-w-0 lg:col-span-2">
+        <div className="min-w-0 lg:col-span-5">
           <ContractsWidget data={data} />
         </div>
       </div>
 
       <AttentionWidget data={data} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className="min-w-0 lg:col-span-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+        <div className="min-w-0 lg:col-span-7">
           <RecentActivityWidget interactions={data.recent_interactions} />
         </div>
-        <div className="min-w-0 lg:col-span-2">
+        <div className="min-w-0 lg:col-span-5">
           <BoardSummaryWidget boards={data.recent_boards} />
         </div>
       </div>
