@@ -6,7 +6,7 @@ import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '../common/ui';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
-import { useUiStore, type TaskContext } from '../../stores/uiStore';
+import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
 import type { Card, Customer, Priority } from '../../types';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
@@ -106,6 +106,33 @@ export function TaskFormDialog() {
   /** Nguoi dung co sua lai sau khi AI dien khong — gui kem phan hoi chat luong. */
   const [aiEdited, setAiEdited] = useState(false);
 
+  /**
+   * Nap lai form ngay trong luc render khi phien soan thao doi.
+   *
+   * Neu dat trong useEffect thi lan render dau tien sau khi mo van mang `links` rong,
+   * lam form ban mot truy van ngu canh KHONG co tham so roi moi ban lai truy van dung
+   * — nguoi dung thay o lien ket nhay tu rong sang co. React chay lai component ngay
+   * ma khong commit, nen render duoc commit dau tien da co du ngu canh.
+   */
+  const [loaded, setLoaded] = useState<TaskComposerState | null>(null);
+  if (composer !== loaded) {
+    setLoaded(composer);
+    setTitle(composer?.draftTitle ?? '');
+    setDescription('');
+    setPriority('medium');
+    setStartDate(null);
+    setDueDate(null);
+    setChecklistText('');
+    setListId(composer?.listId ?? '');
+    setListTouched(composer?.listId !== undefined);
+    setLinks(composer?.context ?? {});
+    setAnchors(composer ? LINK_KEYS.filter((key) => composer.context[key] != null) : []);
+    setSubmitted(false);
+    setAiFilled([]);
+    setAiMeta(null);
+    setAiEdited(false);
+  }
+
   const { data: context } = useQuery({
     queryKey: ['card-context', links],
     queryFn: () => api.get<TaskContextResponse>(`/api/cards/context${qs({ ...links })}`),
@@ -118,22 +145,8 @@ export function TaskFormDialog() {
     enabled: open,
   });
 
+  // Xoa loi cua lan truoc — goi mutation la tac dung phu nen khong dat trong render.
   useEffect(() => {
-    if (!composer) return;
-    setTitle(composer.draftTitle ?? '');
-    setDescription('');
-    setPriority('medium');
-    setStartDate(null);
-    setDueDate(null);
-    setChecklistText('');
-    setListId(composer.listId ?? '');
-    setListTouched(composer.listId !== undefined);
-    setLinks(composer.context);
-    setAnchors(LINK_KEYS.filter((key) => composer.context[key] != null));
-    setSubmitted(false);
-    setAiFilled([]);
-    setAiMeta(null);
-    setAiEdited(false);
     save.reset();
     assist.reset();
   }, [composer]);
@@ -429,8 +442,16 @@ export function TaskFormDialog() {
             linkKey="customer_id"
             value={valueOf('customer_id')}
             locked={anchors.includes('customer_id')}
-            /* Khach hang duoc suy ra tu lien ket cu the hon — go lien ket do truoc moi doi duoc. */
-            disabledBy={LINK_KEYS.slice(1).find((k) => valueOf(k) !== '')}
+            /*
+             * Khach hang duoc suy ra tu lien ket cu the hon — go lien ket do truoc moi
+             * doi duoc. Duyet nguoc de chi dung mat xich CU THE NHAT: tao tu mot co hoi
+             * thi nguoi lien he cung da duoc dien theo, noi "suy ra tu nguoi lien he"
+             * la chi sai cho.
+             */
+            disabledBy={[...LINK_KEYS]
+              .slice(1)
+              .reverse()
+              .find((k) => valueOf(k) !== '')}
             onChange={(v) => changeLink('customer_id', v)}
           >
             {customers.map((c) => (

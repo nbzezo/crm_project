@@ -89,6 +89,15 @@ function parentLinks(
  * cua hai khach hang khac nhau — luc do khong co gi de suy ra, chi co mau thuan.
  */
 export function deriveTaskLinks(db: Database, links: EntityLinks): EntityLinks {
+  /*
+   * Kiem tra lua chon GOC truoc khi suy dien.
+   *
+   * Neu de den sau, mot lien ket do he thong tu dien se bi bao loi thay cho o ma
+   * nguoi dung thuc su chon: chon co hoi cua khach khac thi thong bao lai chi vao
+   * "nguoi lien he" — o ma ho chua he dung den.
+   */
+  assertEntityLinks(db, links);
+
   const next: EntityLinks = { ...links };
   const fill = (key: 'customer_id' | 'deal_id' | 'contact_id', value: number | null) => {
     if (next[key] == null && value != null) next[key] = value;
