@@ -15,7 +15,14 @@ import { CommitteePanel } from '../components/crm/CommitteePanel';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { EntityLabels } from '../components/labels/EntityLabels';
-import { Button, ColorBadge, ErrorState, Panel, Skeleton, focusRing } from '../components/common/ui';
+import {
+  Button,
+  ColorBadge,
+  ErrorState,
+  Panel,
+  Skeleton,
+  focusRing,
+} from '../components/common/ui';
 import { STAGE_COLORS, t } from '../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { formatDate, formatVND } from '../lib/format';
@@ -194,7 +201,10 @@ export default function DealDetailPage() {
                   value={deal.next_action_date ? formatDate(deal.next_action_date) : null}
                 />
                 {deal.lost_reason && (
-                  <Row label={t.deal.lostReason} value={t.lostReason[deal.lost_reason] ?? deal.lost_reason} />
+                  <Row
+                    label={t.deal.lostReason}
+                    value={t.lostReason[deal.lost_reason] ?? deal.lost_reason}
+                  />
                 )}
               </dl>
               <p className="mt-3 border-t border-tr-border pt-3 text-sm whitespace-pre-wrap text-tr-text">

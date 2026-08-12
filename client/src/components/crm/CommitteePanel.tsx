@@ -32,12 +32,7 @@ import {
   STANCE_LABELS,
 } from '../../i18n/scoring';
 import { formatDate } from '../../lib/format';
-import type {
-  CommitteeResponse,
-  DealCompetitor,
-  DealEvent,
-  Deal,
-} from '../../types';
+import type { CommitteeResponse, DealCompetitor, DealEvent, Deal } from '../../types';
 
 const ECONOMIC_ROLES = ['economic_buyer', 'decision_maker'];
 const RECENT_DAYS = 30;
@@ -100,7 +95,9 @@ function MembersBlock({ dealId, onChange }: { dealId: number; onChange: () => vo
     >
       <div className="mb-3 space-y-1.5">
         {recent.length <= 1 && members.length > 0 && (
-          <Warning text={`Single-threaded — chỉ ${recent.length} người có tương tác trong ${RECENT_DAYS} ngày.`} />
+          <Warning
+            text={`Single-threaded — chỉ ${recent.length} người có tương tác trong ${RECENT_DAYS} ngày.`}
+          />
         )}
         {!hasChampion && <Warning text="Chưa có champion nào ở trạng thái ủng hộ." />}
         {!hasEconomic && (
@@ -121,7 +118,9 @@ function MembersBlock({ dealId, onChange }: { dealId: number; onChange: () => vo
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 flex-1 text-sm font-medium text-tr-text">
                 {member.full_name}
-                {member.title && <span className="ml-1 text-xs text-tr-muted">· {member.title}</span>}
+                {member.title && (
+                  <span className="ml-1 text-xs text-tr-muted">· {member.title}</span>
+                )}
               </span>
               {member.is_champion === 1 && (
                 <Crown size={14} className="shrink-0 text-tr-warning" aria-label="Champion" />
@@ -254,9 +253,15 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
     onChange();
   };
   const create = useMutation({
-    mutationFn: () => api.post(`/api/deals/${dealId}/events`, { ...form, is_primary: !data?.length }),
+    mutationFn: () =>
+      api.post(`/api/deals/${dealId}/events`, { ...form, is_primary: !data?.length }),
     onSuccess: () => {
-      setForm({ event_type: 'contract_expiry', description: '', event_date: null, confirmed: false });
+      setForm({
+        event_type: 'contract_expiry',
+        description: '',
+        event_date: null,
+        confirmed: false,
+      });
       refresh();
     },
   });
@@ -274,7 +279,9 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
 
   const primary = data.find((e) => e.is_primary === 1) ?? data[0];
   const closeAfterEvent =
-    primary?.event_date && deal.expected_close_date && deal.expected_close_date > primary.event_date;
+    primary?.event_date &&
+    deal.expected_close_date &&
+    deal.expected_close_date > primary.event_date;
 
   return (
     <Panel title="Sự kiện bắt buộc">
@@ -427,7 +434,9 @@ function BackwardPlan({ dealId }: { dealId: number }) {
           <ul className="space-y-1 text-xs">
             {data.milestones.map((m) => (
               <li key={m.title} className="flex items-center gap-2">
-                <span className={`w-24 tabular-nums ${m.overdue ? 'text-tr-danger' : 'text-tr-muted'}`}>
+                <span
+                  className={`w-24 tabular-nums ${m.overdue ? 'text-tr-danger' : 'text-tr-muted'}`}
+                >
                   {formatDate(m.date)}
                 </span>
                 <span className="text-tr-text">{m.title}</span>
@@ -518,7 +527,9 @@ function CompetitorsBlock({ dealId, onChange }: { dealId: number; onChange: () =
                 <Select
                   value={c.price_position}
                   aria-label={`Vị thế giá của ${c.name}`}
-                  onChange={(e) => update.mutate({ id: c.id, patch: { price_position: e.target.value } })}
+                  onChange={(e) =>
+                    update.mutate({ id: c.id, patch: { price_position: e.target.value } })
+                  }
                   className="h-7 w-auto py-0 text-xs"
                 >
                   {Object.entries(PRICE_POSITION_LABELS).map(([value, label]) => (
@@ -532,7 +543,9 @@ function CompetitorsBlock({ dealId, onChange }: { dealId: number; onChange: () =
                 <input
                   type="checkbox"
                   checked={c.incumbent === 1}
-                  onChange={(e) => update.mutate({ id: c.id, patch: { incumbent: e.target.checked } })}
+                  onChange={(e) =>
+                    update.mutate({ id: c.id, patch: { incumbent: e.target.checked } })
+                  }
                 />
                 Đang cung cấp
               </label>
@@ -564,7 +577,11 @@ function CompetitorsBlock({ dealId, onChange }: { dealId: number; onChange: () =
             <option key={k.name} value={k.name} />
           ))}
         </datalist>
-        <Button variant="primary" disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
+        <Button
+          variant="primary"
+          disabled={!name.trim() || create.isPending}
+          onClick={() => create.mutate()}
+        >
           <Plus size={14} /> Thêm
         </Button>
       </div>

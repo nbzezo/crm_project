@@ -385,16 +385,30 @@ export default function RevenuePage() {
           <table className="w-full text-sm">
             <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
               <tr>
-                <th scope="col" className="sticky left-0 z-10 bg-tr-surface px-3 py-2.5">STT</th>
+                <th scope="col" className="sticky left-0 z-10 bg-tr-surface px-3 py-2.5">
+                  STT
+                </th>
                 <th scope="col" className="sticky left-12 z-10 min-w-56 bg-tr-surface px-3 py-2.5">
                   {t.card.customer}
                 </th>
-                <th scope="col" className="px-3 py-2.5">{t.revenue.am}</th>
-                <th scope="col" className="px-3 py-2.5">{t.revenue.contractKind}</th>
-                <th scope="col" className="px-3 py-2.5">{t.revenue.contractTerm}</th>
-                <th scope="col" className="px-3 py-2.5">{t.revenue.service}</th>
-                <th scope="col" className="px-3 py-2.5">{t.revenue.status}</th>
-                <th scope="col" className="px-3 py-2.5 text-right">{t.revenue.total}</th>
+                <th scope="col" className="px-3 py-2.5">
+                  {t.revenue.am}
+                </th>
+                <th scope="col" className="px-3 py-2.5">
+                  {t.revenue.contractKind}
+                </th>
+                <th scope="col" className="px-3 py-2.5">
+                  {t.revenue.contractTerm}
+                </th>
+                <th scope="col" className="px-3 py-2.5">
+                  {t.revenue.service}
+                </th>
+                <th scope="col" className="px-3 py-2.5">
+                  {t.revenue.status}
+                </th>
+                <th scope="col" className="px-3 py-2.5 text-right">
+                  {t.revenue.total}
+                </th>
                 {MONTHS.map((m) => (
                   <th scope="col" key={m} className="px-2 py-2.5 text-right whitespace-nowrap">
                     <button

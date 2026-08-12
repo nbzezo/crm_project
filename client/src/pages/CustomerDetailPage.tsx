@@ -54,7 +54,6 @@ type Tab =
   | 'interactions'
   | 'tasks';
 
-
 export default function CustomerDetailPage() {
   const { customerId } = useParams();
   const id = Number(customerId);
@@ -144,7 +143,9 @@ export default function CustomerDetailPage() {
             <ColorBadge color={ACCOUNT_STATUS_COLORS[customer.status]}>
               {t.accountStatus[customer.status]}
             </ColorBadge>
-            {customer.industry && <span className="text-sm text-tr-muted">{customer.industry}</span>}
+            {customer.industry && (
+              <span className="text-sm text-tr-muted">{customer.industry}</span>
+            )}
             {customer.size && (
               <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle">
                 {customer.size}
@@ -210,187 +211,206 @@ export default function CustomerDetailPage() {
       </div>
 
       <div id="custab-panel" role="tabpanel" aria-labelledby={`custab-${tab}`}>
-
-      {tab === 'info' && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="space-y-2 rounded-lg border border-tr-border bg-tr-panel p-4 text-sm">
-            <InfoRow icon={Building2} label={t.customer.taxCode} value={customer.tax_code} />
-            <InfoRow icon={Phone} label={t.customer.phone} value={customer.phone} />
-            <InfoRow icon={Mail} label={t.customer.email} value={customer.email} />
-            <InfoRow icon={Globe} label={t.customer.website} value={customer.website} />
-            <InfoRow icon={MapPin} label={t.customer.address} value={customer.address} />
-            <InfoRow icon={Building2} label="Nguồn" value={customer.source} />
+        {tab === 'info' && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="space-y-2 rounded-lg border border-tr-border bg-tr-panel p-4 text-sm">
+              <InfoRow icon={Building2} label={t.customer.taxCode} value={customer.tax_code} />
+              <InfoRow icon={Phone} label={t.customer.phone} value={customer.phone} />
+              <InfoRow icon={Mail} label={t.customer.email} value={customer.email} />
+              <InfoRow icon={Globe} label={t.customer.website} value={customer.website} />
+              <InfoRow icon={MapPin} label={t.customer.address} value={customer.address} />
+              <InfoRow icon={Building2} label="Nguồn" value={customer.source} />
+            </div>
+            <div className="rounded-lg border border-tr-border bg-tr-panel p-4">
+              <h3 className="mb-2 text-sm font-semibold text-tr-subtle">{t.customer.notes}</h3>
+              <p className="text-sm whitespace-pre-wrap text-tr-text">{customer.notes || '—'}</p>
+              {customer.boards.length > 0 && (
+                <>
+                  <h3 className="mt-4 mb-2 text-sm font-semibold text-tr-subtle">{t.nav.boards}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {customer.boards.map((b) => (
+                      <Link
+                        key={b.id}
+                        to={`/boards/${b.id}`}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-white"
+                        style={{ backgroundColor: b.color }}
+                      >
+                        {b.name}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          <div className="rounded-lg border border-tr-border bg-tr-panel p-4">
-            <h3 className="mb-2 text-sm font-semibold text-tr-subtle">{t.customer.notes}</h3>
-            <p className="text-sm whitespace-pre-wrap text-tr-text">{customer.notes || '—'}</p>
-            {customer.boards.length > 0 && (
-              <>
-                <h3 className="mt-4 mb-2 text-sm font-semibold text-tr-subtle">{t.nav.boards}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {customer.boards.map((b) => (
-                    <Link
-                      key={b.id}
-                      to={`/boards/${b.id}`}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-white"
-                      style={{ backgroundColor: b.color }}
-                    >
-                      {b.name}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+        )}
 
-      {tab === 'contacts' && <ContactList customerId={id} contacts={customer.contacts} />}
+        {tab === 'contacts' && <ContactList customerId={id} contacts={customer.contacts} />}
 
-      {tab === 'deals' && (
-        <TableSection
-          onAdd={() => setDealForm({ open: true, deal: null })}
-          addLabel={t.deal.newDeal}
-          empty={t.deal.noDeals}
-          isEmpty={customer.deals.length === 0}
-          headers={['Tên cơ hội', 'Giai đoạn', 'Xác suất', 'Giá trị', 'Dự kiến chốt', 'Next Action', '']}
-        >
-          {customer.deals.map((d) => (
-            <tr key={d.id} className="hover:bg-tr-hover">
-              <td className="px-4 py-2.5 font-medium text-tr-text">{d.title}</td>
-              <td className="px-4 py-2.5">
-                <ColorBadge color={STAGE_COLORS[d.stage]}>{t.stage[d.stage]}</ColorBadge>
-              </td>
-              <td className="px-4 py-2.5 text-tr-subtle tabular-nums">{d.probability}%</td>
-              <td className="px-4 py-2.5 text-right font-medium tabular-nums">
-                {formatVND(d.value_vnd)}
-              </td>
-              <td className="px-4 py-2.5 text-tr-subtle">
-                {formatDate(d.expected_close_date) || '—'}
-              </td>
-              <td className="px-4 py-2.5 text-xs text-tr-subtle">
-                {d.next_action ? `${d.next_action}${d.next_action_date ? ` · ${formatDate(d.next_action_date)}` : ''}` : '—'}
-              </td>
-              <td className="px-4 py-2.5 text-right">
-                <button
-                  onClick={() => setDealForm({ open: true, deal: d })}
-                  aria-label={`${t.common.edit}: ${d.title}`}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
-                >
-                  <Pencil size={13} />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </TableSection>
-      )}
+        {tab === 'deals' && (
+          <TableSection
+            onAdd={() => setDealForm({ open: true, deal: null })}
+            addLabel={t.deal.newDeal}
+            empty={t.deal.noDeals}
+            isEmpty={customer.deals.length === 0}
+            headers={[
+              'Tên cơ hội',
+              'Giai đoạn',
+              'Xác suất',
+              'Giá trị',
+              'Dự kiến chốt',
+              'Next Action',
+              '',
+            ]}
+          >
+            {customer.deals.map((d) => (
+              <tr key={d.id} className="hover:bg-tr-hover">
+                <td className="px-4 py-2.5 font-medium text-tr-text">{d.title}</td>
+                <td className="px-4 py-2.5">
+                  <ColorBadge color={STAGE_COLORS[d.stage]}>{t.stage[d.stage]}</ColorBadge>
+                </td>
+                <td className="px-4 py-2.5 text-tr-subtle tabular-nums">{d.probability}%</td>
+                <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+                  {formatVND(d.value_vnd)}
+                </td>
+                <td className="px-4 py-2.5 text-tr-subtle">
+                  {formatDate(d.expected_close_date) || '—'}
+                </td>
+                <td className="px-4 py-2.5 text-xs text-tr-subtle">
+                  {d.next_action
+                    ? `${d.next_action}${d.next_action_date ? ` · ${formatDate(d.next_action_date)}` : ''}`
+                    : '—'}
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    onClick={() => setDealForm({ open: true, deal: d })}
+                    aria-label={`${t.common.edit}: ${d.title}`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </TableSection>
+        )}
 
-      {tab === 'quotations' && (
-        <TableSection
-          onAdd={() => setQuoteForm({ open: true, quotation: null })}
-          addLabel="Thêm báo giá"
-          empty="Chưa có báo giá nào."
-          isEmpty={(customer.quotations?.length ?? 0) === 0}
-          headers={['Mã / phiên bản', 'Cơ hội', 'Ngày báo giá', 'Giá trị', 'Hiệu lực đến', 'Trạng thái', '']}
-        >
-          {customer.quotations?.map((q) => (
-            <tr key={q.id} className="hover:bg-tr-hover">
-              <td className="px-4 py-2.5 font-medium text-tr-text">
-                {q.code || 'Không mã'} <span className="text-xs text-tr-muted">v{q.version}</span>
-              </td>
-              <td className="px-4 py-2.5 text-tr-subtle">{q.deal_title ?? '—'}</td>
-              <td className="px-4 py-2.5 text-tr-subtle">{formatDate(q.quote_date) || '—'}</td>
-              <td className="px-4 py-2.5 text-right font-medium tabular-nums">
-                {formatVND(q.value_vnd)}
-              </td>
-              <td className="px-4 py-2.5 text-tr-subtle">{formatDate(q.valid_until) || '—'}</td>
-              <td className="px-4 py-2.5">
-                <ColorBadge color={QUOTATION_STATUS_COLORS[q.status]}>{t.quotationStatus[q.status]}</ColorBadge>
-              </td>
-              <td className="px-4 py-2.5 text-right">
-                <button
-                  onClick={() => setQuoteForm({ open: true, quotation: q })}
-                  aria-label={`${t.common.edit}: ${q.code || 'báo giá'}`}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
-                >
-                  <Pencil size={13} />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </TableSection>
-      )}
+        {tab === 'quotations' && (
+          <TableSection
+            onAdd={() => setQuoteForm({ open: true, quotation: null })}
+            addLabel="Thêm báo giá"
+            empty="Chưa có báo giá nào."
+            isEmpty={(customer.quotations?.length ?? 0) === 0}
+            headers={[
+              'Mã / phiên bản',
+              'Cơ hội',
+              'Ngày báo giá',
+              'Giá trị',
+              'Hiệu lực đến',
+              'Trạng thái',
+              '',
+            ]}
+          >
+            {customer.quotations?.map((q) => (
+              <tr key={q.id} className="hover:bg-tr-hover">
+                <td className="px-4 py-2.5 font-medium text-tr-text">
+                  {q.code || 'Không mã'} <span className="text-xs text-tr-muted">v{q.version}</span>
+                </td>
+                <td className="px-4 py-2.5 text-tr-subtle">{q.deal_title ?? '—'}</td>
+                <td className="px-4 py-2.5 text-tr-subtle">{formatDate(q.quote_date) || '—'}</td>
+                <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+                  {formatVND(q.value_vnd)}
+                </td>
+                <td className="px-4 py-2.5 text-tr-subtle">{formatDate(q.valid_until) || '—'}</td>
+                <td className="px-4 py-2.5">
+                  <ColorBadge color={QUOTATION_STATUS_COLORS[q.status]}>
+                    {t.quotationStatus[q.status]}
+                  </ColorBadge>
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    onClick={() => setQuoteForm({ open: true, quotation: q })}
+                    aria-label={`${t.common.edit}: ${q.code || 'báo giá'}`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </TableSection>
+        )}
 
-      {tab === 'contracts' && (
-        <TableSection
-          onAdd={() => setContractForm({ open: true, contract: null })}
-          addLabel="Thêm hợp đồng"
-          empty="Chưa có hợp đồng nào."
-          isEmpty={(customer.contracts?.length ?? 0) === 0}
-          headers={['Hợp đồng', 'Giá trị', 'Hiệu lực', 'Còn lại', 'Trạng thái', '']}
-        >
-          {customer.contracts?.map((c) => (
-            <tr key={c.id} className="hover:bg-tr-hover">
-              <td className="px-4 py-2.5">
-                <div className="flex items-center gap-2 font-medium text-tr-text">
-                  <FileSignature size={14} className="text-tr-muted" />
-                  {c.name}
-                </div>
-                {c.number && <div className="text-xs text-tr-muted">Số {c.number}</div>}
-              </td>
-              <td className="px-4 py-2.5 text-right font-medium tabular-nums">
-                {formatVND(c.value_vnd)}
-              </td>
-              <td className="px-4 py-2.5 text-xs text-tr-subtle">
-                {formatDate(c.start_date) || '—'} → {formatDate(c.end_date) || '—'}
-              </td>
-              <td className="px-4 py-2.5 text-xs text-tr-subtle">
-                {c.days_left === null || c.days_left === undefined
-                  ? '—'
-                  : c.days_left < 0
-                    ? `Quá ${-c.days_left} ngày`
-                    : `${c.days_left} ngày`}
-              </td>
-              <td className="px-4 py-2.5">
-                <ColorBadge color={CONTRACT_STATUS_COLORS[c.status]}>
-                  {t.contractStatus[c.status]}
-                </ColorBadge>
-              </td>
-              <td className="px-4 py-2.5 text-right">
-                <button
-                  onClick={() => setContractForm({ open: true, contract: c })}
-                  aria-label={`${t.common.edit}: ${c.name}`}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
-                >
-                  <Pencil size={13} />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </TableSection>
-      )}
+        {tab === 'contracts' && (
+          <TableSection
+            onAdd={() => setContractForm({ open: true, contract: null })}
+            addLabel="Thêm hợp đồng"
+            empty="Chưa có hợp đồng nào."
+            isEmpty={(customer.contracts?.length ?? 0) === 0}
+            headers={['Hợp đồng', 'Giá trị', 'Hiệu lực', 'Còn lại', 'Trạng thái', '']}
+          >
+            {customer.contracts?.map((c) => (
+              <tr key={c.id} className="hover:bg-tr-hover">
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center gap-2 font-medium text-tr-text">
+                    <FileSignature size={14} className="text-tr-muted" />
+                    {c.name}
+                  </div>
+                  {c.number && <div className="text-xs text-tr-muted">Số {c.number}</div>}
+                </td>
+                <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+                  {formatVND(c.value_vnd)}
+                </td>
+                <td className="px-4 py-2.5 text-xs text-tr-subtle">
+                  {formatDate(c.start_date) || '—'} → {formatDate(c.end_date) || '—'}
+                </td>
+                <td className="px-4 py-2.5 text-xs text-tr-subtle">
+                  {c.days_left === null || c.days_left === undefined
+                    ? '—'
+                    : c.days_left < 0
+                      ? `Quá ${-c.days_left} ngày`
+                      : `${c.days_left} ngày`}
+                </td>
+                <td className="px-4 py-2.5">
+                  <ColorBadge color={CONTRACT_STATUS_COLORS[c.status]}>
+                    {t.contractStatus[c.status]}
+                  </ColorBadge>
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    onClick={() => setContractForm({ open: true, contract: c })}
+                    aria-label={`${t.common.edit}: ${c.name}`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </TableSection>
+        )}
 
-      {tab === 'services' && <CustomerServices customerId={id} />}
+        {tab === 'services' && <CustomerServices customerId={id} />}
 
-      {tab === 'documents' && <DocumentPanel links={{ customer_id: id }} />}
+        {tab === 'documents' && <DocumentPanel links={{ customer_id: id }} />}
 
-      {tab === 'interactions' && (
-        <InteractionTimeline
-          customerId={id}
-          interactions={customer.interactions}
-          contacts={customer.contacts}
-          deals={customer.deals}
-        />
-      )}
+        {tab === 'interactions' && (
+          <InteractionTimeline
+            customerId={id}
+            interactions={customer.interactions}
+            contacts={customer.contacts}
+            deals={customer.deals}
+          />
+        )}
 
-      {tab === 'tasks' && (
-        <TaskTree
-          tasks={customer.tasks}
-          columns={{ customer: false }}
-          emptyMessage="Chưa có công việc nào gắn với khách hàng này."
-          onChanged={() => queryClient.invalidateQueries({ queryKey: ['customer', id] })}
-        />
-      )}
+        {tab === 'tasks' && (
+          <TaskTree
+            tasks={customer.tasks}
+            columns={{ customer: false }}
+            emptyMessage="Chưa có công việc nào gắn với khách hàng này."
+            onChanged={() => queryClient.invalidateQueries({ queryKey: ['customer', id] })}
+          />
+        )}
       </div>
 
       <CustomerForm open={editing} onClose={() => setEditing(false)} customer={customer} />

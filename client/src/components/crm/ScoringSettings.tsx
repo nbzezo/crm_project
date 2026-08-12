@@ -60,9 +60,8 @@ export function ScoringSettings() {
       <div>
         <h3 className="mb-1 text-sm font-semibold text-tr-text">Cổng giai đoạn</h3>
         <p className="mb-2 text-xs text-tr-muted">
-          Điểm BANT tối thiểu để chuyển cơ hội vào từng giai đoạn. Để trống là không chặn. Kéo
-          sang <strong>Thất bại</strong> không bao giờ bị chặn — nếu chặn thì không đóng được
-          deal xấu.
+          Điểm BANT tối thiểu để chuyển cơ hội vào từng giai đoạn. Để trống là không chặn. Kéo sang{' '}
+          <strong>Thất bại</strong> không bao giờ bị chặn — nếu chặn thì không đóng được deal xấu.
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {GATED_STAGES.map((stage) => (
@@ -141,8 +140,8 @@ export function ScoringSettings() {
       </div>
 
       <p className="border-t border-tr-border pt-3 text-xs text-tr-muted">
-        Điểm chất lượng <strong>không bao giờ</strong> ghi đè xác suất theo giai đoạn của cơ
-        hội. Hai chỉ số được phép khác nhau — chênh lệch giữa chúng chính là thứ trang{' '}
+        Điểm chất lượng <strong>không bao giờ</strong> ghi đè xác suất theo giai đoạn của cơ hội.
+        Hai chỉ số được phép khác nhau — chênh lệch giữa chúng chính là thứ trang{' '}
         <em>Sức khỏe pipeline</em> đo.
       </p>
     </div>

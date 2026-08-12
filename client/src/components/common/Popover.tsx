@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, X } from 'lucide-react';
+import { useDialog } from './useDialog';
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ interface Props {
 export function Popover({ open, onClose, anchor, title, children, width = 304, onBack }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  useDialog({ open, onClose, containerRef: ref, trapFocus: false, focusOnOpen: true });
 
   useLayoutEffect(() => {
     if (!open || !anchor) return;
@@ -31,7 +33,6 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     const onDown = (e: MouseEvent) => {
       if (
         ref.current &&
@@ -42,10 +43,8 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
         onClose();
       }
     };
-    document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onDown);
     return () => {
-      document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onDown);
     };
   }, [open, onClose, anchor]);
@@ -58,9 +57,10 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
     <div
       ref={ref}
       role="dialog"
+      aria-modal="false"
       aria-label={title}
       className="tr-popover-shadow tr-anim-pop fixed z-[70] overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
-      style={{ top: pos.top, left: pos.left, width }}
+      style={{ top: pos.top, left: pos.left, width: Math.min(width, window.innerWidth - 16) }}
     >
       <div className="relative flex h-10 items-center justify-center border-b border-tr-border px-9">
         {onBack && (

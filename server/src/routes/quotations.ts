@@ -3,10 +3,14 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { QUOTATION_STATUSES } from '../lib/crm.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
 
-const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+const dateOnly = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .nullable();
 
 const quotationSchema = z.object({
   customer_id: z.number().int(),
@@ -60,17 +64,16 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(quotationSchema, req);
-  required(
-    db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),
-    'Khong tim thay khach hang'
-  );
+  assertEntityLinks(db, body);
 
   // FR-QUO-04: bao gia moi cua cung co hoi tu tang phien ban
   const version =
     body.version ??
     (body.deal_id
       ? ((
-          db.prepare(`SELECT MAX(version) AS v FROM quotations WHERE deal_id = ?`).get(body.deal_id) as {
+          db
+            .prepare(`SELECT MAX(version) AS v FROM quotations WHERE deal_id = ?`)
+            .get(body.deal_id) as {
             v: number | null;
           }
         ).v ?? 0) + 1
@@ -104,6 +107,10 @@ router.patch('/:id', (req, res) => {
     'Khong tim thay bao gia'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
+  assertEntityLinks(db, {
+    customer_id: merged.customer_id as number,
+    deal_id: merged.deal_id as number | null,
+  });
 
   db.prepare(
     `UPDATE quotations SET deal_id = ?, code = ?, version = ?, quote_date = ?, value_vnd = ?,

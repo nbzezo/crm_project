@@ -5,14 +5,17 @@ import { api } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, Input, Select, Textarea } from '../common/ui';
 import { ServiceCatalog } from './ServiceCatalog';
-import {
-  CONTRACT_KIND_ORDER,
-  CONTRACT_TERM_ORDER,
-  SERVICE_STATUS_ORDER,
-  t,
-} from '../../i18n/vi';
+import { CONTRACT_KIND_ORDER, CONTRACT_TERM_ORDER, SERVICE_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateRevenueViews } from '../../lib/queryKeys';
-import type { ContractKind, ContractTerm, Contract, Customer, RevenueLine, Service, ServiceStatus } from '../../types';
+import type {
+  ContractKind,
+  ContractTerm,
+  Contract,
+  Customer,
+  RevenueLine,
+  Service,
+  ServiceStatus,
+} from '../../types';
 
 const EMPTY = {
   am: '',
@@ -239,7 +242,11 @@ export function RevenueLineForm({
           </Field>
           <div className="sm:col-span-2">
             <Field label={t.customer.notes}>
-              <Textarea rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
+              <Textarea
+                rows={2}
+                value={form.notes}
+                onChange={(e) => set('notes', e.target.value)}
+              />
             </Field>
           </div>
         </div>

@@ -17,8 +17,7 @@ export function formatBytes(size: number): string {
 
 /** Gioi han khop voi may chu — kiem tra o day de bao loi truoc khi tai len. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const ACCEPT =
-  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip';
+const ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip';
 const UPLOAD_HINT = 'Hỗ trợ PDF, Word, Excel, PowerPoint, ảnh — tối đa 25 MB.';
 
 interface Links {

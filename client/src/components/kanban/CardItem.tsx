@@ -1,7 +1,15 @@
 import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlignLeft, Building2, CheckSquare, Clock, ListTree, Paperclip, Pencil } from 'lucide-react';
+import {
+  AlignLeft,
+  Building2,
+  CheckSquare,
+  Clock,
+  ListTree,
+  Paperclip,
+  Pencil,
+} from 'lucide-react';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import { contrastInk, formatDateShort, isOverdue, todayStr } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
@@ -48,6 +56,13 @@ export const CardItem = memo(function CardItem({ card, labels, onClick }: Props)
       style={{ transform: CSS.Translate.toString(transform), transition, touchAction: 'none' }}
       {...attributes}
       {...listeners}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        listeners?.onKeyDown?.(event);
+        if (!event.defaultPrevented && event.key === 'Enter') onClick();
+      }}
+      aria-label={`${card.title}${card.due_date ? `, hạn ${formatDateShort(card.due_date)}` : ''}, ưu tiên ${t.priority[card.priority]}${card.is_done ? ', đã hoàn thành' : ''}`}
+      className="rounded-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
     >
       <CardBody card={card} labels={labels} onClick={onClick} />
     </div>
@@ -56,21 +71,13 @@ export const CardItem = memo(function CardItem({ card, labels, onClick }: Props)
 
 /** Nhan hien thi dang thanh mau hay dang chu — bam vao nhan de doi (giong Trello). */
 function LabelChips({ cardLabels, expanded }: { cardLabels: Label[]; expanded: boolean }) {
-  const toggle = useUiStore((s) => s.toggleLabelText);
   if (cardLabels.length === 0) return null;
 
   return (
     <div className="mb-1.5 flex flex-wrap gap-1">
       {cardLabels.map((label) => (
-        <button
+        <span
           key={label.id}
-          type="button"
-          tabIndex={-1}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggle();
-          }}
-          aria-label={`Nhãn ${label.name} — bấm để đổi cách hiển thị nhãn`}
           title={label.name}
           className={`inline-flex items-center overflow-hidden rounded-control text-xs font-semibold transition ${
             expanded ? 'h-4 max-w-full px-2' : 'h-2 w-10'
@@ -78,13 +85,13 @@ function LabelChips({ cardLabels, expanded }: { cardLabels: Label[]; expanded: b
           style={{ backgroundColor: label.color, color: contrastInk(label.color) }}
         >
           {expanded && <span className="truncate">{label.name}</span>}
-        </button>
+        </span>
       ))}
     </div>
   );
 }
 
-export function CardBody({ card, labels, onClick, dragging }: Props) {
+export function CardBody({ card, labels, dragging }: Props) {
   const labelsExpanded = useUiStore((s) => s.labelText);
   const cardLabels = labels.filter((l) => card.label_ids?.includes(l.id));
   const overdue = isOverdue(card.due_date, card.is_done);
@@ -100,21 +107,13 @@ export function CardBody({ card, labels, onClick, dragging }: Props) {
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      aria-label={`${card.title}${card.due_date ? `, hạn ${formatDateShort(card.due_date)}` : ''}, ưu tiên ${t.priority[card.priority]}${card.is_done ? ', đã hoàn thành' : ''}`}
-      className={`tr-card-shadow group relative cursor-grab overflow-hidden rounded-panel bg-tr-card text-tr-text transition hover:ring-2 hover:ring-tr-primary focus-visible:ring-2 focus-visible:ring-tr-primary focus-visible:outline-none active:cursor-grabbing ${
+      className={`tr-card-shadow group relative cursor-grab overflow-hidden rounded-panel bg-tr-card text-tr-text transition hover:ring-2 hover:ring-tr-primary active:cursor-grabbing ${
         dragging ? 'rotate-3 shadow-lg' : ''
       }`}
     >
-      {card.cover_color && <div className="h-8 w-full" style={{ backgroundColor: card.cover_color }} />}
+      {card.cover_color && (
+        <div className="h-8 w-full" style={{ backgroundColor: card.cover_color }} />
+      )}
 
       <div className="px-3 pt-2 pb-1.5">
         <LabelChips cardLabels={cardLabels} expanded={labelsExpanded} />

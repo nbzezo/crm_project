@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { FileSignature, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ContractForm } from '../components/crm/ContractForm';
@@ -20,7 +20,6 @@ import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type { Contract } from '../types';
 
-
 /** Màu cảnh báo theo số ngày còn lại (FR-CTR-04). */
 function urgencyClass(days: number | null | undefined): string {
   if (days === null || days === undefined) return 'text-tr-muted';
@@ -32,12 +31,14 @@ function urgencyClass(days: number | null | undefined): string {
 
 export default function ContractsPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const pushToast = useUiStore((s) => s.pushToast);
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
   const [form, setForm] = useState<{ open: boolean; contract?: Contract | null }>({ open: false });
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const focusId = Number(searchParams.get('focus')) || null;
 
   const {
     data: contracts = [],
@@ -53,6 +54,21 @@ export default function ContractsPage() {
     queryKey: ['contracts', 'expiring'],
     queryFn: () => api.get<Contract[]>('/api/contracts/expiring?within=90'),
   });
+
+  useEffect(() => {
+    if (!focusId || contracts.length === 0) return;
+    const contract = contracts.find((item) => item.id === focusId);
+    if (!contract) return;
+    setForm({ open: true, contract });
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete('focus');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [contracts, focusId, setSearchParams]);
 
   const renew = useMutation({
     mutationFn: (id: number) => api.post<{ id: number }>(`/api/contracts/${id}/renew`),
@@ -96,10 +112,7 @@ export default function ContractsPage() {
                 </h3>
                 <ul className="space-y-2">
                   {bucket.items.map((c) => (
-                    <li
-                      key={c.id}
-                      className="tr-card-shadow rounded-lg bg-tr-card p-2.5 text-sm"
-                    >
+                    <li key={c.id} className="tr-card-shadow rounded-lg bg-tr-card p-2.5 text-sm">
                       <div className="font-medium text-tr-text">{c.name}</div>
                       <Link
                         to={`/customers/${c.customer_id}`}
@@ -130,9 +143,7 @@ export default function ContractsPage() {
                       </div>
                     </li>
                   ))}
-                  {bucket.items.length === 0 && (
-                    <li className="text-xs text-tr-muted">—</li>
-                  )}
+                  {bucket.items.length === 0 && <li className="text-xs text-tr-muted">—</li>}
                 </ul>
               </div>
             ))}
@@ -183,12 +194,24 @@ export default function ContractsPage() {
           <table className="w-full text-sm">
             <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
               <tr>
-                <th scope="col" className="px-4 py-2.5">Hợp đồng</th>
-                <th scope="col" className="px-4 py-2.5">Khách hàng</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Giá trị</th>
-                <th scope="col" className="px-4 py-2.5">Hiệu lực</th>
-                <th scope="col" className="px-4 py-2.5">Còn lại</th>
-                <th scope="col" className="px-4 py-2.5">Trạng thái</th>
+                <th scope="col" className="px-4 py-2.5">
+                  Hợp đồng
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Khách hàng
+                </th>
+                <th scope="col" className="px-4 py-2.5 text-right">
+                  Giá trị
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Hiệu lực
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Còn lại
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Trạng thái
+                </th>
                 <th scope="col" className="px-4 py-2.5"></th>
               </tr>
             </thead>

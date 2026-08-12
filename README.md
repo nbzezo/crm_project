@@ -61,24 +61,75 @@ npm run seed
 
 Chỉ chạy khi cơ sở dữ liệu còn trống. Tạo 3 khách hàng, 6 cơ hội, 3 bảng và 15 thẻ mẫu.
 
+## Kiểm tra chất lượng
+
+```bash
+npm run format:check # định dạng
+npm run lint         # quy tắc code
+npm run typecheck    # TypeScript cho contract, API và UI
+npm test             # unit/integration/migration tests
+npm run build        # production build + ngân sách bundle
+npm run test:e2e     # Chromium desktop và mobile
+npm run check        # toàn bộ quality gate ở trên
+```
+
+Lần đầu chạy E2E cần cài Chromium bằng `npx playwright install chromium`. Bộ test dùng một thư mục
+riêng trong thư mục tạm của hệ điều hành, tự làm sạch trước mỗi lần chạy và không chạm vào dữ liệu
+phát triển.
+
+Client kiểm tra ngân sách JavaScript ban đầu sau mỗi production build. Ngưỡng hiện tại là 260 KiB
+gzip; các trang nặng, lịch, biểu đồ, kéo thả và cửa sổ thẻ được tải theo nhu cầu.
+
+## Build và chạy production
+
+```bash
+npm run build
+npm start
+```
+
+Lệnh `npm start` chạy API đã biên dịch ở cổng 3001. Phục vụ thư mục `client/dist` bằng web server
+tĩnh và chuyển tiếp `/api` tới API. Có thể xem thử artifact client tại local bằng:
+
+```bash
+npm run preview -w client -- --host 127.0.0.1
+```
+
+Server hỗ trợ các biến môi trường sau:
+
+| Biến | Mặc định | Ý nghĩa |
+| --- | --- | --- |
+| `PORT` | `3001` | Cổng HTTP của API |
+| `WORKFLOW_DATA_DIR` | `server/data` | Thư mục chứa DB mặc định, file tải lên và backup |
+| `WORKFLOW_DB_PATH` | `<WORKFLOW_DATA_DIR>/app.db` | Đường dẫn SQLite cụ thể; dùng `:memory:` cho test |
+
+Khi dừng bằng `SIGINT`/`SIGTERM`, API ngừng nhận kết nối mới, đóng HTTP server rồi đóng SQLite.
+Migration chạy tự động và theo thứ tự khi mở DB.
+
 ## Dữ liệu và sao lưu
 
 - Toàn bộ dữ liệu nằm trong một file SQLite: `server/data/app.db`.
 - Nút **Sao lưu ngay** trong mục *Cài đặt* tạo bản sao an toàn (dùng `db.backup()`, đúng cả khi bật WAL) vào `server/data/backups/`.
 - Nút **Xuất dữ liệu JSON** tải toàn bộ bảng về dạng JSON.
 - Muốn chuyển sang máy khác: copy cả thư mục `server/data/`.
+- Nếu cấu hình `WORKFLOW_DATA_DIR`, hãy sao lưu toàn bộ thư mục đã cấu hình. Không chỉ copy file
+  `app.db`, vì tài liệu tải lên nằm trong `files/` và các bản backup nằm trong `backups/`.
 
 ## Cấu trúc
 
 ```
-├── server/            Express + better-sqlite3 (cổng 3001)
+├── packages/contracts/ Contract và schema dùng chung cho API/UI
+├── server/             Express + better-sqlite3 (cổng 3001)
 │   └── src/
 │       ├── db/        schema.sql, migrate, seed
 │       ├── lib/       vị trí kéo thả, tìm kiếm bỏ dấu, kiểm tra dữ liệu
-│       └── routes/    boards, cards, customers, deals, views, system…
-└── client/            React 19 + Vite + Tailwind 4 (cổng 5173)
+│       ├── services/  transaction và quy tắc nghiệp vụ nhiều bước
+│       └── routes/    parse HTTP, gọi service, trả response
+├── client/             React 19 + Vite + Tailwind 4 (cổng 5173)
     └── src/
         ├── components/  kanban, crm, timeline, dùng chung
         ├── pages/       14 trang
         └── i18n/vi.ts   toàn bộ chuỗi giao diện
+└── e2e/                Luồng Playwright desktop/mobile trên production build
 ```
+
+Xem thêm [tài liệu kiến trúc](docs/ARCHITECTURE.md).

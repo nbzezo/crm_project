@@ -81,7 +81,9 @@ export function ReminderBell() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium text-tr-text">{r.title}</div>
-                      <div className={`text-xs ${late ? 'font-medium text-tr-danger' : 'text-tr-muted'}`}>
+                      <div
+                        className={`text-xs ${late ? 'font-medium text-tr-danger' : 'text-tr-muted'}`}
+                      >
                         {formatDateTime(r.due_at)}
                       </div>
                       {(r.card_title || r.customer_name || r.deal_title) && (

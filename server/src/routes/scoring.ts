@@ -35,10 +35,7 @@ const router = Router();
 
 /** Moi thao tac deu phai chac chan co hoi ton tai truoc khi ghi bang con. */
 function assertDeal(dealId: number): void {
-  required(
-    db.prepare(`SELECT id FROM deals WHERE id = ?`).get(dealId),
-    'Khong tim thay co hoi'
-  );
+  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(dealId), 'Khong tim thay co hoi');
 }
 
 function factorParam(value: string | undefined): Factor {
@@ -115,7 +112,9 @@ router.get('/deals/:id/evidence-sources', (req, res) => {
 
   const all = [...interactions, ...documents];
   const filtered = q
-    ? all.filter((r) => fold(`${r.summary ?? ''} ${r.result ?? ''} ${r.contact_name ?? ''}`).includes(q))
+    ? all.filter((r) =>
+        fold(`${r.summary ?? ''} ${r.result ?? ''} ${r.contact_name ?? ''}`).includes(q)
+      )
     : all;
   res.json(filtered);
 });
@@ -191,7 +190,9 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
   const contactId = intParam(req.params.contactId, 'contactId');
   const body = parseBody(memberSchema.partial().omit({ contact_id: true }), req);
   const current = required(
-    db.prepare(`SELECT * FROM deal_committee WHERE deal_id = ? AND contact_id = ?`).get(dealId, contactId),
+    db
+      .prepare(`SELECT * FROM deal_committee WHERE deal_id = ? AND contact_id = ?`)
+      .get(dealId, contactId),
     'Khong tim thay thanh vien'
   ) as Record<string, unknown>;
 
@@ -199,7 +200,9 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
     `UPDATE deal_committee SET role_override = ?, stance = ?, is_champion = ?, influence = ?, note = ?
       WHERE deal_id = ? AND contact_id = ?`
   ).run(
-    body.role_override !== undefined ? body.role_override : (current.role_override as string | null),
+    body.role_override !== undefined
+      ? body.role_override
+      : (current.role_override as string | null),
     body.stance ?? (current.stance as string),
     body.is_champion !== undefined ? (body.is_champion ? 1 : 0) : (current.is_champion as number),
     body.influence ?? (current.influence as number),
@@ -429,7 +432,9 @@ router.patch('/deals/:id/competitors/:competitorId', (req, res) => {
   const competitorId = intParam(req.params.competitorId, 'competitorId');
   const body = parseBody(competitorSchema.partial(), req);
   const current = required(
-    db.prepare(`SELECT * FROM deal_competitors WHERE id = ? AND deal_id = ?`).get(competitorId, dealId),
+    db
+      .prepare(`SELECT * FROM deal_competitors WHERE id = ? AND deal_id = ?`)
+      .get(competitorId, dealId),
     'Khong tim thay doi thu'
   ) as Record<string, unknown>;
 

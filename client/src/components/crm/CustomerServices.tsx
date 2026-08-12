@@ -6,7 +6,7 @@ import { api, qs } from '../../api/client';
 import { RevenueLineForm } from './RevenueLineForm';
 import { MonthlyRevenueModal } from './MonthlyRevenueModal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { Button, ColorBadge, EmptyState, Select, focusRing } from '../common/ui';
+import { Button, ColorBadge, EmptyState, Select } from '../common/ui';
 import { REVENUE_STAGE_COLORS, SERVICE_STATUS_COLORS, t } from '../../i18n/vi';
 import { formatDate, formatVND, formatVNDShort } from '../../lib/format';
 import { funnel, sumTotals } from '../../lib/revenue';
@@ -122,14 +122,30 @@ export function CustomerServices({ customerId }: { customerId: number }) {
             <table className="w-full text-sm">
               <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
                 <tr>
-                  <th scope="col" className="px-4 py-2.5">{t.revenue.service}</th>
-                  <th scope="col" className="px-4 py-2.5">{t.revenue.am}</th>
-                  <th scope="col" className="px-4 py-2.5">{t.revenue.contractKind}</th>
-                  <th scope="col" className="px-4 py-2.5">{t.revenue.contractTerm}</th>
-                  <th scope="col" className="px-4 py-2.5">Thời gian</th>
-                  <th scope="col" className="px-4 py-2.5">{t.revenue.status}</th>
-                  <th scope="col" className="px-4 py-2.5 text-right whitespace-nowrap">{t.revenue.forecast}</th>
-                  <th scope="col" className="px-4 py-2.5 text-right whitespace-nowrap">{t.revenue.amount}</th>
+                  <th scope="col" className="px-4 py-2.5">
+                    {t.revenue.service}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    {t.revenue.am}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    {t.revenue.contractKind}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    {t.revenue.contractTerm}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    Thời gian
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    {t.revenue.status}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-right whitespace-nowrap">
+                    {t.revenue.forecast}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-right whitespace-nowrap">
+                    {t.revenue.amount}
+                  </th>
                   <th scope="col" className="px-4 py-2.5 text-right whitespace-nowrap">
                     {t.revenueStage.paid}
                   </th>

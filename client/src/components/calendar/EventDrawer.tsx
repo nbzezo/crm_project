@@ -71,7 +71,11 @@ export function EventDrawer({
               {t.common.edit}
             </Button>
             {item.caps.remove && (
-              <Button variant="danger" onClick={() => onDelete?.(item)} aria-label={t.common.delete}>
+              <Button
+                variant="danger"
+                onClick={() => onDelete?.(item)}
+                aria-label={t.common.delete}
+              >
                 <Trash2 size={15} aria-hidden="true" />
               </Button>
             )}

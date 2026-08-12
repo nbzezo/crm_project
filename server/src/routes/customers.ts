@@ -26,10 +26,41 @@ const LIST_SQL = `
          (SELECT COUNT(*) FROM deals d WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')) AS open_deal_count,
          (SELECT COUNT(*) FROM deals d WHERE d.customer_id = c.id) AS deal_count,
          (SELECT COUNT(*) FROM cards k WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0) AS open_task_count,
+         (SELECT COUNT(*) FROM cards k
+           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
+             AND k.due_date IS NOT NULL
+             AND substr(k.due_date, 1, 10) < date('now','localtime')) AS overdue_task_count,
          (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d WHERE d.customer_id = c.id AND d.stage = 'won') AS total_won_vnd,
          (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')) AS open_pipeline_vnd,
          (SELECT COUNT(*) FROM contracts k WHERE k.customer_id = c.id AND k.status = 'active') AS active_contract_count,
-         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_activity_at
+         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_activity_at,
+         (SELECT COUNT(*) FROM deals d
+           WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')
+             AND trim(COALESCE(d.next_action, '')) = '') AS deals_without_next_action_count,
+         (SELECT COUNT(*) FROM deals d
+           WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')
+             AND d.next_action_date IS NOT NULL
+             AND substr(d.next_action_date, 1, 10) < date('now','localtime')) AS overdue_next_action_count,
+         (SELECT d.next_action FROM deals d
+           WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')
+             AND trim(COALESCE(d.next_action, '')) <> ''
+           ORDER BY d.next_action_date IS NULL, d.next_action_date, d.updated_at DESC LIMIT 1) AS next_deal_action,
+         (SELECT d.next_action_date FROM deals d
+           WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')
+             AND trim(COALESCE(d.next_action, '')) <> ''
+           ORDER BY d.next_action_date IS NULL, d.next_action_date, d.updated_at DESC LIMIT 1) AS next_deal_action_date,
+         (SELECT k.title FROM cards k
+           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
+           ORDER BY k.due_date IS NULL, k.due_date, k.updated_at DESC LIMIT 1) AS next_task_title,
+         (SELECT k.due_date FROM cards k
+           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
+           ORDER BY k.due_date IS NULL, k.due_date, k.updated_at DESC LIMIT 1) AS next_task_due_date,
+         (SELECT r.title FROM reminders r
+           WHERE r.customer_id = c.id AND r.is_done = 0
+           ORDER BY r.due_at LIMIT 1) AS next_reminder_title,
+         (SELECT r.due_at FROM reminders r
+           WHERE r.customer_id = c.id AND r.is_done = 0
+           ORDER BY r.due_at LIMIT 1) AS next_reminder_due_at
     FROM customers c`;
 
 router.get('/', (req, res) => {
@@ -110,7 +141,9 @@ router.post('/', (req, res) => {
         body.tax_code
       )
     );
-  res.status(201).json(db.prepare(`SELECT * FROM customers WHERE id = ?`).get(info.lastInsertRowid));
+  res
+    .status(201)
+    .json(db.prepare(`SELECT * FROM customers WHERE id = ?`).get(info.lastInsertRowid));
 });
 
 router.get('/:id/full', (req, res) => {

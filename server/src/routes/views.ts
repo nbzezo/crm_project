@@ -9,6 +9,8 @@ const router = Router();
 const TASK_SELECT = `
   SELECT k.id, k.title, k.description, k.priority, k.start_date, k.due_date, k.is_done,
          k.completed_at, k.position, k.list_id, k.parent_id,
+         (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total,
+         (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
          (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
          (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
          l.name AS list_name, b.id AS board_id, b.name AS board_name, b.color AS board_color,
@@ -31,9 +33,10 @@ const DEAL_ATTENTION_SELECT = `
 
 function attachLabels(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   if (rows.length === 0) return rows;
-  const links = db
-    .prepare(`SELECT card_id, label_id FROM card_labels`)
-    .all() as { card_id: number; label_id: number }[];
+  const links = db.prepare(`SELECT card_id, label_id FROM card_labels`).all() as {
+    card_id: number;
+    label_id: number;
+  }[];
   const map = new Map<number, number[]>();
   for (const l of links) {
     const arr = map.get(l.card_id) ?? [];
@@ -117,10 +120,11 @@ router.get('/calendar', (req, res) => {
    * `to` cua endpoint nay la ngay BAO GOM (5 nhanh cu deu dung BETWEEN), con
    * `end_at` la moc LOAI TRU — nen phai doi `to` thanh dau ngay hom sau.
    */
-  const events = (global
-    ? db
-        .prepare(
-          `SELECT e.*,
+  const events = (
+    global
+      ? db
+          .prepare(
+            `SELECT e.*,
                   CASE WHEN e.status = 'pending'
                         AND e.end_at <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime'))
                        THEN 1 ELSE 0 END AS is_overdue,
@@ -131,40 +135,47 @@ router.get('/calendar', (req, res) => {
              FROM calendar_events e
             WHERE e.start_at < strftime('%Y-%m-%dT%H:%M', datetime(?, '+1 day'))
               AND e.end_at > ? || 'T00:00'`
-        )
-        .all(to, from)
-    : []) as Record<string, unknown>[];
-  const deals = (crm
-    ? db
-        .prepare(
-          `SELECT d.id, d.title, d.expected_close_date, d.value_vnd, c.name AS customer_name
+          )
+          .all(to, from)
+      : []
+  ) as Record<string, unknown>[];
+  const deals = (
+    crm
+      ? db
+          .prepare(
+            `SELECT d.id, d.title, d.expected_close_date, d.value_vnd, c.name AS customer_name
              FROM deals d JOIN customers c ON c.id = d.customer_id
             WHERE d.expected_close_date IS NOT NULL AND d.expected_close_date BETWEEN ? AND ?
               AND d.stage NOT IN ('won','lost')`
-        )
-        .all(from, to)
-    : []) as Record<string, unknown>[];
+          )
+          .all(from, to)
+      : []
+  ) as Record<string, unknown>[];
 
-  const nextActions = (crm
-    ? db
-        .prepare(
-          `SELECT d.id, d.next_action, d.next_action_date, c.name AS customer_name
+  const nextActions = (
+    crm
+      ? db
+          .prepare(
+            `SELECT d.id, d.next_action, d.next_action_date, c.name AS customer_name
              FROM deals d JOIN customers c ON c.id = d.customer_id
             WHERE d.next_action_date IS NOT NULL AND d.next_action_date BETWEEN ? AND ?
               AND d.stage NOT IN ('won','lost')`
-        )
-        .all(from, to)
-    : []) as Record<string, unknown>[];
+          )
+          .all(from, to)
+      : []
+  ) as Record<string, unknown>[];
 
-  const contracts = (crm
-    ? db
-        .prepare(
-          `SELECT k.id, k.name, k.end_date, k.value_vnd, c.name AS customer_name
+  const contracts = (
+    crm
+      ? db
+          .prepare(
+            `SELECT k.id, k.name, k.end_date, k.value_vnd, c.name AS customer_name
              FROM contracts k JOIN customers c ON c.id = k.customer_id
             WHERE k.end_date IS NOT NULL AND k.end_date BETWEEN ? AND ? AND k.status = 'active'`
-        )
-        .all(from, to)
-    : []) as Record<string, unknown>[];
+          )
+          .all(from, to)
+      : []
+  ) as Record<string, unknown>[];
 
   res.json([
     ...events.map((e) => ({ ...e, kind: 'event' as const })),
@@ -247,6 +258,13 @@ router.get('/timeline', (req, res) => {
       start_date: (k.start_date ?? k.due_date) as string,
       due_date: (k.due_date ?? k.start_date) as string,
       priority: k.priority,
+      is_done: k.is_done,
+      progress:
+        Number(k.checklist_total) > 0
+          ? Math.round((Number(k.checklist_done) / Number(k.checklist_total)) * 100)
+          : Number(k.subtask_total) > 0
+            ? Math.round((Number(k.subtask_done) / Number(k.subtask_total)) * 100)
+            : null,
       board_name: k.board_name,
       customer_name: k.customer_name,
       group_id: groupByList
@@ -264,6 +282,7 @@ router.get('/timeline', (req, res) => {
       id: k.id,
       title: k.title,
       board_name: k.board_name,
+      list_name: k.list_name,
       customer_name: k.customer_name,
       priority: k.priority,
     })),
@@ -310,7 +329,8 @@ router.get('/dashboard', (_req, res) => {
          FROM deals GROUP BY stage`
     )
     .all() as { stage: string; count: number; sum_vnd: number; weighted_vnd: number }[];
-  const pipeline_totals: Record<string, { count: number; sum_vnd: number; weighted_vnd: number }> = {};
+  const pipeline_totals: Record<string, { count: number; sum_vnd: number; weighted_vnd: number }> =
+    {};
   for (const stage of STAGES) pipeline_totals[stage] = { count: 0, sum_vnd: 0, weighted_vnd: 0 };
   for (const row of stageRows)
     pipeline_totals[row.stage] = {
@@ -622,9 +642,9 @@ router.get('/pipeline-health', (_req, res) => {
 
 /** So lieu tong hop cho trang Bao cao. */
 router.get('/reports', (req, res) => {
-  const defaultFrom = db
-    .prepare(`SELECT date('now','localtime','-6 months') AS d`)
-    .get() as { d: string };
+  const defaultFrom = db.prepare(`SELECT date('now','localtime','-6 months') AS d`).get() as {
+    d: string;
+  };
   const from = String(req.query.from ?? defaultFrom.d);
   const to = String(req.query.to ?? '2999-12-31');
 

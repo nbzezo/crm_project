@@ -30,16 +30,15 @@ export function EvidencePicker({
 
   const { data, isLoading } = useQuery({
     queryKey: ['deal', dealId, 'evidence', q],
-    queryFn: () =>
-      api.get<EvidenceSource[]>(`/api/deals/${dealId}/evidence-sources${qs({ q })}`),
+    queryFn: () => api.get<EvidenceSource[]>(`/api/deals/${dealId}/evidence-sources${qs({ q })}`),
     enabled: open,
   });
 
   return (
     <Modal open={open} onClose={onClose} title="Chọn bằng chứng">
       <p className="mb-3 text-xs text-tr-muted">
-        Chỉ hiện hoạt động và tài liệu của chính cơ hội này. Chọn xong, đoạn tóm tắt sẽ được
-        điền vào ô bằng chứng và điểm được đánh dấu <strong>đã xác thực</strong>.
+        Chỉ hiện hoạt động và tài liệu của chính cơ hội này. Chọn xong, đoạn tóm tắt sẽ được điền
+        vào ô bằng chứng và điểm được đánh dấu <strong>đã xác thực</strong>.
       </p>
 
       <div className="relative mb-3">

@@ -253,7 +253,9 @@ export default function PipelineHealthPage() {
                     {FACTOR_LABELS[row.factor as Factor] ?? row.factor}: {row.old_score} →{' '}
                     <strong className="text-tr-warning">{row.new_score}</strong>
                   </span>
-                  <span className="text-xs text-tr-muted">{formatDate(row.changed_at.slice(0, 10))}</span>
+                  <span className="text-xs text-tr-muted">
+                    {formatDate(row.changed_at.slice(0, 10))}
+                  </span>
                 </li>
               ))}
             </ul>

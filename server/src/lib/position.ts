@@ -1,4 +1,5 @@
 import { db } from '../db/connection.ts';
+import { HttpError } from './validate.ts';
 
 export const STEP = 1024;
 const MIN_GAP = 1e-6;
@@ -18,22 +19,22 @@ export function nextPosition(scope: PositionScope): number {
   return (row.maxPos ?? 0) + STEP;
 }
 
-function positionOf(table: string, id: number): number | null {
-  const row = db.prepare(`SELECT position FROM ${table} WHERE id = ?`).get(id) as
-    | { position: number }
-    | undefined;
+function positionOf(scope: PositionScope, id: number): number | null {
+  const row = db
+    .prepare(`SELECT position FROM ${scope.table} WHERE id = ? AND ${scope.scopeCol} = ?`)
+    .get(id, scope.scopeVal) as { position: number } | undefined;
   return row ? row.position : null;
 }
 
 /** Danh so lai toan bo pham vi thanh 1024, 2048, ... (goi trong transaction cua caller). */
 function renormalize(scope: PositionScope): void {
   const rows = db
-    .prepare(
-      `SELECT id FROM ${scope.table} WHERE ${scope.scopeCol} = ? ORDER BY position, id`
-    )
+    .prepare(`SELECT id FROM ${scope.table} WHERE ${scope.scopeCol} = ? ORDER BY position, id`)
     .all(scope.scopeVal) as { id: number }[];
-  const update = db.prepare(`UPDATE ${scope.table} SET position = ? WHERE id = ?`);
-  rows.forEach((r, i) => update.run((i + 1) * STEP, r.id));
+  const update = db.prepare(
+    `UPDATE ${scope.table} SET position = ? WHERE id = ? AND ${scope.scopeCol} = ?`
+  );
+  rows.forEach((r, i) => update.run((i + 1) * STEP, r.id, scope.scopeVal));
 }
 
 /**
@@ -44,15 +45,34 @@ function renormalize(scope: PositionScope): void {
 export function computeMovePosition(
   scope: PositionScope,
   beforeId?: number | null,
-  afterId?: number | null
+  afterId?: number | null,
+  movingId?: number
 ): number {
-  let before = beforeId ? positionOf(scope.table, beforeId) : null;
-  let after = afterId ? positionOf(scope.table, afterId) : null;
+  if (beforeId != null && afterId != null && beforeId === afterId) {
+    throw new HttpError(422, 'Hai hang xom cua vi tri moi khong hop le');
+  }
+  if (movingId != null && (beforeId === movingId || afterId === movingId)) {
+    throw new HttpError(422, 'Phan tu dang di chuyen khong the la hang xom cua chinh no');
+  }
+
+  let before = beforeId != null ? positionOf(scope, beforeId) : null;
+  let after = afterId != null ? positionOf(scope, afterId) : null;
+
+  if (beforeId != null && before === null) {
+    throw new HttpError(422, 'Phan tu phia tren khong thuoc dung danh sach');
+  }
+  if (afterId != null && after === null) {
+    throw new HttpError(422, 'Phan tu phia duoi khong thuoc dung danh sach');
+  }
 
   if (before !== null && after !== null && Math.abs(after - before) < MIN_GAP) {
     renormalize(scope);
-    before = beforeId ? positionOf(scope.table, beforeId) : null;
-    after = afterId ? positionOf(scope.table, afterId) : null;
+    before = beforeId != null ? positionOf(scope, beforeId) : null;
+    after = afterId != null ? positionOf(scope, afterId) : null;
+  }
+
+  if (before !== null && after !== null && before >= after) {
+    throw new HttpError(422, 'Thu tu hai hang xom cua vi tri moi khong hop le');
   }
 
   if (before === null && after === null) return nextPosition(scope);

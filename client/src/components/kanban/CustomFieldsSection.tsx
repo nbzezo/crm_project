@@ -140,7 +140,9 @@ function FieldInput({
   // text / number / date: luu khi roi o hoac nhan Enter, tranh goi API moi ky tu
   return (
     <Input
-      type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'}
+      type={
+        field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'
+      }
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => draft !== field.value && onChange(draft)}

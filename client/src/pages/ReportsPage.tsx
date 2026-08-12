@@ -180,11 +180,16 @@ export default function ReportsPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label={t.common.overdue} value={String(data.summary.overdue_count)} />
         <Tile label={t.reports.dueThisWeek} value={String(data.summary.due_week_count)} />
-        <Tile label={t.reports.openPipeline} value={formatVNDShort(data.summary.open_pipeline_vnd)} />
+        <Tile
+          label={t.reports.openPipeline}
+          value={formatVNDShort(data.summary.open_pipeline_vnd)}
+        />
         <Tile
           label={t.reports.winRate}
           value={winTotal === 0 ? '—' : formatPercent(data.win_rate.rate)}
-          hint={winTotal === 0 ? undefined : `${data.win_rate.won} thắng / ${data.win_rate.lost} thua`}
+          hint={
+            winTotal === 0 ? undefined : `${data.win_rate.won} thắng / ${data.win_rate.lost} thua`
+          }
         />
       </div>
 
@@ -221,7 +226,11 @@ export default function ReportsPage() {
               <LineChart data={monthData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
                 <CartesianGrid vertical={false} stroke={CHART_INK.grid} />
                 <XAxis dataKey="name" {...AXIS_PROPS} />
-                <YAxis tickFormatter={(v) => formatVNDShort(v as number)} width={62} {...AXIS_PROPS} />
+                <YAxis
+                  tickFormatter={(v) => formatVNDShort(v as number)}
+                  width={62}
+                  {...AXIS_PROPS}
+                />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   formatter={(value) => [formatVND(value as number), 'Doanh thu']}
@@ -305,7 +314,9 @@ export default function ReportsPage() {
           ) : (
             <DonutWithLegend
               data={interactionData}
-              colors={interactionData.map((_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length])}
+              colors={interactionData.map(
+                (_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]
+              )}
               unit="lần"
             />
           )}
@@ -365,8 +376,8 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
     >
       {data.scored_closed_count === 0 ? (
         <p className="py-6 text-center text-sm text-tr-muted">
-          Chưa có cơ hội nào được chấm điểm rồi chốt. Bảng này sẽ có dữ liệu sau khi các cơ hội
-          đang chấm được đóng lại.
+          Chưa có cơ hội nào được chấm điểm rồi chốt. Bảng này sẽ có dữ liệu sau khi các cơ hội đang
+          chấm được đóng lại.
         </p>
       ) : (
         <>
@@ -437,8 +448,8 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
                 </tbody>
               </table>
               <p className="mt-2 text-xs text-tr-muted">
-                Ô lệch — ví dụ thua vì giá mà yếu tố yếu nhất lại không phải Giá cả — là bằng
-                chứng rubric đang bị chấm sai, không phải rubric sai.
+                Ô lệch — ví dụ thua vì giá mà yếu tố yếu nhất lại không phải Giá cả — là bằng chứng
+                rubric đang bị chấm sai, không phải rubric sai.
               </p>
             </div>
           )}
@@ -554,7 +565,9 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 function NoData() {
-  return <p className="py-12 text-center text-sm text-tr-muted">Chưa có dữ liệu trong khoảng này.</p>;
+  return (
+    <p className="py-12 text-center text-sm text-tr-muted">Chưa có dữ liệu trong khoảng này.</p>
+  );
 }
 
 function resolveRange(key: RangeKey, customFrom: string, customTo: string) {

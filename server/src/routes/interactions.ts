@@ -5,6 +5,7 @@ import { intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
 
@@ -65,10 +66,7 @@ function defaultListId(): number | null {
 
 router.post('/', (req, res) => {
   const body = parseBody(schema, req);
-  required(
-    db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),
-    'Khong tim thay khach hang'
-  );
+  assertEntityLinks(db, body);
 
   const result = db.transaction(() => {
     const info = db
@@ -135,10 +133,16 @@ router.patch('/:id', (req, res) => {
     'Khong tim thay tuong tac'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
+  assertEntityLinks(db, {
+    customer_id: merged.customer_id as number,
+    contact_id: merged.contact_id as number | null,
+    deal_id: merged.deal_id as number | null,
+  });
   db.prepare(
-    `UPDATE interactions SET contact_id = ?, deal_id = ?, type = ?, occurred_at = ?, summary = ?, result = ?
+    `UPDATE interactions SET customer_id = ?, contact_id = ?, deal_id = ?, type = ?, occurred_at = ?, summary = ?, result = ?
       WHERE id = ?`
   ).run(
+    merged.customer_id,
     merged.contact_id ?? null,
     merged.deal_id ?? null,
     merged.type,

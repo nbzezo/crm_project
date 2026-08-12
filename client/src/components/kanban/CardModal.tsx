@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
-  CornerDownRight,
   Copy,
   Flag,
   Image,
@@ -31,6 +30,7 @@ import { Button, focusRing } from '../common/ui';
 import { AttachmentSection } from './AttachmentSection';
 import { ChecklistSection } from './ChecklistSection';
 import { CustomFieldsSection } from './CustomFieldsSection';
+import { LabelsPopover, ListPopover } from './CardModalPopovers';
 import { SubtaskSection } from './SubtaskSection';
 import { api } from '../../api/client';
 import { COVER_COLORS } from '../../lib/backgrounds';
@@ -38,10 +38,11 @@ import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk, formatDate, formatDateTime, nowLocalInput } from '../../lib/format';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { useUiStore } from '../../stores/uiStore';
-import type { Board, BoardFull, CardDetail, Customer, Deal, Label, Priority } from '../../types';
+import type { Board, BoardFull, CardDetail, Customer, Deal, Priority } from '../../types';
 
 export function CardModal() {
   const cardId = useUiStore((s) => s.openCardId);
+  const presentation = useUiStore((s) => s.cardPresentation);
   const close = useUiStore((s) => s.closeCard);
   const queryClient = useQueryClient();
 
@@ -133,14 +134,22 @@ export function CardModal() {
 
   if (!card) {
     return (
-      <div className="tr-anim-fade fixed inset-0 z-50 flex items-start justify-center bg-tr-overlay p-4 pt-16">
+      <div
+        className={`tr-anim-fade fixed inset-0 z-50 flex bg-tr-overlay ${
+          presentation === 'drawer' ? 'justify-end' : 'items-start justify-center p-4 pt-16'
+        }`}
+      >
         <div
           ref={panelRef}
           role="dialog"
           aria-modal="true"
           aria-label={t.common.loading}
           aria-busy="true"
-          className="w-full max-w-4xl rounded-modal bg-tr-panel p-8 text-center text-sm text-tr-muted"
+          className={`bg-tr-panel p-8 text-center text-sm text-tr-muted ${
+            presentation === 'drawer'
+              ? 'h-full w-[min(32rem,100vw)] border-s border-tr-border'
+              : 'w-full max-w-4xl rounded-modal'
+          }`}
         >
           {t.common.loading}
         </div>
@@ -156,7 +165,9 @@ export function CardModal() {
   return (
     <>
       <div
-        className="tr-anim-fade fixed inset-0 z-50 overflow-y-auto bg-tr-overlay p-4 pt-10 pb-10"
+        className={`tr-anim-fade fixed inset-0 z-50 flex bg-tr-overlay ${
+          presentation === 'drawer' ? 'justify-end' : 'overflow-y-auto p-4 pt-10 pb-10'
+        }`}
         onMouseDown={(e) => e.target === e.currentTarget && requestClose()}
       >
         <div
@@ -164,7 +175,11 @@ export function CardModal() {
           role="dialog"
           aria-modal="true"
           aria-label={card.title}
-          className="tr-anim-pop mx-auto w-full max-w-4xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl"
+          className={
+            presentation === 'drawer'
+              ? 'tr-anim-slide-right tr-scroll h-full w-[min(32rem,100vw)] overflow-y-auto border-s border-tr-border bg-tr-panel shadow-2xl'
+              : 'tr-anim-pop mx-auto w-full max-w-4xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl'
+          }
         >
           {/* ----- Thanh dieu khien tren cung ----- */}
           <div className="flex items-center gap-2 px-3 py-2.5">
@@ -212,10 +227,17 @@ export function CardModal() {
           </div>
 
           {card.cover_color && (
-            <div className="mx-3 h-24 rounded-panel" style={{ backgroundColor: card.cover_color }} />
+            <div
+              className="mx-3 h-24 rounded-panel"
+              style={{ backgroundColor: card.cover_color }}
+            />
           )}
 
-          <div className="grid grid-cols-1 gap-6 px-4 pt-3 pb-6 sm:grid-cols-[1fr_320px] sm:px-6">
+          <div
+            className={`grid grid-cols-1 gap-6 px-4 pt-3 pb-6 sm:px-6 ${
+              presentation === 'drawer' ? '' : 'sm:grid-cols-[1fr_320px]'
+            }`}
+          >
             {/* ================= Cot trai ================= */}
             <div className="min-w-0">
               <div className="flex items-start gap-3">
@@ -321,7 +343,9 @@ export function CardModal() {
                       className="inline-flex h-8 items-center gap-1.5 rounded bg-tr-hover px-3 text-sm text-tr-text transition hover:bg-tr-hover-strong"
                     >
                       <Building2 size={14} /> {card.customer_name}
-                      {card.deal_title && <span className="text-tr-muted">· {card.deal_title}</span>}
+                      {card.deal_title && (
+                        <span className="text-tr-muted">· {card.deal_title}</span>
+                      )}
                     </button>
                   </Field>
                 )}
@@ -464,7 +488,12 @@ export function CardModal() {
       </div>
 
       {/* ---------- Cac popover ---------- */}
-      <Popover open={addPop.open} anchor={addPop.anchor} onClose={addPop.close} title="Thêm vào thẻ">
+      <Popover
+        open={addPop.open}
+        anchor={addPop.anchor}
+        onClose={addPop.close}
+        title="Thêm vào thẻ"
+      >
         <PopoverItem icon={<Tag size={15} />} onClick={() => handoff(addPop, labelPop)}>
           {t.card.labels}
         </PopoverItem>
@@ -556,7 +585,11 @@ export function CardModal() {
         onChange={(p) => update.mutate({ priority: p })}
       />
       <CustomerPopover card={card} pop={customerPop} onChange={(p) => update.mutate(p)} />
-      <CoverPopover card={card} pop={coverPop} onChange={(c) => update.mutate({ cover_color: c })} />
+      <CoverPopover
+        card={card}
+        pop={coverPop}
+        onChange={(c) => update.mutate({ cover_color: c })}
+      />
       <MovePopover card={card} pop={movePop} onDone={refresh} />
       <ReminderPopover card={card} pop={reminderPop} />
 
@@ -819,96 +852,6 @@ function Avatar({ muted }: { muted?: boolean }) {
   );
 }
 
-function ListPopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone: () => void }) {
-  const boardId = card.board?.id;
-  const { data: board } = useQuery({
-    queryKey: ['board', boardId],
-    queryFn: () => api.get<BoardFull>(`/api/boards/${boardId}/full`),
-    enabled: pop.open && !!boardId,
-  });
-  const move = useMutation({
-    mutationFn: (listId: number) =>
-      api.patch(`/api/cards/${card.id}/move`, { list_id: listId, beforeId: null, afterId: null }),
-    onSuccess: () => {
-      onDone();
-      pop.close();
-    },
-  });
-
-  return (
-    <Popover
-      open={pop.open}
-      anchor={pop.anchor}
-      onClose={pop.close}
-      title="Chuyển danh sách"
-      width={272}
-    >
-      <div className="space-y-1">
-        {board?.lists.map((l) => (
-          <button
-            key={l.id}
-            onClick={() => move.mutate(l.id)}
-            className={`flex w-full items-center justify-between rounded px-3 py-1.5 text-left text-sm transition hover:bg-tr-hover ${
-              l.id === card.list_id ? 'font-semibold text-tr-primary' : 'text-tr-text'
-            }`}
-          >
-            {l.name}
-            {l.id === card.list_id && <Check size={14} />}
-          </button>
-        ))}
-      </div>
-    </Popover>
-  );
-}
-
-function LabelsPopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone: () => void }) {
-  const queryClient = useQueryClient();
-  const { data: labels = [] } = useQuery({
-    queryKey: ['labels'],
-    queryFn: () => api.get<Label[]>('/api/labels'),
-    enabled: pop.open,
-  });
-  const save = useMutation({
-    mutationFn: (ids: number[]) => api.put(`/api/cards/${card.id}/labels`, { label_ids: ids }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['card', card.id] });
-      onDone();
-    },
-  });
-  const selected = new Set(card.labels.map((l) => l.id));
-
-  return (
-    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.card.labels}>
-      {labels.length === 0 && (
-        <p className="text-sm text-tr-muted">Chưa có nhãn nào — tạo trong Menu bảng.</p>
-      )}
-      <div className="space-y-1.5">
-        {labels.map((label) => {
-          const active = selected.has(label.id);
-          return (
-            <button
-              key={label.id}
-              onClick={() => {
-                const next = new Set(selected);
-                if (active) next.delete(label.id);
-                else next.add(label.id);
-                save.mutate([...next]);
-              }}
-              className={`flex h-8 w-full items-center justify-between rounded px-3 text-sm font-medium transition hover:brightness-95 ${
-                active ? 'ring-2 ring-tr-text ring-offset-1' : ''
-              }`}
-              style={{ backgroundColor: label.color, color: contrastInk(label.color) }}
-            >
-              {label.name}
-              {active && <Check size={14} />}
-            </button>
-          );
-        })}
-      </div>
-    </Popover>
-  );
-}
-
 const POPOVER_INPUT =
   'w-full rounded border border-tr-border bg-tr-card px-2.5 py-1.5 text-sm text-tr-text outline-none focus:border-tr-primary';
 
@@ -925,7 +868,9 @@ function DatesPopover({
     <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Ngày">
       <div className="space-y-3">
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-tr-subtle">{t.card.startDate}</span>
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">
+            {t.card.startDate}
+          </span>
           <input
             type="date"
             value={card.start_date ?? ''}
@@ -1177,7 +1122,9 @@ function ReminderPopover({ card, pop }: { card: CardDetail; pop: Pop }) {
       <div className="space-y-3">
         <input value={title} onChange={(e) => setTitle(e.target.value)} className={POPOVER_INPUT} />
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-tr-subtle">{t.reminder.dueAt}</span>
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">
+            {t.reminder.dueAt}
+          </span>
           <input
             type="datetime-local"
             value={dueAt}

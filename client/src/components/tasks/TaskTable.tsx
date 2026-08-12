@@ -21,12 +21,19 @@ import {
 import { api } from '../../api/client';
 import { Button, EmptyState, InlineDate, focusRing } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
-import { isOverdue } from '../../lib/format';
+import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { undoableDelete } from '../../lib/undo';
 import { useUiStore } from '../../stores/uiStore';
 import type { Label, Priority, TaskRow } from '../../types';
+import {
+  LabelTags,
+  PrioritySelect,
+  SmartDeadline,
+  StatusSelect,
+  TaskRowActions,
+  useTaskBoardLists,
+} from './TaskPresentation';
 
 const columnHelper = createColumnHelper<TaskRow>();
 const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -47,6 +54,7 @@ export function TaskTable({
   const [sorting, setSorting] = useState<SortingState>([{ id: 'due_date', desc: false }]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [deleteTask, setDeleteTask] = useState<TaskRow | null>(null);
   /** Dong dang cho het gio hoan tac — an khoi bang nhung chua goi API xoa. */
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set());
 
@@ -55,6 +63,7 @@ export function TaskTable({
     queryFn: () => api.get<Label[]>('/api/labels'),
     staleTime: 5 * 60_000,
   });
+  const listsByBoard = useTaskBoardLists(tasks);
 
   const update = useMutation({
     mutationFn: (vars: { id: number; patch: Record<string, unknown> }) =>
@@ -110,63 +119,73 @@ export function TaskTable({
         ),
       }),
       columnHelper.accessor('is_done', {
-        header: () => <span className="sr-only">{t.common.done}</span>,
+        header: 'Xong',
         enableSorting: false,
         cell: (info) => (
           <input
             type="checkbox"
             checked={!!info.getValue()}
-            onChange={(e) => mutate({ id: info.row.original.id, patch: { is_done: e.target.checked } })}
+            onChange={(e) =>
+              mutate({ id: info.row.original.id, patch: { is_done: e.target.checked } })
+            }
             aria-label={`${t.card.markDone}: ${info.row.original.title}`}
             className="h-4 w-4 rounded-control border-tr-border accent-tr-primary"
           />
         ),
       }),
       columnHelper.accessor('title', {
-        header: 'Tiêu đề',
-        cell: (info) => (
-          <button
-            type="button"
-            onClick={() => openCard(info.row.original.id)}
-            className={`flex max-w-md items-center gap-1.5 truncate text-left font-medium ${focusRing} ${
-              info.row.original.is_done ? 'text-tr-muted line-through' : 'text-tr-text'
-            } hover:text-tr-primary hover:underline`}
-          >
-            {info.row.original.parent_id && (
-              <CornerDownRight size={13} className="shrink-0 text-tr-muted" aria-hidden="true" />
-            )}
-            {info.getValue()}
-            {(info.row.original.subtask_total ?? 0) > 0 && (
-              <span className="shrink-0 rounded-control bg-tr-hover-strong px-1.5 text-2xs text-tr-subtle">
-                {info.row.original.subtask_done}/{info.row.original.subtask_total}
-              </span>
-            )}
-          </button>
-        ),
-      }),
-      columnHelper.accessor('board_name', { header: 'Bảng' }),
-      columnHelper.accessor('list_name', { header: 'Danh sách' }),
-      columnHelper.accessor('customer_name', {
-        header: t.card.customer,
-        cell: (info) => info.getValue() ?? '—',
+        header: 'Công việc',
+        cell: (info) => {
+          const task = info.row.original;
+          const metadata = [task.customer_name, task.board_name, task.deal_title]
+            .filter(Boolean)
+            .join(' · ');
+          return (
+            <div className="min-w-56 max-w-md">
+              <button
+                type="button"
+                onClick={() => openCard(task.id, 'drawer')}
+                title={task.title}
+                className={`flex max-w-full items-center gap-1.5 rounded-control text-left text-sm font-semibold ${focusRing} ${
+                  task.is_done ? 'text-tr-muted line-through' : 'text-tr-text'
+                } hover:text-tr-primary hover:underline`}
+              >
+                {task.parent_id && (
+                  <CornerDownRight
+                    size={13}
+                    className="shrink-0 text-tr-muted"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="truncate">{info.getValue()}</span>
+                {(task.subtask_total ?? 0) > 0 && (
+                  <span className="shrink-0 rounded-full bg-tr-hover-strong px-1.5 text-2xs font-medium text-tr-subtle no-underline">
+                    {task.subtask_done}/{task.subtask_total}
+                  </span>
+                )}
+              </button>
+              {metadata && (
+                <span
+                  className="mt-0.5 block max-w-full truncate text-2xs text-tr-muted"
+                  title={metadata}
+                >
+                  {metadata}
+                </span>
+              )}
+            </div>
+          );
+        },
       }),
       columnHelper.accessor('priority', {
         header: t.card.priority,
-        sortingFn: (a, b) => PRIORITY_RANK[a.original.priority] - PRIORITY_RANK[b.original.priority],
+        sortingFn: (a, b) =>
+          PRIORITY_RANK[a.original.priority] - PRIORITY_RANK[b.original.priority],
         cell: (info) => (
-          <select
+          <PrioritySelect
             value={info.getValue()}
-            onChange={(e) => mutate({ id: info.row.original.id, patch: { priority: e.target.value } })}
-            aria-label={`${t.card.priority}: ${info.row.original.title}`}
-            className={`rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs hover:border-tr-border ${focusRing}`}
-            style={{ color: PRIORITY_COLORS[info.getValue()] }}
-          >
-            {PRIORITY_ORDER.map((p) => (
-              <option key={p} value={p} className="text-tr-text">
-                {t.priority[p]}
-              </option>
-            ))}
-          </select>
+            taskTitle={info.row.original.title}
+            onChange={(priority) => mutate({ id: info.row.original.id, patch: { priority } })}
+          />
         ),
       }),
       columnHelper.accessor('start_date', {
@@ -180,40 +199,74 @@ export function TaskTable({
       }),
       columnHelper.accessor('due_date', {
         header: t.card.dueDate,
+        sortUndefined: 'last',
         cell: (info) => (
-          <InlineDate
+          <SmartDeadline
             value={info.getValue()}
-            highlight={isOverdue(info.getValue(), info.row.original.is_done)}
-            onChange={(v) => mutate({ id: info.row.original.id, patch: { due_date: v } })}
+            isDone={Boolean(info.row.original.is_done)}
+            taskTitle={info.row.original.title}
+            onChange={(dueDate) =>
+              mutate({ id: info.row.original.id, patch: { due_date: dueDate } })
+            }
+          />
+        ),
+      }),
+      columnHelper.accessor('customer_name', {
+        header: t.card.customer,
+        cell: (info) => (
+          <span className="block max-w-40 truncate text-xs" title={info.getValue() ?? undefined}>
+            {info.getValue() ?? '—'}
+          </span>
+        ),
+      }),
+      columnHelper.accessor('board_name', {
+        header: 'Dự án / Bảng',
+        cell: (info) => (
+          <span className="block max-w-40 truncate text-xs" title={info.getValue()}>
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor('list_name', {
+        header: 'Trạng thái',
+        cell: (info) => (
+          <StatusSelect
+            task={info.row.original}
+            lists={listsByBoard.get(info.row.original.board_id) ?? []}
+            onChange={(listId) => mutate({ id: info.row.original.id, patch: { list_id: listId } })}
           />
         ),
       }),
       columnHelper.accessor('label_ids', {
-        header: t.card.labels,
+        header: 'Nhãn',
         enableSorting: false,
         cell: (info) => (
-          <div className="flex gap-1">
-            {(info.getValue() ?? []).map((id) => {
-              const label = labels.find((l) => l.id === id);
-              if (!label) return null;
-              return (
-                /* Mau khong phai kenh truyen tin duy nhat: ten nhan van doc duoc
-                   bang trinh doc man hinh, khong chi nam trong thuoc tinh title. */
-                <span key={id} title={label.name} className="inline-flex items-center">
-                  <span
-                    aria-hidden="true"
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: label.color }}
-                  />
-                  <span className="sr-only">{label.name}</span>
-                </span>
-              );
-            })}
-          </div>
+          <LabelTags
+            labels={(info.getValue() ?? [])
+              .map((id) => labels.find((label) => label.id === id))
+              .filter((label): label is Label => Boolean(label))}
+          />
+        ),
+      }),
+      columnHelper.display({
+        id: 'actions',
+        header: 'Thao tác',
+        cell: (info) => (
+          <TaskRowActions
+            task={info.row.original}
+            onOpen={() => openCard(info.row.original.id, 'drawer')}
+            onToggleDone={() =>
+              mutate({
+                id: info.row.original.id,
+                patch: { is_done: !info.row.original.is_done },
+              })
+            }
+            onDelete={() => setDeleteTask(info.row.original)}
+          />
         ),
       }),
     ],
-    [labels, openCard, mutate, selected]
+    [labels, listsByBoard, openCard, mutate, selected]
   );
 
   const visibleTasks = useMemo(
@@ -235,7 +288,8 @@ export function TaskTable({
   });
 
   const pageRows = table.getRowModel().rows;
-  const allOnPageSelected = pageRows.length > 0 && pageRows.every((r) => selected.has(r.original.id));
+  const allOnPageSelected =
+    pageRows.length > 0 && pageRows.every((r) => selected.has(r.original.id));
 
   const bulkSet = (patch: Record<string, unknown>) => {
     selected.forEach((id) => mutate({ id, patch }));
@@ -295,14 +349,22 @@ export function TaskTable({
         </div>
       )}
 
-      <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <table className="w-full text-sm">
+      <div className="tr-scroll max-h-[70vh] overflow-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+        <table className="w-full min-w-[960px] text-sm 2xl:min-w-[1180px]">
           <caption className="sr-only">Danh sách công việc</caption>
-          <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+          <thead className="sticky top-0 z-10 bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
+                  const responsiveClass = [
+                    'label_ids',
+                    'start_date',
+                    'board_name',
+                    'customer_name',
+                  ].includes(header.id)
+                    ? 'hidden 2xl:table-cell'
+                    : '';
                   return (
                     <th
                       scope="col"
@@ -316,7 +378,7 @@ export function TaskTable({
                               ? 'none'
                               : undefined
                       }
-                      className="px-3 py-2.5 whitespace-nowrap"
+                      className={`px-3 py-2 whitespace-nowrap ${responsiveClass}`}
                     >
                       {header.id === 'select' ? (
                         <input
@@ -364,15 +426,32 @@ export function TaskTable({
             {pageRows.map((row) => (
               <tr
                 key={row.id}
-                className={`transition hover:bg-tr-hover ${
+                className={`group transition hover:bg-tr-hover ${
                   selected.has(row.original.id) ? 'bg-tr-primary/10' : ''
                 }`}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2 whitespace-nowrap text-tr-subtle">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const responsiveClass = [
+                    'label_ids',
+                    'start_date',
+                    'board_name',
+                    'customer_name',
+                  ].includes(cell.column.id)
+                    ? 'hidden 2xl:table-cell'
+                    : '';
+                  const actionClass =
+                    cell.column.id === 'actions'
+                      ? 'opacity-50 transition-opacity group-hover:opacity-100 focus-within:opacity-100'
+                      : '';
+                  return (
+                    <td
+                      key={cell.id}
+                      className={`px-3 py-2 whitespace-nowrap text-tr-subtle ${responsiveClass} ${actionClass}`}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -424,6 +503,31 @@ export function TaskTable({
               setPendingDelete((prev) => {
                 const next = new Set(prev);
                 ids.forEach((id) => next.delete(id));
+                return next;
+              }),
+          });
+        }}
+      />
+      <ConfirmDialog
+        open={deleteTask !== null}
+        message={
+          (deleteTask?.subtask_total ?? 0) > 0
+            ? `Xóa “${deleteTask?.title}” sẽ xóa cả ${deleteTask?.subtask_total} việc con bên trong.`
+            : `Xóa công việc “${deleteTask?.title}”?`
+        }
+        onCancel={() => setDeleteTask(null)}
+        onConfirm={() => {
+          const target = deleteTask;
+          setDeleteTask(null);
+          if (!target) return;
+          setPendingDelete((previous) => new Set(previous).add(target.id));
+          undoableDelete({
+            message: `Đã xóa “${target.title}”`,
+            commit: () => remove.mutate(target.id),
+            revert: () =>
+              setPendingDelete((previous) => {
+                const next = new Set(previous);
+                next.delete(target.id);
                 return next;
               }),
           });

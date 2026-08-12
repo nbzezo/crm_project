@@ -1,25 +1,26 @@
-export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type Stage =
-  | 'lead'
-  | 'approaching'
-  | 'discussing'
-  | 'quoted'
-  | 'negotiating'
-  | 'won'
-  | 'lost';
-export type InteractionType =
-  | 'call'
-  | 'email'
-  | 'meeting'
-  | 'demo'
-  | 'proposal'
-  | 'followup'
-  | 'note'
-  | 'zalo'
-  | 'other';
+import type {
+  ContractKind,
+  ContractTerm,
+  InteractionType,
+  LabelEntity,
+  Priority,
+  RevenueStage,
+  ServiceStatus,
+  Stage,
+} from '@workflow/contracts';
+
+export type {
+  ContractKind,
+  ContractTerm,
+  InteractionType,
+  LabelEntity,
+  Priority,
+  RevenueStage,
+  ServiceStatus,
+  Stage,
+};
 
 /** Loại đối tượng gắn nhãn được (FR-TAG-30). */
-export type LabelEntity = 'card' | 'customer' | 'deal' | 'contact' | 'contract';
 
 /**
  * Nhãn — tối đa 2 cấp: `parent_id = null` là nhãn cha (nhóm, không gắn trực tiếp
@@ -187,10 +188,19 @@ export interface Customer {
   deal_count?: number;
   open_deal_count?: number;
   open_task_count?: number;
+  overdue_task_count?: number;
   total_won_vnd?: number;
   open_pipeline_vnd?: number;
   active_contract_count?: number;
   last_activity_at?: string | null;
+  deals_without_next_action_count?: number;
+  overdue_next_action_count?: number;
+  next_deal_action?: string | null;
+  next_deal_action_date?: string | null;
+  next_task_title?: string | null;
+  next_task_due_date?: string | null;
+  next_reminder_title?: string | null;
+  next_reminder_due_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -296,11 +306,7 @@ export interface Quotation {
 
 /* ---------- Dịch vụ sử dụng & doanh thu khách hàng hiện hữu ---------- */
 
-export type ContractKind = 'new' | 'expansion';
-export type ContractTerm = 'long' | 'short' | 'trial' | 'other';
-export type ServiceStatus = 'using' | 'pending' | 'paused' | 'stopped';
 /** Vòng đời một khoản doanh thu tháng — số tiền không nhân đôi, chỉ chuyển giai đoạn. */
-export type RevenueStage = 'forecast' | 'reconciled' | 'invoiced' | 'paid';
 
 /** Danh mục dịch vụ dùng chung — CRM quản lý thêm/sửa tại đây. */
 export interface Service {
@@ -487,13 +493,7 @@ export interface TaskRow {
 
 /** Loai lich ca nhan (bang calendar_events, v11). */
 export type CalEventType =
-  | 'task'
-  | 'meeting'
-  | 'call'
-  | 'reminder'
-  | 'appointment'
-  | 'deadline'
-  | 'other';
+  'task' | 'meeting' | 'call' | 'reminder' | 'appointment' | 'deadline' | 'other';
 
 export type CalEventStatus = 'pending' | 'done' | 'cancelled';
 
@@ -591,6 +591,9 @@ export interface TimelineItem {
   start_date: string;
   due_date: string;
   priority: Priority;
+  is_done: number;
+  /** Tiến độ thật, suy ra từ checklist hoặc việc con; null khi chưa có dữ liệu đo tiến độ. */
+  progress: number | null;
   board_name: string;
   customer_name: string | null;
   group_id: number;
@@ -605,21 +608,11 @@ export interface DealsResponse {
 /* ---------- Chấm điểm cơ hội BANT + 4P (v10) ---------- */
 
 export type Factor =
-  | 'budget'
-  | 'authority'
-  | 'need'
-  | 'timeline'
-  | 'price'
-  | 'relationship'
-  | 'fit'
-  | 'process';
+  'budget' | 'authority' | 'need' | 'timeline' | 'price' | 'relationship' | 'fit' | 'process';
 
 export type Quadrant = 'pursue' | 'reshape' | 'nurture' | 'disqualify';
 
-export type VetoCode =
-  | 'V1_NO_COMPELLING_EVENT'
-  | 'V2_NO_ECONOMIC_BUYER'
-  | 'V3_COMPETITOR_SHAPED';
+export type VetoCode = 'V1_NO_COMPELLING_EVENT' | 'V2_NO_ECONOMIC_BUYER' | 'V3_COMPETITOR_SHAPED';
 
 export interface ScoreItem {
   factor: Factor;
@@ -681,7 +674,12 @@ export interface CommitteeMember {
 
 export interface CommitteeResponse {
   members: CommitteeMember[];
-  candidates: { contact_id: number; full_name: string; title: string | null; role: string | null }[];
+  candidates: {
+    contact_id: number;
+    full_name: string;
+    title: string | null;
+    role: string | null;
+  }[];
 }
 
 export interface DealEvent {

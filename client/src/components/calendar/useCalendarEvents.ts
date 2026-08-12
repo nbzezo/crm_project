@@ -22,8 +22,7 @@ export function useCalendarEvents() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
 
-  const fail = (err: unknown) =>
-    pushToast(err instanceof Error ? err.message : t.common.saveError);
+  const fail = (err: unknown) => pushToast(err instanceof Error ? err.message : t.common.saveError);
 
   const create = useMutation({
     mutationFn: (body: unknown) => api.post<EventResponse>('/api/calendar/events', body),

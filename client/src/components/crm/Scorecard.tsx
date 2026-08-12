@@ -102,8 +102,8 @@ export function Scorecard({
       {data.locked && (
         <p className="flex items-center gap-2 rounded-panel border border-tr-border bg-tr-hover px-3 py-2 text-sm text-tr-subtle">
           <Lock size={14} aria-hidden="true" />
-          Cơ hội đã chốt nên điểm được khóa, chỉ đọc. Điểm lúc chốt đã được lưu lại để phân
-          tích thắng/thua.
+          Cơ hội đã chốt nên điểm được khóa, chỉ đọc. Điểm lúc chốt đã được lưu lại để phân tích
+          thắng/thua.
         </p>
       )}
 
@@ -207,7 +207,11 @@ export function ScoreSummary({
               }`}
             >
               {flag.blocking ? (
-                <ShieldAlert size={15} className="mt-0.5 shrink-0 text-tr-danger" aria-hidden="true" />
+                <ShieldAlert
+                  size={15}
+                  className="mt-0.5 shrink-0 text-tr-danger"
+                  aria-hidden="true"
+                />
               ) : (
                 <AlertTriangle
                   size={15}
@@ -254,7 +258,11 @@ export function ScoreSummary({
                       : '';
               return (
                 <li key={index} className="flex flex-wrap items-start gap-1.5">
-                  <ArrowRight size={13} className="mt-1 shrink-0 text-tr-muted" aria-hidden="true" />
+                  <ArrowRight
+                    size={13}
+                    className="mt-1 shrink-0 text-tr-muted"
+                    aria-hidden="true"
+                  />
                   <span className="min-w-0 flex-1">{text}</span>
                   {/* F-15: cầu nối duy nhất giữa điểm số và Next Action đã có sẵn */}
                   {onSetNextAction && (
@@ -330,8 +338,7 @@ function ScoreTrend({ history }: { history: ScoreHistoryEntry[] }) {
         />
       </svg>
       <p className="text-xs text-tr-muted">
-        Diễn biến qua {series.length} lần chấm ·{' '}
-        <span className="text-tr-primary">BANT</span> /{' '}
+        Diễn biến qua {series.length} lần chấm · <span className="text-tr-primary">BANT</span> /{' '}
         <span className="text-tr-success">4P</span> ·{' '}
         <strong className={delta < 0 ? 'text-tr-warning' : 'text-tr-text'}>
           {delta >= 0 ? '+' : ''}
@@ -397,9 +404,7 @@ function AxisPanel({
           <span className="text-xs font-normal text-tr-muted">{AXIS_LABELS[axis].question}</span>
         </span>
       }
-      action={
-        <span className="text-sm font-semibold tabular-nums text-tr-text">{total}/12</span>
-      }
+      action={<span className="text-sm font-semibold tabular-nums text-tr-text">{total}/12</span>}
     >
       <ul className="space-y-1.5">
         {items.map((item) => (
@@ -569,7 +574,11 @@ function FactorRow({
             placeholder="Bằng chứng trích dẫn được — ai nói, khi nào, con số cụ thể…"
           />
           <div className="flex flex-wrap items-center gap-2 text-xs text-tr-muted">
-            <span className={evidence.trim().length < EVIDENCE_MIN && draft >= 1 ? 'text-tr-danger' : ''}>
+            <span
+              className={
+                evidence.trim().length < EVIDENCE_MIN && draft >= 1 ? 'text-tr-danger' : ''
+              }
+            >
               {evidence.trim().length}/{EVIDENCE_MIN} ký tự tối thiểu
             </span>
             {item.source_id && source && (
@@ -602,7 +611,9 @@ function FactorRow({
 
           {draft <= 1 && (
             <details className="rounded bg-tr-hover px-2 py-1.5">
-              <summary className={`cursor-pointer text-xs font-semibold text-tr-subtle ${focusRing}`}>
+              <summary
+                className={`cursor-pointer text-xs font-semibold text-tr-subtle ${focusRing}`}
+              >
                 Câu hỏi khám phá để nâng điểm
               </summary>
               <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-tr-muted">
@@ -614,7 +625,11 @@ function FactorRow({
           )}
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" disabled={locked || save.isPending} onClick={() => save.mutate(draft)}>
+            <Button
+              variant="primary"
+              disabled={locked || save.isPending}
+              onClick={() => save.mutate(draft)}
+            >
               Lưu điểm
             </Button>
             <Button disabled={locked} onClick={() => setPicking(true)}>

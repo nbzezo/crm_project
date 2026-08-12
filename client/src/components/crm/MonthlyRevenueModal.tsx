@@ -132,12 +132,24 @@ export function MonthlyRevenueModal({
         <table className="w-full text-sm">
           <thead className="bg-tr-surface text-xs text-tr-subtle">
             <tr>
-              <th scope="col" className="px-3 py-2 text-left font-semibold">{t.revenue.month}</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">{t.revenue.forecast}</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">{t.revenue.amount}</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">Chênh lệch</th>
-              <th scope="col" className="px-2 py-2 text-left font-semibold">{t.revenue.stage}</th>
-              <th scope="col" className="px-2 py-2 text-left font-semibold">Ghi chú</th>
+              <th scope="col" className="px-3 py-2 text-left font-semibold">
+                {t.revenue.month}
+              </th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">
+                {t.revenue.forecast}
+              </th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">
+                {t.revenue.amount}
+              </th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">
+                Chênh lệch
+              </th>
+              <th scope="col" className="px-2 py-2 text-left font-semibold">
+                {t.revenue.stage}
+              </th>
+              <th scope="col" className="px-2 py-2 text-left font-semibold">
+                Ghi chú
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-tr-border">
@@ -152,9 +164,7 @@ export function MonthlyRevenueModal({
                     <Input
                       inputMode="numeric"
                       value={formatVNDInput(row.forecast_vnd)}
-                      onChange={(e) =>
-                        setRow(i, { forecast_vnd: parseVNDInput(e.target.value) })
-                      }
+                      onChange={(e) => setRow(i, { forecast_vnd: parseVNDInput(e.target.value) })}
                       placeholder="0"
                       className="w-28 px-2 py-1 text-right text-sm tabular-nums"
                     />
@@ -210,7 +220,11 @@ export function MonthlyRevenueModal({
               </td>
               <td
                 className={`px-2 py-2 text-right text-xs tabular-nums ${
-                  variance === 0 ? 'text-tr-muted' : variance > 0 ? 'text-tr-success' : 'text-tr-danger'
+                  variance === 0
+                    ? 'text-tr-muted'
+                    : variance > 0
+                      ? 'text-tr-success'
+                      : 'text-tr-danger'
                 }`}
               >
                 {variance === 0 ? '—' : `${variance > 0 ? '+' : ''}${formatVNDShort(variance)}`}

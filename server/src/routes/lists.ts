@@ -151,7 +151,8 @@ router.patch('/:id/move', (req, res) => {
     const pos = computeMovePosition(
       { table: 'lists', scopeCol: 'board_id', scopeVal: list.board_id },
       body.beforeId,
-      body.afterId
+      body.afterId,
+      id
     );
     db.prepare(`UPDATE lists SET position = ? WHERE id = ?`).run(pos, id);
     return pos;

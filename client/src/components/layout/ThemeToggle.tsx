@@ -27,7 +27,13 @@ export function ThemeToggle() {
         <Current size={18} aria-hidden="true" />
       </button>
 
-      <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Giao diện" width={220}>
+      <Popover
+        open={pop.open}
+        anchor={pop.anchor}
+        onClose={pop.close}
+        title="Giao diện"
+        width={220}
+      >
         {OPTIONS.map(({ mode: value, label, icon: Icon }) => (
           <PopoverItem
             key={value}

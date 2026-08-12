@@ -72,9 +72,7 @@ export function EntityLabels({
           key={label.id}
           type="button"
           onClick={pop.toggle}
-          title={
-            label.group_name ? `${label.group_name} / ${label.name}` : label.name
-          }
+          title={label.group_name ? `${label.group_name} / ${label.name}` : label.name}
           className={`max-w-[14rem] truncate rounded-md px-2 py-0.5 text-xs font-medium transition hover:brightness-110 ${focusRing}`}
           style={{ backgroundColor: label.color, color: contrastInk(label.color) }}
         >
@@ -129,9 +127,7 @@ export function LabelSelectPopover({
 
   const q = foldText(keyword.trim());
   const visible = q
-    ? labels.filter(
-        (l) => foldText(l.name).includes(q) || foldText(l.group_name ?? '').includes(q)
-      )
+    ? labels.filter((l) => foldText(l.name).includes(q) || foldText(l.group_name ?? '').includes(q))
     : labels;
 
   const groups: { name: string; items: Label[] }[] = [];
@@ -143,12 +139,7 @@ export function LabelSelectPopover({
   }
 
   return (
-    <Popover
-      open={pop.open}
-      anchor={pop.anchor}
-      onClose={pop.close}
-      title={title ?? t.card.labels}
-    >
+    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={title ?? t.card.labels}>
       <Input
         autoFocus
         value={keyword}

@@ -28,9 +28,7 @@ export function ScoringPrompt({
     <div className="mb-4 rounded-panel border border-tr-primary/40 bg-tr-primary/5 p-3">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-tr-text">
-            Cuộc trao đổi này thay đổi yếu tố nào?
-          </p>
+          <p className="text-sm font-medium text-tr-text">Cuộc trao đổi này thay đổi yếu tố nào?</p>
           {summary && <p className="mt-0.5 line-clamp-1 text-xs text-tr-muted">“{summary}”</p>}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {FACTORS.map((factor) => (

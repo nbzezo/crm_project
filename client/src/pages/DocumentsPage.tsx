@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { DocumentPanel, formatBytes } from '../components/crm/DocumentUpload';
@@ -19,6 +19,8 @@ import type { CrmDocument, Customer } from '../types';
 
 export default function DocumentsPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const focusId = Number(searchParams.get('focus')) || null;
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
   const [docType, setDocType] = useState('');
@@ -53,6 +55,11 @@ export default function DocumentsPage() {
     mutationFn: (id: number) => api.del(`/api/documents/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documents'] }),
   });
+
+  useEffect(() => {
+    if (!focusId || documents.length === 0) return;
+    document.getElementById(`document-${focusId}`)?.scrollIntoView({ block: 'center' });
+  }, [documents, focusId]);
 
   return (
     <div className="space-y-4 p-6">
@@ -110,18 +117,34 @@ export default function DocumentsPage() {
           <table className="w-full text-sm">
             <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
               <tr>
-                <th scope="col" className="px-4 py-2.5">Tên tài liệu</th>
-                <th scope="col" className="px-4 py-2.5">Loại</th>
-                <th scope="col" className="px-4 py-2.5">Khách hàng</th>
-                <th scope="col" className="px-4 py-2.5">Gắn với</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Dung lượng</th>
-                <th scope="col" className="px-4 py-2.5">Ngày tải</th>
+                <th scope="col" className="px-4 py-2.5">
+                  Tên tài liệu
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Loại
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Khách hàng
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Gắn với
+                </th>
+                <th scope="col" className="px-4 py-2.5 text-right">
+                  Dung lượng
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  Ngày tải
+                </th>
                 <th scope="col" className="px-4 py-2.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-tr-border">
               {documents.map((doc) => (
-                <tr key={doc.id} className="transition hover:bg-tr-hover">
+                <tr
+                  id={`document-${doc.id}`}
+                  key={doc.id}
+                  className={`transition hover:bg-tr-hover ${focusId === doc.id ? 'bg-tr-selected ring-2 ring-inset ring-tr-primary' : ''}`}
+                >
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2 font-medium text-tr-text">
                       <FileText size={14} className="text-tr-muted" />
@@ -157,13 +180,15 @@ export default function DocumentsPage() {
                     <div className="flex justify-end gap-1">
                       <a
                         href={`/api/documents/${doc.id}/download`}
-                        className="rounded p-1 text-tr-muted transition hover:bg-tr-hover hover:text-tr-primary"
+                        aria-label={`Tải xuống ${doc.name}`}
+                        className="flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-primary sm:h-8 sm:w-8"
                       >
                         <Download size={14} />
                       </a>
                       <button
                         onClick={() => setDeleteId(doc.id)}
-                        className="rounded p-1 text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger"
+                        aria-label={`Xóa ${doc.name}`}
+                        className="flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger sm:h-8 sm:w-8"
                       >
                         <Trash2 size={14} />
                       </button>

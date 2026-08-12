@@ -24,7 +24,6 @@ import {
   Input,
   Select,
   Textarea,
-  focusRing,
 } from '../common/ui';
 import { NEXT_ACTIONS, t } from '../../i18n/vi';
 import { formatDateTime, nowLocalInput } from '../../lib/format';

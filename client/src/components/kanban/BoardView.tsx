@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -32,19 +32,8 @@ import { useUiStore, type BoardFilters } from '../../stores/uiStore';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { foldText } from '../../lib/format';
 import { undoableDelete } from '../../lib/undo';
+import { cloneBoard, locateCard } from '../../lib/dnd/board';
 import type { BoardFull, Card } from '../../types';
-
-function cloneBoard(board: BoardFull): BoardFull {
-  return { ...board, lists: board.lists.map((l) => ({ ...l, cards: [...l.cards] })) };
-}
-
-function locateCard(board: BoardFull, cardId: number): { listIdx: number; cardIdx: number } | null {
-  for (let listIdx = 0; listIdx < board.lists.length; listIdx++) {
-    const cardIdx = board.lists[listIdx].cards.findIndex((c) => c.id === cardId);
-    if (cardIdx >= 0) return { listIdx, cardIdx };
-  }
-  return null;
-}
 
 /** Ap dung bo loc cua thanh "Bộ lọc" len mot the. */
 export function matchesFilters(card: Card, f: BoardFilters): boolean {
@@ -87,6 +76,7 @@ export function BoardView({ board }: { board: BoardFull }) {
 
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeListName, setActiveListName] = useState<string | null>(null);
+  const dragSnapshot = useRef<BoardFull | null>(null);
   const [addingList, setAddingList] = useState(false);
   const [listDraft, setListDraft] = useState('');
   const [deleteListId, setDeleteListId] = useState<number | null>(null);
@@ -106,6 +96,10 @@ export function BoardView({ board }: { board: BoardFull }) {
     () => queryClient.invalidateQueries({ queryKey: boardKey }),
     [queryClient, boardKey]
   );
+  const restoreDragSnapshot = useCallback(() => {
+    if (dragSnapshot.current) setBoard(dragSnapshot.current);
+    dragSnapshot.current = null;
+  }, [setBoard]);
 
   /**
    * Keo tha that bai truoc day chi lang le refetch: the nhay ve cho cu ma khong
@@ -115,9 +109,10 @@ export function BoardView({ board }: { board: BoardFull }) {
   const revertWithToast = useCallback(
     (error: unknown) => {
       pushToast(error instanceof Error ? error.message : t.common.saveError);
+      restoreDragSnapshot();
       refetchBoard();
     },
-    [pushToast, refetchBoard]
+    [pushToast, refetchBoard, restoreDragSnapshot]
   );
 
   const moveCard = useMutation({
@@ -133,7 +128,10 @@ export function BoardView({ board }: { board: BoardFull }) {
         afterId: vars.afterId,
       }),
     onError: revertWithToast,
-    onSuccess: () => invalidateCardViews(queryClient),
+    onSuccess: () => {
+      dragSnapshot.current = null;
+      invalidateCardViews(queryClient);
+    },
   });
 
   const moveList = useMutation({
@@ -143,6 +141,9 @@ export function BoardView({ board }: { board: BoardFull }) {
         afterId: vars.afterId,
       }),
     onError: revertWithToast,
+    onSuccess: () => {
+      dragSnapshot.current = null;
+    },
   });
 
   const addCard = useMutation({
@@ -189,6 +190,7 @@ export function BoardView({ board }: { board: BoardFull }) {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
+    dragSnapshot.current = cloneBoard(board);
     if (data?.type === 'card') {
       const found = locateCard(board, data.cardId as number);
       if (found) setActiveCard(board.lists[found.listIdx].cards[found.cardIdx]);
@@ -233,7 +235,10 @@ export function BoardView({ board }: { board: BoardFull }) {
     const { active, over } = event;
     setActiveCard(null);
     setActiveListName(null);
-    if (!over) return;
+    if (!over) {
+      restoreDragSnapshot();
+      return;
+    }
 
     const activeData = active.data.current;
     const overData = over.data.current;
@@ -241,7 +246,10 @@ export function BoardView({ board }: { board: BoardFull }) {
     if (activeData?.type === 'list' && overData?.type === 'list') {
       const listId = activeData.listId as number;
       const overListId = overData.listId as number;
-      if (listId === overListId) return;
+      if (listId === overListId) {
+        dragSnapshot.current = null;
+        return;
+      }
 
       const next = cloneBoard(board);
       const oldIdx = next.lists.findIndex((l) => l.id === listId);
@@ -257,17 +265,29 @@ export function BoardView({ board }: { board: BoardFull }) {
       return;
     }
 
-    if (activeData?.type !== 'card') return;
+    if (activeData?.type !== 'card') {
+      restoreDragSnapshot();
+      return;
+    }
     const cardId = activeData.cardId as number;
     const targetListId =
       overData?.type === 'card' || overData?.type === 'list' ? (overData.listId as number) : null;
-    if (targetListId == null) return;
+    if (targetListId == null) {
+      restoreDragSnapshot();
+      return;
+    }
 
     const next = cloneBoard(board);
     const from = locateCard(next, cardId);
-    if (!from) return;
+    if (!from) {
+      restoreDragSnapshot();
+      return;
+    }
     const toIdx = next.lists.findIndex((l) => l.id === targetListId);
-    if (toIdx < 0) return;
+    if (toIdx < 0) {
+      restoreDragSnapshot();
+      return;
+    }
 
     if (from.listIdx === toIdx) {
       const cards = next.lists[toIdx].cards;
@@ -366,6 +386,7 @@ export function BoardView({ board }: { board: BoardFull }) {
         onDragCancel={() => {
           setActiveCard(null);
           setActiveListName(null);
+          restoreDragSnapshot();
         }}
       >
         <div className="tr-scroll-onboard flex h-full items-start gap-3 overflow-x-auto px-3 pt-3 pb-4">

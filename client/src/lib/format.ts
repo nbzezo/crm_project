@@ -18,7 +18,8 @@ export function formatVNDShort(value: number | null | undefined): string {
   const n = value ?? 0;
   if (n === 0) return '0';
   const abs = Math.abs(n);
-  if (abs >= 1_000_000_000) return `${numberFormatter.format(Math.round((n / 1_000_000_000) * 10) / 10)} tỷ`;
+  if (abs >= 1_000_000_000)
+    return `${numberFormatter.format(Math.round((n / 1_000_000_000) * 10) / 10)} tỷ`;
   if (abs >= 1_000_000) return `${numberFormatter.format(Math.round(n / 1_000_000))} tr`;
   if (abs >= 1_000) return `${numberFormatter.format(Math.round(n / 1_000))} ng`;
   return numberFormatter.format(n);
@@ -116,9 +117,5 @@ export function contrastInk(hex: string): string {
 /** Bo dau tieng Viet — dung cho loc phia client. */
 export function foldText(s: string | null | undefined): string {
   if (!s) return '';
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/g, 'd');
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
 }

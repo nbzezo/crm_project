@@ -53,7 +53,10 @@ export function ReviewSession() {
 
   const disqualify = useMutation({
     mutationFn: (deal: ReviewDeal) =>
-      api.patch(`/api/deals/${deal.id}/move`, { stage: 'lost', lost_reason: lostReason || 'other' }),
+      api.patch(`/api/deals/${deal.id}/move`, {
+        stage: 'lost',
+        lost_reason: lostReason || 'other',
+      }),
     onSuccess: (_result, deal) => {
       setDropped((n) => n + 1);
       setDroppedVnd((v) => v + deal.weighted_vnd);
@@ -122,8 +125,8 @@ export function ReviewSession() {
       >
         {queue.length === 0 && (
           <p className="text-sm text-tr-subtle">
-            Không có cơ hội nào cần rà soát — mọi deal đang mở đều có điểm còn hạn và không bị
-            chặn khỏi forecast.
+            Không có cơ hội nào cần rà soát — mọi deal đang mở đều có điểm còn hạn và không bị chặn
+            khỏi forecast.
           </p>
         )}
 
@@ -134,8 +137,8 @@ export function ReviewSession() {
               <li>Đã xem: {queue.length} cơ hội</li>
               <li>Giữ nguyên: {kept}</li>
               <li>
-                Chuyển sang Thất bại: {dropped} — gỡ {formatVND(droppedVnd)} khỏi forecast theo
-                giai đoạn
+                Chuyển sang Thất bại: {dropped} — gỡ {formatVND(droppedVnd)} khỏi forecast theo giai
+                đoạn
               </li>
             </ul>
           </div>

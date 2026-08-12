@@ -259,7 +259,7 @@ export function factorCeiling(
   factor: Factor
 ): { max: number; blocked_by: string | null } {
   const one = (sql: string, ...params: unknown[]): number =>
-    ((db.prepare(sql).get(...params) as { n: number }).n ?? 0);
+    (db.prepare(sql).get(...params) as { n: number }).n ?? 0;
 
   switch (factor) {
     case 'timeline': {
@@ -338,7 +338,9 @@ export function factorCeiling(
         `SELECT COUNT(*) AS n FROM deal_competitors WHERE deal_id = ? AND shaped_requirements = 1`,
         dealId
       );
-      return shaped > 0 ? { max: 0, blocked_by: 'competitor_shaped' } : { max: 3, blocked_by: null };
+      return shaped > 0
+        ? { max: 0, blocked_by: 'competitor_shaped' }
+        : { max: 3, blocked_by: null };
     }
 
     case 'price': {
@@ -411,8 +413,7 @@ interface ScorecardViewRow {
 
 export function readScorecardView(db: Database, dealId: number): ScorecardViewRow {
   const row = db.prepare(`SELECT * FROM deal_scorecard WHERE deal_id = ?`).get(dealId) as
-    | ScorecardViewRow
-    | undefined;
+    ScorecardViewRow | undefined;
   if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
   return row;
 }
@@ -583,7 +584,8 @@ export function writeScore(
 
   const sourceType = input.source_type ?? null;
   const sourceId = input.source_id ?? null;
-  if (sourceType && sourceType !== 'manual' && sourceId) assertSource(db, dealId, sourceType, sourceId);
+  if (sourceType && sourceType !== 'manual' && sourceId)
+    assertSource(db, dealId, sourceType, sourceId);
   const verified = sourceType && sourceType !== 'manual' && sourceId ? 1 : 0;
 
   const previous = getScoreRows(db, dealId).get(factor);
@@ -614,8 +616,7 @@ export function writeScore(
 function assertSource(db: Database, dealId: number, sourceType: string, sourceId: number): void {
   const table = sourceType === 'interaction' ? 'interactions' : 'documents';
   const row = db.prepare(`SELECT deal_id FROM ${table} WHERE id = ?`).get(sourceId) as
-    | { deal_id: number | null }
-    | undefined;
+    { deal_id: number | null } | undefined;
   if (!row) throw new HttpError(404, 'Khong tim thay nguon bang chung');
   if (row.deal_id !== dealId)
     throw new HttpError(422, 'Nguon bang chung khong thuoc co hoi nay', {
@@ -692,10 +693,11 @@ export function checkStageGate(db: Database, dealId: number, target: Stage): Gat
     for (const factor of BANT_FACTORS) {
       const ceiling = factorCeiling(db, dealId, factor);
       const current =
-        (db.prepare(`SELECT score FROM deal_scores WHERE deal_id = ? AND factor = ?`).get(
-          dealId,
-          factor
-        ) as { score: number } | undefined)?.score ?? 0;
+        (
+          db
+            .prepare(`SELECT score FROM deal_scores WHERE deal_id = ? AND factor = ?`)
+            .get(dealId, factor) as { score: number } | undefined
+        )?.score ?? 0;
       if (current < ceiling.max) blocked.push(`factor:${factor}`);
     }
   }
@@ -709,9 +711,7 @@ export function checkStageGate(db: Database, dealId: number, target: Stage): Gat
 /** C12: chup diem ngay khi chot de F-10/F-16 khong phai dung lai tu lich su. */
 export function snapshotScores(db: Database, dealId: number): void {
   const card = getScorecard(db, dealId);
-  const takenAt = (
-    db.prepare(`SELECT datetime('now','localtime') AS t`).get() as { t: string }
-  ).t;
+  const takenAt = (db.prepare(`SELECT datetime('now','localtime') AS t`).get() as { t: string }).t;
   const snapshot = {
     taken_at: takenAt,
     bant_total: card.bant_total,

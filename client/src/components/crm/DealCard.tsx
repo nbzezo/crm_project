@@ -44,6 +44,13 @@ export function SortableDealCard({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       {...attributes}
       {...listeners}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        listeners?.onKeyDown?.(event);
+        if (!event.defaultPrevented && event.key === 'Enter') onClick();
+      }}
+      aria-label={`${deal.title}, ${deal.customer_name ?? 'chưa gán khách hàng'}, ${formatVND(deal.value_vnd)}`}
+      className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
     >
       <DealCardBody deal={deal} labels={labels} onClick={onClick} />
     </div>
@@ -53,7 +60,6 @@ export function SortableDealCard({
 export function DealCardBody({
   deal,
   labels = [],
-  onClick,
   dragging,
 }: {
   deal: Deal;
@@ -71,10 +77,6 @@ export function DealCardBody({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
       className={`tr-card-shadow w-full cursor-pointer rounded-lg bg-tr-card p-2.5 text-left transition hover:ring-2 hover:ring-tr-primary ${
         dragging ? 'rotate-3 shadow-lg' : ''
       } ${vetoed ? 'ring-1 ring-tr-danger' : ''}`}
@@ -99,7 +101,10 @@ export function DealCardBody({
             className="inline-flex items-center gap-1 text-2xs tabular-nums"
             style={{ color: QUADRANT_COLORS[deal.quadrant] }}
           >
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'currentColor' }} />
+            <span
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: 'currentColor' }}
+            />
             {deal.bant_total}/{deal.p4_total}
           </span>
         ) : null}
@@ -107,7 +112,6 @@ export function DealCardBody({
 
       {/* FR-TAG-26: card cơ hội chỉ hiện vài nhãn đầu, phần còn lại gom "+N" */}
       <LabelChips labels={labels} max={3} small className="mt-1.5" />
-
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-2xs text-tr-muted">
         {deal.customer_name && (

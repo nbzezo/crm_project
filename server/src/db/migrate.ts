@@ -6,7 +6,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const LATEST_VERSION = 11;
+export const LATEST_VERSION = 11;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -73,9 +73,11 @@ function readSql(name: string): string {
  * so cho nhan sau de chi muc duy nhat tao duoc — va bao ro ten nao bi doi.
  */
 function fillLabelNameNorm(db: Database): void {
-  const rows = db
-    .prepare(`SELECT id, name, parent_id FROM labels ORDER BY id`)
-    .all() as { id: number; name: string; parent_id: number | null }[];
+  const rows = db.prepare(`SELECT id, name, parent_id FROM labels ORDER BY id`).all() as {
+    id: number;
+    name: string;
+    parent_id: number | null;
+  }[];
 
   const update = db.prepare(`UPDATE labels SET name = ?, name_norm = ? WHERE id = ?`);
   const taken = new Set<string>();
@@ -117,11 +119,14 @@ function fillCompetitorNameNorm(db: Database): void {
   }
 }
 
-export function migrate(db: Database): void {
+export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
+  if (!Number.isInteger(targetVersion) || targetVersion < 1 || targetVersion > LATEST_VERSION) {
+    throw new Error(`Phien ban migration dich khong hop le: ${targetVersion}`);
+  }
   let current = db.pragma('user_version', { simple: true }) as number;
-  if (current >= LATEST_VERSION) return;
+  if (current >= targetVersion) return;
 
-  if (current === 0) {
+  if (current === 0 && targetVersion >= 1) {
     db.transaction(() => {
       db.exec(readSql('schema.sql'));
       db.pragma('user_version = 1');
@@ -130,7 +135,7 @@ export function migrate(db: Database): void {
     current = 1;
   }
 
-  if (current === 1) {
+  if (current === 1 && targetVersion >= 2) {
     db.transaction(() => {
       db.exec(V2);
       db.pragma('user_version = 2');
@@ -139,7 +144,7 @@ export function migrate(db: Database): void {
     current = 2;
   }
 
-  if (current === 2) {
+  if (current === 2 && targetVersion >= 3) {
     db.transaction(() => {
       db.exec(V3);
       db.pragma('user_version = 3');
@@ -148,7 +153,7 @@ export function migrate(db: Database): void {
     current = 3;
   }
 
-  if (current === 3) {
+  if (current === 3 && targetVersion >= 4) {
     // v4 dung lai bang customers/deals/interactions nen phai tam tat rang buoc khoa ngoai
     db.pragma('foreign_keys = OFF');
     try {
@@ -165,7 +170,7 @@ export function migrate(db: Database): void {
     current = 4;
   }
 
-  if (current === 4) {
+  if (current === 4 && targetVersion >= 5) {
     db.transaction(() => {
       db.exec(V5);
       db.pragma('user_version = 5');
@@ -174,7 +179,7 @@ export function migrate(db: Database): void {
     current = 5;
   }
 
-  if (current === 5) {
+  if (current === 5 && targetVersion >= 6) {
     db.transaction(() => {
       db.exec(V6);
       db.pragma('user_version = 6');
@@ -183,7 +188,7 @@ export function migrate(db: Database): void {
     current = 6;
   }
 
-  if (current === 6) {
+  if (current === 6 && targetVersion >= 7) {
     db.transaction(() => {
       db.exec(readSql('migrate-v7.sql'));
       db.pragma('user_version = 7');
@@ -192,7 +197,7 @@ export function migrate(db: Database): void {
     current = 7;
   }
 
-  if (current === 7) {
+  if (current === 7 && targetVersion >= 8) {
     db.transaction(() => {
       db.exec(readSql('migrate-v8.sql'));
       db.pragma('user_version = 8');
@@ -201,7 +206,7 @@ export function migrate(db: Database): void {
     current = 8;
   }
 
-  if (current === 8) {
+  if (current === 8 && targetVersion >= 9) {
     db.transaction(() => {
       db.exec(readSql('migrate-v9.sql'));
       fillLabelNameNorm(db);
@@ -211,7 +216,7 @@ export function migrate(db: Database): void {
     current = 9;
   }
 
-  if (current === 9) {
+  if (current === 9 && targetVersion >= 10) {
     db.transaction(() => {
       db.exec(readSql('migrate-v10.sql'));
       fillCompetitorNameNorm(db);
@@ -221,7 +226,7 @@ export function migrate(db: Database): void {
     current = 10;
   }
 
-  if (current === 10) {
+  if (current === 10 && targetVersion >= 11) {
     db.transaction(() => {
       db.exec(readSql('migrate-v11.sql'));
       db.pragma('user_version = 11');

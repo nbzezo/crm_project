@@ -3,13 +3,10 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
-import {
-  CONTRACT_KINDS,
-  CONTRACT_TERMS,
-  REVENUE_STAGES,
-  SERVICE_STATUSES,
-  type RevenueStage,
-} from '../lib/crm.ts';
+import { CONTRACT_KINDS, CONTRACT_TERMS, REVENUE_STAGES, SERVICE_STATUSES } from '../lib/crm.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { HttpError } from '../lib/validate.ts';
+import { mergeRevenueCell, type RevenueCell as MonthCell } from '../services/revenueService.ts';
 
 const router = Router();
 
@@ -46,13 +43,6 @@ const LINE_SELECT = `
     JOIN customers c ON c.id = cs.customer_id
     LEFT JOIN services s ON s.id = cs.service_id
     LEFT JOIN contracts k ON k.id = cs.contract_id`;
-
-interface MonthCell {
-  amount_vnd: number;
-  forecast_vnd: number;
-  stage: RevenueStage;
-  note: string;
-}
 
 /**
  * Tong cua mot pham vi: so tien tong + so du kien ban dau + so tien dang nam o tung giai doan
@@ -185,10 +175,7 @@ router.get('/lines', (req, res) => {
 
 router.post('/lines', (req, res) => {
   const body = parseBody(lineSchema, req);
-  required(
-    db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),
-    'Khong tim thay khach hang'
-  );
+  assertEntityLinks(db, body);
   const info = db
     .prepare(
       `INSERT INTO customer_services (customer_id, service_id, contract_id, am, contract_kind,
@@ -225,6 +212,11 @@ router.patch('/lines/:id', (req, res) => {
     'Khong tim thay dong dich vu'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
+  assertEntityLinks(db, {
+    customer_id: merged.customer_id as number,
+    service_id: merged.service_id as number | null,
+    contract_id: merged.contract_id as number | null,
+  });
 
   db.prepare(
     `UPDATE customer_services SET customer_id = ?, service_id = ?, contract_id = ?, am = ?,
@@ -256,8 +248,7 @@ router.delete('/lines/:id', (req, res) => {
 
 function reloadLine(id: number, year: number) {
   const line = db.prepare(`${LINE_SELECT} WHERE cs.id = ?`).get(id) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!line) return undefined;
   return attachMonths([line], year)[0];
 }
@@ -282,20 +273,6 @@ const upsertCell = db.prepare(
  * Neu o chua tung co so du kien (bang 0 — vi du doi trang thai truoc roi moi nhap tien)
  * thi lay chinh so dang nhap lam moc, tranh bao chenh lech ao.
  */
-function mergeCell(current: MonthCell | undefined, body: z.infer<typeof revenueSchema>): MonthCell {
-  const amount = body.amount_vnd ?? current?.amount_vnd ?? 0;
-  const stage = body.stage ?? current?.stage ?? 'forecast';
-  const forecast =
-    body.forecast_vnd ??
-    (stage === 'forecast' ? amount : current?.forecast_vnd || current?.amount_vnd || amount);
-  return {
-    amount_vnd: amount,
-    forecast_vnd: forecast,
-    stage,
-    note: body.note ?? current?.note ?? '',
-  };
-}
-
 function readCell(lineId: number, period: string): MonthCell | undefined {
   return db
     .prepare(
@@ -313,7 +290,7 @@ router.put('/lines/:id/revenue', (req, res) => {
     'Khong tim thay dong dich vu'
   );
 
-  const next = mergeCell(readCell(id, body.period), body);
+  const next = mergeRevenueCell(readCell(id, body.period), body);
   upsertCell.run(id, body.period, next.amount_vnd, next.forecast_vnd, next.stage, next.note);
   res.json({ line_id: id, period: body.period, ...next });
 });
@@ -329,12 +306,14 @@ router.put('/lines/:id/revenue-bulk', (req, res) => {
 
   db.transaction(() => {
     for (const cell of body.cells) {
-      const next = mergeCell(readCell(id, cell.period), cell);
+      const next = mergeRevenueCell(readCell(id, cell.period), cell);
       upsertCell.run(id, cell.period, next.amount_vnd, next.forecast_vnd, next.stage, next.note);
     }
   })();
 
-  const year = body.cells.length ? Number(body.cells[0].period.slice(0, 4)) : resolveYear(undefined);
+  const year = body.cells.length
+    ? Number(body.cells[0].period.slice(0, 4))
+    : resolveYear(undefined);
   res.json(reloadLine(id, year));
 });
 
@@ -352,6 +331,11 @@ router.put('/period-stage', (req, res) => {
     req
   );
   const placeholders = body.line_ids.map(() => '?').join(',');
+  const existing = db
+    .prepare(`SELECT COUNT(*) AS n FROM customer_services WHERE id IN (${placeholders})`)
+    .get(...body.line_ids) as { n: number };
+  if (existing.n !== new Set(body.line_ids).size)
+    throw new HttpError(422, 'Danh sach dong doanh thu co phan tu khong ton tai');
   const info = db
     .prepare(
       `UPDATE service_revenues SET stage = ?, updated_at = datetime('now','localtime')

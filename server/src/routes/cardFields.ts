@@ -51,6 +51,8 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(fieldSchema, req);
   const boardId = body.board_id ?? null;
+  if (boardId != null)
+    required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Khong tim thay bang');
   const row = db
     .prepare(
       `SELECT MAX(position) AS maxPos FROM card_fields

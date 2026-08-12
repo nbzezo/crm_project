@@ -76,7 +76,9 @@ export function CustomerForm({
 
   const save = useMutation({
     mutationFn: () =>
-      customer ? api.patch(`/api/customers/${customer.id}`, form) : api.post('/api/customers', form),
+      customer
+        ? api.patch(`/api/customers/${customer.id}`, form)
+        : api.post('/api/customers', form),
     onSuccess: () => {
       invalidateCrmViews(queryClient, customer?.id);
       onClose();

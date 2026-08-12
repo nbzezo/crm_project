@@ -7,17 +7,37 @@ import { migrate } from './migrate.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export const DATA_DIR = path.resolve(here, '..', '..', 'data');
-export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
-export const FILES_DIR = path.join(DATA_DIR, 'files');
-const DB_PATH = path.join(DATA_DIR, 'app.db');
+const configuredDataDir = process.env.WORKFLOW_DATA_DIR;
+const runtimeDataDir = configuredDataDir ? path.resolve(configuredDataDir) : DATA_DIR;
+
+export const BACKUP_DIR = path.join(runtimeDataDir, 'backups');
+export const FILES_DIR = path.join(runtimeDataDir, 'files');
+const configuredDbPath = process.env.WORKFLOW_DB_PATH;
+export const DB_PATH = configuredDbPath
+  ? configuredDbPath === ':memory:'
+    ? configuredDbPath
+    : path.resolve(configuredDbPath)
+  : path.join(runtimeDataDir, 'app.db');
 
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
 fs.mkdirSync(FILES_DIR, { recursive: true });
 
-export const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+export function openDatabase(dbPath = DB_PATH): Database.Database {
+  if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const database = new Database(dbPath);
+  database.pragma('journal_mode = WAL');
+  database.pragma('foreign_keys = ON');
+  migrate(database);
+  return database;
+}
 
-migrate(db);
+export const db = openDatabase();
+let closed = false;
 
-process.on('exit', () => db.close());
+export function closeDatabase(): void {
+  if (closed || !db.open) return;
+  closed = true;
+  db.close();
+}
+
+process.on('exit', closeDatabase);

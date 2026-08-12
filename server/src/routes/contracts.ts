@@ -5,10 +5,14 @@ import { intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { CONTRACT_STATUSES, STAGE_PROBABILITY } from '../lib/crm.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
 
-const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+const dateOnly = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .nullable();
 
 const contractSchema = z.object({
   customer_id: z.number().int(),
@@ -83,10 +87,7 @@ router.get('/expiring', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(contractSchema, req);
-  required(
-    db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),
-    'Khong tim thay khach hang'
-  );
+  assertEntityLinks(db, body);
   const info = db
     .prepare(
       `INSERT INTO contracts (customer_id, deal_id, name, number, value_vnd, sign_date, start_date,
@@ -127,6 +128,10 @@ router.patch('/:id', (req, res) => {
     'Khong tim thay hop dong'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
+  assertEntityLinks(db, {
+    customer_id: merged.customer_id as number,
+    deal_id: merged.deal_id as number | null,
+  });
 
   db.prepare(
     `UPDATE contracts SET customer_id = ?, deal_id = ?, name = ?, number = ?, value_vnd = ?,

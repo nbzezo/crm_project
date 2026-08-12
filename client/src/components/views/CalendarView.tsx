@@ -130,13 +130,10 @@ export function CalendarView({ boardId }: { boardId?: number }) {
   const [confirmDelete, setConfirmDelete] = useState<CalEvent | null>(null);
   const { create, update, remove } = useCalendarEvents();
 
-  const openCreate = useCallback(
-    (startAt: string, endAt: string, allDay: boolean) => {
-      setConflicts([]);
-      setForm({ draft: draftFromSlot(startAt, endAt, allDay), editingId: null });
-    },
-    []
-  );
+  const openCreate = useCallback((startAt: string, endAt: string, allDay: boolean) => {
+    setConflicts([]);
+    setForm({ draft: draftFromSlot(startAt, endAt, allDay), editingId: null });
+  }, []);
 
   const submit = (draft: EventDraft) => {
     const body = draftToApi(draft);
@@ -162,7 +159,11 @@ export function CalendarView({ boardId }: { boardId?: number }) {
         onViewChange={setView}
         onDateChange={setDate}
         /* Lich ca nhan khong thuoc bang nao, nen tab Lich trong Bang khong tao duoc. */
-        onCreate={boardId === undefined ? () => openCreate(`${date}T09:00`, `${date}T10:00`, false) : undefined}
+        onCreate={
+          boardId === undefined
+            ? () => openCreate(`${date}T09:00`, `${date}T10:00`, false)
+            : undefined
+        }
       />
 
       <div className="mb-3 flex shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs text-tr-muted">
@@ -409,7 +410,11 @@ function CalendarGrid({
         /* Cach 2 (muc 17): bam mot ngay trong luoi Thang -> tao lich ca ngay do. */
         dateClick={(info) => {
           if (!onCreateSlot || view !== 'month') return;
-          onCreateSlot(`${info.dateStr.slice(0, 10)}T09:00`, `${info.dateStr.slice(0, 10)}T10:00`, false);
+          onCreateSlot(
+            `${info.dateStr.slice(0, 10)}T09:00`,
+            `${info.dateStr.slice(0, 10)}T10:00`,
+            false
+          );
         }}
         /* Cach 3: keo mot khoang gio trong Tuan/Ngay -> form tu dien gio.
            `startStr`/`endStr` da la gio dia phuong — CAT chuoi, khong parse qua Date. */

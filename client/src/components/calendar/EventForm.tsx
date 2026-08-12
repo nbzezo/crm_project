@@ -5,12 +5,7 @@ import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '..
 import { allDayEndFromForm, allDayEndToForm } from './calendarModel';
 import { t } from '../../i18n/vi';
 import { formatDate } from '../../lib/format';
-import type {
-  CalEventStatus,
-  CalEventType,
-  CalendarConflict,
-  CalendarEventRow,
-} from '../../types';
+import type { CalEventStatus, CalEventType, CalendarConflict, CalendarEventRow } from '../../types';
 
 const TYPES: CalEventType[] = [
   'task',

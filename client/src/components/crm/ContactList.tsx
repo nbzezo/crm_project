@@ -4,7 +4,16 @@ import { Linkedin, Mail, MessageCircle, Pencil, Phone, Plus, Star, Trash2 } from
 import { api } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { Button, EmptyState, Field, FormError, Input, Select, Textarea, focusRing } from '../common/ui';
+import {
+  Button,
+  EmptyState,
+  Field,
+  FormError,
+  Input,
+  Select,
+  Textarea,
+  focusRing,
+} from '../common/ui';
 import { t } from '../../i18n/vi';
 import type { Contact } from '../../types';
 
@@ -273,7 +282,11 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
           </label>
           <div className="sm:col-span-2">
             <Field label={t.customer.notes}>
-              <Textarea rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
+              <Textarea
+                rows={2}
+                value={form.notes}
+                onChange={(e) => set('notes', e.target.value)}
+              />
             </Field>
           </div>
         </div>

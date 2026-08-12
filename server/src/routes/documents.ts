@@ -7,7 +7,8 @@ import { db, FILES_DIR } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { DOC_TYPES } from '../lib/crm.ts';
-import { unverifyBySource } from '../lib/scoring.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { createDocument, deleteDocument, DOCUMENT_TEMP_DIR } from '../services/documentService.ts';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ const ALLOWED = new Set([
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, FILES_DIR),
+    destination: (_req, _file, cb) => cb(null, DOCUMENT_TEMP_DIR),
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       cb(null, `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
@@ -53,7 +54,14 @@ const DOC_SELECT = `
     LEFT JOIN contacts ct ON ct.id = dc.contact_id`;
 
 /** Cot lien ket cua tai lieu — dung chung cho loc, them moi va cap nhat. */
-const LINK_COLUMNS = ['customer_id', 'contact_id', 'deal_id', 'contract_id', 'quotation_id', 'card_id'] as const;
+const LINK_COLUMNS = [
+  'customer_id',
+  'contact_id',
+  'deal_id',
+  'contract_id',
+  'quotation_id',
+  'card_id',
+] as const;
 
 router.get('/', (req, res) => {
   const where: string[] = [];
@@ -93,31 +101,8 @@ router.post('/', upload.single('file'), (req, res) => {
   const file = req.file;
   if (!file) throw new HttpError(400, 'Chưa chọn tệp để tải lên');
   const body = parseBody(linkSchema, req);
-  const name = body.name?.trim() || file.originalname;
-
-  const info = db
-    .prepare(
-      `INSERT INTO documents (name, doc_type, file_name, stored_name, mime, size,
-                              customer_id, contact_id, deal_id, contract_id, quotation_id, card_id, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      name,
-      body.doc_type ?? 'other',
-      file.originalname,
-      file.filename,
-      file.mimetype,
-      file.size,
-      body.customer_id ?? null,
-      body.contact_id ?? null,
-      body.deal_id ?? null,
-      body.contract_id ?? null,
-      body.quotation_id ?? null,
-      body.card_id ?? null,
-      buildSearchText(name, file.originalname)
-    );
-
-  res.status(201).json(db.prepare(`${DOC_SELECT} WHERE dc.id = ?`).get(info.lastInsertRowid));
+  const id = createDocument(file, body);
+  res.status(201).json(db.prepare(`${DOC_SELECT} WHERE dc.id = ?`).get(id));
 });
 
 router.get('/:id/download', (req, res) => {
@@ -139,6 +124,14 @@ router.patch('/:id', (req, res) => {
     'Khong tim thay tai lieu'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body } as Record<string, unknown>;
+  assertEntityLinks(db, {
+    customer_id: merged.customer_id as number | null,
+    contact_id: merged.contact_id as number | null,
+    deal_id: merged.deal_id as number | null,
+    contract_id: merged.contract_id as number | null,
+    quotation_id: merged.quotation_id as number | null,
+    card_id: merged.card_id as number | null,
+  });
   db.prepare(
     `UPDATE documents SET name = ?, doc_type = ?, customer_id = ?, contact_id = ?, deal_id = ?,
             contract_id = ?, quotation_id = ?, card_id = ?, search_text = ? WHERE id = ?`
@@ -159,16 +152,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  const doc = db.prepare(`SELECT stored_name FROM documents WHERE id = ?`).get(id) as
-    | { stored_name: string }
-    | undefined;
-  // C5: diem dang lay tai lieu nay lam bang chung mat dau da xac thuc, diem giu nguyen
-  unverifyBySource(db, 'document', id);
-  db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
-  if (doc) {
-    const filePath = path.join(FILES_DIR, doc.stored_name);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  }
+  deleteDocument(id);
   res.json({ ok: true });
 });
 

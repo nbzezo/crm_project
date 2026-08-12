@@ -40,7 +40,9 @@ function setup(): Fixture {
   );
   const contactId = Number(
     db
-      .prepare(`INSERT INTO contacts (customer_id, full_name, buying_role) VALUES (?, 'Nguoi dung', 'user')`)
+      .prepare(
+        `INSERT INTO contacts (customer_id, full_name, buying_role) VALUES (?, 'Nguoi dung', 'user')`
+      )
       .run(customerId).lastInsertRowid
   );
   const economicId = Number(
@@ -96,9 +98,11 @@ function unlockRelationship(f: Fixture): void {
     .run(f.dealId, f.contactId);
   addInteraction(f, f.contactId);
   if (
-    (f.db.prepare(`SELECT COUNT(*) AS n FROM deal_committee WHERE deal_id = ?`).get(f.dealId) as {
-      n: number;
-    }).n < 2
+    (
+      f.db.prepare(`SELECT COUNT(*) AS n FROM deal_committee WHERE deal_id = ?`).get(f.dealId) as {
+        n: number;
+      }
+    ).n < 2
   )
     unlockAuthority(f);
 }
@@ -204,12 +208,18 @@ test('AC-SCR-05 BR-SCR-01: TIMELINE = 3 doi su kien bat buoc da xac nhan', () =>
 
   unlockTimeline(f, false);
   assert.throws(() => score(f, 'timeline', 3), /Chua du du lieu/);
-  assert.equal(getScorecard(f.db, f.dealId).items.find((i) => i.factor === 'timeline')?.max_allowed, 2);
+  assert.equal(
+    getScorecard(f.db, f.dealId).items.find((i) => i.factor === 'timeline')?.max_allowed,
+    2
+  );
 
   f.db.prepare(`UPDATE deal_events SET confirmed = 1 WHERE deal_id = ?`).run(f.dealId);
   const card = score(f, 'timeline', 3);
   assert.equal(card.bant_total, 3);
-  assert.equal(card.veto.some((v) => v.code === 'V1_NO_COMPELLING_EVENT'), false);
+  assert.equal(
+    card.veto.some((v) => v.code === 'V1_NO_COMPELLING_EVENT'),
+    false
+  );
   f.db.close();
 });
 
@@ -218,7 +228,9 @@ test('AC-SCR-06 BR-SCR-06: doi thu soan tieu chi thi PROCESS bi ep ve 0', () => 
   unlockPrice(f);
   score(f, 'process', 3);
 
-  f.db.prepare(`UPDATE deal_competitors SET shaped_requirements = 1 WHERE deal_id = ?`).run(f.dealId);
+  f.db
+    .prepare(`UPDATE deal_competitors SET shaped_requirements = 1 WHERE deal_id = ?`)
+    .run(f.dealId);
   const card = getScorecard(f.db, f.dealId);
   assert.equal(card.items.find((i) => i.factor === 'process')?.max_allowed, 0);
   assert.equal(card.items.find((i) => i.factor === 'process')?.blocked_by, 'competitor_shaped');
@@ -252,7 +264,10 @@ test('AC-SCR-07 veto khong doi o ma tran nhung chan forecast', () => {
   const card = score(f, 'process', 3);
 
   assert.equal(card.quadrant, 'pursue', 'veto khong duoc doi o ma tran');
-  assert.equal(card.veto.some((v) => v.code === 'V1_NO_COMPELLING_EVENT' && v.blocking), true);
+  assert.equal(
+    card.veto.some((v) => v.code === 'V1_NO_COMPELLING_EVENT' && v.blocking),
+    true
+  );
   assert.equal(card.forecast_eligible, false);
   assert.equal(card.recommendations[0].code, 'veto');
   f.db.close();
@@ -373,7 +388,11 @@ test('AC-SCR-10 cong giai doan chan khi thieu diem, lost khong bao gio bi chan',
   // Dam phan con doi khong dinh veto V2 (chua tiep can nguoi co quyen chi tien)
   const negotiating = checkStageGate(f.db, f.dealId, 'negotiating');
   assert.equal(negotiating.bant_total, 10);
-  assert.equal(negotiating.ok, true, 'da co economic buyer qua unlockRelationship -> unlockAuthority');
+  assert.equal(
+    negotiating.ok,
+    true,
+    'da co economic buyer qua unlockRelationship -> unlockAuthority'
+  );
   f.db.close();
 });
 
@@ -390,7 +409,9 @@ test('cong Dam phan chan khi chua tiep can nguoi co quyen chi tien', () => {
         )
         .run(`Nguoi ${role}`, role, f.dealId).lastInsertRowid
     );
-    f.db.prepare(`INSERT INTO deal_committee (deal_id, contact_id) VALUES (?, ?)`).run(f.dealId, id);
+    f.db
+      .prepare(`INSERT INTO deal_committee (deal_id, contact_id) VALUES (?, ?)`)
+      .run(f.dealId, id);
   }
   score(f, 'budget', 3);
   score(f, 'authority', 2);
@@ -413,9 +434,11 @@ test('AC-SCR-11 chot deal thi chup diem va khoa scorecard', () => {
   f.db.prepare(`UPDATE deals SET stage = 'won' WHERE id = ?`).run(f.dealId);
 
   const snapshot = JSON.parse(
-    (f.db.prepare(`SELECT score_snapshot FROM deals WHERE id = ?`).get(f.dealId) as {
-      score_snapshot: string;
-    }).score_snapshot
+    (
+      f.db.prepare(`SELECT score_snapshot FROM deals WHERE id = ?`).get(f.dealId) as {
+        score_snapshot: string;
+      }
+    ).score_snapshot
   ) as { bant_total: number; scores: Record<string, unknown> };
   assert.equal(snapshot.bant_total, 5);
   assert.equal(Object.keys(snapshot.scores).length, 8, 'chup du 8 yeu to');

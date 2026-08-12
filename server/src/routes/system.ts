@@ -70,7 +70,7 @@ router.get('/search', (req, res) => {
   const contacts = (
     db
       .prepare(
-        `SELECT ct.id, ct.full_name, ct.title, ct.phone, ct.email, c.name AS customer_name
+        `SELECT ct.id, ct.customer_id, ct.full_name, ct.title, ct.phone, ct.email, c.name AS customer_name
            FROM contacts ct JOIN customers c ON c.id = ct.customer_id`
       )
       .all() as { full_name: string; title: string | null; customer_name: string }[]

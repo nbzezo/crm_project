@@ -11,11 +11,29 @@ import { focusRing } from './ui';
 import type { Priority, Stage } from '../../types';
 
 interface SearchResults {
-  cards: { id: number; title: string; priority: Priority; board_name: string; customer_name: string | null }[];
+  cards: {
+    id: number;
+    title: string;
+    priority: Priority;
+    board_name: string;
+    customer_name: string | null;
+  }[];
   customers: { id: number; name: string; industry: string | null; phone: string | null }[];
-  contacts: { id: number; full_name: string; title: string | null; customer_name: string }[];
+  contacts: {
+    id: number;
+    customer_id: number;
+    full_name: string;
+    title: string | null;
+    customer_name: string;
+  }[];
   deals: { id: number; title: string; stage: Stage; value_vnd: number; customer_name: string }[];
-  contracts: { id: number; name: string; number: string | null; customer_name: string; end_date: string | null }[];
+  contracts: {
+    id: number;
+    name: string;
+    number: string | null;
+    customer_name: string;
+    end_date: string | null;
+  }[];
   documents: { id: number; name: string; doc_type: string; customer_name: string | null }[];
 }
 
@@ -66,7 +84,7 @@ export function SearchBox() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex w-full max-w-md items-center gap-2 rounded-control border border-tr-navfg-border bg-transparent px-3 py-1.5 text-sm text-tr-navfg-muted transition hover:bg-white/10 ${focusRing}`}
+        className={`flex h-11 w-full max-w-md items-center gap-2 rounded-control border border-tr-navfg-border bg-transparent px-3 text-sm text-tr-navfg-muted transition hover:bg-white/10 sm:h-8 ${focusRing}`}
       >
         <Search size={15} aria-hidden="true" />
         <span className="flex-1 truncate text-left">{t.search.placeholder}</span>
@@ -147,7 +165,10 @@ export function SearchBox() {
                   {data.contacts.map((c) => (
                     <Row
                       key={c.id}
-                      onClick={close}
+                      onClick={() => {
+                        navigate(`/customers/${c.customer_id}?contact=${c.id}`);
+                        close();
+                      }}
                       primary={c.full_name}
                       secondary={[c.title, c.customer_name].filter(Boolean).join(' · ')}
                     />
@@ -161,7 +182,7 @@ export function SearchBox() {
                     <Row
                       key={d.id}
                       onClick={() => {
-                        navigate('/pipeline');
+                        navigate(`/deals/${d.id}`);
                         close();
                       }}
                       primary={d.title}
@@ -177,7 +198,7 @@ export function SearchBox() {
                     <Row
                       key={c.id}
                       onClick={() => {
-                        navigate('/contracts');
+                        navigate(`/contracts?focus=${c.id}`);
                         close();
                       }}
                       primary={c.name}
@@ -195,11 +216,13 @@ export function SearchBox() {
                     <Row
                       key={d.id}
                       onClick={() => {
-                        navigate('/documents');
+                        navigate(`/documents?focus=${d.id}`);
                         close();
                       }}
                       primary={d.name}
-                      secondary={[t.docType[d.doc_type], d.customer_name].filter(Boolean).join(' · ')}
+                      secondary={[t.docType[d.doc_type], d.customer_name]
+                        .filter(Boolean)
+                        .join(' · ')}
                     />
                   ))}
                 </Group>

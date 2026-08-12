@@ -48,7 +48,11 @@ export default function BoardPage() {
 
   useEffect(() => () => resetFilters(), [id, resetFilters]);
 
-  const { data: board, isLoading, error } = useQuery({
+  const {
+    data: board,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['board', id],
     queryFn: () => api.get<BoardFull>(`/api/boards/${id}/full`),
     enabled: Number.isFinite(id),
@@ -101,7 +105,7 @@ export default function BoardPage() {
   return (
     <div className="relative flex h-full flex-col" style={backgroundStyle(board.background)}>
       <header
-        className="flex h-12 shrink-0 items-center gap-2 px-3 text-white"
+        className="flex min-h-12 shrink-0 flex-wrap items-center gap-1.5 px-2 py-1.5 text-white sm:h-12 sm:flex-nowrap sm:gap-2 sm:px-3 sm:py-0"
         style={{ backgroundColor: '#0000001f' }}
       >
         {editingName ? (
@@ -118,7 +122,7 @@ export default function BoardPage() {
               if (e.key === 'Enter') e.currentTarget.blur();
               if (e.key === 'Escape') setEditingName(false);
             }}
-            className="rounded border-2 border-white bg-white/95 px-2 py-1 text-base font-bold text-tr-text outline-none"
+            className="min-w-0 max-w-[55vw] rounded border-2 border-white bg-white/95 px-2 py-1 text-base font-bold text-tr-text outline-none sm:max-w-xs"
           />
         ) : (
           <button
@@ -126,17 +130,20 @@ export default function BoardPage() {
               setNameDraft(board.name);
               setEditingName(true);
             }}
-            className="rounded px-2 py-1 text-base font-bold transition hover:bg-white/20"
+            className="min-h-11 min-w-0 max-w-[55vw] truncate rounded px-2 py-1 text-left text-base font-bold transition hover:bg-white/20 sm:min-h-0 sm:max-w-xs"
           >
             {board.name}
           </button>
         )}
 
-        <BoardViewChip value={view} onChange={setView} />
+        <div className="hidden sm:block">
+          <BoardViewChip value={view} onChange={setView} />
+        </div>
 
         <button
           onClick={() => patchBoard.mutate({ is_starred: !board.is_starred })}
-          className="rounded p-1.5 transition hover:bg-white/20"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition hover:bg-white/20 sm:h-8 sm:w-8"
+          aria-label={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao bảng này'}
           title={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao bảng này'}
         >
           <Star
@@ -149,26 +156,28 @@ export default function BoardPage() {
         {board.customer_name && (
           <Link
             to={`/customers/${board.customer_id}`}
-            className="tr-header-btn"
+            className="tr-header-btn hidden max-w-44 truncate md:inline-flex"
             title={t.board.linkedCustomer}
           >
             <Building2 size={14} /> {board.customer_name}
           </Link>
         )}
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1">
           {view === 'board' && (
             <>
               <button
                 onClick={toggleLabelText}
-                className="rounded p-1.5 text-white transition hover:bg-white/20"
+                className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 sm:h-8 sm:w-8"
+                aria-label={labelText ? 'Thu gọn chữ trên nhãn' : 'Hiện chữ trên nhãn'}
                 title={labelText ? 'Nhãn đang hiện chữ' : 'Nhãn đang thu gọn'}
               >
                 <SlidersHorizontal size={17} />
               </button>
               <button
                 onClick={filterPopover.toggle}
-                className="inline-flex items-center gap-1.5 rounded p-1.5 text-white transition hover:bg-white/20"
+                className="inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded px-2 text-white transition hover:bg-white/20 sm:h-8 sm:min-w-8"
+                aria-label={`Bộ lọc${activeFilters > 0 ? `, ${activeFilters} bộ lọc đang bật` : ''}`}
                 title="Bộ lọc"
               >
                 <Filter size={17} />
@@ -182,7 +191,8 @@ export default function BoardPage() {
           )}
           <button
             onClick={() => setMenuOpen(true)}
-            className="rounded p-1.5 text-white transition hover:bg-white/20"
+            className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 sm:h-8 sm:w-8"
+            aria-label="Mở menu bảng"
             title="Menu bảng"
           >
             <MoreHorizontal size={18} />

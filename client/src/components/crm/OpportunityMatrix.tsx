@@ -60,10 +60,38 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 12, right: 16, bottom: 28, left: 8 }}>
           {/* Bốn ô nền theo đúng quy ước màu của toàn hệ thống */}
-          <ReferenceArea x1={-0.5} x2={CUTOFF} y1={CUTOFF} y2={12.5} fill={QUADRANT_COLORS.reshape} fillOpacity={0.1} />
-          <ReferenceArea x1={CUTOFF} x2={12.5} y1={CUTOFF} y2={12.5} fill={QUADRANT_COLORS.pursue} fillOpacity={0.1} />
-          <ReferenceArea x1={-0.5} x2={CUTOFF} y1={-0.5} y2={CUTOFF} fill={QUADRANT_COLORS.disqualify} fillOpacity={0.1} />
-          <ReferenceArea x1={CUTOFF} x2={12.5} y1={-0.5} y2={CUTOFF} fill={QUADRANT_COLORS.nurture} fillOpacity={0.1} />
+          <ReferenceArea
+            x1={-0.5}
+            x2={CUTOFF}
+            y1={CUTOFF}
+            y2={12.5}
+            fill={QUADRANT_COLORS.reshape}
+            fillOpacity={0.1}
+          />
+          <ReferenceArea
+            x1={CUTOFF}
+            x2={12.5}
+            y1={CUTOFF}
+            y2={12.5}
+            fill={QUADRANT_COLORS.pursue}
+            fillOpacity={0.1}
+          />
+          <ReferenceArea
+            x1={-0.5}
+            x2={CUTOFF}
+            y1={-0.5}
+            y2={CUTOFF}
+            fill={QUADRANT_COLORS.disqualify}
+            fillOpacity={0.1}
+          />
+          <ReferenceArea
+            x1={CUTOFF}
+            x2={12.5}
+            y1={-0.5}
+            y2={CUTOFF}
+            fill={QUADRANT_COLORS.nurture}
+            fillOpacity={0.1}
+          />
 
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-tr-border)" />
           <XAxis

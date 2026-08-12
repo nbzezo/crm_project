@@ -63,8 +63,7 @@ export function MonthYearPicker({
       <div className="grid grid-cols-3 gap-1.5">
         {MONTHS.map((month) => {
           const selected = month === currentMonth && year === currentYear;
-          const isThisMonth =
-            month === today.getMonth() + 1 && year === today.getFullYear();
+          const isThisMonth = month === today.getMonth() + 1 && year === today.getFullYear();
           return (
             <button
               key={month}

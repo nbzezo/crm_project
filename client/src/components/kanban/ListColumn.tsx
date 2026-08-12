@@ -10,6 +10,7 @@ import {
   Clock3,
   Copy,
   MoreHorizontal,
+  GripVertical,
   Plus,
   Trash2,
   X,
@@ -90,10 +91,17 @@ export const ListColumn = memo(function ListColumn({
       <div
         ref={setNodeRef}
         style={style}
-        {...attributes}
-        {...listeners}
         className="flex h-full max-h-full w-11 shrink-0 flex-col items-center gap-3 rounded-modal bg-tr-list py-2"
       >
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className={`flex h-11 w-11 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing sm:h-8 ${focusRing}`}
+          aria-label={`Di chuyển danh sách ${list.name}`}
+        >
+          <GripVertical size={16} aria-hidden="true" />
+        </button>
         <button
           type="button"
           onClick={() => onCollapseList(list.id, false)}
@@ -118,16 +126,22 @@ export const ListColumn = memo(function ListColumn({
       <div
         ref={setNodeRef}
         style={style}
-        {...attributes}
+        role="group"
         aria-label={`Danh sách ${list.name}`}
         className={`flex max-h-full w-[272px] shrink-0 flex-col rounded-modal bg-tr-list transition-[box-shadow] ${
           isOver ? 'ring-2 ring-tr-primary' : ''
         }`}
       >
-        <header
-          {...listeners}
-          className="flex cursor-grab items-start gap-1 px-2 pt-2.5 pb-1.5 active:cursor-grabbing"
-        >
+        <header className="flex items-start gap-1 px-2 pt-2.5 pb-1.5">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className={`flex h-11 w-11 shrink-0 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing sm:h-8 sm:w-7 ${focusRing}`}
+            aria-label={`Di chuyển danh sách ${list.name}`}
+          >
+            <GripVertical size={15} aria-hidden="true" />
+          </button>
           {editingName ? (
             <input
               autoFocus
@@ -239,7 +253,7 @@ export const ListColumn = memo(function ListColumn({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className={`flex min-h-[44px] w-full items-center gap-1.5 rounded-panel px-2 text-sm text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text sm:min-h-0 sm:py-1.5 ${focusRing}`}
+              className={`flex min-h-[44px] w-full items-center gap-1.5 rounded-panel px-2 text-sm text-tr-text transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
             >
               <Plus size={16} aria-hidden="true" /> {t.board.addCard}
             </button>

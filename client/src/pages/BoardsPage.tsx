@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Archive, Building2, Plus, Star, X } from 'lucide-react';
 import { api } from '../api/client';
-import { ALL_BACKGROUNDS, BOARD_COLORS, BOARD_GRADIENTS, backgroundStyle } from '../lib/backgrounds';
+import {
+  ALL_BACKGROUNDS,
+  BOARD_COLORS,
+  BOARD_GRADIENTS,
+  backgroundStyle,
+} from '../lib/backgrounds';
 import { Popover, usePopover } from '../components/common/Popover';
 import { Button, EmptyState, ErrorState, Skeleton, focusRing } from '../components/common/ui';
 import { t } from '../i18n/vi';
@@ -111,13 +116,23 @@ export default function BoardsPage() {
           {starred.length > 0 && (
             <Section title="Đã gắn sao" icon={<Star size={15} />}>
               {starred.map((board) => (
-                <BoardTile key={board.id} board={board} onToggleStar={patchBoard.mutate} onToggleArchive={patchBoard.mutate} />
+                <BoardTile
+                  key={board.id}
+                  board={board}
+                  onToggleStar={patchBoard.mutate}
+                  onToggleArchive={patchBoard.mutate}
+                />
               ))}
             </Section>
           )}
           <Section title="Tất cả bảng">
             {others.map((board) => (
-              <BoardTile key={board.id} board={board} onToggleStar={patchBoard.mutate} onToggleArchive={patchBoard.mutate} />
+              <BoardTile
+                key={board.id}
+                board={board}
+                onToggleStar={patchBoard.mutate}
+                onToggleArchive={patchBoard.mutate}
+              />
             ))}
             <button
               onClick={create.toggle}
@@ -129,7 +144,13 @@ export default function BoardsPage() {
         </div>
       )}
 
-      <Popover open={create.open} anchor={create.anchor} onClose={create.close} title="Tạo bảng" width={304}>
+      <Popover
+        open={create.open}
+        anchor={create.anchor}
+        onClose={create.close}
+        title="Tạo bảng"
+        width={304}
+      >
         <div className="space-y-3">
           <div
             className="flex h-24 items-center justify-center rounded-lg"
@@ -265,11 +286,17 @@ function BoardTile({
         }`}
         title={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao'}
       >
-        <Star size={14} fill={board.is_starred ? '#f2d600' : 'none'} color={board.is_starred ? '#f2d600' : 'currentColor'} />
+        <Star
+          size={14}
+          fill={board.is_starred ? '#f2d600' : 'none'}
+          color={board.is_starred ? '#f2d600' : 'currentColor'}
+        />
       </button>
 
       <button
-        onClick={() => onToggleArchive({ id: board.id, patch: { is_archived: !board.is_archived } })}
+        onClick={() =>
+          onToggleArchive({ id: board.id, patch: { is_archived: !board.is_archived } })
+        }
         className="absolute right-2 bottom-2 rounded p-1 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/25"
         title={board.is_archived ? t.board.unarchive : t.board.archive}
       >

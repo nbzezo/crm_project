@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
 
@@ -15,7 +16,9 @@ const REMINDER_SELECT = `
 const schema = z.object({
   title: z.string().trim().min(1, 'Tieu de khong duoc de trong'),
   note: z.string().optional(),
-  due_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm'),
+  due_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm'),
   card_id: z.number().int().nullable().optional(),
   customer_id: z.number().int().nullable().optional(),
   deal_id: z.number().int().nullable().optional(),
@@ -68,6 +71,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(schema, req);
+  assertEntityLinks(db, body);
   const info = db
     .prepare(
       `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id)
@@ -94,6 +98,11 @@ router.patch('/:id', (req, res) => {
     'Khong tim thay nhac hen'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
+  assertEntityLinks(db, {
+    card_id: merged.card_id as number | null,
+    customer_id: merged.customer_id as number | null,
+    deal_id: merged.deal_id as number | null,
+  });
   // Truoc day cac cot lien ket duoc zod chap nhan nhung KHONG duoc ghi —
   // sua card_id/customer_id/deal_id im lang khong co tac dung.
   db.prepare(

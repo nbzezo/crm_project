@@ -71,8 +71,7 @@ export interface Capabilities {
 
 /** Noi di toi khi bam vao mot su kien chi-doc. */
 export type CalLink =
-  | { kind: 'card'; cardId: number; label: string }
-  | { kind: 'route'; to: string; label: string };
+  { kind: 'card'; cardId: number; label: string } | { kind: 'route'; to: string; label: string };
 
 const NO_CAPS: Capabilities = {
   edit: false,

@@ -27,12 +27,16 @@ router.patch('/:id', (req, res) => {
     if (body.content !== undefined)
       db.prepare(`UPDATE checklist_items SET content = ? WHERE id = ?`).run(body.content, id);
     if (body.is_done !== undefined)
-      db.prepare(`UPDATE checklist_items SET is_done = ? WHERE id = ?`).run(body.is_done ? 1 : 0, id);
+      db.prepare(`UPDATE checklist_items SET is_done = ? WHERE id = ?`).run(
+        body.is_done ? 1 : 0,
+        id
+      );
     if (body.beforeId !== undefined || body.afterId !== undefined) {
       const pos = computeMovePosition(
         { table: 'checklist_items', scopeCol: 'card_id', scopeVal: item.card_id },
         body.beforeId,
-        body.afterId
+        body.afterId,
+        id
       );
       db.prepare(`UPDATE checklist_items SET position = ? WHERE id = ?`).run(pos, id);
     }

@@ -68,9 +68,7 @@ function normName(name: string): string {
 }
 
 function allLabels(): LabelRow[] {
-  return db
-    .prepare(`SELECT * FROM labels ORDER BY position, id`)
-    .all() as LabelRow[];
+  return db.prepare(`SELECT * FROM labels ORDER BY position, id`).all() as LabelRow[];
 }
 
 function getLabel(id: number): LabelRow {
@@ -101,7 +99,9 @@ function effectiveScope(label: LabelRow, byId: Map<number, LabelRow>): EntityTyp
 /** So ban ghi dang dung tung nhan, tach theo loai doi tuong — 1 truy van (FR-TAG-38). */
 function usageByLabel(): Map<number, { total: number; by_type: Record<string, number> }> {
   const rows = db
-    .prepare(`SELECT label_id, entity_type, COUNT(*) AS n FROM label_links GROUP BY label_id, entity_type`)
+    .prepare(
+      `SELECT label_id, entity_type, COUNT(*) AS n FROM label_links GROUP BY label_id, entity_type`
+    )
     .all() as { label_id: number; entity_type: string; n: number }[];
   const map = new Map<number, { total: number; by_type: Record<string, number> }>();
   for (const row of rows) {
@@ -288,9 +288,9 @@ router.get('/check-name', (req, res) => {
     )
     .get(norm, parentId ?? 0, exceptId) as { id: number } | undefined;
 
-  const service = db
-    .prepare(`SELECT name FROM services WHERE is_active = 1`)
-    .all() as { name: string }[];
+  const service = db.prepare(`SELECT name FROM services WHERE is_active = 1`).all() as {
+    name: string;
+  }[];
   const hitService = service.find((s) => normName(s.name) === norm);
 
   let conflict: { field: string; value: string } | null = hitService
@@ -327,9 +327,7 @@ router.get('/:id/records', (req, res) => {
   }
   const holes = ids.map(() => '?').join(',');
   const links = db
-    .prepare(
-      `SELECT DISTINCT entity_type, entity_id FROM label_links WHERE label_id IN (${holes})`
-    )
+    .prepare(`SELECT DISTINCT entity_type, entity_id FROM label_links WHERE label_id IN (${holes})`)
     .all(...ids) as { entity_type: EntityType; entity_id: number }[];
 
   const TITLES: Record<EntityType, string> = {
@@ -343,8 +341,7 @@ router.get('/:id/records', (req, res) => {
   const records = links
     .map((link) => {
       const row = db.prepare(TITLES[link.entity_type]).get(link.entity_id) as
-        | { id: number; title: string }
-        | undefined;
+        { id: number; title: string } | undefined;
       return row ? { entity_type: link.entity_type, id: row.id, title: row.title } : null;
     })
     .filter(Boolean);
@@ -422,8 +419,7 @@ router.patch('/:id', (req, res) => {
 
   const name = body.name ?? label.name;
   const norm = normName(name);
-  if (body.name !== undefined || body.parent_id !== undefined)
-    assertNameFree(norm, parentId, id);
+  if (body.name !== undefined || body.parent_id !== undefined) assertNameFree(norm, parentId, id);
 
   db.prepare(
     `UPDATE labels

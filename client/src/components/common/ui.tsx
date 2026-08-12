@@ -50,8 +50,8 @@ export function Button({
 
 /* ---------- Segmented (nhom nut chon mot trong nhieu) ---------- */
 /**
- * Dung cho thanh doi dang xem. `role="tablist"` + `aria-selected` de trinh doc
- * man hinh hieu day la mot nhom lua chon loai tru, khong phai vai nut roi rac.
+ * Dung cho thanh doi dang xem. Day la nhom nut chon che do, khong dieu khien
+ * cac tabpanel rieng, nen dung aria-pressed thay vi semantics tab khong day du.
  */
 export function Segmented<T extends string>({
   value,
@@ -66,7 +66,7 @@ export function Segmented<T extends string>({
 }) {
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label={label}
       className="inline-flex rounded-lg border border-tr-border bg-tr-panel p-0.5"
     >
@@ -74,8 +74,7 @@ export function Segmented<T extends string>({
         <button
           key={option.value}
           type="button"
-          role="tab"
-          aria-selected={value === option.value}
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm transition ${focusRing} ${
             value === option.value

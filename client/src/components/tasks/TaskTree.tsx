@@ -1,23 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ChevronDown,
-  ChevronRight,
-  CornerDownRight,
-  ExternalLink,
-  Plus,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, CornerDownRight, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { EmptyState, InlineDate } from '../common/ui';
-import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
-import { isOverdue } from '../../lib/format';
+import { t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { undoableDelete } from '../../lib/undo';
 import { useUiStore } from '../../stores/uiStore';
-import type { Customer, Label, Priority, TaskRow } from '../../types';
+import type { Customer, Label, TaskRow } from '../../types';
+import {
+  LabelTags,
+  PrioritySelect,
+  SmartDeadline,
+  StatusSelect,
+  TaskRowActions,
+  useTaskBoardLists,
+} from './TaskPresentation';
 
 export interface TaskColumns {
   priority?: boolean;
@@ -88,6 +87,7 @@ export function TaskTree({
     [tasks, pendingDelete]
   );
   const tree = useMemo(() => buildTree(visibleTasks), [visibleTasks]);
+  const listsByBoard = useTaskBoardLists(visibleTasks);
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers', 'select'],
@@ -143,6 +143,17 @@ export function TaskTree({
     setEditingId(null);
   };
 
+  const startTitleEdit = (task: TaskRow) => {
+    setEditingId(task.id);
+    setTitleDraft(task.title);
+  };
+
+  const startAddingSubtask = (taskId: number) => {
+    setAddingUnder(taskId);
+    setSubtaskDraft('');
+    setExpanded((previous) => new Set(previous).add(taskId));
+  };
+
   if (visibleTasks.length === 0) {
     return <EmptyState message={emptyMessage} hint={emptyHint} action={emptyAction} />;
   }
@@ -152,28 +163,30 @@ export function TaskTree({
     return (
       <div
         key={task.id}
-        className={`group flex items-center gap-2 px-2 py-1.5 transition hover:bg-tr-hover ${
+        className={`group grid min-h-12 grid-cols-[auto_auto_minmax(220px,1fr)_100px_110px_132px_140px_80px] items-center gap-2 px-3 py-1.5 transition hover:bg-tr-hover 2xl:grid-cols-[auto_auto_minmax(240px,1fr)_100px_110px_132px_150px_150px_180px_80px] ${
           isChild ? 'bg-tr-hover/40' : ''
         }`}
       >
-        <span style={{ width: isChild ? 34 : 0 }} className="shrink-0" />
-
         {/* Nút mở / thu việc con */}
-        {!isChild ? (
-          childCount > 0 ? (
-            <button
-              onClick={() => toggleExpand(task.id)}
-              className="shrink-0 rounded p-0.5 text-tr-muted transition hover:bg-tr-hover-strong hover:text-tr-text"
-              title={isOpen ? 'Thu gọn việc con' : 'Xem việc con'}
-            >
-              {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-            </button>
+        <span className={isChild ? 'pl-4' : ''}>
+          {!isChild ? (
+            childCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => toggleExpand(task.id)}
+                className="shrink-0 rounded p-0.5 text-tr-muted transition hover:bg-tr-hover-strong hover:text-tr-text focus-visible:outline-2 focus-visible:outline-tr-primary"
+                title={isOpen ? 'Thu gọn việc con' : 'Xem việc con'}
+                aria-expanded={isOpen}
+              >
+                {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+              </button>
+            ) : (
+              <span className="block w-5" />
+            )
           ) : (
-            <span className="w-[22px] shrink-0" />
-          )
-        ) : (
-          <CornerDownRight size={13} className="shrink-0 text-tr-muted" />
-        )}
+            <CornerDownRight size={13} className="shrink-0 text-tr-muted" />
+          )}
+        </span>
 
         <input
           type="checkbox"
@@ -183,7 +196,7 @@ export function TaskTree({
         />
 
         {/* Tiêu đề — bấm để sửa tại chỗ */}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           {editingId === task.id ? (
             <input
               autoFocus
@@ -198,14 +211,12 @@ export function TaskTree({
             />
           ) : (
             <button
-              onClick={() => {
-                setEditingId(task.id);
-                setTitleDraft(task.title);
-              }}
-              className={`w-full truncate rounded px-1.5 py-0.5 text-left text-sm ${
+              type="button"
+              onClick={() => openCard(task.id, 'drawer')}
+              className={`block w-full truncate rounded-control px-1.5 py-0.5 text-left text-sm font-semibold ${
                 task.is_done ? 'text-tr-muted line-through' : 'text-tr-text'
-              } hover:bg-tr-hover-strong`}
-              title="Bấm để sửa tên"
+              } hover:text-tr-primary hover:underline focus-visible:outline-2 focus-visible:outline-tr-primary`}
+              title={task.title}
             >
               {task.title}
               {childCount > 0 && (
@@ -215,23 +226,20 @@ export function TaskTree({
               )}
             </button>
           )}
+          <span
+            className="block truncate px-1.5 text-2xs text-tr-muted"
+            title={`${task.board_name} · ${task.list_name}`}
+          >
+            {task.customer_name ?? 'Chưa gắn khách hàng'} · {task.board_name}
+          </span>
         </div>
 
         {cols.priority && (
-          <select
+          <PrioritySelect
             value={task.priority}
-            onChange={(e) =>
-              update.mutate({ id: task.id, patch: { priority: e.target.value as Priority } })
-            }
-            className="w-24 shrink-0 rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle transition hover:border-tr-border"
-            style={{ color: PRIORITY_COLORS[task.priority] }}
-          >
-            {PRIORITY_ORDER.map((p) => (
-              <option key={p} value={p} className="text-tr-text">
-                {t.priority[p]}
-              </option>
-            ))}
-          </select>
+            taskTitle={task.title}
+            onChange={(priority) => update.mutate({ id: task.id, patch: { priority } })}
+          />
         )}
 
         {cols.startDate && (
@@ -244,11 +252,12 @@ export function TaskTree({
         )}
 
         {cols.dueDate && (
-          <div className="w-24 shrink-0">
-            <InlineDate
+          <div>
+            <SmartDeadline
               value={task.due_date}
-              highlight={isOverdue(task.due_date, task.is_done)}
-              onChange={(v) => update.mutate({ id: task.id, patch: { due_date: v } })}
+              isDone={Boolean(task.is_done)}
+              taskTitle={task.title}
+              onChange={(dueDate) => update.mutate({ id: task.id, patch: { due_date: dueDate } })}
             />
           </div>
         )}
@@ -262,7 +271,8 @@ export function TaskTree({
                 patch: { customer_id: e.target.value === '' ? null : Number(e.target.value) },
               })
             }
-            className="w-40 shrink-0 truncate rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle transition hover:border-tr-border"
+            aria-label={`Khách hàng: ${task.title}`}
+            className="hidden w-36 truncate rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle outline-none transition hover:border-tr-border focus-visible:border-tr-primary 2xl:block"
           >
             <option value="">— khách hàng —</option>
             {customers.map((c) => (
@@ -274,56 +284,38 @@ export function TaskTree({
         )}
 
         {cols.board && (
-          <span className="hidden w-44 shrink-0 truncate text-xs text-tr-muted lg:block">
-            {task.board_name} · {task.list_name}
+          <span className="hidden truncate text-xs text-tr-muted 2xl:block" title={task.board_name}>
+            {task.board_name}
           </span>
         )}
 
-        {cols.labels && (
-          <span className="hidden w-14 shrink-0 gap-1 xl:flex">
-            {(task.label_ids ?? []).map((labelId) => {
-              const label = labels.find((l) => l.id === labelId);
-              if (!label) return null;
-              return (
-                <span
-                  key={labelId}
-                  title={label.name}
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: label.color }}
-                />
-              );
-            })}
-          </span>
-        )}
-
-        <div className="flex shrink-0 gap-0.5 opacity-0 transition group-hover:opacity-100">
-          {!isChild && (
-            <button
-              onClick={() => {
-                setAddingUnder(task.id);
-                setSubtaskDraft('');
-                setExpanded((prev) => new Set(prev).add(task.id));
-              }}
-              className="rounded p-1 text-tr-muted hover:bg-tr-hover-strong hover:text-tr-text"
-              title="Thêm việc con"
-            >
-              <Plus size={14} />
-            </button>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <StatusSelect
+            task={task}
+            lists={listsByBoard.get(task.board_id) ?? []}
+            onChange={(listId) => update.mutate({ id: task.id, patch: { list_id: listId } })}
+          />
+          {cols.labels && (
+            <span className="hidden min-w-0 2xl:block">
+              <LabelTags
+                labels={(task.label_ids ?? [])
+                  .map((labelId) => labels.find((label) => label.id === labelId))
+                  .filter((label): label is Label => Boolean(label))}
+                limit={1}
+              />
+            </span>
           )}
-          <button
-            onClick={() => openCard(task.id)}
-            className="rounded p-1 text-tr-muted hover:bg-tr-hover-strong hover:text-tr-text"
-            title="Mở chi tiết"
-          >
-            <ExternalLink size={14} />
-          </button>
-          <button
-            onClick={() => setDeleteTask(task)}
-            className="rounded p-1 text-tr-muted hover:bg-tr-hover-strong hover:text-tr-danger"
-            title={t.common.delete}
-          >
-            <Trash2 size={14} />
-          </button>
+        </span>
+
+        <div className="opacity-50 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <TaskRowActions
+            task={task}
+            onOpen={() => openCard(task.id, 'drawer')}
+            onToggleDone={() => update.mutate({ id: task.id, patch: { is_done: !task.is_done } })}
+            onDelete={() => setDeleteTask(task)}
+            onEditTitle={() => startTitleEdit(task)}
+            onAddSubtask={isChild ? undefined : () => startAddingSubtask(task.id)}
+          />
         </div>
       </div>
     );
@@ -331,61 +323,78 @@ export function TaskTree({
 
   return (
     <>
-      <div className="divide-y divide-tr-border overflow-hidden rounded-lg border border-tr-border bg-tr-panel">
-        {tree.map(({ task, children }) => (
-          <div key={task.id}>
-            {renderRow(task, false, children.length)}
+      <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+        <div className="min-w-[870px] 2xl:min-w-[1260px]">
+          <div className="sticky top-0 z-10 grid grid-cols-[auto_auto_minmax(220px,1fr)_100px_110px_132px_140px_80px] items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase 2xl:grid-cols-[auto_auto_minmax(240px,1fr)_100px_110px_132px_150px_150px_180px_80px]">
+            <span className="w-5" />
+            <span className="sr-only">Hoàn thành</span>
+            <span>Công việc</span>
+            <span>Ưu tiên</span>
+            <span>Bắt đầu</span>
+            <span>Hạn hoàn thành</span>
+            <span className="hidden 2xl:block">Khách hàng</span>
+            <span className="hidden 2xl:block">Dự án / Bảng</span>
+            <span>Trạng thái / Nhãn</span>
+            <span className="text-right">Thao tác</span>
+          </div>
+          <div className="divide-y divide-tr-border">
+            {tree.map(({ task, children }) => (
+              <div key={task.id}>
+                {renderRow(task, false, children.length)}
 
-            {expanded.has(task.id) && (
-              <div className="border-t border-tr-border">
-                {children.map((child) => renderRow(child, true, 0))}
+                {expanded.has(task.id) && (
+                  <div className="border-t border-tr-border">
+                    {children.map((child) => renderRow(child, true, 0))}
 
-                {addingUnder === task.id ? (
-                  <div className="flex items-center gap-2 py-1.5 pr-2 pl-[3.4rem]">
-                    <CornerDownRight size={13} className="shrink-0 text-tr-muted" />
-                    <input
-                      autoFocus
-                      value={subtaskDraft}
-                      placeholder="Tên việc con…"
-                      onChange={(e) => setSubtaskDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && subtaskDraft.trim())
-                          addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() });
-                        if (e.key === 'Escape') setAddingUnder(null);
-                      }}
-                      className="flex-1 rounded border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm text-tr-text outline-none"
-                    />
-                    <button
-                      onClick={() =>
-                        subtaskDraft.trim() &&
-                        addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() })
-                      }
-                      className="rounded-[3px] bg-tr-primary px-2.5 py-1 text-xs font-medium text-tr-on-primary"
-                    >
-                      {t.common.add}
-                    </button>
-                    <button
-                      onClick={() => setAddingUnder(null)}
-                      className="rounded p-1 text-tr-muted hover:bg-tr-hover"
-                    >
-                      <X size={15} />
-                    </button>
+                    {addingUnder === task.id ? (
+                      <div className="flex items-center gap-2 py-2 pr-3 pl-12">
+                        <CornerDownRight size={13} className="shrink-0 text-tr-muted" />
+                        <input
+                          autoFocus
+                          value={subtaskDraft}
+                          placeholder="Tên việc con…"
+                          onChange={(e) => setSubtaskDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && subtaskDraft.trim())
+                              addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() });
+                            if (e.key === 'Escape') setAddingUnder(null);
+                          }}
+                          className="flex-1 rounded-control border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm text-tr-text outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            subtaskDraft.trim() &&
+                            addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() })
+                          }
+                          className="rounded-control bg-tr-primary px-2.5 py-1 text-xs font-medium text-tr-on-primary"
+                        >
+                          {t.common.add}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAddingUnder(null)}
+                          className="rounded-control p-1 text-tr-muted hover:bg-tr-hover"
+                          aria-label={t.common.cancel}
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startAddingSubtask(task.id)}
+                        className="flex w-full items-center gap-1.5 py-1.5 pl-12 text-xs text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                      >
+                        <Plus size={13} /> Thêm việc con
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setAddingUnder(task.id);
-                      setSubtaskDraft('');
-                    }}
-                    className="flex w-full items-center gap-1.5 py-1.5 pl-[3.4rem] text-xs text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
-                  >
-                    <Plus size={13} /> Thêm việc con
-                  </button>
                 )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
       <ConfirmDialog

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+/.playwright/
 server/data/
 *.log
 .DS_Store

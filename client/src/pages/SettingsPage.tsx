@@ -84,9 +84,7 @@ export default function SettingsPage() {
               {backups.map((file) => (
                 <li key={file.name} className="flex items-center gap-3 px-3 py-2 text-sm">
                   <span className="flex-1 truncate text-tr-text">{file.name}</span>
-                  <span className="text-xs text-tr-muted">
-                    {formatBytes(file.size)}
-                  </span>
+                  <span className="text-xs text-tr-muted">{formatBytes(file.size)}</span>
                   <span className="text-xs text-tr-muted">
                     {formatDateTime(file.created_at.slice(0, 16))}
                   </span>
@@ -111,7 +109,6 @@ export default function SettingsPage() {
           thư mục dự án để nạp dữ liệu mẫu (chỉ chạy khi cơ sở dữ liệu còn trống).
         </p>
       </Panel>
-
     </div>
   );
 }

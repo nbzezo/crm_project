@@ -1,27 +1,28 @@
-import { StrictMode } from 'react';
+import { StrictMode, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, createBrowserRouter, RouterProvider } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { useUiStore } from './stores/uiStore';
 import { initTheme } from './stores/themeStore';
-import DashboardPage from './pages/DashboardPage';
-import BoardsPage from './pages/BoardsPage';
-import BoardPage from './pages/BoardPage';
-import CustomersPage from './pages/CustomersPage';
-import CustomerDetailPage from './pages/CustomerDetailPage';
-import PipelinePage from './pages/PipelinePage';
-import DealDetailPage from './pages/DealDetailPage';
-import PipelineHealthPage from './pages/PipelineHealthPage';
-import ContractsPage from './pages/ContractsPage';
-import RevenuePage from './pages/RevenuePage';
-import DocumentsPage from './pages/DocumentsPage';
-import CalendarPage from './pages/CalendarPage';
-import TimelinePage from './pages/TimelinePage';
-import ReportsPage from './pages/ReportsPage';
-import TasksPage from './pages/TasksPage';
-import SettingsPage from './pages/SettingsPage';
 import './index.css';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const BoardsPage = lazy(() => import('./pages/BoardsPage'));
+const BoardPage = lazy(() => import('./pages/BoardPage'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
+const PipelinePage = lazy(() => import('./pages/PipelinePage'));
+const DealDetailPage = lazy(() => import('./pages/DealDetailPage'));
+const PipelineHealthPage = lazy(() => import('./pages/PipelineHealthPage'));
+const ContractsPage = lazy(() => import('./pages/ContractsPage'));
+const RevenuePage = lazy(() => import('./pages/RevenuePage'));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const TimelinePage = lazy(() => import('./pages/TimelinePage'));
+const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const TasksPage = lazy(() => import('./pages/TasksPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,24 +40,40 @@ const router = createBrowserRouter([
     path: '/',
     element: <App />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'boards', element: <BoardsPage /> },
-      { path: 'boards/:boardId', element: <BoardPage /> },
-      { path: 'customers', element: <CustomersPage /> },
-      { path: 'customers/:customerId', element: <CustomerDetailPage /> },
-      { path: 'pipeline', element: <PipelinePage /> },
-      { path: 'deals/:dealId', element: <DealDetailPage /> },
-      { path: 'pipeline-health', element: <PipelineHealthPage /> },
-      { path: 'contracts', element: <ContractsPage /> },
-      { path: 'revenue', element: <RevenuePage /> },
-      { path: 'documents', element: <DocumentsPage /> },
-      { path: 'calendar', element: <CalendarPage /> },
-      { path: 'timeline', element: <TimelinePage /> },
+      {
+        index: true,
+        element: <DashboardPage />,
+        handle: { title: 'Tổng quan', visibleHeading: true },
+      },
+      { path: 'boards', element: <BoardsPage />, handle: { title: 'Bảng công việc' } },
+      { path: 'boards/:boardId', element: <BoardPage />, handle: { title: 'Chi tiết bảng' } },
+      {
+        path: 'customers',
+        element: <CustomersPage />,
+        handle: { title: 'Khách hàng', visibleHeading: true },
+      },
+      {
+        path: 'customers/:customerId',
+        element: <CustomerDetailPage />,
+        handle: { title: 'Hồ sơ khách hàng' },
+      },
+      { path: 'pipeline', element: <PipelinePage />, handle: { title: 'Pipeline bán hàng' } },
+      { path: 'deals/:dealId', element: <DealDetailPage />, handle: { title: 'Chi tiết cơ hội' } },
+      {
+        path: 'pipeline-health',
+        element: <PipelineHealthPage />,
+        handle: { title: 'Sức khỏe pipeline' },
+      },
+      { path: 'contracts', element: <ContractsPage />, handle: { title: 'Hợp đồng' } },
+      { path: 'revenue', element: <RevenuePage />, handle: { title: 'Doanh thu' } },
+      { path: 'documents', element: <DocumentsPage />, handle: { title: 'Tài liệu' } },
+      { path: 'calendar', element: <CalendarPage />, handle: { title: 'Lịch' } },
+      { path: 'timeline', element: <TimelinePage />, handle: { title: 'Dòng thời gian' } },
       // Bảng tính đã gộp vào trang Công việc — giữ đường dẫn cũ để link cũ không hỏng
       { path: 'table', element: <Navigate to="/tasks" replace /> },
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'tasks', element: <TasksPage /> },
-      { path: 'settings', element: <SettingsPage /> },
+      { path: 'reports', element: <ReportsPage />, handle: { title: 'Báo cáo' } },
+      { path: 'tasks', element: <TasksPage />, handle: { title: 'Công việc' } },
+      { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },
     ],
   },
 ]);

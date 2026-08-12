@@ -241,7 +241,11 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
 
         <Field
           label={t.deal.value}
-          hint={value > 0 ? `Trọng số: ${formatVND(Math.round((value * probability) / 100))}` : undefined}
+          hint={
+            value > 0
+              ? `Trọng số: ${formatVND(Math.round((value * probability) / 100))}`
+              : undefined
+          }
         >
           <MoneyInput value={value} onChange={setValue} />
         </Field>

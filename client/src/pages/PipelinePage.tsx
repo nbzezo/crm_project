@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -48,6 +48,7 @@ import { LOST_REASON_ORDER, STAGE_COLORS, STAGE_ORDER, t } from '../i18n/vi';
 import { FACTOR_LABELS, VETO_LABELS } from '../i18n/scoring';
 import { formatVND, formatVNDShort, todayStr } from '../lib/format';
 import { invalidateCrmViews } from '../lib/queryKeys';
+import { applyOptimisticStage, cloneDeals, locateDeal, refreshDealTotals } from '../lib/dnd/deals';
 import type { Deal, DealsResponse, Factor, Label, Stage, VetoCode } from '../types';
 
 /** Phần chi tiết server gửi kèm lỗi 409 STAGE_GATE_BLOCKED. */
@@ -58,26 +59,13 @@ interface GateDetails {
   blocked_by: string[];
 }
 
-function clone(data: DealsResponse): DealsResponse {
-  const stages = {} as Record<Stage, Deal[]>;
-  for (const s of STAGE_ORDER) stages[s] = [...(data.stages[s] ?? [])];
-  return { stages, totals: data.totals };
-}
-
-function locate(data: DealsResponse, dealId: number): { stage: Stage; index: number } | null {
-  for (const stage of STAGE_ORDER) {
-    const index = (data.stages[stage] ?? []).findIndex((d) => d.id === dealId);
-    if (index >= 0) return { stage, index };
-  }
-  return null;
-}
-
 type MoveVars = { dealId: number; stage: Stage; beforeId: number | null; afterId: number | null };
 
 export default function PipelinePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+  const dragSnapshot = useRef<DealsResponse | null>(null);
   const [form, setForm] = useState<{ open: boolean; deal?: Deal | null; stage?: Stage }>({
     open: false,
   });
@@ -109,6 +97,10 @@ export default function PipelinePage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const setData = (next: DealsResponse) => queryClient.setQueryData(['deals'], next);
+  const restoreDragSnapshot = () => {
+    if (dragSnapshot.current) setData(dragSnapshot.current);
+    dragSnapshot.current = null;
+  };
   const refreshAll = () => {
     queryClient.invalidateQueries({ queryKey: ['deals'] });
     invalidateCrmViews(queryClient);
@@ -129,10 +121,12 @@ export default function PipelinePage() {
         }
       ),
     onSuccess: (deal, vars) => {
+      dragSnapshot.current = null;
       refreshAll();
       if (vars.stage === 'won') setWonDeal(deal);
     },
     onError: (error, vars) => {
+      restoreDragSnapshot();
       // Server tu choi vi chua co ly do thua -> mo hop thoai bat buoc chon
       if (error instanceof Error && error.message === 'NEED_LOST_REASON') {
         setPendingLost(vars);
@@ -151,7 +145,8 @@ export default function PipelinePage() {
   function handleDragStart(event: DragStartEvent) {
     const dealId = event.active.data.current?.dealId as number | undefined;
     if (!dealId || !data) return;
-    const found = locate(data, dealId);
+    dragSnapshot.current = cloneDeals(data);
+    const found = locateDeal(data, dealId);
     if (found) setActiveDeal(data.stages[found.stage][found.index]);
   }
 
@@ -168,32 +163,46 @@ export default function PipelinePage() {
     const targetStage = targetStageOf(over.data.current as Record<string, unknown>);
     if (!targetStage) return;
 
-    const next = clone(data);
-    const from = locate(next, dealId);
+    const next = cloneDeals(data);
+    const from = locateDeal(next, dealId);
     if (!from || from.stage === targetStage) return;
 
     const [moved] = next.stages[from.stage].splice(from.index, 1);
-    moved.stage = targetStage;
+    applyOptimisticStage(moved, targetStage);
     const overIdx =
       over.data.current?.type === 'deal'
         ? next.stages[targetStage].findIndex((d) => d.id === over.data.current!.dealId)
         : -1;
-    next.stages[targetStage].splice(overIdx >= 0 ? overIdx : next.stages[targetStage].length, 0, moved);
+    next.stages[targetStage].splice(
+      overIdx >= 0 ? overIdx : next.stages[targetStage].length,
+      0,
+      moved
+    );
+    refreshDealTotals(next);
     setData(next);
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveDeal(null);
-    if (!over || !data || active.data.current?.type !== 'deal') return;
+    if (!over || !data || active.data.current?.type !== 'deal') {
+      restoreDragSnapshot();
+      return;
+    }
 
     const dealId = active.data.current.dealId as number;
     const targetStage = targetStageOf(over.data.current as Record<string, unknown>);
-    if (!targetStage) return;
+    if (!targetStage) {
+      restoreDragSnapshot();
+      return;
+    }
 
-    const next = clone(data);
-    const from = locate(next, dealId);
-    if (!from) return;
+    const next = cloneDeals(data);
+    const from = locateDeal(next, dealId);
+    if (!from) {
+      restoreDragSnapshot();
+      return;
+    }
 
     if (from.stage === targetStage) {
       const list = next.stages[targetStage];
@@ -205,7 +214,7 @@ export default function PipelinePage() {
         next.stages[targetStage] = arrayMove(list, from.index, overIdx);
     } else {
       const [moved] = next.stages[from.stage].splice(from.index, 1);
-      moved.stage = targetStage;
+      applyOptimisticStage(moved, targetStage);
       const overIdx =
         over.data.current?.type === 'deal'
           ? next.stages[targetStage].findIndex((d) => d.id === over.data.current!.dealId)
@@ -215,6 +224,7 @@ export default function PipelinePage() {
         0,
         moved
       );
+      refreshDealTotals(next);
     }
     setData(next);
 
@@ -265,7 +275,11 @@ export default function PipelinePage() {
         <Metric label="Tổng pipeline" value={formatVND(openTotal.sum)} />
         <Metric label="Weighted pipeline" value={formatVND(Math.round(openTotal.weighted))} />
         <LabelFilter scope="deal" value={labelFilter} onChange={setLabelFilter} />
-        <Button variant="primary" className="ml-auto" onClick={() => setForm({ open: true, deal: null })}>
+        <Button
+          variant="primary"
+          className="ml-auto"
+          onClick={() => setForm({ open: true, deal: null })}
+        >
           <Plus size={16} /> {t.deal.newDeal}
         </Button>
       </div>
@@ -276,7 +290,10 @@ export default function PipelinePage() {
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveDeal(null)}
+        onDragCancel={() => {
+          setActiveDeal(null);
+          restoreDragSnapshot();
+        }}
       >
         <div className="tr-scroll flex flex-1 items-start gap-3 overflow-x-auto p-4">
           {STAGE_ORDER.map((stage) => (
@@ -379,15 +396,24 @@ function StageColumn({
   const weighted = deals.reduce((sum, d) => sum + (d.value_vnd * d.probability) / 100, 0);
 
   return (
-    <div ref={setNodeRef} className="flex max-h-full w-[272px] shrink-0 flex-col rounded-xl bg-tr-list">
+    <div
+      ref={setNodeRef}
+      className="flex max-h-full w-[272px] shrink-0 flex-col rounded-xl bg-tr-list"
+    >
       <header className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STAGE_COLORS[stage] }} />
+        <span
+          className="h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: STAGE_COLORS[stage] }}
+        />
         <span className="flex-1 text-sm font-semibold text-tr-text">{t.stage[stage]}</span>
         <span className="text-xs text-tr-muted">{deals.length}</span>
       </header>
 
       <div className="tr-scroll min-h-[4rem] flex-1 space-y-2 overflow-y-auto px-2">
-        <SortableContext items={deals.map((d) => `deal-${d.id}`)} strategy={verticalListSortingStrategy}>
+        <SortableContext
+          items={deals.map((d) => `deal-${d.id}`)}
+          strategy={verticalListSortingStrategy}
+        >
           {deals.map((deal) => (
             <SortableDealCard
               key={deal.id}
@@ -491,10 +517,7 @@ function StageGateDialog({
           </p>
         )}
 
-        <Field
-          label="Lý do ghi đè"
-          hint="Bắt buộc, tối thiểu 10 ký tự — được ghi vào lịch sử điểm"
-        >
+        <Field label="Lý do ghi đè" hint="Bắt buộc, tối thiểu 10 ký tự — được ghi vào lịch sử điểm">
           <Textarea rows={2} value={reason} onChange={(e) => onReason(e.target.value)} />
         </Field>
       </div>

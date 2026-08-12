@@ -258,7 +258,9 @@ export function LabelManager() {
                               : 'cursor-default text-tr-muted'
                           } ${focusRing}`}
                         >
-                          {label.used_count ? `${label.used_count} ${t.labels.used}` : t.labels.usedNone}
+                          {label.used_count
+                            ? `${label.used_count} ${t.labels.used}`
+                            : t.labels.usedNone}
                         </button>
                         <Button
                           size="sm"
@@ -563,9 +565,7 @@ function LabelEditor({
           <input
             type="checkbox"
             checked={form.status === 'inactive'}
-            onChange={(e) =>
-              setForm({ ...form, status: e.target.checked ? 'inactive' : 'active' })
-            }
+            onChange={(e) => setForm({ ...form, status: e.target.checked ? 'inactive' : 'active' })}
           />
           {t.labels.inactive}
         </label>
@@ -617,9 +617,7 @@ function MergeDialog({
         </>
       }
     >
-      <p className="mb-3 text-sm text-tr-subtle">
-        {t.labels.mergeHint}
-      </p>
+      <p className="mb-3 text-sm text-tr-subtle">{t.labels.mergeHint}</p>
       <div className="mb-3 flex items-center gap-2 text-sm">
         <LabelChip label={label} />
         <span className="text-tr-muted">
@@ -654,7 +652,12 @@ function RecordsDialog({ label, onClose }: { label: Label; onClose: () => void }
   }
 
   return (
-    <Modal open onClose={onClose} title={`${label.name} — ${records.length} ${t.labels.used}`} width="max-w-lg">
+    <Modal
+      open
+      onClose={onClose}
+      title={`${label.name} — ${records.length} ${t.labels.used}`}
+      width="max-w-lg"
+    >
       {isLoading ? (
         <p className="text-sm text-tr-muted">{t.common.loading}</p>
       ) : records.length === 0 ? (
@@ -668,7 +671,10 @@ function RecordsDialog({ label, onClose }: { label: Label; onClose: () => void }
               </p>
               <ul className="divide-y divide-tr-border rounded-panel border border-tr-border">
                 {rows.map((row) => (
-                  <li key={`${row.entity_type}-${row.id}`} className="px-3 py-1.5 text-sm text-tr-text">
+                  <li
+                    key={`${row.entity_type}-${row.id}`}
+                    className="px-3 py-1.5 text-sm text-tr-text"
+                  >
                     {row.title}
                   </li>
                 ))}

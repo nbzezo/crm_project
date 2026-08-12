@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
+import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
 
@@ -40,6 +41,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(boardCreate, req);
+  assertEntityLinks(db, { customer_id: body.customer_id });
   const background = body.background ?? '#0079bf';
   const result = db.transaction(() => {
     const info = db
@@ -135,20 +137,30 @@ router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(boardUpdate, req);
   required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(id), 'Khong tim thay bang');
+  if (body.customer_id !== undefined) assertEntityLinks(db, { customer_id: body.customer_id });
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (body.name !== undefined) (fields.push('name = ?'), values.push(body.name));
+  if (body.name !== undefined) {
+    fields.push('name = ?');
+    values.push(body.name);
+  }
   if (body.background !== undefined) {
     fields.push('background = ?', 'color = ?');
     values.push(body.background, body.background);
   }
-  if (body.customer_id !== undefined)
-    (fields.push('customer_id = ?'), values.push(body.customer_id));
-  if (body.is_archived !== undefined)
-    (fields.push('is_archived = ?'), values.push(body.is_archived ? 1 : 0));
-  if (body.is_starred !== undefined)
-    (fields.push('is_starred = ?'), values.push(body.is_starred ? 1 : 0));
+  if (body.customer_id !== undefined) {
+    fields.push('customer_id = ?');
+    values.push(body.customer_id);
+  }
+  if (body.is_archived !== undefined) {
+    fields.push('is_archived = ?');
+    values.push(body.is_archived ? 1 : 0);
+  }
+  if (body.is_starred !== undefined) {
+    fields.push('is_starred = ?');
+    values.push(body.is_starred ? 1 : 0);
+  }
 
   if (fields.length > 0) {
     fields.push(`updated_at = datetime('now','localtime')`);

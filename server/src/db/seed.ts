@@ -119,16 +119,64 @@ db.transaction(() => {
   );
   const contactIds = [
     Number(
-      insertContact.run(customerIds[0], 'Nguyễn Văn Thành', 'Giám đốc mua hàng', 'Mua hàng', '0903 111 222', 'thanh.nv@vinhphat.com.vn', '0903111222', 'decision_maker', 'good', 1, '').lastInsertRowid
+      insertContact.run(
+        customerIds[0],
+        'Nguyễn Văn Thành',
+        'Giám đốc mua hàng',
+        'Mua hàng',
+        '0903 111 222',
+        'thanh.nv@vinhphat.com.vn',
+        '0903111222',
+        'decision_maker',
+        'good',
+        1,
+        ''
+      ).lastInsertRowid
     ),
     Number(
-      insertContact.run(customerIds[0], 'Trần Thị Mai', 'Kế toán trưởng', 'Tài chính', '0908 333 444', 'mai.tt@vinhphat.com.vn', null, 'finance', 'normal', 0, '').lastInsertRowid
+      insertContact.run(
+        customerIds[0],
+        'Trần Thị Mai',
+        'Kế toán trưởng',
+        'Tài chính',
+        '0908 333 444',
+        'mai.tt@vinhphat.com.vn',
+        null,
+        'finance',
+        'normal',
+        0,
+        ''
+      ).lastInsertRowid
     ),
     Number(
-      insertContact.run(customerIds[1], 'Lê Quốc Hùng', 'Trưởng phòng CNTT', 'Công nghệ thông tin', '0912 555 666', 'hung.lq@dainam.vn', '0912555666', 'technical', 'excellent', 1, 'Người ra quyết định kỹ thuật.').lastInsertRowid
+      insertContact.run(
+        customerIds[1],
+        'Lê Quốc Hùng',
+        'Trưởng phòng CNTT',
+        'Công nghệ thông tin',
+        '0912 555 666',
+        'hung.lq@dainam.vn',
+        '0912555666',
+        'technical',
+        'excellent',
+        1,
+        'Người ra quyết định kỹ thuật.'
+      ).lastInsertRowid
     ),
     Number(
-      insertContact.run(customerIds[2], 'Phạm Hoàng Long', 'Tổng giám đốc', 'Ban giám đốc', '0913 777 888', 'long.ph@hoanggia-export.vn', '0913777888', 'economic_buyer', 'new', 1, '').lastInsertRowid
+      insertContact.run(
+        customerIds[2],
+        'Phạm Hoàng Long',
+        'Tổng giám đốc',
+        'Ban giám đốc',
+        '0913 777 888',
+        'long.ph@hoanggia-export.vn',
+        '0913777888',
+        'economic_buyer',
+        'new',
+        1,
+        ''
+      ).lastInsertRowid
     ),
   ];
 
@@ -159,60 +207,120 @@ db.transaction(() => {
   };
   const deals: DealSeed[] = [
     {
-      customer: customerIds[0], contact: contactIds[0],
-      title: 'Gói phần mềm quản lý sản xuất', product: 'Phần mềm MES',
-      stage: 'quoted', probability: 60, value: 180_000_000, expected: dayOffset(21),
-      source: 'Giới thiệu', need: 'Theo dõi sản lượng 3 dây chuyền theo thời gian thực.',
-      competitor: 'FPT IS', nextAction: 'Gọi khách hàng', nextActionDate: dayOffset(2),
+      customer: customerIds[0],
+      contact: contactIds[0],
+      title: 'Gói phần mềm quản lý sản xuất',
+      product: 'Phần mềm MES',
+      stage: 'quoted',
+      probability: 60,
+      value: 180_000_000,
+      expected: dayOffset(21),
+      source: 'Giới thiệu',
+      need: 'Theo dõi sản lượng 3 dây chuyền theo thời gian thực.',
+      competitor: 'FPT IS',
+      nextAction: 'Gọi khách hàng',
+      nextActionDate: dayOffset(2),
       notes: 'Đã gửi báo giá đầu tháng, chờ phản hồi.',
     },
     {
-      customer: customerIds[0], contact: contactIds[0],
-      title: 'Nâng cấp hệ thống năm 2025', product: 'Dịch vụ nâng cấp',
-      stage: 'won', probability: 100, value: 95_000_000, won: 95_000_000,
-      expected: dayOffset(-95), closed: dayOffset(-95), source: 'Giới thiệu', notes: '',
+      customer: customerIds[0],
+      contact: contactIds[0],
+      title: 'Nâng cấp hệ thống năm 2025',
+      product: 'Dịch vụ nâng cấp',
+      stage: 'won',
+      probability: 100,
+      value: 95_000_000,
+      won: 95_000_000,
+      expected: dayOffset(-95),
+      closed: dayOffset(-95),
+      source: 'Giới thiệu',
+      notes: '',
     },
     {
-      customer: customerIds[1], contact: contactIds[2],
-      title: 'Triển khai phần mềm quản lý kho', product: 'Phần mềm WMS',
-      stage: 'negotiating', probability: 80, value: 260_000_000, expected: dayOffset(45),
-      source: 'Sự kiện / Hội chợ', need: 'Quản lý kho 2 chi nhánh, tích hợp máy quét mã.',
-      nextAction: 'Hẹn meeting', nextActionDate: dayOffset(-1),
+      customer: customerIds[1],
+      contact: contactIds[2],
+      title: 'Triển khai phần mềm quản lý kho',
+      product: 'Phần mềm WMS',
+      stage: 'negotiating',
+      probability: 80,
+      value: 260_000_000,
+      expected: dayOffset(45),
+      source: 'Sự kiện / Hội chợ',
+      need: 'Quản lý kho 2 chi nhánh, tích hợp máy quét mã.',
+      nextAction: 'Hẹn meeting',
+      nextActionDate: dayOffset(-1),
       notes: 'Đang khảo sát quy trình kho tại 2 chi nhánh.',
     },
     {
-      customer: customerIds[1], contact: contactIds[2],
-      title: 'Dịch vụ bảo trì 12 tháng', product: 'Bảo trì',
-      stage: 'won', probability: 100, value: 48_000_000, won: 48_000_000,
-      expected: dayOffset(-40), closed: dayOffset(-40), source: 'Giới thiệu', notes: '',
+      customer: customerIds[1],
+      contact: contactIds[2],
+      title: 'Dịch vụ bảo trì 12 tháng',
+      product: 'Bảo trì',
+      stage: 'won',
+      probability: 100,
+      value: 48_000_000,
+      won: 48_000_000,
+      expected: dayOffset(-40),
+      closed: dayOffset(-40),
+      source: 'Giới thiệu',
+      notes: '',
     },
     {
-      customer: customerIds[2], contact: contactIds[3],
-      title: 'Hệ thống truy xuất nguồn gốc', product: 'Tem QR truy xuất',
-      stage: 'approaching', probability: 20, value: 320_000_000, expected: dayOffset(90),
-      source: 'Sự kiện / Hội chợ', need: 'Tem QR cho lô hàng nông sản xuất khẩu EU.',
+      customer: customerIds[2],
+      contact: contactIds[3],
+      title: 'Hệ thống truy xuất nguồn gốc',
+      product: 'Tem QR truy xuất',
+      stage: 'approaching',
+      probability: 20,
+      value: 320_000_000,
+      expected: dayOffset(90),
+      source: 'Sự kiện / Hội chợ',
+      need: 'Tem QR cho lô hàng nông sản xuất khẩu EU.',
       notes: 'Mới tiếp cận qua hội chợ nông sản.',
     },
     {
-      customer: customerIds[2], contact: contactIds[3],
-      title: 'Gói tư vấn quy trình xuất khẩu', product: 'Tư vấn',
-      stage: 'lost', probability: 0, value: 60_000_000,
-      expected: dayOffset(-20), closed: dayOffset(-20), source: 'Website',
-      competitor: 'Đơn vị tư vấn nội địa', notes: '',
+      customer: customerIds[2],
+      contact: contactIds[3],
+      title: 'Gói tư vấn quy trình xuất khẩu',
+      product: 'Tư vấn',
+      stage: 'lost',
+      probability: 0,
+      value: 60_000_000,
+      expected: dayOffset(-20),
+      closed: dayOffset(-20),
+      source: 'Website',
+      competitor: 'Đơn vị tư vấn nội địa',
+      notes: '',
     },
   ];
   const dealIds = deals.map((d, i) =>
     Number(
       insertDeal.run(
-        d.customer, d.contact, d.title, d.product, d.stage, d.probability, d.value,
-        d.won ?? null, (i + 1) * 1024, d.expected, d.closed ?? null, d.source, d.need ?? null,
-        d.competitor ?? null, d.nextAction ?? null, d.nextActionDate ?? null, d.notes,
+        d.customer,
+        d.contact,
+        d.title,
+        d.product,
+        d.stage,
+        d.probability,
+        d.value,
+        d.won ?? null,
+        (i + 1) * 1024,
+        d.expected,
+        d.closed ?? null,
+        d.source,
+        d.need ?? null,
+        d.competitor ?? null,
+        d.nextAction ?? null,
+        d.nextActionDate ?? null,
+        d.notes,
         buildSearchText(d.title, d.product, d.need, d.notes)
       ).lastInsertRowid
     )
   );
   db.prepare(`UPDATE deals SET lost_reason = ?, lost_note = ? WHERE id = ?`).run(
-    'competitor', 'Khách chọn đối thủ có giá thấp hơn khoảng 15%.', dealIds[5]
+    'competitor',
+    'Khách chọn đối thủ có giá thấp hơn khoảng 15%.',
+    dealIds[5]
   );
 
   /* ---- Tuong tac ---- */
@@ -220,12 +328,60 @@ db.transaction(() => {
     `INSERT INTO interactions (customer_id, contact_id, deal_id, type, occurred_at, summary, result)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
-  insertInteraction.run(customerIds[0], contactIds[0], dealIds[0], 'zalo', timeOffset(-2, 9, 30), 'Anh Thành xác nhận đã nhận báo giá, sẽ họp nội bộ tuần sau.', 'Chờ phản hồi trong tuần');
-  insertInteraction.run(customerIds[0], contactIds[0], dealIds[0], 'meeting', timeOffset(-9, 14, 0), 'Khảo sát nhà máy, ghi nhận 3 dây chuyền cần theo dõi sản lượng.', 'Thống nhất phạm vi triển khai');
-  insertInteraction.run(customerIds[1], contactIds[2], dealIds[2], 'call', timeOffset(-4, 10, 15), 'Anh Hùng đề nghị demo phân hệ kho trước khi trình ban giám đốc.', 'Cần chuẩn bị demo');
-  insertInteraction.run(customerIds[1], contactIds[2], null, 'email', timeOffset(-30, 8, 0), 'Gửi tài liệu giới thiệu năng lực và danh sách khách hàng tham chiếu.', null);
-  insertInteraction.run(customerIds[2], contactIds[3], dealIds[4], 'meeting', timeOffset(-12, 15, 30), 'Gặp tại hội chợ, anh Long quan tâm tem truy xuất QR cho lô hàng xuất khẩu.', 'Hẹn gửi đề xuất');
-  insertInteraction.run(customerIds[2], contactIds[3], dealIds[5], 'call', timeOffset(-20, 16, 0), 'Khách thông báo chọn đơn vị khác cho gói tư vấn.', 'Thua vì giá');
+  insertInteraction.run(
+    customerIds[0],
+    contactIds[0],
+    dealIds[0],
+    'zalo',
+    timeOffset(-2, 9, 30),
+    'Anh Thành xác nhận đã nhận báo giá, sẽ họp nội bộ tuần sau.',
+    'Chờ phản hồi trong tuần'
+  );
+  insertInteraction.run(
+    customerIds[0],
+    contactIds[0],
+    dealIds[0],
+    'meeting',
+    timeOffset(-9, 14, 0),
+    'Khảo sát nhà máy, ghi nhận 3 dây chuyền cần theo dõi sản lượng.',
+    'Thống nhất phạm vi triển khai'
+  );
+  insertInteraction.run(
+    customerIds[1],
+    contactIds[2],
+    dealIds[2],
+    'call',
+    timeOffset(-4, 10, 15),
+    'Anh Hùng đề nghị demo phân hệ kho trước khi trình ban giám đốc.',
+    'Cần chuẩn bị demo'
+  );
+  insertInteraction.run(
+    customerIds[1],
+    contactIds[2],
+    null,
+    'email',
+    timeOffset(-30, 8, 0),
+    'Gửi tài liệu giới thiệu năng lực và danh sách khách hàng tham chiếu.',
+    null
+  );
+  insertInteraction.run(
+    customerIds[2],
+    contactIds[3],
+    dealIds[4],
+    'meeting',
+    timeOffset(-12, 15, 30),
+    'Gặp tại hội chợ, anh Long quan tâm tem truy xuất QR cho lô hàng xuất khẩu.',
+    'Hẹn gửi đề xuất'
+  );
+  insertInteraction.run(
+    customerIds[2],
+    contactIds[3],
+    dealIds[5],
+    'call',
+    timeOffset(-20, 16, 0),
+    'Khách thông báo chọn đơn vị khác cho gói tư vấn.',
+    'Thua vì giá'
+  );
 
   /* ---- Bang cong viec ---- */
   const insertBoard = db.prepare(`INSERT INTO boards (name, color, customer_id) VALUES (?, ?, ?)`);
@@ -237,8 +393,8 @@ db.transaction(() => {
 
   const makeBoard = (name: string, color: string, customerId: number | null) => {
     const boardId = Number(insertBoard.run(name, color, customerId).lastInsertRowid);
-    const listIds = ['Cần làm', 'Đang làm', 'Chờ duyệt', 'Hoàn thành'].map(
-      (listName, i) => Number(insertList.run(boardId, listName, (i + 1) * 1024).lastInsertRowid)
+    const listIds = ['Cần làm', 'Đang làm', 'Chờ duyệt', 'Hoàn thành'].map((listName, i) =>
+      Number(insertList.run(boardId, listName, (i + 1) * 1024).lastInsertRowid)
     );
     return { boardId, listIds };
   };
@@ -261,24 +417,138 @@ db.transaction(() => {
   };
 
   const cardSeeds: CardSeed[] = [
-    { listId: project.listIds[0], title: 'Chuẩn bị tài liệu phân tích nghiệp vụ', description: 'Tổng hợp quy trình 3 dây chuyền đã khảo sát.', start: dayOffset(1), due: dayOffset(8), priority: 'high', customerId: customerIds[0], dealId: dealIds[0] },
-    { listId: project.listIds[0], title: 'Lên kế hoạch triển khai theo giai đoạn', start: dayOffset(6), due: dayOffset(20), priority: 'medium', customerId: customerIds[0] },
-    { listId: project.listIds[1], title: 'Hoàn thiện báo giá chi tiết cho anh Thành', description: 'Tách rõ chi phí license và triển khai.', start: dayOffset(-3), due: dayOffset(-1), priority: 'urgent', customerId: customerIds[0], dealId: dealIds[0] },
-    { listId: project.listIds[1], title: 'Dựng bản demo phân hệ theo dõi sản lượng', start: dayOffset(-2), due: dayOffset(9), priority: 'high', customerId: customerIds[0] },
-    { listId: project.listIds[2], title: 'Rà soát hợp đồng nguyên tắc', due: dayOffset(4), priority: 'medium', customerId: customerIds[0] },
-    { listId: project.listIds[3], title: 'Khảo sát hiện trạng nhà máy', start: dayOffset(-14), due: dayOffset(-9), priority: 'high', customerId: customerIds[0], done: true, completedDays: -9 },
+    {
+      listId: project.listIds[0],
+      title: 'Chuẩn bị tài liệu phân tích nghiệp vụ',
+      description: 'Tổng hợp quy trình 3 dây chuyền đã khảo sát.',
+      start: dayOffset(1),
+      due: dayOffset(8),
+      priority: 'high',
+      customerId: customerIds[0],
+      dealId: dealIds[0],
+    },
+    {
+      listId: project.listIds[0],
+      title: 'Lên kế hoạch triển khai theo giai đoạn',
+      start: dayOffset(6),
+      due: dayOffset(20),
+      priority: 'medium',
+      customerId: customerIds[0],
+    },
+    {
+      listId: project.listIds[1],
+      title: 'Hoàn thiện báo giá chi tiết cho anh Thành',
+      description: 'Tách rõ chi phí license và triển khai.',
+      start: dayOffset(-3),
+      due: dayOffset(-1),
+      priority: 'urgent',
+      customerId: customerIds[0],
+      dealId: dealIds[0],
+    },
+    {
+      listId: project.listIds[1],
+      title: 'Dựng bản demo phân hệ theo dõi sản lượng',
+      start: dayOffset(-2),
+      due: dayOffset(9),
+      priority: 'high',
+      customerId: customerIds[0],
+    },
+    {
+      listId: project.listIds[2],
+      title: 'Rà soát hợp đồng nguyên tắc',
+      due: dayOffset(4),
+      priority: 'medium',
+      customerId: customerIds[0],
+    },
+    {
+      listId: project.listIds[3],
+      title: 'Khảo sát hiện trạng nhà máy',
+      start: dayOffset(-14),
+      due: dayOffset(-9),
+      priority: 'high',
+      customerId: customerIds[0],
+      done: true,
+      completedDays: -9,
+    },
 
-    { listId: sales.listIds[0], title: 'Gọi lại anh Hùng về lịch demo phân hệ kho', due: dayOffset(2), priority: 'urgent', customerId: customerIds[1], dealId: dealIds[2] },
-    { listId: sales.listIds[0], title: 'Soạn đề xuất hệ thống truy xuất nguồn gốc', start: dayOffset(3), due: dayOffset(17), priority: 'medium', customerId: customerIds[2], dealId: dealIds[4] },
-    { listId: sales.listIds[1], title: 'Chuẩn bị bộ tài liệu năng lực bản 2026', start: dayOffset(-5), due: dayOffset(6), priority: 'low' },
-    { listId: sales.listIds[2], title: 'Chốt điều khoản bảo trì với Đại Nam', due: dayOffset(-2), priority: 'high', customerId: customerIds[1] },
-    { listId: sales.listIds[3], title: 'Gửi báo giá gói phần mềm sản xuất', start: dayOffset(-24), due: dayOffset(-18), priority: 'high', customerId: customerIds[0], dealId: dealIds[0], done: true, completedDays: -18 },
-    { listId: sales.listIds[3], title: 'Tổng kết doanh số quý trước', due: dayOffset(-32), priority: 'medium', done: true, completedDays: -31 },
+    {
+      listId: sales.listIds[0],
+      title: 'Gọi lại anh Hùng về lịch demo phân hệ kho',
+      due: dayOffset(2),
+      priority: 'urgent',
+      customerId: customerIds[1],
+      dealId: dealIds[2],
+    },
+    {
+      listId: sales.listIds[0],
+      title: 'Soạn đề xuất hệ thống truy xuất nguồn gốc',
+      start: dayOffset(3),
+      due: dayOffset(17),
+      priority: 'medium',
+      customerId: customerIds[2],
+      dealId: dealIds[4],
+    },
+    {
+      listId: sales.listIds[1],
+      title: 'Chuẩn bị bộ tài liệu năng lực bản 2026',
+      start: dayOffset(-5),
+      due: dayOffset(6),
+      priority: 'low',
+    },
+    {
+      listId: sales.listIds[2],
+      title: 'Chốt điều khoản bảo trì với Đại Nam',
+      due: dayOffset(-2),
+      priority: 'high',
+      customerId: customerIds[1],
+    },
+    {
+      listId: sales.listIds[3],
+      title: 'Gửi báo giá gói phần mềm sản xuất',
+      start: dayOffset(-24),
+      due: dayOffset(-18),
+      priority: 'high',
+      customerId: customerIds[0],
+      dealId: dealIds[0],
+      done: true,
+      completedDays: -18,
+    },
+    {
+      listId: sales.listIds[3],
+      title: 'Tổng kết doanh số quý trước',
+      due: dayOffset(-32),
+      priority: 'medium',
+      done: true,
+      completedDays: -31,
+    },
 
-    { listId: personal.listIds[0], title: 'Đăng ký khóa học phân tích dữ liệu', due: dayOffset(25), priority: 'low' },
-    { listId: personal.listIds[0], title: 'Tìm hiểu quy định hóa đơn điện tử mới', description: 'Chưa xác định thời điểm — để trong mục chưa xếp lịch.', priority: 'low' },
-    { listId: personal.listIds[1], title: 'Sắp xếp lại hồ sơ hợp đồng năm nay', start: dayOffset(-1), due: dayOffset(12), priority: 'low' },
-    { listId: personal.listIds[3], title: 'Gia hạn tên miền công ty', due: dayOffset(-45), priority: 'medium', done: true, completedDays: -44 },
+    {
+      listId: personal.listIds[0],
+      title: 'Đăng ký khóa học phân tích dữ liệu',
+      due: dayOffset(25),
+      priority: 'low',
+    },
+    {
+      listId: personal.listIds[0],
+      title: 'Tìm hiểu quy định hóa đơn điện tử mới',
+      description: 'Chưa xác định thời điểm — để trong mục chưa xếp lịch.',
+      priority: 'low',
+    },
+    {
+      listId: personal.listIds[1],
+      title: 'Sắp xếp lại hồ sơ hợp đồng năm nay',
+      start: dayOffset(-1),
+      due: dayOffset(12),
+      priority: 'low',
+    },
+    {
+      listId: personal.listIds[3],
+      title: 'Gia hạn tên miền công ty',
+      due: dayOffset(-45),
+      priority: 'medium',
+      done: true,
+      completedDays: -44,
+    },
   ];
 
   const cardIds: number[] = [];
@@ -309,7 +579,9 @@ db.transaction(() => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const parentCardId = cardIds[0];
-  const parentList = db.prepare(`SELECT list_id, customer_id FROM cards WHERE id = ?`).get(parentCardId) as {
+  const parentList = db
+    .prepare(`SELECT list_id, customer_id FROM cards WHERE id = ?`)
+    .get(parentCardId) as {
     list_id: number;
     customer_id: number | null;
   };
@@ -319,8 +591,14 @@ db.transaction(() => {
     ['Vẽ sơ đồ luồng dữ liệu', 'medium', dayOffset(6), 0],
   ].forEach(([title, priority, due, done], i) =>
     insertSubtask.run(
-      parentList.list_id, parentCardId, title as string, (i + 1) * 1024,
-      priority as string, due as string, parentList.customer_id, done as number,
+      parentList.list_id,
+      parentCardId,
+      title as string,
+      (i + 1) * 1024,
+      priority as string,
+      due as string,
+      parentList.customer_id,
+      done as number,
       buildSearchText(title as string)
     )
   );
@@ -354,18 +632,69 @@ db.transaction(() => {
   const insertReminder = db.prepare(
     `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id) VALUES (?, ?, ?, ?, ?, ?)`
   );
-  insertReminder.run('Gọi anh Hùng xác nhận lịch demo', '', timeOffset(-1, 9, 0), cardIds[6], null, null);
-  insertReminder.run('Follow-up báo giá Vĩnh Phát', 'Nếu chưa phản hồi thì nhắn Zalo.', timeOffset(2, 14, 0), null, customerIds[0], dealIds[0]);
-  insertReminder.run('Chuẩn bị họp nội bộ về Hoàng Gia', '', timeOffset(5, 8, 30), null, customerIds[2], dealIds[4]);
+  insertReminder.run(
+    'Gọi anh Hùng xác nhận lịch demo',
+    '',
+    timeOffset(-1, 9, 0),
+    cardIds[6],
+    null,
+    null
+  );
+  insertReminder.run(
+    'Follow-up báo giá Vĩnh Phát',
+    'Nếu chưa phản hồi thì nhắn Zalo.',
+    timeOffset(2, 14, 0),
+    null,
+    customerIds[0],
+    dealIds[0]
+  );
+  insertReminder.run(
+    'Chuẩn bị họp nội bộ về Hoàng Gia',
+    '',
+    timeOffset(5, 8, 30),
+    null,
+    customerIds[2],
+    dealIds[4]
+  );
 
   /* ---- Bao gia (FR-QUO) ---- */
   const insertQuotation = db.prepare(
     `INSERT INTO quotations (customer_id, deal_id, code, version, quote_date, value_vnd, valid_until, status, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
-  insertQuotation.run(customerIds[0], dealIds[0], 'BG-2026-011', 1, dayOffset(-24), 195_000_000, dayOffset(-4), 'revision', 'Khách đề nghị bỏ bớt phân hệ báo cáo.');
-  insertQuotation.run(customerIds[0], dealIds[0], 'BG-2026-014', 2, dayOffset(-6), 180_000_000, dayOffset(24), 'sent', 'Bản chỉnh sửa theo yêu cầu.');
-  insertQuotation.run(customerIds[1], dealIds[2], 'BG-2026-016', 1, dayOffset(-10), 260_000_000, dayOffset(20), 'reviewing', '');
+  insertQuotation.run(
+    customerIds[0],
+    dealIds[0],
+    'BG-2026-011',
+    1,
+    dayOffset(-24),
+    195_000_000,
+    dayOffset(-4),
+    'revision',
+    'Khách đề nghị bỏ bớt phân hệ báo cáo.'
+  );
+  insertQuotation.run(
+    customerIds[0],
+    dealIds[0],
+    'BG-2026-014',
+    2,
+    dayOffset(-6),
+    180_000_000,
+    dayOffset(24),
+    'sent',
+    'Bản chỉnh sửa theo yêu cầu.'
+  );
+  insertQuotation.run(
+    customerIds[1],
+    dealIds[2],
+    'BG-2026-016',
+    1,
+    dayOffset(-10),
+    260_000_000,
+    dayOffset(20),
+    'reviewing',
+    ''
+  );
 
   /* ---- Hop dong (FR-CTR) ---- */
   const insertContract = db.prepare(
@@ -374,8 +703,38 @@ db.transaction(() => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const contractIds = [
-    Number(insertContract.run(customerIds[0], dealIds[1], 'Hợp đồng nâng cấp hệ thống 2025', 'HD-2025-034', 95_000_000, dayOffset(-95), dayOffset(-90), dayOffset(25), 'active', '50% tạm ứng, 50% khi nghiệm thu', 'Sắp hết hạn, cần chào gia hạn.', buildSearchText('Hợp đồng nâng cấp hệ thống 2025', 'HD-2025-034')).lastInsertRowid),
-    Number(insertContract.run(customerIds[1], dealIds[3], 'Hợp đồng bảo trì 12 tháng', 'HD-2025-058', 48_000_000, dayOffset(-40), dayOffset(-35), dayOffset(75), 'active', 'Thanh toán theo quý', '', buildSearchText('Hợp đồng bảo trì 12 tháng', 'HD-2025-058')).lastInsertRowid),
+    Number(
+      insertContract.run(
+        customerIds[0],
+        dealIds[1],
+        'Hợp đồng nâng cấp hệ thống 2025',
+        'HD-2025-034',
+        95_000_000,
+        dayOffset(-95),
+        dayOffset(-90),
+        dayOffset(25),
+        'active',
+        '50% tạm ứng, 50% khi nghiệm thu',
+        'Sắp hết hạn, cần chào gia hạn.',
+        buildSearchText('Hợp đồng nâng cấp hệ thống 2025', 'HD-2025-034')
+      ).lastInsertRowid
+    ),
+    Number(
+      insertContract.run(
+        customerIds[1],
+        dealIds[3],
+        'Hợp đồng bảo trì 12 tháng',
+        'HD-2025-058',
+        48_000_000,
+        dayOffset(-40),
+        dayOffset(-35),
+        dayOffset(75),
+        'active',
+        'Thanh toán theo quý',
+        '',
+        buildSearchText('Hợp đồng bảo trì 12 tháng', 'HD-2025-058')
+      ).lastInsertRowid
+    ),
   ];
   void contractIds;
 

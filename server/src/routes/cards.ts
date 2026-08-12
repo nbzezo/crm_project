@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
-import { computeMovePosition, nextPosition } from '../lib/position.ts';
+import { nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
+import { assertEntityLinks, assertParentListCompatible } from '../lib/entityRelations.ts';
+import { moveCard } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -70,6 +72,7 @@ router.post('/', (req, res) => {
   }
   if (!listId) throw new HttpError(400, 'Thiếu danh sách để thêm công việc');
   required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(listId), 'Khong tim thay danh sach');
+  assertEntityLinks(db, { customer_id: customerId, deal_id: dealId });
 
   const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: listId });
   const info = db
@@ -105,9 +108,7 @@ router.get('/:id', (req, res) => {
   const checklist = db
     .prepare(`SELECT * FROM checklist_items WHERE card_id = ? ORDER BY position, id`)
     .all(id);
-  const reminders = db
-    .prepare(`SELECT * FROM reminders WHERE card_id = ? ORDER BY due_at`)
-    .all(id);
+  const reminders = db.prepare(`SELECT * FROM reminders WHERE card_id = ? ORDER BY due_at`).all(id);
   const comments = db
     .prepare(`SELECT * FROM card_comments WHERE card_id = ? ORDER BY created_at DESC, id DESC`)
     .all(id);
@@ -220,6 +221,16 @@ router.patch('/:id', (req, res) => {
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
     'Khong tim thay the'
   ) as CardRow;
+  const currentLinks = card as CardRow & { customer_id?: number | null; deal_id?: number | null };
+  const nextCustomerId =
+    body.customer_id !== undefined ? body.customer_id : currentLinks.customer_id;
+  const nextDealId =
+    body.deal_id !== undefined
+      ? body.deal_id
+      : body.customer_id !== undefined
+        ? null
+        : currentLinks.deal_id;
+  assertEntityLinks(db, { customer_id: nextCustomerId, deal_id: nextDealId });
 
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -236,7 +247,8 @@ router.patch('/:id', (req, res) => {
   if (body.cover_color !== undefined) set('cover_color = ?', body.cover_color);
   if (body.is_archived !== undefined) set('is_archived = ?', body.is_archived ? 1 : 0);
   if (body.parent_id !== undefined) {
-    if (body.parent_id === id) throw new HttpError(400, 'Một công việc không thể là cha của chính nó');
+    if (body.parent_id === id)
+      throw new HttpError(400, 'Một công việc không thể là cha của chính nó');
     if (body.parent_id) {
       const parent = required(
         db.prepare(`SELECT parent_id FROM cards WHERE id = ?`).get(body.parent_id),
@@ -262,14 +274,20 @@ router.patch('/:id', (req, res) => {
       db.prepare(`SELECT id FROM lists WHERE id = ?`).get(body.list_id),
       'Khong tim thay danh sach'
     );
+    assertParentListCompatible(db, id, body.list_id);
     set('list_id = ?', body.list_id);
   }
   if (body.is_done !== undefined) {
     set('is_done = ?', body.is_done ? 1 : 0);
-    fields.push(body.is_done ? `completed_at = datetime('now','localtime')` : `completed_at = NULL`);
+    fields.push(
+      body.is_done ? `completed_at = datetime('now','localtime')` : `completed_at = NULL`
+    );
   }
   if (body.title !== undefined || body.description !== undefined) {
-    set('search_text = ?', buildSearchText(body.title ?? card.title, body.description ?? card.description));
+    set(
+      'search_text = ?',
+      buildSearchText(body.title ?? card.title, body.description ?? card.description)
+    );
   }
 
   if (fields.length > 0) {
@@ -289,27 +307,7 @@ router.patch('/:id/move', (req, res) => {
     }),
     req
   );
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(id), 'Khong tim thay the');
-  required(
-    db.prepare(`SELECT id FROM lists WHERE id = ?`).get(body.list_id),
-    'Khong tim thay danh sach'
-  );
-
-  const position = db.transaction(() => {
-    db.prepare(`UPDATE cards SET list_id = ? WHERE id = ?`).run(body.list_id, id);
-    const pos = computeMovePosition(
-      { table: 'cards', scopeCol: 'list_id', scopeVal: body.list_id },
-      body.beforeId,
-      body.afterId
-    );
-    db.prepare(`UPDATE cards SET position = ?, updated_at = datetime('now','localtime') WHERE id = ?`).run(
-      pos,
-      id
-    );
-    return pos;
-  })();
-
-  res.json({ id, list_id: body.list_id, position });
+  res.json(moveCard(id, body));
 });
 
 router.delete('/:id', (req, res) => {
@@ -377,9 +375,9 @@ router.post('/:id/copy', (req, res) => {
       );
     const cardId = Number(info.lastInsertRowid);
 
-    const labels = db
-      .prepare(`SELECT label_id FROM card_labels WHERE card_id = ?`)
-      .all(id) as { label_id: number }[];
+    const labels = db.prepare(`SELECT label_id FROM card_labels WHERE card_id = ?`).all(id) as {
+      label_id: number;
+    }[];
     const insertLabel = db.prepare(
       `INSERT OR IGNORE INTO card_labels (card_id, label_id) VALUES (?, ?)`
     );
@@ -403,7 +401,11 @@ router.post('/:id/checklist', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ content: z.string().trim().min(1) }), req);
   required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Khong tim thay the');
-  const position = nextPosition({ table: 'checklist_items', scopeCol: 'card_id', scopeVal: cardId });
+  const position = nextPosition({
+    table: 'checklist_items',
+    scopeCol: 'card_id',
+    scopeVal: cardId,
+  });
   const info = db
     .prepare(`INSERT INTO checklist_items (card_id, content, position) VALUES (?, ?, ?)`)
     .run(cardId, body.content, position);
@@ -419,7 +421,9 @@ router.put('/:id/labels', (req, res) => {
 
   db.transaction(() => {
     db.prepare(`DELETE FROM card_labels WHERE card_id = ?`).run(cardId);
-    const insert = db.prepare(`INSERT OR IGNORE INTO card_labels (card_id, label_id) VALUES (?, ?)`);
+    const insert = db.prepare(
+      `INSERT OR IGNORE INTO card_labels (card_id, label_id) VALUES (?, ?)`
+    );
     for (const labelId of body.label_ids) insert.run(cardId, labelId);
   })();
 

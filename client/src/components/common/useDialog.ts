@@ -53,9 +53,17 @@ interface Options {
   containerRef: RefObject<HTMLElement | null>;
   /** Tat bay focus/khoa cuon cho lop phu nhe (vi du popover). */
   trapFocus?: boolean;
+  /** Dua focus vao lop phu nhung khong khoa cuon/bay focus (popover, menu). */
+  focusOnOpen?: boolean;
 }
 
-export function useDialog({ open, onClose, containerRef, trapFocus = true }: Options) {
+export function useDialog({
+  open,
+  onClose,
+  containerRef,
+  trapFocus = true,
+  focusOnOpen = trapFocus,
+}: Options) {
   const idRef = useRef<string>('');
   if (!idRef.current) idRef.current = `dlg-${++idSeq}`;
   // Giu onClose trong ref de effect khong gan lai listener moi lan cha render.
@@ -72,7 +80,7 @@ export function useDialog({ open, onClose, containerRef, trapFocus = true }: Opt
 
     // Dua focus vao trong hop thoai (o nhap dau tien, neu khong thi chinh vung chua).
     const container = containerRef.current;
-    if (trapFocus && container) {
+    if (focusOnOpen && container) {
       const first = container.querySelector<HTMLElement>(FOCUSABLE);
       if (first) first.focus();
       else {
@@ -94,7 +102,7 @@ export function useDialog({ open, onClose, containerRef, trapFocus = true }: Opt
       const node = containerRef.current;
       if (!node) return;
       const items = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null || el === document.activeElement,
+        (el) => el.offsetParent !== null || el === document.activeElement
       );
       if (items.length === 0) {
         e.preventDefault();
@@ -126,5 +134,5 @@ export function useDialog({ open, onClose, containerRef, trapFocus = true }: Opt
       // Tra focus ve nut da mo hop thoai — neu no van con trong tai lieu.
       if (trigger && document.contains(trigger)) trigger.focus();
     };
-  }, [open, containerRef, trapFocus]);
+  }, [open, containerRef, trapFocus, focusOnOpen]);
 }

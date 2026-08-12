@@ -97,7 +97,11 @@ export function BoardFilter({
 
         <Section title={t.card.priority}>
           {PRIORITY_ORDER.map((p) => (
-            <Row key={p} checked={filters.priorities.includes(p)} onToggle={() => togglePriority(p)}>
+            <Row
+              key={p}
+              checked={filters.priorities.includes(p)}
+              onToggle={() => togglePriority(p)}
+            >
               <span className="flex items-center gap-2">
                 <span
                   className="h-2.5 w-2.5 rounded-full"

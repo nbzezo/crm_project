@@ -131,11 +131,9 @@ export const DISCOVERY_QUESTIONS: Record<Factor, string[]> = {
 /** Câu phản biện bắt buộc cho trục 4P ở deal lớn (F-13). */
 export const CHALLENGE_PROMPTS: Record<Factor, string> = {
   price: 'Nếu đối thủ giảm 15%, khách có còn chọn ta không? Căn cứ nào cho câu trả lời đó?',
-  relationship:
-    'Champion đã nói gì với ai khi ta không có mặt? Làm sao ta biết điều đó là thật?',
+  relationship: 'Champion đã nói gì với ai khi ta không có mặt? Làm sao ta biết điều đó là thật?',
   fit: 'Yêu cầu nào ta đang cho là "đáp ứng được" mà thật ra chưa ai kiểm chứng?',
-  process:
-    'Nếu tiêu chí chấm được viết lại ngày mai, ta còn ở vị trí này không? Ai đang giữ bút?',
+  process: 'Nếu tiêu chí chấm được viết lại ngày mai, ta còn ở vị trí này không? Ai đang giữ bút?',
   budget: '',
   authority: '',
   need: '',
@@ -272,6 +270,5 @@ export const RECOMMENDATION_TEXT = {
   veto: (title: string) => `Gỡ điều kiện chặn forecast: ${title.toLowerCase()}.`,
   lift_factor: (factor: Factor) =>
     `Nâng điểm ${FACTOR_LABELS[factor]} — đây là yếu tố có đòn bẩy lớn nhất hiện nay.`,
-  reverify: (factor: Factor) =>
-    `Xác thực lại ${FACTOR_LABELS[factor]} bằng một hoạt động có thật.`,
+  reverify: (factor: Factor) => `Xác thực lại ${FACTOR_LABELS[factor]} bằng một hoạt động có thật.`,
 };

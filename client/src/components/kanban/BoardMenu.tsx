@@ -115,10 +115,7 @@ export function BoardMenu({
             <div className="space-y-1">
               <MenuRow
                 icon={
-                  <span
-                    className="h-6 w-8 rounded"
-                    style={backgroundStyle(board.background)}
-                  />
+                  <span className="h-6 w-8 rounded" style={backgroundStyle(board.background)} />
                 }
                 label="Đổi hình nền"
                 onClick={() => setView('background')}
@@ -192,9 +189,7 @@ export function BoardMenu({
                     </button>
                   </div>
                 ))}
-                {labels.length === 0 && (
-                  <p className="text-sm text-tr-muted">Chưa có nhãn nào.</p>
-                )}
+                {labels.length === 0 && <p className="text-sm text-tr-muted">Chưa có nhãn nào.</p>}
               </div>
 
               <div className="border-t border-tr-border pt-3">

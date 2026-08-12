@@ -71,7 +71,10 @@ export function ChecklistSection({ cardId, items }: { cardId: number; items: Che
 
       <ul className="space-y-1">
         {items.map((item) => (
-          <li key={item.id} className="group flex items-center gap-2 rounded px-1 py-0.5 hover:bg-tr-hover">
+          <li
+            key={item.id}
+            className="group flex items-center gap-2 rounded px-1 py-0.5 hover:bg-tr-hover"
+          >
             <input
               type="checkbox"
               checked={!!item.is_done}

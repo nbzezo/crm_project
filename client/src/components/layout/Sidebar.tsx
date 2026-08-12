@@ -112,7 +112,9 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       )}
 
-      <div className="mt-auto hidden px-5 py-3 text-2xs text-tr-muted sm:block">{t.search.hint}</div>
+      <div className="mt-auto hidden px-5 py-3 text-2xs text-tr-muted sm:block">
+        {t.search.hint}
+      </div>
     </>
   );
 }

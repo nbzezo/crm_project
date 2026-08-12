@@ -1,74 +1,19 @@
-import express from 'express';
-import type { NextFunction, Request, Response } from 'express';
-import './db/connection.ts';
-import { HttpError } from './lib/validate.ts';
-import boards from './routes/boards.ts';
-import lists from './routes/lists.ts';
-import cards from './routes/cards.ts';
-import checklist from './routes/checklist.ts';
-import cardFields from './routes/cardFields.ts';
-import comments from './routes/comments.ts';
-import labels from './routes/labels.ts';
-import customers from './routes/customers.ts';
-import contacts from './routes/contacts.ts';
-import deals from './routes/deals.ts';
-import contracts from './routes/contracts.ts';
-import quotations from './routes/quotations.ts';
-import documents from './routes/documents.ts';
-import services from './routes/services.ts';
-import revenues from './routes/revenues.ts';
-import interactions from './routes/interactions.ts';
-import reminders from './routes/reminders.ts';
-import calendarEvents from './routes/calendarEvents.ts';
-import views from './routes/views.ts';
-import scoring from './routes/scoring.ts';
-import system from './routes/system.ts';
-
-const app = express();
-app.use(express.json({ limit: '5mb' }));
-
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, app: 'WorkFlow' });
-});
-
-app.use('/api/boards', boards);
-app.use('/api/lists', lists);
-app.use('/api/cards', cards);
-app.use('/api/checklist', checklist);
-app.use('/api/card-fields', cardFields);
-app.use('/api/comments', comments);
-app.use('/api/labels', labels);
-app.use('/api/customers', customers);
-app.use('/api/contacts', contacts);
-app.use('/api/deals', deals);
-app.use('/api/contracts', contracts);
-app.use('/api/quotations', quotations);
-app.use('/api/documents', documents);
-app.use('/api/services', services);
-app.use('/api/revenues', revenues);
-app.use('/api/interactions', interactions);
-app.use('/api/reminders', reminders);
-app.use('/api/calendar', calendarEvents);
-app.use('/api/views', views);
-// Cham diem co hoi: duong dan deu >= 2 doan nen khong dung cham route /:id cua deals
-app.use('/api', scoring);
-app.use('/api', system);
-
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Khong tim thay endpoint' });
-});
-
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message, ...err.details });
-    return;
-  }
-  console.error('[api]', err);
-  const message = err instanceof Error ? err.message : 'Loi khong xac dinh';
-  res.status(500).json({ error: message });
-});
+import { createApp } from './app.ts';
+import { closeDatabase } from './db/connection.ts';
 
 const PORT = Number(process.env.PORT ?? 3001);
-app.listen(PORT, () => {
+const app = createApp();
+const server = app.listen(PORT, () => {
   console.log(`[api] WorkFlow server dang chay tai http://localhost:${PORT}`);
 });
+
+function shutdown(signal: string) {
+  console.log(`[api] Nhan ${signal}, dang dung ung dung...`);
+  server.close(() => {
+    closeDatabase();
+    process.exit(0);
+  });
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));

@@ -6,7 +6,8 @@ export interface TaskFilters {
   priority: Priority | '';
   customerId: number | '';
   boardId: number | '';
-  status: 'all' | 'open' | 'done' | 'overdue';
+  status: 'all' | 'open' | 'done' | 'review';
+  due: '' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'none';
 }
 
 export const emptyTaskFilters: TaskFilters = {
@@ -15,6 +16,7 @@ export const emptyTaskFilters: TaskFilters = {
   customerId: '',
   boardId: '',
   status: 'open',
+  due: '',
 };
 
 /** Bo loc the ngay tren bang (giong nut "Bộ lọc" cua Trello). */
@@ -62,7 +64,8 @@ interface Toast {
 
 interface UiState {
   openCardId: number | null;
-  openCard: (id: number) => void;
+  cardPresentation: 'modal' | 'drawer';
+  openCard: (id: number, presentation?: 'modal' | 'drawer') => void;
   closeCard: () => void;
 
   searchOpen: boolean;
@@ -93,7 +96,8 @@ let toastSeq = 0;
 
 export const useUiStore = create<UiState>((set) => ({
   openCardId: null,
-  openCard: (id) => set({ openCardId: id }),
+  cardPresentation: 'modal',
+  openCard: (id, presentation = 'modal') => set({ openCardId: id, cardPresentation: presentation }),
   closeCard: () => set({ openCardId: null }),
 
   searchOpen: false,

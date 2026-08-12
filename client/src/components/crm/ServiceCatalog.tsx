@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../common/Modal';
-import { Button, EmptyState, Input, MoneyInput, Select, focusRing } from '../common/ui';
+import { Button, EmptyState, Input, MoneyInput, Select } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { formatVND } from '../../lib/format';
 import { invalidateRevenueViews } from '../../lib/queryKeys';
@@ -142,11 +142,21 @@ export function ServiceCatalog({ open, onClose }: { open: boolean; onClose: () =
           <table className="w-full text-sm">
             <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
               <tr>
-                <th scope="col" className="px-3 py-2">{t.service.name}</th>
-                <th scope="col" className="px-3 py-2">{t.service.category}</th>
-                <th scope="col" className="px-3 py-2 text-right">{t.service.defaultPrice}</th>
-                <th scope="col" className="px-3 py-2 text-right">{t.service.inUse}</th>
-                <th scope="col" className="px-3 py-2">{t.customer.status}</th>
+                <th scope="col" className="px-3 py-2">
+                  {t.service.name}
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  {t.service.category}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  {t.service.defaultPrice}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  {t.service.inUse}
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  {t.customer.status}
+                </th>
                 <th scope="col" className="px-3 py-2"></th>
               </tr>
             </thead>

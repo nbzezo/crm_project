@@ -23,7 +23,7 @@ export function Topbar() {
 
       <Link
         to="/"
-        className={`flex shrink-0 items-center gap-2 rounded-panel px-1.5 py-1 transition hover:bg-white/10 ${focusRing}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-panel transition hover:bg-white/10 sm:h-auto sm:w-auto sm:px-1.5 sm:py-1 ${focusRing}`}
       >
         <span className="flex h-6 w-6 items-center justify-center rounded-control bg-tr-primary text-sm font-bold text-tr-on-primary">
           W

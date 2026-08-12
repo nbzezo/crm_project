@@ -10,6 +10,8 @@ import type {
   Stage,
 } from '../types';
 
+export { STAGE_PROBABILITY } from '@workflow/contracts';
+
 export const t = {
   app: {
     name: 'WorkFlow',
@@ -157,7 +159,8 @@ export const t = {
     year: 'Năm',
     month: 'Tháng',
     enterMonths: 'Nhập doanh thu 12 tháng',
-    noLines: 'Chưa có dòng doanh thu nào. Thêm khách hàng đang sử dụng dịch vụ để bắt đầu theo dõi.',
+    noLines:
+      'Chưa có dòng doanh thu nào. Thêm khách hàng đang sử dụng dịch vụ để bắt đầu theo dõi.',
     collectRate: 'Tỷ lệ thu tiền',
     stage: 'Trạng thái doanh thu',
     amount: 'Doanh thu thực tế',
@@ -519,17 +522,6 @@ export const STAGE_ORDER: Stage[] = [
 ];
 export const OPEN_STAGES: Stage[] = STAGE_ORDER.filter((s) => s !== 'won' && s !== 'lost');
 
-/** Xác suất gợi ý theo giai đoạn (FR-OPP-03). */
-export const STAGE_PROBABILITY: Record<Stage, number> = {
-  lead: 10,
-  approaching: 20,
-  discussing: 40,
-  quoted: 60,
-  negotiating: 80,
-  won: 100,
-  lost: 0,
-};
-
 export const LOST_REASON_ORDER = [
   'price',
   'competitor',
@@ -562,12 +554,7 @@ export const DOC_TYPE_ORDER = [
   'profile',
   'other',
 ];
-export const REVENUE_STAGE_ORDER: RevenueStage[] = [
-  'forecast',
-  'reconciled',
-  'invoiced',
-  'paid',
-];
+export const REVENUE_STAGE_ORDER: RevenueStage[] = ['forecast', 'reconciled', 'invoiced', 'paid'];
 export const CONTRACT_KIND_ORDER: ContractKind[] = ['new', 'expansion'];
 export const CONTRACT_TERM_ORDER: ContractTerm[] = ['long', 'short', 'trial', 'other'];
 export const SERVICE_STATUS_ORDER: ServiceStatus[] = ['using', 'pending', 'paused', 'stopped'];
