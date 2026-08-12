@@ -188,7 +188,7 @@ function SortableNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: () 
         end={item.end}
         onClick={onNavigate}
         className={({ isActive }) =>
-          `${ITEM_BASE} ${focusRing} min-w-0 pr-9 ${
+          `${ITEM_BASE} ${focusRing} min-w-0 pr-12 sm:pr-9 ${
             isActive
               ? 'bg-[var(--tr-nav-active-bg)] font-semibold text-[var(--tr-nav-active-text)]'
               : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
@@ -204,7 +204,7 @@ function SortableNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: () 
         {...listeners}
         aria-label={`Sắp xếp ${item.label}`}
         title="Kéo để đổi vị trí · Nhấn Space để sắp xếp bằng bàn phím"
-        className={`absolute top-1/2 right-1 flex h-9 w-7 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-control text-tr-muted opacity-45 transition hover:bg-[var(--tr-nav-hover)] hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing sm:h-7 ${focusRing}`}
+        className={`absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-control text-tr-muted opacity-45 transition hover:bg-[var(--tr-nav-hover)] hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing sm:right-1 sm:h-7 sm:w-7 ${focusRing}`}
       >
         <GripVertical size={14} aria-hidden="true" />
       </button>
@@ -293,7 +293,7 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
                     onClick={() => onOrderChange(normalizeNavOrder(null))}
                     aria-label="Khôi phục thứ tự mặc định"
                     title="Khôi phục thứ tự mặc định"
-                    className={`ml-auto -mr-1 flex h-7 w-7 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${focusRing}`}
+                    className={`ml-auto -mr-2 flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] sm:-mr-1 sm:h-7 sm:w-7 ${focusRing}`}
                   >
                     <RotateCcw size={13} aria-hidden="true" />
                   </button>
@@ -354,7 +354,7 @@ function NavDrawer({ order, onOrderChange }: Omit<SidebarNavProps, 'onNavigate'>
         role="dialog"
         aria-modal="true"
         aria-label={t.nav.dashboard}
-        className="tr-anim-slide-left tr-scroll flex h-full w-[min(17rem,85vw)] flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] shadow-2xl"
+        className="tr-anim-slide-left tr-scroll flex h-full w-[min(17rem,85vw)] flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-tr-panel text-[var(--tr-nav-text)] shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-[var(--tr-nav-border)] px-4 py-2">
           <span className="text-sm font-semibold">{t.app.name}</span>
