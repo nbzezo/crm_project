@@ -31,6 +31,7 @@ export const t = {
     table: 'Bảng tính',
     reports: 'Báo cáo',
     tasks: 'Công việc',
+    ai: 'Trợ lý AI',
     settings: 'Cài đặt',
   },
   common: {

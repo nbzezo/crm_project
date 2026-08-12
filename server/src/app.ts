@@ -22,6 +22,7 @@ import calendarEvents from './routes/calendarEvents.ts';
 import views from './routes/views.ts';
 import scoring from './routes/scoring.ts';
 import system from './routes/system.ts';
+import ai from './routes/ai.ts';
 
 export function createApp(): Express {
   const app = express();
@@ -53,6 +54,7 @@ export function createApp(): Express {
   app.use('/api/views', views);
   app.use('/api', scoring);
   app.use('/api', system);
+  app.use('/api/ai', ai);
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Khong tim thay endpoint' });

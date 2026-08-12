@@ -8,6 +8,7 @@ import { t } from '../i18n/vi';
 import { formatBytes } from '../components/crm/DocumentUpload';
 import { formatDateTime } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
+import { AiSettings } from '../components/ai/AiSettings';
 
 interface BackupFile {
   name: string;
@@ -34,6 +35,8 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-4xl space-y-4 p-6">
+      <AiSettings />
+
       <Panel title={t.settings.backup}>
         <p className="mb-3 flex items-center gap-2 text-sm text-tr-subtle">
           <Database size={15} /> {t.settings.dataLocation}

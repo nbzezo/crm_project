@@ -11,6 +11,7 @@ flowchart LR
   HTTP --> SVC["Services\ntransaction + business rules"]
   SVC --> DB[("SQLite\nforeign keys + migrations")]
   SVC --> FS["File store\ntemp + promote/delete"]
+  SVC --> AI["AI gateway\nGemini · Claude · DeepSeek"]
   CT["@workflow/contracts\ntypes + constants + schemas"] --> UI
   CT --> HTTP
 ```
@@ -43,7 +44,7 @@ flowchart LR
 ## Migration và dữ liệu runtime
 
 `server/src/db/migrate.ts` nâng tuần tự từ schema cũ lên phiên bản hiện tại. Test chạy các fixture
-v1, v4, v7, v9 và v10 lên v11 để phát hiện mất dữ liệu. Đường dẫn runtime được điều khiển bằng
+v1, v4, v7, v9 và v10 lên v13 để phát hiện mất dữ liệu. Đường dẫn runtime được điều khiển bằng
 `WORKFLOW_DATA_DIR` và `WORKFLOW_DB_PATH`; test dùng DB bộ nhớ hoặc thư mục tạm cách ly.
 
 ## Kiểm thử và phát hành

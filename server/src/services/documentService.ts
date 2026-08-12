@@ -5,6 +5,7 @@ import { assertEntityLinks, type EntityLinks } from '../lib/entityRelations.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { required } from '../lib/validate.ts';
+import { indexDocument } from './ai/documentIndex.ts';
 
 export const DOCUMENT_TEMP_DIR = path.join(FILES_DIR, '.tmp');
 fs.mkdirSync(DOCUMENT_TEMP_DIR, { recursive: true });
@@ -61,6 +62,12 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
       return Number(info.lastInsertRowid);
     })();
     committed = true;
+    try {
+      indexDocument(db, id);
+    } catch (error) {
+      // Upload van thanh cong; co the lap lai chi muc tu trang Tro ly AI.
+      console.warn('[ai-index] Khong lap duoc chi muc tai lieu moi:', error);
+    }
     return id;
   } finally {
     if (!committed) {

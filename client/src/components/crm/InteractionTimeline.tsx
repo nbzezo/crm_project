@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Phone,
   Plus,
+  Sparkles,
   StickyNote,
   Trash2,
 } from 'lucide-react';
@@ -84,6 +85,28 @@ export function InteractionTimeline({
   const [nextActionDate, setNextActionDate] = useState<string | null>(null);
   const [createTask, setCreateTask] = useState(true);
 
+  const assist = useMutation({
+    mutationFn: () =>
+      api.post<{
+        summary: string;
+        result: string;
+        next_action: string;
+        next_action_date: string | null;
+        confidence: number;
+      }>('/api/ai/assist/interaction', {
+        customer_id: customerId,
+        deal_id: dealId === '' ? null : Number(dealId),
+        raw_notes: summary,
+      }),
+    onSuccess: (suggestion) => {
+      setSummary(suggestion.summary);
+      setResult(suggestion.result);
+      setNextAction(suggestion.next_action);
+      setNextActionDate(suggestion.next_action_date);
+      pushToast('AI đã hoàn thiện bản nháp — hãy kiểm tra trước khi lưu', 'success');
+    },
+  });
+
   const refresh = () => invalidateCrmViews(queryClient, customerId);
 
   const create = useMutation({
@@ -137,7 +160,7 @@ export function InteractionTimeline({
         />
       )}
 
-      {adding && <FormError error={create.error} />}
+      {adding && <FormError error={create.error ?? assist.error} />}
       {adding && (
         <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-tr-border bg-tr-panel p-4 sm:grid-cols-2">
           <Field label="Loại">
@@ -180,6 +203,16 @@ export function InteractionTimeline({
             <Field label={t.interaction.summary}>
               <Textarea rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} />
             </Field>
+            <div className="mt-2 flex justify-end">
+              <Button
+                size="sm"
+                disabled={summary.trim().length < 10 || assist.isPending}
+                onClick={() => assist.mutate()}
+              >
+                <Sparkles size={14} />{' '}
+                {assist.isPending ? 'AI đang xử lý…' : 'AI hoàn thiện ghi chú'}
+              </Button>
+            </div>
           </div>
           <div className="sm:col-span-2">
             <Field label="Kết quả" hint={t.common.optional}>

@@ -18,6 +18,7 @@ import {
 } from '../components/dashboard/DashboardWidgets';
 import { emptyTaskFilters, useUiStore } from '../stores/uiStore';
 import { t } from '../i18n/vi';
+import { AiBrief } from '../components/ai/AiBrief';
 
 function currentDateLabel(): string {
   const value = new Intl.DateTimeFormat('vi-VN', {
@@ -125,6 +126,8 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
       <DashboardHeader refreshing={isFetching} onRefresh={() => void refetch()} />
+
+      <AiBrief contextType="today" compact />
 
       <KpiSummary data={data} onOpenOverdueTasks={() => openTaskBucket('overdue')} />
 

@@ -15,6 +15,7 @@ import {
   DOCUMENT_TEMP_DIR,
 } from '../services/documentService.ts';
 import { sendDocumentsZip, type ZipDocument } from '../services/zipService.ts';
+import { indexDocument } from '../services/ai/documentIndex.ts';
 
 const router = Router();
 
@@ -295,6 +296,11 @@ router.patch('/:id', (req, res) => {
     ),
     id
   );
+  try {
+    indexDocument(db, id);
+  } catch (error) {
+    console.warn('[ai-index] Khong cap nhat duoc chi muc tai lieu:', error);
+  }
   res.json(reload(id));
 });
 
@@ -306,6 +312,11 @@ router.post('/:id/restore', (req, res) => {
     )
     .run(id);
   if (result.changes === 0) throw new HttpError(404, 'Không tìm thấy tài liệu trong thùng rác');
+  try {
+    indexDocument(db, id);
+  } catch (error) {
+    console.warn('[ai-index] Khong khoi phuc duoc chi muc tai lieu:', error);
+  }
   res.json(reload(id));
 });
 

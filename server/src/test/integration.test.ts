@@ -1,6 +1,6 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Server } from 'node:http';
+import { createServer, type Server } from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -261,4 +261,204 @@ test('tai lieu ho tro metadata, cap nhat hang loat, ZIP va thung rac', async () 
   const permanent = await json('DELETE', `/api/documents/${ids[0]}/permanent`);
   assert.equal(permanent.status, 200);
   assert.equal(db.prepare(`SELECT id FROM documents WHERE id = ?`).get(ids[0]), undefined);
+});
+
+test('AI provider ma hoa API key, tu nhan dien model va tao brief', async () => {
+  const mockProvider = createServer((request, response) => {
+    response.setHeader('content-type', 'application/json');
+    if (request.method === 'GET' && request.url?.startsWith('/v1beta/models')) {
+      response.end(
+        JSON.stringify({
+          models: [
+            {
+              name: 'models/gemini-test-flash',
+              displayName: 'Gemini Test Flash',
+              supportedGenerationMethods: ['generateContent'],
+              inputTokenLimit: 100000,
+              outputTokenLimit: 8000,
+            },
+          ],
+        })
+      );
+      return;
+    }
+    if (request.method === 'POST' && request.url?.includes(':generateContent')) {
+      response.end(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      headline: 'Ưu tiên hôm nay',
+                      summary: 'Tập trung xử lý các đầu việc quá hạn.',
+                      risks: ['Còn công việc quá hạn'],
+                      next_actions: ['Rà soát Next Action'],
+                      sources: ['Công việc và pipeline'],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+          usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45 },
+        })
+      );
+      return;
+    }
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: { message: 'not found' } }));
+  });
+  mockProvider.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => mockProvider.once('listening', resolve));
+  const address = mockProvider.address();
+  assert.ok(address && typeof address !== 'string');
+
+  try {
+    const saved = await json('PUT', '/api/ai/providers/gemini', {
+      base_url: `http://127.0.0.1:${address.port}`,
+      api_key: 'gemini-super-secret-key',
+      enabled: true,
+      daily_token_limit: 10000,
+      input_cost_per_million_usd: 1,
+      output_cost_per_million_usd: 2,
+    });
+    assert.equal(saved.status, 200);
+    assert.equal(JSON.stringify(saved.data).includes('gemini-super-secret-key'), false);
+
+    const secret = db
+      .prepare(
+        `SELECT api_key_ciphertext, api_key_iv, api_key_tag FROM ai_provider_configs
+          WHERE provider = 'gemini'`
+      )
+      .get() as { api_key_ciphertext: string; api_key_iv: string; api_key_tag: string };
+    assert.ok(secret.api_key_ciphertext);
+    assert.equal(secret.api_key_ciphertext.includes('gemini-super-secret-key'), false);
+    assert.ok(secret.api_key_iv && secret.api_key_tag);
+
+    const synced = await json('POST', '/api/ai/providers/gemini/sync');
+    assert.equal(synced.status, 200);
+    assert.equal(synced.data.count, 1);
+
+    const brief = await json('POST', '/api/ai/brief', { context_type: 'today', mode: 'fast' });
+    assert.equal(brief.status, 200);
+    assert.equal(brief.data.headline, 'Ưu tiên hôm nay');
+    const meta = brief.data.meta as Record<string, unknown>;
+    assert.equal(meta.provider, 'gemini');
+    assert.equal(meta.model, 'gemini-test-flash');
+    assert.equal(
+      (
+        db.prepare(`SELECT COUNT(*) AS n FROM ai_usage_logs WHERE status = 'success'`).get() as {
+          n: number;
+        }
+      ).n,
+      1
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      mockProvider.close((error) => (error ? reject(error) : resolve()))
+    );
+  }
+});
+
+test('AI action chi ghi CRM sau khi duoc phe duyet', async () => {
+  const list = db.prepare(`SELECT id FROM lists ORDER BY id LIMIT 1`).get() as { id: number };
+  const info = db
+    .prepare(
+      `INSERT INTO ai_action_proposals (action_type, title, explanation, payload_json)
+       VALUES ('create_task', 'Tạo việc kiểm thử', 'Đề xuất từ AI', ?)`
+    )
+    .run(
+      JSON.stringify({
+        title: 'Công việc do AI đề xuất',
+        description: 'Chỉ được tạo sau khi người dùng duyệt',
+        list_id: list.id,
+        priority: 'high',
+        due_date: '2026-08-20',
+      })
+    );
+  const proposalId = Number(info.lastInsertRowid);
+  assert.equal(
+    (
+      db
+        .prepare(`SELECT COUNT(*) AS n FROM cards WHERE title = 'Công việc do AI đề xuất'`)
+        .get() as {
+        n: number;
+      }
+    ).n,
+    0
+  );
+
+  const approved = await json('POST', `/api/ai/actions/${proposalId}/approve`);
+  assert.equal(approved.status, 200);
+  const proposal = approved.data.proposal as Record<string, unknown>;
+  assert.equal(proposal.status, 'executed');
+  assert.equal(
+    (
+      db
+        .prepare(`SELECT COUNT(*) AS n FROM cards WHERE title = 'Công việc do AI đề xuất'`)
+        .get() as {
+        n: number;
+      }
+    ).n,
+    1
+  );
+
+  const repeated = await json('POST', `/api/ai/actions/${proposalId}/approve`);
+  assert.equal(repeated.status, 409);
+});
+
+test('RAG lap chi muc noi dung text va loai tai lieu confidential khoi ket qua', async () => {
+  const customerId = await createCustomer('Khach hang RAG');
+  const upload = async (
+    name: string,
+    confidentiality: 'internal' | 'confidential',
+    content: string
+  ) => {
+    const form = new FormData();
+    form.set('file', new Blob([content], { type: 'text/plain' }), name);
+    form.set('customer_id', String(customerId));
+    form.set('confidentiality', confidentiality);
+    const response = await fetch(`${baseUrl}/api/documents`, { method: 'POST', body: form });
+    assert.equal(response.status, 201);
+  };
+  await upload('chien-luoc.txt', 'internal', 'Ke hoach chien luoc mo rong thi truong Da Nang');
+  await upload('bi-mat.txt', 'confidential', 'Mat khau noi bo tuyet mat khong duoc gui AI');
+
+  const publicSearch = await json('GET', '/api/ai/documents/search?q=chien%20luoc%20Da%20Nang');
+  assert.equal(publicSearch.status, 200);
+  const publicRows = publicSearch.data as unknown as { content: string }[];
+  assert.ok(publicRows.some((row) => row.content.includes('Da Nang')));
+
+  const secretSearch = await json('GET', '/api/ai/documents/search?q=mat%20khau%20noi%20bo');
+  assert.equal(secretSearch.status, 200);
+  assert.equal((secretSearch.data as unknown as unknown[]).length, 0);
+});
+
+test('automation AI chi tao canh bao va khong tu y sua CRM', async () => {
+  const customerId = await createCustomer('Khach hang automation');
+  const deal = await json('POST', '/api/deals', {
+    customer_id: customerId,
+    title: 'Co hoi follow-up qua han',
+    next_action: 'Goi lai khach hang',
+    next_action_date: '2020-01-01',
+  });
+  assert.equal(deal.status, 201);
+  const dealId = Number(deal.data.id);
+
+  const result = await json('POST', '/api/ai/automations/2/run');
+  assert.equal(result.status, 200);
+  assert.ok(Number(result.data.found) >= 1);
+  const notifications = await json('GET', '/api/ai/notifications?unread=1');
+  assert.equal(notifications.status, 200);
+  assert.ok(
+    (notifications.data as unknown as { link: string }[]).some(
+      (item) => item.link === `/deals/${dealId}`
+    )
+  );
+  const unchanged = db.prepare(`SELECT next_action FROM deals WHERE id = ?`).get(dealId) as {
+    next_action: string;
+  };
+  assert.equal(unchanged.next_action, 'Goi lai khach hang');
 });

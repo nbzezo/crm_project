@@ -21,6 +21,7 @@ import { ContractForm } from '../components/crm/ContractForm';
 import { QuotationForm } from '../components/crm/QuotationForm';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
+import { AiBrief } from '../components/ai/AiBrief';
 import { CustomerServices } from '../components/crm/CustomerServices';
 import { TaskTree } from '../components/tasks/TaskTree';
 import { EntityLabels } from '../components/labels/EntityLabels';
@@ -180,6 +181,10 @@ export default function CustomerDetailPage() {
             <Trash2 size={15} />
           </Button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <AiBrief contextType="customer" contextId={id} compact />
       </div>
 
       {/* Thanh the: khai bao tablist/tab de trinh doc man hinh doc duoc

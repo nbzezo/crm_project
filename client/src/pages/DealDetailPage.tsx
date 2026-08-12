@@ -14,6 +14,7 @@ import { Scorecard } from '../components/crm/Scorecard';
 import { CommitteePanel } from '../components/crm/CommitteePanel';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
+import { AiBrief } from '../components/ai/AiBrief';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import {
   Button,
@@ -149,6 +150,10 @@ export default function DealDetailPage() {
         <Button onClick={() => setEditing(true)}>
           <Pencil size={15} /> {t.common.edit}
         </Button>
+      </div>
+
+      <div className="mb-4">
+        <AiBrief contextType="deal" contextId={id} compact />
       </div>
 
       <div

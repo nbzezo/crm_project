@@ -34,6 +34,7 @@ Giao diện và thao tác mô phỏng Trello, **mặc định chế độ tối*
 - **Việc cha – việc con** — mỗi công việc có thể chứa việc con (một cấp). Trang *Công việc* là bảng cây: bấm mũi tên để mở/thu việc con, bấm tên để sửa tại chỗ, đổi ưu tiên / ngày bắt đầu / hạn / khách hàng ngay trên dòng, thêm việc mới hoặc việc con trực tiếp, xóa có xác nhận. Bảng kanban ẩn việc con và hiện huy hiệu `x/y` trên thẻ cha; cửa sổ thẻ có mục *Việc con* riêng.
 - **Tìm kiếm không dấu** (gõ "vinh phat" ra "Vĩnh Phát") — nhấn `Ctrl + K`.
 - **Tổng quan (Dashboard)** — 6 chỉ số đầu trang (cơ hội đang mở, tổng pipeline, **weighted pipeline** = Σ giá trị × xác suất, dự kiến chốt tháng này, việc quá hạn, HĐ sắp hết hạn); việc cần làm theo Quá hạn / Hôm nay / Ngày mai / 7 ngày tới; **cơ hội cần chú ý** (quá ngày chốt, chưa có Next Action, quá hạn Next Action, không tương tác > 14 ngày); và **chất lượng cơ hội** (đang bị chặn khỏi forecast, điểm quá hạn, rơi vào ô Tái định hình, sự kiện bắt buộc trong 14 ngày, giai đoạn cao mà BANT thấp).
+- **AI Copilot đa nhà cung cấp** — cấu hình Gemini, Claude và DeepSeek trong *Cài đặt*; API tự đọc danh sách model/capability, chọn model nhanh–cân bằng–suy luận và fallback khi provider lỗi. Có AI Brief ở Dashboard/khách hàng/cơ hội, chuẩn hóa ghi chú tương tác, hỏi đáp CRM + tài liệu, hành động luôn cần duyệt, quota/token/chi phí, RAG tài liệu và automation cảnh báo chủ động.
 - **Sao lưu** một chạm, xuất dữ liệu JSON và **xuất CSV** (khách hàng, người liên hệ, cơ hội kèm cột điểm BANT/4P/ô/veto, chi tiết chấm điểm từng yếu tố kèm bằng chứng, hợp đồng, công việc, doanh thu theo tháng) mở được bằng Excel.
 
 ## Yêu cầu
@@ -101,9 +102,18 @@ Server hỗ trợ các biến môi trường sau:
 | `PORT` | `3001` | Cổng HTTP của API |
 | `WORKFLOW_DATA_DIR` | `server/data` | Thư mục chứa DB mặc định, file tải lên và backup |
 | `WORKFLOW_DB_PATH` | `<WORKFLOW_DATA_DIR>/app.db` | Đường dẫn SQLite cụ thể; dùng `:memory:` cho test |
+| `WORKFLOW_AI_MASTER_KEY` | Khóa cài đặt trong `<WORKFLOW_DATA_DIR>/.ai-master.key` | Khóa AES-256 mã hóa API key AI; production nên cấp secret 32 byte dạng base64/hex |
 
 Khi dừng bằng `SIGINT`/`SIGTERM`, API ngừng nhận kết nối mới, đóng HTTP server rồi đóng SQLite.
 Migration chạy tự động và theo thứ tự khi mở DB.
+
+### Cấu hình AI Copilot
+
+Mở **Cài đặt → Trợ lý AI đa nhà cung cấp**, nhập API key cho Gemini, Claude hoặc DeepSeek rồi bấm
+**Lưu & nhận diện model**. Browser không gọi trực tiếp provider và API key không được trả về client.
+Khi triển khai production, nên cấp `WORKFLOW_AI_MASTER_KEY` bằng secret manager; nếu không, ứng dụng
+tạo khóa riêng cho lần cài đặt trong thư mục dữ liệu. Xem thiết kế và giới hạn tại
+[docs/AI-COPILOT.md](docs/AI-COPILOT.md).
 
 ## Dữ liệu và sao lưu
 

@@ -23,6 +23,7 @@ const TimelinePage = lazy(() => import('./pages/TimelinePage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,7 @@ const router = createBrowserRouter([
       { path: 'table', element: <Navigate to="/tasks" replace /> },
       { path: 'reports', element: <ReportsPage />, handle: { title: 'Báo cáo' } },
       { path: 'tasks', element: <TasksPage />, handle: { title: 'Công việc' } },
+      { path: 'ai', element: <AiWorkspacePage />, handle: { title: 'Trợ lý AI' } },
       { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },
     ],
   },
