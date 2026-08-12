@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, Pencil, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { DealForm } from '../components/crm/DealForm';
 import { Scorecard } from '../components/crm/Scorecard';
@@ -27,6 +27,7 @@ import {
 import { STAGE_COLORS, t } from '../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { formatDate, formatVND } from '../lib/format';
+import { useUiStore } from '../stores/uiStore';
 import type { CustomerFull, Deal, Factor, Scorecard as ScorecardData } from '../types';
 
 type Tab = 'info' | 'score' | 'committee' | 'activities';
@@ -41,6 +42,7 @@ export default function DealDetailPage() {
   const id = Number(dealId);
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   const tab = (params.get('tab') as Tab) ?? 'score';
   const focusFactor = (params.get('factor') as Factor) ?? null;
@@ -147,9 +149,15 @@ export default function DealDetailPage() {
             <EntityLabels entityType="deal" entityId={id} />
           </div>
         </div>
-        <Button onClick={() => setEditing(true)}>
-          <Pencil size={15} /> {t.common.edit}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {/* Cong viec tao tu day tu mang theo khach hang va nguoi lien he cua co hoi. */}
+          <Button onClick={() => openTaskComposer({ context: { deal_id: id } })}>
+            <Plus size={15} /> Tạo công việc
+          </Button>
+          <Button onClick={() => setEditing(true)}>
+            <Pencil size={15} /> {t.common.edit}
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4">

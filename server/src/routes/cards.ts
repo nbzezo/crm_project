@@ -1,11 +1,16 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { createTaskInputSchema, TASK_LINK_KEYS } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
-import { assertEntityLinks, assertParentListCompatible } from '../lib/entityRelations.ts';
-import { moveCard } from '../services/cardService.ts';
+import {
+  assertParentListCompatible,
+  deriveTaskLinks,
+  type EntityLinks,
+} from '../lib/entityRelations.ts';
+import { createCard, moveCard, reloadCard, resolveDefaultList } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -24,77 +29,92 @@ type CardRow = {
   is_done: number;
 };
 
-function reloadCard(id: number) {
-  return db
-    .prepare(
-      `SELECT k.*, c.name AS customer_name, d.title AS deal_title,
-              (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total,
-              (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
-              (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
-              (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
-              (SELECT COUNT(*) FROM documents dc WHERE dc.card_id = k.id AND dc.deleted_at IS NULL) AS attachment_total
-         FROM cards k
-         LEFT JOIN customers c ON c.id = k.customer_id
-         LEFT JOIN deals d ON d.id = k.deal_id
-        WHERE k.id = ?`
-    )
-    .get(id);
-}
-
 router.post('/', (req, res) => {
-  const body = parseBody(
-    z.object({
-      list_id: z.number().int().optional(),
-      parent_id: z.number().int().nullable().optional(),
-      title: z.string().trim().min(1, 'Tieu de khong duoc de trong'),
-      priority: priorityEnum.optional(),
-      start_date: dateOnly.optional(),
-      due_date: dateOnly.optional(),
-      customer_id: z.number().int().nullable().optional(),
-      deal_id: z.number().int().nullable().optional(),
-    }),
-    req
-  );
-
-  // Viec con nam cung danh sach voi viec cha va chi cho 1 cap
-  let listId = body.list_id ?? null;
-  let customerId = body.customer_id ?? null;
-  let dealId = body.deal_id ?? null;
-  if (body.parent_id) {
-    const parent = required(
-      db.prepare(`SELECT * FROM cards WHERE id = ?`).get(body.parent_id),
-      'Khong tim thay viec cha'
-    ) as Record<string, unknown>;
-    if (parent.parent_id) throw new HttpError(400, 'Chỉ hỗ trợ một cấp việc con');
-    listId = parent.list_id as number;
-    customerId = customerId ?? (parent.customer_id as number | null);
-    dealId = dealId ?? (parent.deal_id as number | null);
-  }
-  if (!listId) throw new HttpError(400, 'Thiếu danh sách để thêm công việc');
-  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(listId), 'Khong tim thay danh sach');
-  assertEntityLinks(db, { customer_id: customerId, deal_id: dealId });
-
-  const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: listId });
-  const info = db
-    .prepare(
-      `INSERT INTO cards (list_id, parent_id, title, position, priority, start_date, due_date,
-                          customer_id, deal_id, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      listId,
-      body.parent_id ?? null,
-      body.title,
-      position,
-      body.priority ?? 'medium',
-      body.start_date ?? null,
-      body.due_date ?? null,
-      customerId,
-      dealId,
-      buildSearchText(body.title)
-    );
-  res.status(201).json(reloadCard(Number(info.lastInsertRowid)));
+  res.status(201).json(createCard(parseBody(createTaskInputSchema, req)));
 });
+
+/**
+ * Ngu canh de mo form tao cong viec tu bat ky module nao.
+ *
+ * Nhan mot khoa bat ky (co hoi, hop dong, bao gia, nguoi lien he...) roi tra ve day
+ * du lien ket da suy ra, ten hien thi va cac lua chon con lai. Mot lan goi thay cho
+ * bon nam truy van roi rac ma cac form CRM hien dang tu ghep.
+ *
+ * Phai dang ky TRUOC `/:id` — neu khong Express se coi 'context' la id va tra 400.
+ */
+router.get('/context', (req, res) => {
+  const numeric = (value: unknown) => {
+    if (value === undefined || value === '') return null;
+    const n = Number(value);
+    if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Lien ket khong hop le');
+    return n;
+  };
+  const requested: EntityLinks = {
+    customer_id: numeric(req.query.customer_id),
+    contact_id: numeric(req.query.contact_id),
+    deal_id: numeric(req.query.deal_id),
+    contract_id: numeric(req.query.contract_id),
+    quotation_id: numeric(req.query.quotation_id),
+  };
+  const links = deriveTaskLinks(db, requested);
+  const customerId = links.customer_id ?? null;
+
+  const boards = db
+    .prepare(
+      `SELECT b.id, b.name, b.customer_id FROM boards b
+        WHERE b.is_archived = 0
+        ORDER BY (? IS NOT NULL AND b.customer_id = ?) DESC, b.is_starred DESC, b.id`
+    )
+    .all(customerId, customerId) as { id: number; name: string; customer_id: number | null }[];
+  const lists = db
+    .prepare(
+      `SELECT l.id, l.name, l.board_id FROM lists l JOIN boards b ON b.id = l.board_id
+        WHERE b.is_archived = 0 ORDER BY l.board_id, l.position, l.id`
+    )
+    .all();
+
+  // Chi liet ke ung vien thuoc dung khach hang — chon nham khach hang khac se bi 422.
+  const scoped = <T>(sql: string): T[] =>
+    customerId === null ? [] : (db.prepare(sql).all(customerId) as T[]);
+
+  res.json({
+    links,
+    display: {
+      customer_name: pick(`SELECT name FROM customers WHERE id = ?`, links.customer_id, 'name'),
+      contact_name: pick(
+        `SELECT full_name FROM contacts WHERE id = ?`,
+        links.contact_id,
+        'full_name'
+      ),
+      deal_title: pick(`SELECT title FROM deals WHERE id = ?`, links.deal_id, 'title'),
+      contract_name: pick(`SELECT name FROM contracts WHERE id = ?`, links.contract_id, 'name'),
+      quotation_code: pick(`SELECT code FROM quotations WHERE id = ?`, links.quotation_id, 'code'),
+    },
+    suggested_list_id: resolveDefaultList(links),
+    boards,
+    lists,
+    contacts: scoped(
+      `SELECT id, full_name, title FROM contacts WHERE customer_id = ? ORDER BY is_primary DESC, full_name`
+    ),
+    deals: scoped(
+      `SELECT id, title, stage FROM deals WHERE customer_id = ? ORDER BY stage = 'won', stage = 'lost', id DESC`
+    ),
+    contracts: scoped(
+      `SELECT id, name, number, status FROM contracts WHERE customer_id = ? ORDER BY id DESC`
+    ),
+    quotations: scoped(
+      `SELECT id, code, version, status FROM quotations WHERE customer_id = ? ORDER BY id DESC`
+    ),
+  });
+});
+
+/** Doc mot cot ten de hien thi chip lien ket; tra null khi khong co lien ket. */
+function pick(sql: string, id: number | null | undefined, column: string): string | null {
+  if (id == null) return null;
+  const row = db.prepare(sql).get(id) as Record<string, unknown> | undefined;
+  const value = row?.[column];
+  return typeof value === 'string' ? value : null;
+}
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
@@ -210,7 +230,10 @@ router.patch('/:id', (req, res) => {
       due_date: dateOnly.optional(),
       priority: priorityEnum.optional(),
       customer_id: z.number().int().nullable().optional(),
+      contact_id: z.number().int().nullable().optional(),
       deal_id: z.number().int().nullable().optional(),
+      contract_id: z.number().int().nullable().optional(),
+      quotation_id: z.number().int().nullable().optional(),
       is_done: z.boolean().optional(),
       is_archived: z.boolean().optional(),
       list_id: z.number().int().optional(),
@@ -223,16 +246,21 @@ router.patch('/:id', (req, res) => {
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
     'Khong tim thay the'
   ) as CardRow;
-  const currentLinks = card as CardRow & { customer_id?: number | null; deal_id?: number | null };
-  const nextCustomerId =
-    body.customer_id !== undefined ? body.customer_id : currentLinks.customer_id;
-  const nextDealId =
-    body.deal_id !== undefined
-      ? body.deal_id
-      : body.customer_id !== undefined
-        ? null
-        : currentLinks.deal_id;
-  assertEntityLinks(db, { customer_id: nextCustomerId, deal_id: nextDealId });
+  const currentLinks = card as CardRow & Record<string, number | null>;
+
+  /*
+   * Doi khach hang thi moi lien ket cap duoi deu thuoc ve khach hang cu — giu lai la
+   * tao du lieu cheo. Bo het tru khoa duoc gui tuong minh trong cung yeu cau.
+   */
+  const customerChanged = body.customer_id !== undefined;
+  const linksTouched = TASK_LINK_KEYS.some((key) => body[key] !== undefined);
+  const nextLinks: EntityLinks = {};
+  for (const key of TASK_LINK_KEYS) {
+    if (body[key] !== undefined) nextLinks[key] = body[key];
+    else if (key === 'customer_id') nextLinks[key] = currentLinks.customer_id;
+    else nextLinks[key] = customerChanged ? null : currentLinks[key];
+  }
+  const derived = deriveTaskLinks(db, nextLinks);
 
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -265,12 +293,9 @@ router.patch('/:id', (req, res) => {
     }
     set('parent_id = ?', body.parent_id);
   }
-  if (body.customer_id !== undefined) {
-    set('customer_id = ?', body.customer_id);
-    // Doi khach hang thi bo lien ket deal cu de tranh lech du lieu.
-    if (body.deal_id === undefined) set('deal_id = ?', null);
+  if (linksTouched) {
+    for (const key of TASK_LINK_KEYS) set(`${key} = ?`, derived[key] ?? null);
   }
-  if (body.deal_id !== undefined) set('deal_id = ?', body.deal_id);
   if (body.list_id !== undefined) {
     required(
       db.prepare(`SELECT id FROM lists WHERE id = ?`).get(body.list_id),
@@ -359,8 +384,9 @@ router.post('/:id/copy', (req, res) => {
     const info = db
       .prepare(
         `INSERT INTO cards (list_id, title, description, position, start_date, due_date, priority,
-                            customer_id, deal_id, cover_color, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                            customer_id, contact_id, deal_id, contract_id, quotation_id,
+                            cover_color, search_text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         listId,
@@ -371,7 +397,10 @@ router.post('/:id/copy', (req, res) => {
         source.due_date,
         source.priority,
         source.customer_id,
+        source.contact_id,
         source.deal_id,
+        source.contract_id,
+        source.quotation_id,
         source.cover_color,
         buildSearchText(title, source.description as string)
       );

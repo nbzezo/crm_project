@@ -144,6 +144,112 @@ test('reorder chi chap nhan hang xom trong dung scope va rollback khi loi', asyn
   assert.equal(validMove.data.list_id, lists[1].id);
 });
 
+test('tao cong viec tu mot khoa CRM tu suy ra cac lien ket cap tren', async () => {
+  const customerId = await createCustomer('Khach hang suy dien');
+  const contactId = Number(
+    db
+      .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (?, ?)`)
+      .run(customerId, 'Nguoi lien he chinh').lastInsertRowid
+  );
+  const deal = await json('POST', '/api/deals', {
+    customer_id: customerId,
+    contact_id: contactId,
+    title: 'Co hoi suy dien',
+  });
+  assert.equal(deal.status, 201);
+  const dealId = Number(deal.data.id);
+  const contract = await json('POST', '/api/contracts', {
+    customer_id: customerId,
+    deal_id: dealId,
+    name: 'Hop dong suy dien',
+  });
+  assert.equal(contract.status, 201);
+  const contractId = Number(contract.data.id);
+
+  // Chi biet co hoi -> phai tu ra khach hang va nguoi lien he cua co hoi do.
+  const fromDeal = await json('POST', '/api/cards', {
+    title: 'Goi lai khach hang',
+    deal_id: dealId,
+    description: 'Chi tiet cuoc goi',
+  });
+  assert.equal(fromDeal.status, 201);
+  assert.equal(fromDeal.data.customer_id, customerId);
+  assert.equal(fromDeal.data.contact_id, contactId);
+  assert.equal(fromDeal.data.contact_name, 'Nguoi lien he chinh');
+  // Truoc day description bi rot mat o POST va search_text chi index title.
+  assert.equal(fromDeal.data.description, 'Chi tiet cuoc goi');
+  const indexed = db
+    .prepare(`SELECT search_text FROM cards WHERE id = ?`)
+    .get(Number(fromDeal.data.id)) as { search_text: string };
+  assert.match(indexed.search_text, /chi tiet cuoc goi/);
+
+  // Chi biet hop dong -> ra ca co hoi lan khach hang.
+  const fromContract = await json('POST', '/api/cards', {
+    title: 'Gui ban ky',
+    contract_id: contractId,
+  });
+  assert.equal(fromContract.status, 201);
+  assert.equal(fromContract.data.deal_id, dealId);
+  assert.equal(fromContract.data.customer_id, customerId);
+  // Suy dien di het chuoi: hop dong -> co hoi -> nguoi lien he cua co hoi.
+  assert.equal(fromContract.data.contact_id, contactId);
+
+  // Cong viec phai hien ra o ho so nguoi lien he va o chi tiet hop dong.
+  const contactFull = await json('GET', `/api/contacts/${contactId}/full`);
+  assert.equal(contactFull.status, 200);
+  assert.equal((contactFull.data.tasks as unknown[]).length, 2);
+  const contractDetail = await json('GET', `/api/contracts/${contractId}`);
+  assert.equal((contractDetail.data.tasks as unknown[]).length, 1);
+
+  // Ngu canh mo form: mot lan goi ra du lien ket + ung vien cua dung khach hang.
+  const context = await json('GET', `/api/cards/context?contract_id=${contractId}`);
+  assert.equal(context.status, 200);
+  assert.deepEqual(context.data.links, {
+    customer_id: customerId,
+    contact_id: contactId,
+    deal_id: dealId,
+    contract_id: contractId,
+    quotation_id: null,
+  });
+  assert.equal(
+    (context.data.display as Record<string, unknown>).customer_name,
+    'Khach hang suy dien'
+  );
+  assert.equal((context.data.deals as unknown[]).length, 1);
+  assert.ok(context.data.suggested_list_id);
+});
+
+test('cong viec chan lien ket cheo khach hang va go lien ket cap duoi khi doi khach hang', async () => {
+  const customerA = await createCustomer('Cong viec khach A');
+  const customerB = await createCustomer('Cong viec khach B');
+  const dealB = await json('POST', '/api/deals', { customer_id: customerB, title: 'Co hoi cua B' });
+  assert.equal(dealB.status, 201);
+
+  const crossed = await json('POST', '/api/cards', {
+    title: 'Cong viec sai lien ket',
+    customer_id: customerA,
+    deal_id: Number(dealB.data.id),
+  });
+  assert.equal(crossed.status, 422);
+  assert.equal(crossed.data.code, 'CROSS_CUSTOMER_LINK');
+
+  const card = await json('POST', '/api/cards', {
+    title: 'Cong viec cua B',
+    deal_id: Number(dealB.data.id),
+  });
+  assert.equal(card.status, 201);
+  assert.equal(card.data.customer_id, customerB);
+
+  // Doi khach hang thi co hoi cu thuoc khach cu phai bi go, khong duoc giu lai.
+  const moved = await json('PATCH', `/api/cards/${Number(card.data.id)}`, {
+    customer_id: customerA,
+  });
+  assert.equal(moved.status, 200);
+  assert.equal(moved.data.customer_id, customerA);
+  assert.equal(moved.data.deal_id, null);
+  assert.equal(moved.data.contact_id, null);
+});
+
 test('stage gate rollback khi bi chan va ghi history khi override', async () => {
   const customerId = await createCustomer('Khach hang stage gate');
   const created = await json('POST', '/api/deals', {

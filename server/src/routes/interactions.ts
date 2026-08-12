@@ -2,10 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
-import { nextPosition } from '../lib/position.ts';
-import { buildSearchText } from '../lib/viSearch.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { createCard, resolveDefaultList } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -53,17 +52,6 @@ function reload(id: number) {
     .get(id);
 }
 
-/** Chon danh sach mac dinh de tha Task sinh ra tu Activity. */
-function defaultListId(): number | null {
-  const row = db
-    .prepare(
-      `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
-        WHERE b.is_archived = 0 ORDER BY b.is_starred DESC, b.id, l.position LIMIT 1`
-    )
-    .get() as { id: number } | undefined;
-  return row?.id ?? null;
-}
-
 router.post('/', (req, res) => {
   const body = parseBody(schema, req);
   assertEntityLinks(db, body);
@@ -96,26 +84,19 @@ router.post('/', (req, res) => {
 
     let taskId: number | null = null;
     if (body.create_task && body.next_action) {
-      const listId = body.task_list_id ?? defaultListId();
+      // Chua co bang nao thi bo qua viec tao Task — ban ghi tuong tac van phai duoc luu.
+      const listId = body.task_list_id ?? resolveDefaultList({ customer_id: body.customer_id });
       if (listId) {
-        const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: listId });
-        const task = db
-          .prepare(
-            `INSERT INTO cards (list_id, title, position, due_date, priority, customer_id, contact_id,
-                                deal_id, search_text)
-             VALUES (?, ?, ?, ?, 'high', ?, ?, ?, ?)`
-          )
-          .run(
-            listId,
-            body.next_action,
-            position,
-            body.next_action_date ?? null,
-            body.customer_id,
-            body.contact_id ?? null,
-            body.deal_id ?? null,
-            buildSearchText(body.next_action)
-          );
-        taskId = Number(task.lastInsertRowid);
+        const task = createCard({
+          list_id: listId,
+          title: body.next_action,
+          priority: 'high',
+          due_date: body.next_action_date ?? null,
+          customer_id: body.customer_id,
+          contact_id: body.contact_id ?? null,
+          deal_id: body.deal_id ?? null,
+        });
+        taskId = task.id as number;
       }
     }
 

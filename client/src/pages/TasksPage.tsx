@@ -497,6 +497,7 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
   const [priority, setPriority] = useState<Priority>('medium');
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState('');
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   const { data: boards = [] } = useQuery({
     queryKey: ['boards', false],
@@ -602,6 +603,19 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
       </div>
       <Button variant="primary" disabled={!title.trim() || !listId} onClick={submit}>
         {t.common.add}
+      </Button>
+      {/* Can gan them co hoi / hop dong / viec can lam thi mo form day du, giu nguyen lua chon. */}
+      <Button
+        onClick={() => {
+          openTaskComposer({
+            context: customerId === '' ? {} : { customer_id: Number(customerId) },
+            listId: listId === '' ? undefined : Number(listId),
+            draftTitle: title.trim() || undefined,
+          });
+          onClose();
+        }}
+      >
+        Chi tiết…
       </Button>
       <Button variant="ghost" onClick={onClose}>
         <X size={16} />

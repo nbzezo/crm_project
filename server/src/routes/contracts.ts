@@ -6,6 +6,7 @@ import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { CONTRACT_STATUSES, STAGE_PROBABILITY } from '../lib/crm.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { listTasksByLink } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -119,7 +120,7 @@ router.get('/:id', (req, res) => {
       `SELECT * FROM documents WHERE contract_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`
     )
     .all(id);
-  res.json({ ...contract, documents });
+  res.json({ ...contract, documents, tasks: listTasksByLink('contract_id', id) });
 });
 
 router.patch('/:id', (req, res) => {

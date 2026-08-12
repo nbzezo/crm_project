@@ -7,6 +7,7 @@ import { buildSearchText } from '../lib/viSearch.ts';
 import { LOST_REASONS, STAGES, STAGE_PROBABILITY, isClosed } from '../lib/crm.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 import { applyDealScoreTransition, evaluateStageGate } from '../services/dealService.ts';
+import { listTasksByLink } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -148,13 +149,7 @@ router.get('/:id', (req, res) => {
         WHERE i.deal_id = ? ORDER BY i.occurred_at DESC`
     )
     .all(id);
-  const tasks = db
-    .prepare(
-      `SELECT k.id, k.title, k.due_date, k.priority, k.is_done, l.name AS list_name, b.name AS board_name
-         FROM cards k JOIN lists l ON l.id = k.list_id JOIN boards b ON b.id = l.board_id
-        WHERE k.deal_id = ? AND k.is_archived = 0 ORDER BY k.is_done, k.due_date`
-    )
-    .all(id);
+  const tasks = listTasksByLink('deal_id', id);
   res.json({ ...deal, quotations, contracts, documents, activities, tasks });
 });
 

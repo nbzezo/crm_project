@@ -19,6 +19,7 @@ import { CardItem } from './CardItem';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Button, focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
+import { useUiStore } from '../../stores/uiStore';
 import type { Card, Label, List } from '../../types';
 
 export type SortBy = 'created_desc' | 'created_asc' | 'due' | 'title' | 'priority';
@@ -57,6 +58,7 @@ export const ListColumn = memo(function ListColumn({
   const menu = usePopover();
   const [sortMenu, setSortMenu] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `list-${list.id}`,
@@ -231,6 +233,20 @@ export const ListColumn = memo(function ListColumn({
               <div className="mt-1 flex items-center gap-1">
                 <Button variant="primary" onClick={submitCard}>
                   {t.board.addCard}
+                </Button>
+                {/* Mo form day du mang theo tieu de dang go — khong bat go lai. */}
+                <Button
+                  onClick={() => {
+                    openTaskComposer({
+                      context: {},
+                      listId: list.id,
+                      draftTitle: draft.trim() || undefined,
+                    });
+                    setDraft('');
+                    setAdding(false);
+                  }}
+                >
+                  Chi tiết…
                 </Button>
                 <button
                   type="button"

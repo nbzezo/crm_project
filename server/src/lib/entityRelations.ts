@@ -61,6 +61,66 @@ export function assertEntityLinks(db: Database, links: EntityLinks): void {
   }
 }
 
+type ParentLinks = { customer_id: number | null; deal_id: number | null };
+
+function parentLinks(
+  db: Database,
+  table: 'contracts' | 'quotations',
+  id: number,
+  label: string
+): ParentLinks {
+  return required(
+    db.prepare(`SELECT customer_id, deal_id FROM ${table} WHERE id = ?`).get(id) as
+      ParentLinks | undefined,
+    `Khong tim thay ${label}`
+  );
+}
+
+/**
+ * Suy ra cac lien ket cap tren tu lien ket cu the nhat da biet.
+ *
+ * Chuoi so huu trong CRM la mot cay: bao gia / hop dong thuoc mot co hoi, co hoi
+ * thuoc mot khach hang va co the co nguoi lien he chinh. Khi nguoi dung tao cong
+ * viec tu tab Co hoi thi khong nen bat ho chon lai khach hang — du lieu do da xac
+ * dinh. Chi dien vao o con trong (undefined hoac null); lua chon tuong minh cua
+ * nguoi dung luon thang.
+ *
+ * Ket qua van phai qua assertEntityLinks vi nguoi dung co the tu ghep hai thuc the
+ * cua hai khach hang khac nhau — luc do khong co gi de suy ra, chi co mau thuan.
+ */
+export function deriveTaskLinks(db: Database, links: EntityLinks): EntityLinks {
+  const next: EntityLinks = { ...links };
+  const fill = (key: 'customer_id' | 'deal_id' | 'contact_id', value: number | null) => {
+    if (next[key] == null && value != null) next[key] = value;
+  };
+
+  if (next.quotation_id != null) {
+    const row = parentLinks(db, 'quotations', next.quotation_id, 'bao gia');
+    fill('deal_id', row.deal_id);
+    fill('customer_id', row.customer_id);
+  }
+  if (next.contract_id != null) {
+    const row = parentLinks(db, 'contracts', next.contract_id, 'hop dong');
+    fill('deal_id', row.deal_id);
+    fill('customer_id', row.customer_id);
+  }
+  if (next.deal_id != null) {
+    const row = required(
+      db.prepare(`SELECT customer_id, contact_id FROM deals WHERE id = ?`).get(next.deal_id) as
+        { customer_id: number | null; contact_id: number | null } | undefined,
+      'Khong tim thay co hoi'
+    );
+    fill('customer_id', row.customer_id);
+    fill('contact_id', row.contact_id);
+  }
+  if (next.contact_id != null) {
+    fill('customer_id', owner(db, 'contacts', next.contact_id, 'nguoi lien he').customer_id);
+  }
+
+  assertEntityLinks(db, next);
+  return next;
+}
+
 /** Viec con chi duoc di chuyen trong cung bang voi viec cha. */
 export function assertParentListCompatible(
   db: Database,

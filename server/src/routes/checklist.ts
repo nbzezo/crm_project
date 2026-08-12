@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
-import { computeMovePosition, nextPosition } from '../lib/position.ts';
-import { buildSearchText } from '../lib/viSearch.ts';
+import { computeMovePosition } from '../lib/position.ts';
+import { createCard, reloadCard } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -62,33 +62,24 @@ router.post('/:id/promote', (req, res) => {
   ) as Record<string, unknown>;
   if (parent.parent_id) throw new HttpError(400, 'Chỉ hỗ trợ một cấp việc con');
 
-  const listId = parent.list_id as number;
+  // createCard tu ke thua danh sach va toan bo lien ket CRM cua the cha.
   const created = db.transaction(() => {
-    const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: listId });
-    const info = db
-      .prepare(
-        `INSERT INTO cards (list_id, parent_id, title, position, priority, customer_id, deal_id,
-                            is_done, completed_at, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?,
-                 CASE WHEN ? = 1 THEN datetime('now','localtime') END, ?)`
-      )
-      .run(
-        listId,
-        item.card_id,
-        item.content,
-        position,
-        parent.priority as string,
-        (parent.customer_id as number | null) ?? null,
-        (parent.deal_id as number | null) ?? null,
-        item.is_done,
-        item.is_done,
-        buildSearchText(item.content)
-      );
+    const card = createCard({
+      parent_id: item.card_id,
+      title: item.content,
+      priority: parent.priority as 'low' | 'medium' | 'high' | 'urgent',
+    });
+    const cardId = card.id as number;
+    if (item.is_done) {
+      db.prepare(
+        `UPDATE cards SET is_done = 1, completed_at = datetime('now','localtime') WHERE id = ?`
+      ).run(cardId);
+    }
     db.prepare(`DELETE FROM checklist_items WHERE id = ?`).run(id);
-    return Number(info.lastInsertRowid);
+    return cardId;
   })();
 
-  res.status(201).json(db.prepare(`SELECT * FROM cards WHERE id = ?`).get(created));
+  res.status(201).json(reloadCard(created));
 });
 
 router.delete('/:id', (req, res) => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { FileSignature, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { FileSignature, ListPlus, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ContractForm } from '../components/crm/ContractForm';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -34,6 +34,7 @@ export default function ContractsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const pushToast = useUiStore((s) => s.pushToast);
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
   const [form, setForm] = useState<{ open: boolean; contract?: Contract | null }>({ open: false });
@@ -261,6 +262,14 @@ export default function ContractsPage() {
                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
                       >
                         <Pencil size={14} aria-hidden="true" />
+                      </button>
+                      <button
+                        onClick={() => openTaskComposer({ context: { contract_id: c.id } })}
+                        aria-label={`Tạo công việc cho hợp đồng ${c.name}`}
+                        title="Tạo công việc"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                      >
+                        <ListPlus size={14} aria-hidden="true" />
                       </button>
                       <button
                         onClick={() => setDeleteId(c.id)}

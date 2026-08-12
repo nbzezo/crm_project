@@ -1,8 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
-import { buildSearchText } from '../../lib/viSearch.ts';
-import { nextPosition } from '../../lib/position.ts';
+import { createTaskInputSchema } from '@workflow/contracts/schemas';
 import { HttpError, required } from '../../lib/validate.ts';
+import { createCard } from '../cardService.ts';
 
 const dateOnly = z
   .string()
@@ -11,16 +11,8 @@ const dateOnly = z
   .optional();
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
 
-const createTaskSchema = z.object({
-  title: z.string().trim().min(1).max(300),
-  description: z.string().max(5000).optional(),
-  list_id: z.number().int().positive().nullable().optional(),
-  due_date: dateOnly,
-  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  customer_id: z.number().int().positive().nullable().optional(),
-  contact_id: z.number().int().positive().nullable().optional(),
-  deal_id: z.number().int().positive().nullable().optional(),
-});
+/** Dung chung hop dong tao Task voi route /api/cards de payload da duyet khong lech. */
+const createTaskSchema = createTaskInputSchema;
 const createReminderSchema = z.object({
   title: z.string().trim().min(1).max(300),
   note: z.string().max(5000).optional(),
@@ -124,41 +116,11 @@ export function listActionProposals(db: Database, status?: string) {
   return ids.map(({ id }) => getActionProposal(db, id));
 }
 
-function defaultListId(db: Database): number {
-  const item = db
-    .prepare(
-      `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
-        WHERE b.is_archived = 0 ORDER BY b.is_starred DESC, b.id, l.position LIMIT 1`
-    )
-    .get() as { id: number } | undefined;
-  if (!item) throw new HttpError(409, 'Chưa có danh sách công việc để tạo task');
-  return item.id;
-}
-
 function execute(db: Database, type: string, rawPayload: unknown) {
   if (type === 'create_task') {
-    const payload = createTaskSchema.parse(rawPayload);
-    const listId = payload.list_id ?? defaultListId(db);
-    const info = db
-      .prepare(
-        `INSERT INTO cards
-          (list_id, title, description, position, due_date, priority, customer_id, contact_id,
-           deal_id, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        listId,
-        payload.title,
-        payload.description ?? '',
-        nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: listId }),
-        payload.due_date ?? null,
-        payload.priority ?? 'medium',
-        payload.customer_id ?? null,
-        payload.contact_id ?? null,
-        payload.deal_id ?? null,
-        buildSearchText(payload.title, payload.description)
-      );
-    return { entity: 'task', id: Number(info.lastInsertRowid) };
+    // Di qua createCard nen de xuat cua AI cung phai qua assertEntityLinks nhu moi duong khac.
+    const card = createCard(createTaskSchema.parse(rawPayload));
+    return { entity: 'task', id: card.id as number };
   }
   if (type === 'create_reminder') {
     const payload = createReminderSchema.parse(rawPayload);

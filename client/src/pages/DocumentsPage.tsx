@@ -6,6 +6,7 @@ import {
   Download,
   FilePenLine,
   FileText,
+  ListPlus,
   LockKeyhole,
   Search,
   Trash2,
@@ -43,6 +44,7 @@ const confidentialityLabel: Record<CrmDocument['confidentiality'], string> = {
 export default function DocumentsPage() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
+  const openTaskComposer = useUiStore((state) => state.openTaskComposer);
   const [searchParams] = useSearchParams();
   const focusId = Number(searchParams.get('focus')) || null;
   const [term, setTerm] = useState('');
@@ -488,6 +490,27 @@ export default function DocumentsPage() {
                                 className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
                               >
                                 <FilePenLine size={15} />
+                              </button>
+                              {/* Cong viec ke thua dung chuoi lien ket cua tai lieu. */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTaskComposer({
+                                    context: {
+                                      customer_id: document.customer_id ?? undefined,
+                                      contact_id: document.contact_id ?? undefined,
+                                      deal_id: document.deal_id ?? undefined,
+                                      contract_id: document.contract_id ?? undefined,
+                                      quotation_id: document.quotation_id ?? undefined,
+                                    },
+                                    draftTitle: `Xử lý tài liệu: ${document.name}`,
+                                  })
+                                }
+                                aria-label={`Tạo công việc từ ${document.name}`}
+                                title="Tạo công việc"
+                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                              >
+                                <ListPlus size={15} />
                               </button>
                               <a
                                 href={`/api/documents/${document.id}/download`}

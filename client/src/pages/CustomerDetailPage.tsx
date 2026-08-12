@@ -6,6 +6,7 @@ import {
   Building2,
   FileSignature,
   Globe,
+  ListPlus,
   Mail,
   MapPin,
   Pencil,
@@ -42,6 +43,7 @@ import {
   t,
 } from '../i18n/vi';
 import { formatDate, formatVND } from '../lib/format';
+import { useUiStore } from '../stores/uiStore';
 import type { Contract, CustomerFull, Deal, Quotation } from '../types';
 
 type Tab =
@@ -71,6 +73,7 @@ export default function CustomerDetailPage() {
     open: false,
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   const {
     data: customer,
@@ -332,14 +335,24 @@ export default function CustomerDetailPage() {
                     {t.quotationStatus[q.status]}
                   </ColorBadge>
                 </td>
-                <td className="px-4 py-2.5 text-right">
-                  <button
-                    onClick={() => setQuoteForm({ open: true, quotation: q })}
-                    aria-label={`${t.common.edit}: ${q.code || 'báo giá'}`}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
-                  >
-                    <Pencil size={13} />
-                  </button>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-end gap-1">
+                    <button
+                      onClick={() => openTaskComposer({ context: { quotation_id: q.id } })}
+                      aria-label={`Tạo công việc cho báo giá ${q.code || q.id}`}
+                      title="Tạo công việc"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                    >
+                      <ListPlus size={13} />
+                    </button>
+                    <button
+                      onClick={() => setQuoteForm({ open: true, quotation: q })}
+                      aria-label={`${t.common.edit}: ${q.code || 'báo giá'}`}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -409,12 +422,22 @@ export default function CustomerDetailPage() {
         )}
 
         {tab === 'tasks' && (
-          <TaskTree
-            tasks={customer.tasks}
-            columns={{ customer: false }}
-            emptyMessage="Chưa có công việc nào gắn với khách hàng này."
-            onChanged={() => queryClient.invalidateQueries({ queryKey: ['customer', id] })}
-          />
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                onClick={() => openTaskComposer({ context: { customer_id: id } })}
+              >
+                <Plus size={15} /> Tạo công việc
+              </Button>
+            </div>
+            <TaskTree
+              tasks={customer.tasks}
+              columns={{ customer: false }}
+              emptyMessage="Chưa có công việc nào gắn với khách hàng này."
+              onChanged={() => queryClient.invalidateQueries({ queryKey: ['customer', id] })}
+            />
+          </div>
         )}
       </div>
 

@@ -7,6 +7,11 @@ import { Toasts } from './components/common/Toasts';
 const CardModal = lazy(() =>
   import('./components/kanban/CardModal').then((module) => ({ default: module.CardModal }))
 );
+const TaskFormDialog = lazy(() =>
+  import('./components/tasks/TaskFormDialog').then((module) => ({
+    default: module.TaskFormDialog,
+  }))
+);
 
 export default function App() {
   const matches = useMatches();
@@ -48,6 +53,7 @@ export default function App() {
       </div>
       <Suspense fallback={null}>
         <CardModal />
+        <TaskFormDialog />
       </Suspense>
       <Toasts />
     </div>

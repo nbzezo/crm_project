@@ -62,11 +62,37 @@ interface Toast {
   duration: number;
 }
 
+/**
+ * Ngu canh mo form tao cong viec tu mot module bat ky.
+ *
+ * Chi can khoa cu the nhat ma man hinh dang biet — server suy ra phan con lai
+ * qua GET /api/cards/context.
+ */
+export interface TaskContext {
+  customer_id?: number;
+  contact_id?: number;
+  deal_id?: number;
+  contract_id?: number;
+  quotation_id?: number;
+}
+
+export interface TaskComposerState {
+  context: TaskContext;
+  listId?: number;
+  /** Tieu de go san — vi du khi nguoi dung dang go o o them nhanh roi mo form day du. */
+  draftTitle?: string;
+}
+
 interface UiState {
   openCardId: number | null;
   cardPresentation: 'modal' | 'drawer';
   openCard: (id: number, presentation?: 'modal' | 'drawer') => void;
   closeCard: () => void;
+
+  /** Form tao cong viec dung chung, mount mot lan o App va mo tu bat ky trang nao. */
+  taskComposer: TaskComposerState | null;
+  openTaskComposer: (state?: TaskComposerState) => void;
+  closeTaskComposer: () => void;
 
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
@@ -99,6 +125,10 @@ export const useUiStore = create<UiState>((set) => ({
   cardPresentation: 'modal',
   openCard: (id, presentation = 'modal') => set({ openCardId: id, cardPresentation: presentation }),
   closeCard: () => set({ openCardId: null }),
+
+  taskComposer: null,
+  openTaskComposer: (state) => set({ taskComposer: state ?? { context: {} } }),
+  closeTaskComposer: () => set({ taskComposer: null }),
 
   searchOpen: false,
   setSearchOpen: (open) => set({ searchOpen: open }),

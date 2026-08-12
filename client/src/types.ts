@@ -94,8 +94,14 @@ export interface Card {
   priority: Priority;
   customer_id: number | null;
   customer_name?: string | null;
+  contact_id?: number | null;
+  contact_name?: string | null;
   deal_id: number | null;
   deal_title?: string | null;
+  contract_id?: number | null;
+  contract_name?: string | null;
+  quotation_id?: number | null;
+  quotation_code?: string | null;
   is_done: number;
   completed_at?: string | null;
   cover_color: string | null;

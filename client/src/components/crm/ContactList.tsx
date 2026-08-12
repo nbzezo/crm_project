@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Linkedin, Mail, MessageCircle, Pencil, Phone, Plus, Star, Trash2 } from 'lucide-react';
+import {
+  Linkedin,
+  ListPlus,
+  Mail,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Plus,
+  Star,
+  Trash2,
+} from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -15,6 +25,7 @@ import {
   focusRing,
 } from '../common/ui';
 import { t } from '../../i18n/vi';
+import { useUiStore } from '../../stores/uiStore';
 import type { Contact } from '../../types';
 
 const EMPTY = {
@@ -46,6 +57,7 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   useEffect(() => {
     if (!open) return;
@@ -146,6 +158,15 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
                     className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-text sm:h-7 sm:w-7 ${focusRing}`}
                   >
                     <Pencil size={13} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openTaskComposer({ context: { contact_id: c.id } })}
+                    aria-label={`Tạo công việc cho ${c.full_name}`}
+                    title="Tạo công việc"
+                    className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-text sm:h-7 sm:w-7 ${focusRing}`}
+                  >
+                    <ListPlus size={13} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
