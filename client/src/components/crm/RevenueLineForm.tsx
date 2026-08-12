@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Settings2 } from 'lucide-react';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, Input, Select, Textarea } from '../common/ui';
 import { ServiceCatalog } from './ServiceCatalog';
@@ -137,14 +138,15 @@ export function RevenueLineForm({
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t.card.customer}>
-            <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">— chọn khách hàng —</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            <Combobox
+              value={customerId === '' ? '' : Number(customerId)}
+              onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
+              options={customers.map((c) => ({ id: c.id, label: c.name }))}
+              placeholder="— chọn khách hàng —"
+              searchPlaceholder="Tìm khách hàng…"
+              emptyText="Không tìm thấy khách hàng."
+              ariaLabel={t.card.customer}
+            />
           </Field>
           <Field
             label={

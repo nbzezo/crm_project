@@ -4,6 +4,7 @@ import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
+import type { CardStatus } from '@workflow/contracts';
 
 const router = Router();
 
@@ -11,27 +12,43 @@ const boardCreate = z.object({
   name: z.string().trim().min(1, 'Ten bang khong duoc de trong'),
   background: z.string().optional(),
   customer_id: z.number().int().nullable().optional(),
+  project_id: z.number().int().nullable().optional(),
 });
 
 const boardUpdate = z.object({
   name: z.string().trim().min(1).optional(),
   background: z.string().optional(),
   customer_id: z.number().int().nullable().optional(),
+  project_id: z.number().int().nullable().optional(),
   is_archived: z.boolean().optional(),
   is_starred: z.boolean().optional(),
 });
 
-const DEFAULT_LISTS = ['Cần làm', 'Đang làm', 'Chờ duyệt', 'Hoàn thành'];
+/**
+ * Cot mac dinh kem NGHIA vong doi cua chung (v19).
+ *
+ * Truoc day bon cot nay trung ten voi bon trang thai nhung khong lien he gi voi
+ * nhau — keo the sang 'Hoan thanh' khong lam no xong. Gan `status_mapping` ngay
+ * luc tao bang de bang moi hoat dong dung tu dau; cot tu them ve sau mac dinh
+ * khong anh xa, nguoi dung tu khai neu muon.
+ */
+const DEFAULT_LISTS: [string, CardStatus][] = [
+  ['Cần làm', 'todo'],
+  ['Đang làm', 'doing'],
+  ['Chờ duyệt', 'review'],
+  ['Hoàn thành', 'done'],
+];
 
 router.get('/', (req, res) => {
   const includeArchived = req.query.archived === '1';
   const rows = db
     .prepare(
-      `SELECT b.*, c.name AS customer_name,
+      `SELECT b.*, c.name AS customer_name, p.name AS project_name,
               (SELECT COUNT(*) FROM cards k JOIN lists l ON l.id = k.list_id
                 WHERE l.board_id = b.id AND k.is_done = 0 AND k.is_archived = 0 AND k.parent_id IS NULL) AS card_count
          FROM boards b
          LEFT JOIN customers c ON c.id = b.customer_id
+         LEFT JOIN projects p ON p.id = b.project_id
         WHERE (? = 1 OR b.is_archived = 0)
         ORDER BY b.is_archived, b.is_starred DESC, b.updated_at DESC`
     )
@@ -45,11 +62,18 @@ router.post('/', (req, res) => {
   const background = body.background ?? '#0079bf';
   const result = db.transaction(() => {
     const info = db
-      .prepare(`INSERT INTO boards (name, color, background, customer_id) VALUES (?, ?, ?, ?)`)
-      .run(body.name, background, background, body.customer_id ?? null);
+      .prepare(
+        `INSERT INTO boards (name, color, background, customer_id, project_id)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(body.name, background, background, body.customer_id ?? null, body.project_id ?? null);
     const boardId = Number(info.lastInsertRowid);
-    const insertList = db.prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`);
-    DEFAULT_LISTS.forEach((name, i) => insertList.run(boardId, name, (i + 1) * 1024));
+    const insertList = db.prepare(
+      `INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`
+    );
+    DEFAULT_LISTS.forEach(([name, status], i) =>
+      insertList.run(boardId, name, (i + 1) * 1024, status)
+    );
     return db.prepare(`SELECT * FROM boards WHERE id = ?`).get(boardId);
   })();
   res.status(201).json(result);
@@ -60,8 +84,10 @@ router.get('/:id/full', (req, res) => {
   const board = required(
     db
       .prepare(
-        `SELECT b.*, c.name AS customer_name
-           FROM boards b LEFT JOIN customers c ON c.id = b.customer_id
+        `SELECT b.*, c.name AS customer_name, p.name AS project_name
+           FROM boards b
+           LEFT JOIN customers c ON c.id = b.customer_id
+           LEFT JOIN projects p ON p.id = b.project_id
           WHERE b.id = ?`
       )
       .get(id),
@@ -70,7 +96,8 @@ router.get('/:id/full', (req, res) => {
 
   const lists = db
     .prepare(
-      `SELECT id, name, position, is_collapsed FROM lists WHERE board_id = ? ORDER BY position, id`
+      `SELECT id, name, position, is_collapsed, status_mapping
+         FROM lists WHERE board_id = ? ORDER BY position, id`
     )
     .all(id) as { id: number; name: string; position: number }[];
 
@@ -78,6 +105,9 @@ router.get('/:id/full', (req, res) => {
     .prepare(
       `SELECT k.id, k.list_id, k.title, k.description, k.position, k.start_date, k.due_date,
               k.priority, k.customer_id, k.deal_id, k.is_done, k.cover_color, k.created_at,
+              k.status, k.blocked_reason,
+              k.assignee_contact_id, k.assignee_org_id, ac.full_name AS assignee_name,
+              ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
               c.name AS customer_name,
               (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total,
               (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
@@ -87,6 +117,8 @@ router.get('/:id/full', (req, res) => {
          FROM cards k
          JOIN lists l ON l.id = k.list_id
          LEFT JOIN customers c ON c.id = k.customer_id
+         LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+         LEFT JOIN customers ao ON ao.id = k.assignee_org_id
         WHERE l.board_id = ? AND k.is_archived = 0 AND k.parent_id IS NULL
         ORDER BY k.position, k.id`
     )
@@ -152,6 +184,22 @@ router.patch('/:id', (req, res) => {
   if (body.customer_id !== undefined) {
     fields.push('customer_id = ?');
     values.push(body.customer_id);
+  }
+  /*
+   * Gan bang vao du an tu dong keo theo moi cong viec trong bang — khong con cau
+   * UPDATE nao ca, vi tu v19 du an cua mot viec duoc suy tu bang chua no moi lan
+   * doc. Truoc day phai dong bo `cards.project_id` bang tay va do chinh la cho
+   * hai ben lech nhau.
+   */
+  if (body.project_id !== undefined) {
+    if (body.project_id !== null) {
+      required(
+        db.prepare(`SELECT id FROM projects WHERE id = ?`).get(body.project_id),
+        'Khong tim thay du an'
+      );
+    }
+    fields.push('project_id = ?');
+    values.push(body.project_id);
   }
   if (body.is_archived !== undefined) {
     fields.push('is_archived = ?');

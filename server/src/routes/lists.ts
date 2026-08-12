@@ -3,12 +3,27 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
+import { CARD_STATUSES } from '@workflow/contracts';
+import { setCardStatus } from '../services/cardService.ts';
 
 const router = Router();
 
+/**
+ * Cot nay NGHIA LA trang thai nao (v19); null = cot khong mang nghia vong doi.
+ *
+ * Cot khong anh xa van dung binh thuong de xep the (vi du "Kho y tuong", "Theo
+ * khach") — keo the vao do khong dung den `cards.status`. Do la thu giu duoc tu
+ * do bo cuc kieu Trello ma van co mot nguon su that duy nhat cho vong doi.
+ */
+const statusMapping = z.enum(CARD_STATUSES).nullable().optional();
+
 router.post('/', (req, res) => {
   const body = parseBody(
-    z.object({ board_id: z.number().int(), name: z.string().trim().min(1) }),
+    z.object({
+      board_id: z.number().int(),
+      name: z.string().trim().min(1),
+      status_mapping: statusMapping,
+    }),
     req
   );
   required(
@@ -17,8 +32,8 @@ router.post('/', (req, res) => {
   );
   const position = nextPosition({ table: 'lists', scopeCol: 'board_id', scopeVal: body.board_id });
   const info = db
-    .prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`)
-    .run(body.board_id, body.name, position);
+    .prepare(`INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`)
+    .run(body.board_id, body.name, position, body.status_mapping ?? null);
   res.status(201).json(db.prepare(`SELECT * FROM lists WHERE id = ?`).get(info.lastInsertRowid));
 });
 
@@ -28,6 +43,7 @@ router.patch('/:id', (req, res) => {
     z.object({
       name: z.string().trim().min(1).optional(),
       is_collapsed: z.boolean().optional(),
+      status_mapping: statusMapping,
     }),
     req
   );
@@ -36,6 +52,30 @@ router.patch('/:id', (req, res) => {
     db.prepare(`UPDATE lists SET name = ? WHERE id = ?`).run(body.name, id);
   if (body.is_collapsed !== undefined)
     db.prepare(`UPDATE lists SET is_collapsed = ? WHERE id = ?`).run(body.is_collapsed ? 1 : 0, id);
+
+  /*
+   * Gan anh xa cho mot cot DA CO the: keo tat ca the trong cot ve dung trang thai
+   * do ngay. Neu khong, cot vua khai bao "day la Hoan thanh" ma the ben trong van
+   * mang 'todo' — dung cai lech ma v19 sinh ra de xoa bo.
+   *
+   * Bo qua the DA XONG khi anh xa khac 'done': keo mot viec da dong ve 'doing'
+   * chi vi no nam trong cot dang duoc gan nhan la mo lai viec da hoan thanh.
+   */
+  if (body.status_mapping !== undefined) {
+    db.prepare(`UPDATE lists SET status_mapping = ? WHERE id = ?`).run(body.status_mapping, id);
+    if (body.status_mapping) {
+      const cards = db
+        .prepare(
+          `SELECT id FROM cards
+            WHERE list_id = ? AND is_archived = 0 AND (is_done = 0 OR ? = 'done')`
+        )
+        .all(id, body.status_mapping) as { id: number }[];
+      for (const card of cards) {
+        setCardStatus(card.id, body.status_mapping, { moveToMappedList: false });
+      }
+    }
+  }
+
   res.json(db.prepare(`SELECT * FROM lists WHERE id = ?`).get(id));
 });
 
@@ -74,7 +114,7 @@ router.post('/:id/copy', (req, res) => {
   const source = required(
     db.prepare(`SELECT * FROM lists WHERE id = ?`).get(id),
     'Khong tim thay danh sach'
-  ) as { board_id: number; name: string };
+  ) as { board_id: number; name: string; status_mapping: string | null };
 
   const newId = db.transaction(() => {
     const position = nextPosition({
@@ -83,8 +123,14 @@ router.post('/:id/copy', (req, res) => {
       scopeVal: source.board_id,
     });
     const info = db
-      .prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`)
-      .run(source.board_id, body.name ?? `${source.name} (sao chép)`, position);
+      // Ban sao mang cung y nghia vong doi voi ban goc.
+      .prepare(`INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`)
+      .run(
+        source.board_id,
+        body.name ?? `${source.name} (sao chép)`,
+        position,
+        source.status_mapping
+      );
     const listId = Number(info.lastInsertRowid);
 
     const cards = db

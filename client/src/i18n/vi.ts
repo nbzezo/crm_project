@@ -20,6 +20,7 @@ export const t = {
   nav: {
     dashboard: 'Tổng quan',
     boards: 'Bảng công việc',
+    projects: 'Dự án',
     customers: 'Khách hàng',
     pipeline: 'Cơ hội bán hàng',
     pipelineHealth: 'Sức khỏe pipeline',
@@ -31,6 +32,8 @@ export const t = {
     table: 'Bảng tính',
     reports: 'Báo cáo',
     tasks: 'Công việc',
+    followUp: 'Cần nhắc',
+    orgDirectory: 'Tổ chức & nhân sự',
     ai: 'Trợ lý AI',
     settings: 'Cài đặt',
   },
@@ -264,7 +267,56 @@ export const t = {
     addReminder: 'Thêm nhắc hẹn',
     deleteCard: 'Xóa thẻ',
     inList: 'trong danh sách',
+    assignee: 'Người phụ trách',
+    unassigned: 'Chưa giao',
+    mine: 'Việc của tôi',
   },
+
+  /**
+   * Vòng đời công việc (v16).
+   *
+   * `waiting_customer` và `blocked` là lý do tồn tại của danh sách này: việc đang
+   * chờ bên ngoài không phải việc bị bỏ quên, và phân biệt được mới biết nhắc ai.
+   */
+  cardStatus: {
+    todo: 'Chưa bắt đầu',
+    doing: 'Đang làm',
+    waiting_customer: 'Chờ khách phản hồi',
+    blocked: 'Bị chặn',
+    review: 'Chờ duyệt',
+    done: 'Hoàn thành',
+  } as Record<string, string>,
+
+  projectStatus: {
+    planning: 'Đang lập kế hoạch',
+    active: 'Đang triển khai',
+    on_hold: 'Tạm dừng',
+    done: 'Đã hoàn thành',
+    cancelled: 'Đã hủy',
+  } as Record<string, string>,
+
+  /** Sức khỏe dự án — tính khi đọc, không bao giờ lưu (xem projectService.ts). */
+  projectHealth: {
+    green: 'Đúng kế hoạch',
+    amber: 'Cần theo dõi',
+    red: 'Có rủi ro',
+  } as Record<string, string>,
+
+  nudgeChannel: {
+    zalo: 'Zalo',
+    email: 'Email',
+    call: 'Gọi điện',
+    meeting: 'Gặp mặt',
+    other: 'Khác',
+  } as Record<string, string>,
+
+  /** Loại tổ chức trong sổ danh bạ — chỉ `customer` nằm trong pipeline CRM. */
+  orgKind: {
+    own: 'Công ty tôi',
+    customer: 'Khách hàng',
+    partner: 'Đối tác',
+    vendor: 'Nhà cung cấp',
+  } as Record<string, string>,
   customer: {
     newCustomer: 'Thêm khách hàng',
     name: 'Tên công ty',
@@ -443,13 +495,22 @@ export const t = {
     dueThisWeek: 'Đến hạn tuần này',
   },
   settings: {
-    backup: 'Sao lưu dữ liệu',
+    pageTitle: 'Cài đặt',
+    pageSubtitle: 'Cấu hình nhãn, chấm điểm cơ hội, trợ lý AI và dữ liệu hệ thống',
+    tabLabels: 'Nhãn',
+    tabScoring: 'Chấm điểm cơ hội',
+    tabAi: 'Trợ lý AI',
+    tabData: 'Dữ liệu & sao lưu',
+    scoringTitle: 'Chấm điểm cơ hội (BANT + 4P)',
+    backup: 'Sao lưu & xuất dữ liệu',
     backupNow: 'Sao lưu ngay',
     backupList: 'Các bản sao lưu',
     exportJson: 'Xuất dữ liệu JSON',
+    exportCsv: 'Xuất CSV (mở bằng Excel)',
     manageLabels: 'Quản lý nhãn',
     labelName: 'Tên nhãn',
     dataLocation: 'Dữ liệu được lưu tại server/data/app.db',
+    sampleData: 'Dữ liệu mẫu',
   },
   /** Quản lý nhãn 2 cấp (BRD Nhãn v1.2). */
   labels: {

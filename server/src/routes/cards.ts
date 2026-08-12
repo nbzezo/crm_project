@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { CARD_STATUSES, type CardStatus } from '@workflow/contracts';
 import { createTaskInputSchema, TASK_LINK_KEYS } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
@@ -8,9 +9,18 @@ import { buildSearchText } from '../lib/viSearch.ts';
 import {
   assertParentListCompatible,
   deriveTaskLinks,
+  resolveAssignee,
   type EntityLinks,
 } from '../lib/entityRelations.ts';
-import { createCard, moveCard, reloadCard, resolveDefaultList } from '../services/cardService.ts';
+import {
+  addDependency,
+  createCard,
+  listDependencies,
+  moveCard,
+  reloadCard,
+  resolveDefaultList,
+  setCardStatus,
+} from '../services/cardService.ts';
 
 const router = Router();
 
@@ -27,6 +37,7 @@ type CardRow = {
   title: string;
   description: string;
   is_done: number;
+  status: CardStatus;
 };
 
 router.post('/', (req, res) => {
@@ -58,20 +69,33 @@ router.get('/context', (req, res) => {
   };
   const links = deriveTaskLinks(db, requested);
   const customerId = links.customer_id ?? null;
+  /*
+   * `project_id` khong phai lien ket cua the (v19) — no chi thu hep noi tha viec.
+   * Mo form tu trang mot du an thi chi nhung bang cua du an do moi la lua chon
+   * hop ly; bay ca bang khac ra la moi nguoi dung tha viec ra ngoai du an.
+   */
+  const projectId = numeric(req.query.project_id);
 
   const boards = db
     .prepare(
-      `SELECT b.id, b.name, b.customer_id FROM boards b
-        WHERE b.is_archived = 0
+      `SELECT b.id, b.name, b.customer_id, b.project_id FROM boards b
+        WHERE b.is_archived = 0 AND (? IS NULL OR b.project_id = ?)
         ORDER BY (? IS NOT NULL AND b.customer_id = ?) DESC, b.is_starred DESC, b.id`
     )
-    .all(customerId, customerId) as { id: number; name: string; customer_id: number | null }[];
+    .all(projectId, projectId, customerId, customerId) as {
+    id: number;
+    name: string;
+    customer_id: number | null;
+    project_id: number | null;
+  }[];
   const lists = db
     .prepare(
-      `SELECT l.id, l.name, l.board_id FROM lists l JOIN boards b ON b.id = l.board_id
-        WHERE b.is_archived = 0 ORDER BY l.board_id, l.position, l.id`
+      `SELECT l.id, l.name, l.board_id, l.status_mapping
+         FROM lists l JOIN boards b ON b.id = l.board_id
+        WHERE b.is_archived = 0 AND (? IS NULL OR b.project_id = ?)
+        ORDER BY l.board_id, l.position, l.id`
     )
-    .all();
+    .all(projectId, projectId);
 
   // Chi liet ke ung vien thuoc dung khach hang — chon nham khach hang khac se bi 422.
   const scoped = <T>(sql: string): T[] =>
@@ -90,7 +114,7 @@ router.get('/context', (req, res) => {
       contract_name: pick(`SELECT name FROM contracts WHERE id = ?`, links.contract_id, 'name'),
       quotation_code: pick(`SELECT code FROM quotations WHERE id = ?`, links.quotation_id, 'code'),
     },
-    suggested_list_id: resolveDefaultList(links),
+    suggested_list_id: resolveDefaultList(links, projectId),
     boards,
     lists,
     contacts: scoped(
@@ -142,8 +166,12 @@ router.get('/:id', (req, res) => {
   const subtasks = db
     .prepare(
       `SELECT k.id, k.title, k.priority, k.start_date, k.due_date, k.is_done, k.customer_id,
-              c.name AS customer_name
-         FROM cards k LEFT JOIN customers c ON c.id = k.customer_id
+              c.name AS customer_name, k.assignee_contact_id, ac.full_name AS assignee_name,
+              ao.org_kind AS assignee_org_kind
+         FROM cards k
+         LEFT JOIN customers c ON c.id = k.customer_id
+         LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+         LEFT JOIN customers ao ON ao.id = k.assignee_org_id
         WHERE k.parent_id = ? AND k.is_archived = 0
         ORDER BY k.is_done, k.position, k.id`
     )
@@ -172,6 +200,12 @@ router.get('/:id', (req, res) => {
       .all(id, boardId, boardId) as Record<string, unknown>[]
   ).map((row) => ({ ...row, options: parseOptions(row.options) }));
 
+  const dueChanges = db
+    .prepare(
+      `SELECT * FROM card_due_changes WHERE card_id = ? ORDER BY changed_at DESC, id DESC LIMIT 20`
+    )
+    .all(id);
+
   res.json({
     ...card,
     labels,
@@ -183,7 +217,27 @@ router.get('/:id', (req, res) => {
     parent,
     attachments,
     fields,
+    dependencies: listDependencies(id),
+    due_changes: dueChanges,
   });
+});
+
+/** Them mot phu thuoc finish-to-start. Chu trinh bi chan o addDependency. */
+router.post('/:id/dependencies', (req, res) => {
+  const successorId = intParam(req.params.id);
+  const body = parseBody(z.object({ predecessor_id: z.number().int().positive() }), req);
+  addDependency(body.predecessor_id, successorId);
+  res.status(201).json(listDependencies(successorId));
+});
+
+router.delete('/:id/dependencies/:predecessorId', (req, res) => {
+  const successorId = intParam(req.params.id);
+  const predecessorId = intParam(req.params.predecessorId, 'predecessorId');
+  db.prepare(`DELETE FROM card_dependencies WHERE predecessor_id = ? AND successor_id = ?`).run(
+    predecessorId,
+    successorId
+  );
+  res.json(listDependencies(successorId));
 });
 
 /** options luu duoi dang chuoi JSON — luon tra ve mang cho client. */
@@ -234,6 +288,20 @@ router.patch('/:id', (req, res) => {
       deal_id: z.number().int().nullable().optional(),
       contract_id: z.number().int().nullable().optional(),
       quotation_id: z.number().int().nullable().optional(),
+      /* Truc rieng — khong nam trong TASK_LINK_KEYS nen khong bi xoa khi doi khach hang. */
+      assignee_contact_id: z.number().int().nullable().optional(),
+      approver_contact_id: z.number().int().nullable().optional(),
+      /* Vong doi v16 — di qua setCardStatus, khong ghi thang xuong cot. */
+      status: z.enum(CARD_STATUSES).optional(),
+      blocked_reason: z.string().max(500).nullable().optional(),
+      recur_rule: z.string().max(200).nullable().optional(),
+      recur_until: dateOnly.optional(),
+      project_id: z.number().int().nullable().optional(),
+      /* Ly do doi han — ghi kem vao card_due_changes, khong luu tren the. */
+      due_reason: z.string().max(300).nullable().optional(),
+      estimate_hours: z.number().min(0).max(10_000).nullable().optional(),
+      spent_hours: z.number().min(0).max(10_000).nullable().optional(),
+      is_milestone: z.boolean().optional(),
       is_done: z.boolean().optional(),
       is_archived: z.boolean().optional(),
       list_id: z.number().int().optional(),
@@ -272,7 +340,31 @@ router.patch('/:id', (req, res) => {
   if (body.title !== undefined) set('title = ?', body.title);
   if (body.description !== undefined) set('description = ?', body.description);
   if (body.start_date !== undefined) set('start_date = ?', body.start_date);
-  if (body.due_date !== undefined) set('due_date = ?', body.due_date);
+  /*
+   * Doi han la thao tac phai de lai dau vet.
+   *
+   * `baseline_due_date` chot o LAN DAT DAU TIEN va khong bao gio ghi de: no la moc
+   * so sanh co dinh. Moi lan doi sau do ghi mot dong `card_due_changes` — nho vay
+   * "viec nay da bi doi han bon lan" tro thanh con so doc duoc, thay vi bien mat
+   * nhu truoc day.
+   */
+  if (body.due_date !== undefined) {
+    set('due_date = ?', body.due_date);
+    const currentDue = (card as CardRow & { due_date: string | null }).due_date;
+    if (currentDue !== body.due_date) {
+      if (currentDue === null) {
+        // Lan dat dau tien: dat baseline, khong tinh la mot lan truot.
+        set('baseline_due_date = ?', body.due_date);
+      } else {
+        db.prepare(
+          `INSERT INTO card_due_changes (card_id, old_due, new_due, reason) VALUES (?, ?, ?, ?)`
+        ).run(id, currentDue, body.due_date, body.due_reason ?? null);
+      }
+    }
+  }
+  if (body.estimate_hours !== undefined) set('estimate_hours = ?', body.estimate_hours);
+  if (body.spent_hours !== undefined) set('spent_hours = ?', body.spent_hours ?? 0);
+  if (body.is_milestone !== undefined) set('is_milestone = ?', body.is_milestone ? 1 : 0);
   if (body.priority !== undefined) set('priority = ?', body.priority);
   if (body.cover_color !== undefined) set('cover_color = ?', body.cover_color);
   if (body.is_archived !== undefined) set('is_archived = ?', body.is_archived ? 1 : 0);
@@ -296,6 +388,24 @@ router.patch('/:id', (req, res) => {
   if (linksTouched) {
     for (const key of TASK_LINK_KEYS) set(`${key} = ?`, derived[key] ?? null);
   }
+  /*
+   * Nguoi phu trach doi doc lap voi khoi lien ket tren: doi khach hang KHONG lam
+   * mat nguoi phu trach, vi viec ve khach hang moi van co the do dung nguoi do lam.
+   */
+  if (body.assignee_contact_id !== undefined) {
+    const assignee = resolveAssignee(db, body.assignee_contact_id);
+    set('assignee_contact_id = ?', assignee.assignee_contact_id);
+    set('assignee_org_id = ?', assignee.assignee_org_id);
+  }
+  if (body.approver_contact_id !== undefined) {
+    // Nguoi duyet cung dung resolveAssignee de chiu chung rang buoc "con hoat dong".
+    set(
+      'approver_contact_id = ?',
+      resolveAssignee(db, body.approver_contact_id).assignee_contact_id
+    );
+  }
+  if (body.recur_rule !== undefined) set('recur_rule = ?', body.recur_rule);
+  if (body.recur_until !== undefined) set('recur_until = ?', body.recur_until);
   if (body.list_id !== undefined) {
     required(
       db.prepare(`SELECT id FROM lists WHERE id = ?`).get(body.list_id),
@@ -303,12 +413,13 @@ router.patch('/:id', (req, res) => {
     );
     assertParentListCompatible(db, id, body.list_id);
     set('list_id = ?', body.list_id);
-  }
-  if (body.is_done !== undefined) {
-    set('is_done = ?', body.is_done ? 1 : 0);
-    fields.push(
-      body.is_done ? `completed_at = datetime('now','localtime')` : `completed_at = NULL`
-    );
+    /*
+     * Doi danh sach co the doi ca du an — nhung khong con gi phai ghi: du an suy
+     * thang tu bang chua danh sach moi lan doc (v19).
+     *
+     * Trang thai thi khac: cot dich co the khai bao mot trang thai, va dieu do
+     * duoc xu ly o duoi cung voi cac loi vao trang thai khac.
+     */
   }
   if (body.title !== undefined || body.description !== undefined) {
     set(
@@ -321,6 +432,39 @@ router.patch('/:id', (req, res) => {
     fields.push(`updated_at = datetime('now','localtime')`);
     db.prepare(`UPDATE cards SET ${fields.join(', ')} WHERE id = ?`).run(...values, id);
   }
+
+  /*
+   * Trang thai di qua setCardStatus, KHONG qua khoi `fields` o tren.
+   *
+   * `is_done` va `status` phai luon dong bo, va viec lap lai / moc bi chan chi
+   * duoc tinh dung khi co mot noi biet ca trang thai cu lan moi. Chay sau UPDATE
+   * chinh de ban sao sinh boi viec lap lai mang ngay thang vua sua.
+   *
+   * `is_done` van nhan duoc de khong pha cac lo goi cu (checkbox tren bang tinh,
+   * thao tac hang loat) — no chi la loi tat cua hai trang thai dau va cuoi.
+   */
+  if (body.status !== undefined) {
+    setCardStatus(id, body.status, { blockedReason: body.blocked_reason ?? null });
+  } else if (body.is_done !== undefined && body.is_done !== Boolean(card.is_done)) {
+    /* Chi doi khi gia tri THUC SU khac: `is_done: false` gui len mot the dang
+       'doing' khong duoc lam no tut ve 'todo'. */
+    setCardStatus(id, body.is_done ? 'done' : 'todo');
+  } else if (body.blocked_reason !== undefined && card.status === 'blocked') {
+    setCardStatus(id, 'blocked', { blockedReason: body.blocked_reason });
+  } else if (body.list_id !== undefined) {
+    /*
+     * Doi danh sach ma khong noi ro trang thai: cot dich quyet dinh (v19).
+     *
+     * `moveToMappedList: false` vi the DA nam o cot dich sau UPDATE o tren —
+     * cung ly do voi moveCard.
+     */
+    const mapped = db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(body.list_id) as
+      { status_mapping: CardStatus | null } | undefined;
+    if (mapped?.status_mapping) {
+      setCardStatus(id, mapped.status_mapping, { moveToMappedList: false });
+    }
+  }
+
   res.json(reloadCard(id));
 });
 

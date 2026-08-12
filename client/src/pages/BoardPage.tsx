@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { Building2, Filter, MoreHorizontal, SlidersHorizontal, Star } from 'lucide-react';
+import {
+  Building2,
+  Filter,
+  FolderKanban,
+  MoreHorizontal,
+  SlidersHorizontal,
+  Star,
+} from 'lucide-react';
 import { api, qs } from '../api/client';
 import { BoardView } from '../components/kanban/BoardView';
 import { BoardMenu } from '../components/kanban/BoardMenu';
@@ -152,6 +159,18 @@ export default function BoardPage() {
             color={board.is_starred ? '#f2d600' : 'currentColor'}
           />
         </button>
+
+        {/* Bảng thuộc dự án nào là thông tin quyết định: từ v19 nó cũng quyết
+            định luôn dự án của mọi công việc bên trong. */}
+        {board.project_name && (
+          <Link
+            to={`/projects/${board.project_id}`}
+            className="tr-header-btn hidden max-w-44 truncate md:inline-flex"
+            title="Bảng này thuộc dự án — mọi công việc bên trong cũng vậy"
+          >
+            <FolderKanban size={14} /> {board.project_name}
+          </Link>
+        )}
 
         {board.customer_name && (
           <Link

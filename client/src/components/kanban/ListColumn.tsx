@@ -7,6 +7,7 @@ import {
   ArrowDownWideNarrow,
   CalendarClock,
   ChevronsLeftRight,
+  CircleDot,
   Clock3,
   Copy,
   MoreHorizontal,
@@ -20,7 +21,9 @@ import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Button, focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
-import type { Card, Label, List } from '../../types';
+import { CARD_STATUS_TEXT, CARD_STATUS_TONE } from '../tasks/CardStatusControl';
+import { CARD_STATUSES } from '@workflow/contracts';
+import type { Card, CardStatus, Label, List } from '../../types';
 
 export type SortBy = 'created_desc' | 'created_asc' | 'due' | 'title' | 'priority';
 
@@ -36,6 +39,8 @@ interface Props {
   onCopyList: (listId: number) => void;
   onSortList: (listId: number, by: SortBy) => void;
   onCollapseList: (listId: number, collapsed: boolean) => void;
+  /** Khai báo cột này nghĩa là trạng thái nào (v19); `null` = không mang nghĩa. */
+  onMapStatus: (listId: number, status: CardStatus | null) => void;
 }
 
 export const ListColumn = memo(function ListColumn({
@@ -50,6 +55,7 @@ export const ListColumn = memo(function ListColumn({
   onCopyList,
   onSortList,
   onCollapseList,
+  onMapStatus,
 }: Props) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
@@ -57,6 +63,7 @@ export const ListColumn = memo(function ListColumn({
   const [nameDraft, setNameDraft] = useState(list.name);
   const menu = usePopover();
   const [sortMenu, setSortMenu] = useState(false);
+  const [statusMenu, setStatusMenu] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
@@ -176,6 +183,19 @@ export const ListColumn = memo(function ListColumn({
               <span className="ml-1.5 text-xs font-normal text-tr-muted">
                 {hiddenCount > 0 ? `${cards.length}/${cards.length + hiddenCount}` : cards.length}
               </span>
+              {/* Cột mang nghĩa vòng đời thì nói ra — nếu không, người dùng không
+                  có cách nào biết vì sao kéo thẻ vào đây lại đổi trạng thái.
+
+                  Nền ĐỤC (`bg-tr-panel`) chứ không dùng nền bán trong suốt của
+                  `CARD_STATUS_TONE`: tiêu đề cột nằm trên màu nền bảng do người
+                  dùng chọn, và nền trong suốt làm tương phản tụt dưới ngưỡng AA. */}
+              {list.status_mapping && (
+                <span
+                  className={`ml-1.5 inline-flex items-center rounded-full bg-tr-panel px-1.5 py-0.5 text-[11px] font-medium ${CARD_STATUS_TEXT[list.status_mapping]}`}
+                >
+                  {t.cardStatus[list.status_mapping]}
+                </span>
+              )}
             </button>
           )}
           <button
@@ -278,7 +298,7 @@ export const ListColumn = memo(function ListColumn({
       </div>
 
       <Popover
-        open={menu.open && !sortMenu}
+        open={menu.open && !sortMenu && !statusMenu}
         anchor={menu.anchor}
         onClose={menu.close}
         title="Thao tác với danh sách"
@@ -297,6 +317,9 @@ export const ListColumn = memo(function ListColumn({
         </PopoverItem>
         <PopoverItem icon={<ArrowDownWideNarrow size={15} />} onClick={() => setSortMenu(true)}>
           Sắp xếp thẻ…
+        </PopoverItem>
+        <PopoverItem icon={<CircleDot size={15} />} onClick={() => setStatusMenu(true)}>
+          Cột này nghĩa là…
         </PopoverItem>
         <PopoverItem
           icon={<ChevronsLeftRight size={15} />}
@@ -342,6 +365,53 @@ export const ListColumn = memo(function ListColumn({
             {label}
           </PopoverItem>
         ))}
+      </Popover>
+
+      {/*
+        Khai báo nghĩa vòng đời của cột (v19).
+
+        Trước đây bốn cột mặc định trùng tên với bốn trạng thái nhưng không liên
+        hệ gì với nhau. Ánh xạ ở đây là chỗ duy nhất nối hai bên lại; để trống thì
+        cột chỉ là nơi xếp thẻ, kéo vào không đụng trạng thái.
+      */}
+      <Popover
+        open={menu.open && statusMenu}
+        anchor={menu.anchor}
+        onClose={() => (setStatusMenu(false), menu.close())}
+        onBack={() => setStatusMenu(false)}
+        title="Cột này nghĩa là"
+      >
+        <p className="mb-1.5 px-1 text-xs text-tr-muted">
+          Kéo thẻ vào cột sẽ đặt trạng thái này, và đổi trạng thái sẽ kéo thẻ về đây.
+        </p>
+        {CARD_STATUSES.map((status) => (
+          <PopoverItem
+            key={status}
+            icon={
+              <span className={`h-3 w-3 rounded-full ${CARD_STATUS_TONE[status]}`} aria-hidden />
+            }
+            onClick={() => {
+              onMapStatus(list.id, status);
+              setStatusMenu(false);
+              menu.close();
+            }}
+          >
+            <span className={list.status_mapping === status ? 'font-semibold text-tr-text' : ''}>
+              {t.cardStatus[status]}
+            </span>
+          </PopoverItem>
+        ))}
+        <div className="my-2 border-t border-tr-border" />
+        <PopoverItem
+          icon={<CircleDot size={15} />}
+          onClick={() => {
+            onMapStatus(list.id, null);
+            setStatusMenu(false);
+            menu.close();
+          }}
+        >
+          Không mang nghĩa vòng đời
+        </PopoverItem>
       </Popover>
     </>
   );

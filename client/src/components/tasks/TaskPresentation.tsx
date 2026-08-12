@@ -32,14 +32,14 @@ export function normalizeTaskText(value: string): string {
     .toLocaleLowerCase('vi');
 }
 
-export function isReviewStatus(value: string): boolean {
-  const normalized = normalizeTaskText(value);
-  return (
-    normalized.includes('cho duyet') ||
-    normalized.includes('review') ||
-    normalized.includes('phe duyet')
-  );
-}
+/*
+ * `isReviewStatus()` và `statusClasses()` đã bị xóa ở v19.
+ *
+ * Cả hai đoán trạng thái công việc từ *tên cột* — một nguồn sự thật thứ hai bên
+ * cạnh `cards.status`, và luôn sai với bảng đặt tên cột theo cách khác. Nay cột
+ * tự khai báo nó nghĩa là gì (`lists.status_mapping`), nên trạng thái đọc thẳng
+ * từ `card.status` và không còn gì để đoán.
+ */
 
 const priorityClasses: Record<Priority, string> = {
   urgent: 'border-priority-urgent/35 bg-priority-urgent/15 text-priority-urgent',
@@ -76,23 +76,13 @@ export function PrioritySelect({
   );
 }
 
-function statusClasses(name: string, isDone: boolean): string {
-  const normalized = normalizeTaskText(name);
-  if (isDone || normalized.includes('hoan thanh') || normalized.includes('done')) {
-    return 'border-tr-success/35 bg-tr-success/15 text-tr-success';
-  }
-  if (normalized.includes('chan') || normalized.includes('block')) {
-    return 'border-tr-danger/35 bg-tr-danger/15 text-tr-danger';
-  }
-  if (isReviewStatus(name) || normalized.includes('cho')) {
-    return 'border-tr-warning/35 bg-tr-warning/15 text-tr-warning';
-  }
-  if (normalized.includes('dang') || normalized.includes('progress')) {
-    return 'border-tr-primary/35 bg-tr-primary/15 text-tr-primary';
-  }
-  return 'border-tr-border bg-tr-hover text-tr-subtle';
-}
-
+/**
+ * Ô chọn **danh sách** (cột Kanban) của một công việc.
+ *
+ * Trước v19 ô này mang nhãn "Trạng thái" và tự đoán màu từ *tên cột* — một
+ * nguồn sự thật thứ hai bên cạnh `cards.status`. Nay nó đúng nghĩa là chọn cột;
+ * cột nào khai báo ánh xạ thì đổi cột kéo theo trạng thái, và máy chủ lo việc đó.
+ */
 export function StatusSelect({
   task,
   lists,
@@ -100,7 +90,7 @@ export function StatusSelect({
   disabled,
 }: {
   task: TaskRow;
-  lists: Pick<List, 'id' | 'name'>[];
+  lists: Pick<List, 'id' | 'name' | 'status_mapping'>[];
   onChange: (listId: number) => void;
   disabled?: boolean;
 }) {
@@ -109,9 +99,9 @@ export function StatusSelect({
       value={task.list_id}
       disabled={disabled || lists.length === 0}
       onChange={(event) => onChange(Number(event.target.value))}
-      aria-label={`Trạng thái: ${task.title}`}
+      aria-label={`Danh sách: ${task.title}`}
       title={`${task.board_name} · ${task.list_name}`}
-      className={`h-6 max-w-36 cursor-pointer rounded-full border px-2 text-2xs font-semibold outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-default disabled:opacity-80 ${statusClasses(task.list_name, Boolean(task.is_done))}`}
+      className={`h-6 max-w-36 cursor-pointer rounded-full border border-tr-border bg-tr-hover px-2 text-2xs font-medium text-tr-subtle outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-default disabled:opacity-80`}
     >
       {lists.length === 0 && <option value={task.list_id}>{task.list_name}</option>}
       {lists.map((list) => (

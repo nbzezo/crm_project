@@ -24,7 +24,8 @@ import {
 } from '../tasks/TaskPresentation';
 import { OPEN_STAGES, STAGE_COLORS, t } from '../../i18n/vi';
 import { formatDate, formatDateShort, formatVNDShort } from '../../lib/format';
-import type { Interaction, Reminder, Stage, TaskRow } from '../../types';
+import { AssigneeChip } from '../tasks/AssigneePicker';
+import type { Interaction, OrgKind, Reminder, Stage, TaskRow } from '../../types';
 
 export interface AttentionDeal {
   id: number;
@@ -51,6 +52,18 @@ export interface ExpiringContract {
   renewal_followed: number;
 }
 
+export interface WorkloadRow {
+  assignee_contact_id: number | null;
+  assignee_name: string | null;
+  assignee_org_id: number | null;
+  assignee_org_name: string | null;
+  assignee_org_kind: OrgKind | null;
+  is_me: number | null;
+  open_count: number;
+  overdue_count: number;
+  due_week_count: number;
+}
+
 export interface DashboardData {
   kpi: {
     open_opportunity_count: number;
@@ -63,6 +76,8 @@ export interface DashboardData {
   };
   task_counts: { overdue: number; today: number; tomorrow: number; week: number; open: number };
   tasks: { overdue: TaskRow[]; today: TaskRow[]; tomorrow: TaskRow[]; next7: TaskRow[] };
+  /** Việc đang mở gom theo người phụ trách; dòng `assignee_contact_id = null` là chưa giao. */
+  workload: WorkloadRow[];
   pipeline_totals: Record<Stage, { count: number; sum_vnd: number; weighted_vnd: number }>;
   attention: {
     close_overdue: AttentionDeal[];
@@ -968,6 +983,86 @@ function contractCountdown(daysLeft: number): string {
   if (daysLeft < 0) return `Quá hạn ${Math.abs(daysLeft)} ngày`;
   if (daysLeft === 0) return 'Hết hạn hôm nay';
   return `Còn ${daysLeft} ngày`;
+}
+
+/**
+ * Việc đang mở nằm ở ai — sắp theo số việc quá hạn giảm dần, nên dòng đầu tiên
+ * luôn là người cần nhắc trước.
+ *
+ * Dòng "Chưa giao" cố ý không bị lọc bỏ: một việc không có ai chịu trách nhiệm là
+ * rủi ro lớn hơn một việc trễ hạn có người theo.
+ */
+export function WorkloadWidget({
+  data,
+  onSelectAssignee,
+}: {
+  data: DashboardData;
+  onSelectAssignee: (assignee: number | 'none') => void;
+}) {
+  const rows = data.workload ?? [];
+  const totalOpen = rows.reduce((sum, row) => sum + row.open_count, 0);
+
+  return (
+    <Panel
+      title="Việc theo người phụ trách"
+      className="h-full"
+      action={
+        <Link
+          to="/tasks"
+          className={`inline-flex items-center gap-1 text-xs font-medium text-tr-primary hover:underline ${focusRing}`}
+        >
+          Xem tất cả <ChevronRight size={13} aria-hidden="true" />
+        </Link>
+      }
+    >
+      {rows.length === 0 ? (
+        <CompactSuccess message="Không có việc nào đang mở." />
+      ) : (
+        <ul className="space-y-1">
+          {rows.slice(0, 6).map((row) => (
+            <li key={row.assignee_contact_id ?? 'unassigned'}>
+              <button
+                type="button"
+                onClick={() => onSelectAssignee(row.assignee_contact_id ?? 'none')}
+                aria-label={`${row.assignee_name ?? t.card.unassigned}: ${row.open_count} việc đang mở, ${row.overdue_count} quá hạn`}
+                className={`group flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover ${focusRing}`}
+              >
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {row.assignee_name ? (
+                    <AssigneeChip
+                      name={row.assignee_name}
+                      orgKind={row.assignee_org_kind}
+                      orgName={row.assignee_org_name}
+                    />
+                  ) : (
+                    <span className="text-tr-muted italic">{t.card.unassigned}</span>
+                  )}
+                </span>
+                {row.overdue_count > 0 && (
+                  <span className="shrink-0 rounded-full bg-tr-danger/15 px-2 py-0.5 text-2xs font-semibold text-tr-danger">
+                    {row.overdue_count} quá hạn
+                  </span>
+                )}
+                {row.due_week_count > 0 && (
+                  <span className="shrink-0 rounded-full bg-tr-warning/15 px-2 py-0.5 text-2xs font-medium text-tr-warning">
+                    {row.due_week_count} tuần này
+                  </span>
+                )}
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-tr-text">
+                  {row.open_count}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {rows.length > 6 && (
+        <p className="mt-2 text-xs text-tr-muted">
+          Còn {rows.length - 6} người khác · tổng {totalOpen} việc đang mở.
+        </p>
+      )}
+    </Panel>
+  );
 }
 
 export function ContractsWidget({ data }: { data: DashboardData }) {

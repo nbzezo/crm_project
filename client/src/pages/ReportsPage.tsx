@@ -35,11 +35,28 @@ import {
   todayStr,
 } from '../lib/format';
 import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
-import type { Factor, InteractionType, Priority, Quadrant, Stage } from '../types';
+import { AssigneeChip } from '../components/tasks/AssigneePicker';
+import type { Factor, InteractionType, OrgKind, Priority, Quadrant, Stage } from '../types';
 
 interface ReportsData {
   from: string;
   to: string;
+  /** Thông lượng và khối lượng theo người phụ trách (v18). */
+  by_assignee: {
+    contact_id: number | null;
+    assignee_name: string | null;
+    org_name: string | null;
+    org_kind: OrgKind | null;
+    completed: number;
+    open_count: number;
+    overdue_count: number;
+    due_week_count: number;
+    week_hours: number;
+    /** Bao nhiêu việc đang mở đã có ước lượng — để biết `week_hours` đủ hay thiếu. */
+    estimated_count: number;
+  }[];
+  /** Phân bố số lần dời hạn; đuôi càng dài thì kế hoạch càng không đáng tin. */
+  slip_distribution: { slips: number; task_count: number }[];
   completed_by_week: { week_start: string; count: number }[];
   open_by_priority: { priority: Priority; count: number }[];
   pipeline_by_stage: { stage: Stage; count: number; sum_vnd: number }[];
@@ -121,6 +138,12 @@ export default function ReportsPage() {
     count: row.count,
   }));
 
+  const assigneeRows = data.by_assignee ?? [];
+  const slipRows = (data.slip_distribution ?? [])
+    // 0 lần dời là trạng thái bình thường — bày nó lên biểu đồ chỉ làm át phần đuôi.
+    .filter((row) => row.slips > 0)
+    .map((row) => ({ name: `${row.slips} lần`, count: row.task_count }));
+
   const monthData = data.won_by_month.map((row) => ({
     name: formatMonth(row.month),
     sum_vnd: row.sum_vnd,
@@ -194,6 +217,111 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Ai đang gánh gì — đặt đầu tiên vì đây là câu hỏi hay được hỏi nhất khi
+            mở trang Báo cáo với mục đích quản lý tiến độ, chứ không phải bán hàng. */}
+        <Panel title="Công việc theo người phụ trách" className="lg:col-span-2">
+          {assigneeRows.length === 0 ? (
+            <NoData />
+          ) : (
+            <div className="tr-scroll overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <caption className="sr-only">
+                  Thông lượng và khối lượng theo người phụ trách
+                </caption>
+                <thead className="text-left text-2xs tracking-wide text-tr-subtle uppercase">
+                  <tr>
+                    <th scope="col" className="px-2 py-1.5">
+                      Người phụ trách
+                    </th>
+                    <th scope="col" className="px-2 py-1.5">
+                      Tổ chức
+                    </th>
+                    <th scope="col" className="px-2 py-1.5 text-right">
+                      Hoàn thành kỳ này
+                    </th>
+                    <th scope="col" className="px-2 py-1.5 text-right">
+                      Đang mở
+                    </th>
+                    <th scope="col" className="px-2 py-1.5 text-right">
+                      Quá hạn
+                    </th>
+                    <th scope="col" className="px-2 py-1.5 text-right">
+                      Tuần này
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-tr-border">
+                  {assigneeRows.map((row) => (
+                    <tr key={row.contact_id ?? 'unassigned'}>
+                      <td className="px-2 py-1.5">
+                        {row.assignee_name ? (
+                          <AssigneeChip name={row.assignee_name} orgKind={row.org_kind} />
+                        ) : (
+                          <span className="text-tr-danger italic">{t.card.unassigned}</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 text-tr-muted">{row.org_name ?? '—'}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-tr-text">
+                        {row.completed}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-tr-subtle">
+                        {row.open_count}
+                      </td>
+                      <td
+                        className={`px-2 py-1.5 text-right tabular-nums ${row.overdue_count > 0 ? 'font-semibold text-tr-danger' : 'text-tr-muted'}`}
+                      >
+                        {row.overdue_count}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-tr-subtle">
+                        {row.due_week_count}
+                        {/* Chỉ hiện số giờ khi MỌI việc tuần này đều đã ước lượng —
+                            một tổng cộng dồn từ dữ liệu thiếu là một tổng sai. */}
+                        {row.week_hours > 0 && (
+                          <span className="ml-1 text-2xs text-tr-muted">
+                            (
+                            {row.estimated_count < row.due_week_count
+                              ? `≥ ${row.week_hours}h`
+                              : `${row.week_hours}h`}
+                            )
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Số lần dời hạn">
+          {slipRows.length === 0 ? (
+            <NoData />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={slipRows} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid vertical={false} stroke={CHART_INK.grid} />
+                <XAxis dataKey="name" {...AXIS_PROPS} />
+                <YAxis allowDecimals={false} {...AXIS_PROPS} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(11,11,11,0.04)' }}
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(value) => [`${value} công việc`, 'Số lượng']}
+                />
+                <Bar dataKey="count" fill={CHART_PRIMARY} radius={[4, 4, 0, 0]} maxBarSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          <p className="mt-1 text-xs text-tr-muted">
+            Đuôi bên phải càng dài thì kế hoạch càng ít đáng tin — mỗi cột là số công việc đã dời
+            hạn bấy nhiêu lần.
+          </p>
+          <ChartSrData
+            caption="Số lần dời hạn"
+            rows={slipRows.map((row) => ({ name: row.name, value: `${row.count} công việc` }))}
+          />
+        </Panel>
+
         <Panel title={t.reports.completedByWeek}>
           {weekData.length === 0 ? (
             <NoData />

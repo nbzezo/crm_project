@@ -180,6 +180,53 @@ db.transaction(() => {
     ),
   ];
 
+  /* ---- To chuc cua chinh minh + nhan su noi bo (v15) ----
+     `customers` la so danh ba to chuc chung; org_kind = 'own' nam ngoai pipeline,
+     doanh thu va bao cao CRM (routes/customers.ts loc theo cot nay). */
+  const ownOrgId = Number(
+    db
+      .prepare(
+        `INSERT INTO customers (name, short_name, status, org_kind, notes, search_text)
+         VALUES (?, ?, 'customer', 'own', '', ?)`
+      )
+      .run('Công ty của tôi', 'Nội bộ', buildSearchText('Công ty của tôi', 'Nội bộ'))
+      .lastInsertRowid
+  );
+  const insertStaff = db.prepare(
+    `INSERT INTO contacts (customer_id, full_name, title, department, phone, email, zalo,
+                           is_primary, is_me, is_active, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, '')`
+  );
+  const staffIds = [
+    // is_me = 1: dinh nghia bo loc "Viec cua toi". Duy nhat toan bo so danh ba.
+    Number(
+      insertStaff.run(
+        ownOrgId,
+        'Dương Anh Tuấn',
+        'Quản lý dự án',
+        'Ban điều hành',
+        '0901 000 111',
+        'tuan@congtytoi.vn',
+        '0901000111',
+        1,
+        1
+      ).lastInsertRowid
+    ),
+    Number(
+      insertStaff.run(
+        ownOrgId,
+        'Vũ Minh Khoa',
+        'Kỹ sư triển khai',
+        'Kỹ thuật',
+        '0902 000 222',
+        'khoa@congtytoi.vn',
+        '0902000222',
+        0,
+        0
+      ).lastInsertRowid
+    ),
+  ];
+
   /* ---- Co hoi ban hang ---- */
   const insertDeal = db.prepare(
     `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
@@ -385,21 +432,44 @@ db.transaction(() => {
 
   /* ---- Bang cong viec ---- */
   const insertBoard = db.prepare(`INSERT INTO boards (name, color, customer_id) VALUES (?, ?, ?)`);
-  const insertList = db.prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`);
+  const insertList = db.prepare(
+    `INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`
+  );
   const insertCard = db.prepare(
-    `INSERT INTO cards (list_id, title, description, position, start_date, due_date, priority, customer_id, deal_id, is_done, completed_at, search_text)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    /* `status` phai suy tu `is_done` NGAY TAI CHO GHI.
+       Seed chay SAU migration nen cau `UPDATE ... WHERE is_done = 1` cua v16 da
+       di qua tu lau — de mac dinh 'todo' thi the da xong van mang status 'todo',
+       pha vo bat bien is_done = 1 <=> status = 'done'. */
+    `INSERT INTO cards (list_id, title, description, position, start_date, due_date, priority,
+                        customer_id, deal_id, is_done, status, completed_at, search_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN 'done' ELSE 'todo' END, ?, ?)`
   );
 
+  /*
+   * Cot mac dinh kem NGHIA vong doi cua chung (v19) — phai khop voi DEFAULT_LISTS
+   * trong routes/boards.ts. Seed chen thang SQL nen khong di qua duong tao bang
+   * cua API; quen anh xa o day thi du lieu mau sinh ra da co san cai lech ma v19
+   * xoa bo: keo the sang cot "Hoan thanh" ma trang thai khong doi.
+   */
+  const DEFAULT_LISTS: [string, string][] = [
+    ['Cần làm', 'todo'],
+    ['Đang làm', 'doing'],
+    ['Chờ duyệt', 'review'],
+    ['Hoàn thành', 'done'],
+  ];
   const makeBoard = (name: string, color: string, customerId: number | null) => {
     const boardId = Number(insertBoard.run(name, color, customerId).lastInsertRowid);
-    const listIds = ['Cần làm', 'Đang làm', 'Chờ duyệt', 'Hoàn thành'].map((listName, i) =>
-      Number(insertList.run(boardId, listName, (i + 1) * 1024).lastInsertRowid)
+    const listIds = DEFAULT_LISTS.map(([listName, status], i) =>
+      Number(insertList.run(boardId, listName, (i + 1) * 1024, status).lastInsertRowid)
     );
     return { boardId, listIds };
   };
 
   const project = makeBoard('Dự án phần mềm Vĩnh Phát', '#0079bf', customerIds[0]);
+  /* Bang trien khai that co hai cot nay. Chung cung la vi du cho cot ngoai bo mac
+     dinh van khai bao duoc nghia vong doi — thu ma bon cot mac dinh khong the hien. */
+  insertList.run(project.boardId, 'Chờ phản hồi', 5 * 1024, 'waiting_customer');
+  insertList.run(project.boardId, 'Vướng mắc', 6 * 1024, 'blocked');
   const sales = makeBoard('Hoạt động bán hàng', '#519839', null);
   const personal = makeBoard('Việc cá nhân', '#89609e', null);
 
@@ -566,6 +636,8 @@ db.transaction(() => {
         c.customerId ?? null,
         c.dealId ?? null,
         c.done ? 1 : 0,
+        // Lap lai cho nhanh CASE tinh `status` — xem chu thich o cau INSERT.
+        c.done ? 1 : 0,
         c.done ? `${dayOffset(c.completedDays ?? 0)} 10:00:00` : null,
         buildSearchText(c.title, c.description)
       ).lastInsertRowid
@@ -575,8 +647,11 @@ db.transaction(() => {
 
   /* ---- Viec con (mot cap) ---- */
   const insertSubtask = db.prepare(
-    `INSERT INTO cards (list_id, parent_id, title, position, priority, due_date, customer_id, is_done, search_text)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    // `status` suy tu `is_done` ngay tai cho ghi — cung ly do voi insertCard.
+    `INSERT INTO cards (list_id, parent_id, title, position, priority, due_date, customer_id,
+                        is_done, status, completed_at, search_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN 'done' ELSE 'todo' END,
+             CASE WHEN ? = 1 THEN datetime('now','localtime') END, ?)`
   );
   const parentCardId = cardIds[0];
   const parentList = db
@@ -598,6 +673,8 @@ db.transaction(() => {
       priority as string,
       due as string,
       parentList.customer_id,
+      done as number,
+      done as number,
       done as number,
       buildSearchText(title as string)
     )
@@ -738,8 +815,139 @@ db.transaction(() => {
   ];
   void contractIds;
 
+  /* ---- Giao viec (v15) ----
+     Chia luan phien giua hai nhan su noi bo va hai nguoi ben khach hang, va co y
+     de mot phan cong viec CHUA GIAO — man Tong quan phai co du lieu that de cho
+     thay dong "Chua giao", thu de bo sot nhat trong quan ly tien do. */
+  const assignPool = [staffIds[0], staffIds[1], contactIds[0], null, staffIds[0], contactIds[2]];
+  const assignCard = db.prepare(
+    `UPDATE cards SET assignee_contact_id = ?,
+            assignee_org_id = (SELECT customer_id FROM contacts WHERE id = ?)
+      WHERE id = ?`
+  );
+  const allCardIds = db.prepare(`SELECT id FROM cards ORDER BY id`).all() as { id: number }[];
+  allCardIds.forEach((row, index) => {
+    const contact = assignPool[index % assignPool.length];
+    if (contact != null) assignCard.run(contact, contact, row.id);
+  });
+
+  /* ---- Du an (v17) + vong doi trang thai (v16) ----
+     Mot du an that co ca viec dang lam lan viec dang bi chan; neu seed chi co
+     viec 'todo' thi khong the thay man Can nhac va suc khoe du an lam gi. */
+  const projectId = Number(
+    db
+      .prepare(
+        `INSERT INTO projects (name, code, customer_id, owner_contact_id, status,
+                               plan_start, plan_end, budget_vnd, notes, search_text)
+         VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`
+      )
+      .run(
+        'Triển khai hệ thống Vĩnh Phát',
+        'DA-2025-01',
+        customerIds[0],
+        staffIds[0],
+        dayOffset(-30),
+        dayOffset(45),
+        450_000_000,
+        'Dự án mẫu để xem sức khỏe và tiến độ.',
+        buildSearchText('Triển khai hệ thống Vĩnh Phát', 'DA-2025-01')
+      ).lastInsertRowid
+  );
+
+  /* Gan bang dau tien vao du an — moi the trong bang tu dong thuoc du an do,
+     khong phai cap nhat gi them: du an suy tu bang moi lan doc (v19). */
+  const firstBoardId = (
+    db.prepare(`SELECT id FROM boards ORDER BY id LIMIT 1`).get() as {
+      id: number;
+    }
+  ).id;
+  db.prepare(`UPDATE boards SET project_id = ? WHERE id = ?`).run(projectId, firstBoardId);
+
+  /* Trai vong doi tren cac the dang mo de moi man hinh deu co du lieu that:
+     'doing' cho tien do, 'waiting_customer' + 'blocked' cho man Can nhac. */
+  const openCards = db
+    .prepare(`SELECT id FROM cards WHERE is_done = 0 ORDER BY id LIMIT 6`)
+    .all() as { id: number }[];
+  const lifecycle = ['doing', 'doing', 'waiting_customer', 'blocked', 'review', 'todo'];
+  /*
+   * Dat status VA keo the sang cot mang dung nghia do (v19).
+   *
+   * Seed ghi thang SQL nen khong di qua setCardStatus — phai tu lam not phan
+   * chuyen cot, neu khong du lieu mau sinh ra da lech san dung cai lech ma v19
+   * xoa bo. 'blocked' va 'waiting_customer' khong co cot mac dinh nao: the giu
+   * nguyen cho, va do la dung — trang thai la nguon su that, cot chi la mot lat
+   * cat khong phai luc nao cung co o cho no.
+   */
+  openCards.forEach((row, index) => {
+    const status = lifecycle[index];
+    db.prepare(
+      `UPDATE cards SET status = ?,
+              blocked_reason = CASE WHEN ? = 'blocked' THEN 'Chờ khách cấp tài khoản VPN' END,
+              blocked_since = CASE WHEN ? = 'blocked' THEN datetime('now','localtime','-4 days') END
+        WHERE id = ?`
+    ).run(status, status, status, row.id);
+    db.prepare(
+      `UPDATE cards SET list_id = COALESCE(
+         (SELECT l.id FROM lists l
+            JOIN lists cur ON cur.id = cards.list_id
+           WHERE l.board_id = cur.board_id AND l.status_mapping = ?
+           ORDER BY l.position LIMIT 1), list_id)
+        WHERE id = ?`
+    ).run(status, row.id);
+  });
+
+  /* Truot han (v18): mot the da bi doi han hai lan — de bo dem "da doi han N lan"
+     tren man Can nhac va bieu do phan bo co du lieu that. */
+  if (openCards.length > 0) {
+    const slipped = openCards[0].id;
+    db.prepare(`UPDATE cards SET baseline_due_date = ?, due_date = ? WHERE id = ?`).run(
+      dayOffset(-10),
+      dayOffset(4),
+      slipped
+    );
+    const insertSlip = db.prepare(
+      `INSERT INTO card_due_changes (card_id, old_due, new_due, reason) VALUES (?, ?, ?, ?)`
+    );
+    insertSlip.run(slipped, dayOffset(-10), dayOffset(-3), 'Khách chưa duyệt yêu cầu');
+    insertSlip.run(slipped, dayOffset(-3), dayOffset(4), 'Thiếu dữ liệu đầu vào');
+  }
+  // Phu thuoc: viec thu hai phai doi viec dau tien xong.
+  if (openCards.length > 1) {
+    db.prepare(
+      `INSERT OR IGNORE INTO card_dependencies (predecessor_id, successor_id) VALUES (?, ?)`
+    ).run(openCards[0].id, openCards[1].id);
+    db.prepare(`UPDATE cards SET estimate_hours = 8 WHERE id = ?`).run(openCards[1].id);
+  }
+
+  /*
+   * Luot chuan hoa cuoi (v19): cot va trang thai phai khop nhau.
+   *
+   * Seed dat cot bang tay va dat trang thai bang tay o hai cho khac nhau, nen
+   * ket qua co the lech — dung cai lech ma v19 sinh ra de xoa bo. Uu tien TRANG
+   * THAI: neu bang co cot mang dung trang thai do thi keo the sang; khong co thi
+   * moi lay nghia cua cot lam chuan.
+   */
+  db.prepare(
+    `UPDATE cards SET list_id = (
+       SELECT l.id FROM lists l
+         JOIN lists cur ON cur.id = cards.list_id
+        WHERE l.board_id = cur.board_id AND l.status_mapping = cards.status
+        ORDER BY l.position LIMIT 1)
+      WHERE EXISTS (
+        SELECT 1 FROM lists l JOIN lists cur ON cur.id = cards.list_id
+         WHERE l.board_id = cur.board_id AND l.status_mapping = cards.status)`
+  ).run();
+  db.prepare(
+    `UPDATE cards SET status = (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id),
+            is_done = CASE WHEN (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id)
+                                = 'done' THEN 1 ELSE 0 END
+      WHERE (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id) IS NOT NULL
+        AND (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id) <> status`
+  ).run();
+
   console.log(
-    '[seed] Da nap du lieu mau: 3 khach hang, 4 nguoi lien he, 6 co hoi, 3 bao gia, 2 hop dong, 3 bang, 16 the.'
+    '[seed] Da nap du lieu mau: 3 khach hang, 4 nguoi lien he, 1 to chuc noi bo + 2 nhan su, ' +
+      '1 du an, 6 co hoi, 3 bao gia, 2 hop dong, 3 bang, 16 the.'
   );
 })();
 

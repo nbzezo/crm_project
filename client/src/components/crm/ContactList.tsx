@@ -39,6 +39,8 @@ const EMPTY = {
   buying_role: '',
   relationship: '',
   is_primary: false,
+  is_me: false,
+  is_active: true,
   notes: '',
 };
 
@@ -74,13 +76,22 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
             buying_role: editing.buying_role ?? '',
             relationship: editing.relationship ?? '',
             is_primary: !!editing.is_primary,
+            is_me: !!editing.is_me,
+            /* Ban ghi cu (truoc v15) da duoc migration dat is_active = 1, nhung
+               `?? true` giu form dung ngay ca khi API tra ve thieu cot. */
+            is_active: editing.is_active == null ? true : !!editing.is_active,
             notes: editing.notes ?? '',
           }
         : EMPTY
     );
   }, [open, editing?.id]);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+    // Danh ba nguoi phu trach doc tu chinh bang contacts — khong nap lai thi cac o
+    // chon giao viec van hien ten cu cho toi khi tai lai trang.
+    queryClient.invalidateQueries({ queryKey: ['assignees'] });
+  };
 
   const save = useMutation({
     mutationFn: () =>
@@ -132,6 +143,16 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
                     {!!c.is_primary && (
                       <span className="inline-flex items-center gap-0.5 rounded bg-[#fff7d6] px-1.5 py-0.5 text-[10px] font-medium text-[#7f5f01]">
                         <Star size={10} /> {t.contact.primary}
+                      </span>
+                    )}
+                    {!!c.is_me && (
+                      <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-primary">
+                        Tôi
+                      </span>
+                    )}
+                    {c.is_active === 0 && (
+                      <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-muted">
+                        Ngừng hoạt động
                       </span>
                     )}
                     {c.buying_role && (
@@ -292,15 +313,38 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
               ))}
             </Select>
           </Field>
-          <label className="mt-6 flex items-center gap-2 text-sm text-tr-subtle">
-            <input
-              type="checkbox"
-              checked={form.is_primary}
-              onChange={(e) => set('is_primary', e.target.checked)}
-              className="h-4 w-4 rounded border-tr-border"
-            />
-            {t.contact.primary}
-          </label>
+          <div className="mt-6 space-y-1.5">
+            <label className="flex items-center gap-2 text-sm text-tr-subtle">
+              <input
+                type="checkbox"
+                checked={form.is_primary}
+                onChange={(e) => set('is_primary', e.target.checked)}
+                className="h-4 w-4 rounded border-tr-border"
+              />
+              {t.contact.primary}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-tr-subtle">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => set('is_active', e.target.checked)}
+                className="h-4 w-4 rounded border-tr-border"
+              />
+              Đang hoạt động
+              <span className="text-xs text-tr-muted">(tắt thì ẩn khỏi ô giao việc)</span>
+            </label>
+            {/* "Tôi" là duy nhất toàn sổ danh bạ — bật ở đây thì bản ghi cũ tự tắt. */}
+            <label className="flex items-center gap-2 text-sm text-tr-subtle">
+              <input
+                type="checkbox"
+                checked={form.is_me}
+                onChange={(e) => set('is_me', e.target.checked)}
+                className="h-4 w-4 rounded border-tr-border"
+              />
+              Đây là tôi
+              <span className="text-xs text-tr-muted">(dùng cho bộ lọc “{t.card.mine}”)</span>
+            </label>
+          </div>
           <div className="sm:col-span-2">
             <Field label={t.customer.notes}>
               <Textarea

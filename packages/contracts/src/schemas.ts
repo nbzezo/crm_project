@@ -42,6 +42,23 @@ const taskDate = z
  * `contact_id` bi rot mat o route chinh trong khi cac duong ghi khac van luu.
  */
 export const createTaskInputSchema = taskLinksSchema.extend({
+  /**
+   * Nguoi phu trach — TRUC RIENG, co y khong nam trong `taskLinksSchema`.
+   *
+   * `taskLinksSchema` la tap khoa di qua assertEntityLinks, noi bat moi lien ket
+   * phai cung mot khach hang. Nguoi phu trach thi nguoc lai: mot viec VE khach
+   * hang A thuong xuyen do nhan su cong ty MINH lam. Dua khoa nay vao do se lam
+   * moi task giao ra ngoai pham vi khach hang bi 422 CROSS_CUSTOMER_LINK.
+   */
+  assignee_contact_id: z.number().int().positive().nullable().optional(),
+  /**
+   * Goi y du an de CHON BANG mac dinh — khong duoc ghi xuong the.
+   *
+   * Tu v19 mot viec thuoc du an cua bang chua no, khong co cot rieng. Khoa nay
+   * chi giup `resolveDefaultList` tha viec vao dung bang khi nguoi dung tao tu
+   * trang mot du an ma khong chi ro danh sach.
+   */
+  project_id: z.number().int().positive().nullable().optional(),
   list_id: z.number().int().positive().nullable().optional(),
   parent_id: z.number().int().positive().nullable().optional(),
   title: z.string().trim().min(1, 'Tieu de khong duoc de trong').max(300),

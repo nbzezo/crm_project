@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Lock, Sparkles } from 'lucide-react';
 import { api, qs } from '../../api/client';
+import { Combobox, type ComboboxOption } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '../common/ui';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
+import { AssigneePicker, useAssignees } from './AssigneePicker';
 import type { Card, Customer, Priority } from '../../types';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
@@ -95,11 +97,27 @@ export function TaskFormDialog() {
   const [checklistText, setChecklistText] = useState('');
   /** Lua chon lien ket cua nguoi dung — dau vao cho truy van ngu canh. */
   const [links, setLinks] = useState<TaskContext>({});
+  /*
+   * Nguoi phu trach nam NGOAI `links` co y: `changeLink` xoa cac khoa cu the hon
+   * moi khi doi mot khoa, va truy van ngu canh chi nhan bo khoa CRM. Nhet vao do
+   * thi vua bi xoa oan vua bi may chu tu choi bang 422 CROSS_CUSTOMER_LINK.
+   */
+  const [assigneeId, setAssigneeId] = useState<number | null>(null);
+  /**
+   * Dự án mở form (nếu có) — CHỈ để thu hẹp danh sách bảng và chọn sẵn bảng đúng.
+   *
+   * Không phải một trường của thẻ: từ v19 một việc thuộc dự án của bảng chứa nó.
+   * Mở form từ trang một dự án mà bày cả bảng của dự án khác ra là mời người dùng
+   * thả việc ra ngoài dự án.
+   */
+  const [projectId, setProjectId] = useState<number | null>(null);
   /** Khoa duoc mo dau vao: hien dang khoa cho toi khi nguoi dung bam "Đổi". */
   const [anchors, setAnchors] = useState<LinkKey[]>([]);
   const [submitted, setSubmitted] = useState(false);
   /** Nguoi dung da tu chon danh sach thi khong de goi y cua server ghi de nua. */
   const [listTouched, setListTouched] = useState(false);
+  /** Nguoi dung da tu doi nguoi phu trach thi khong de mac dinh "tôi" ghi de nua. */
+  const [assigneeTouched, setAssigneeTouched] = useState(false);
   /** Ten cac truong vua duoc AI dien — de deo huy hieu nhac nguoi dung kiem lai. */
   const [aiFilled, setAiFilled] = useState<string[]>([]);
   const [aiMeta, setAiMeta] = useState<{ requestId: string; warnings: string[] } | null>(null);
@@ -126,6 +144,9 @@ export function TaskFormDialog() {
     setListId(composer?.listId ?? '');
     setListTouched(composer?.listId !== undefined);
     setLinks(composer?.context ?? {});
+    setAssigneeId(composer?.assigneeContactId ?? null);
+    setAssigneeTouched(false);
+    setProjectId(composer?.projectId ?? null);
     setAnchors(composer ? LINK_KEYS.filter((key) => composer.context[key] != null) : []);
     setSubmitted(false);
     setAiFilled([]);
@@ -134,8 +155,12 @@ export function TaskFormDialog() {
   }
 
   const { data: context } = useQuery({
-    queryKey: ['card-context', links],
-    queryFn: () => api.get<TaskContextResponse>(`/api/cards/context${qs({ ...links })}`),
+    // `project_id` thu hẹp danh sách bảng ở máy chủ — xem `/api/cards/context`.
+    queryKey: ['card-context', links, projectId],
+    queryFn: () =>
+      api.get<TaskContextResponse>(
+        `/api/cards/context${qs({ ...links, ...(projectId ? { project_id: projectId } : {}) })}`
+      ),
     enabled: open,
   });
   const { data: customers = [] } = useQuery({
@@ -155,6 +180,17 @@ export function TaskFormDialog() {
   useEffect(() => {
     if (!listTouched && context?.suggested_list_id) setListId(context.suggested_list_id);
   }, [context?.suggested_list_id, listTouched]);
+
+  /*
+   * Khong giao cho ai thi mac dinh la minh (khop voi mac dinh o createCard phia
+   * may chu) — chi ap dung khi nguoi dung chua tu doi va composer khong chi dinh san.
+   */
+  const { data: assignees } = useAssignees();
+  useEffect(() => {
+    if (assigneeTouched || composer?.assigneeContactId != null) return;
+    const me = assignees?.find((a) => a.is_me);
+    if (me) setAssigneeId(me.id);
+  }, [assignees, assigneeTouched, composer]);
 
   const derived = context?.links;
   const valueOf = (key: LinkKey): number | '' => derived?.[key] ?? links[key] ?? '';
@@ -242,6 +278,9 @@ export function TaskFormDialog() {
         priority,
         start_date: startDate,
         due_date: dueDate,
+        assignee_contact_id: assigneeId,
+        // Gợi ý chọn bảng khi người dùng không đụng tới ô Danh sách; không ghi lên thẻ.
+        project_id: projectId ?? undefined,
         ...Object.fromEntries(
           LINK_KEYS.map((key) => [key, valueOf(key) === '' ? null : valueOf(key)])
         ),
@@ -428,7 +467,25 @@ export function TaskFormDialog() {
             ))}
           </Select>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        {/* Ngoài khối liên kết CRM bên dưới — xem chú thích ở state `assigneeId`. */}
+        <AssigneePicker
+          value={assigneeId}
+          onChange={(v) => {
+            markEdited();
+            setAssigneeTouched(true);
+            setAssigneeId(v);
+          }}
+          hint="Ai sẽ làm việc này — có thể là người của bất kỳ tổ chức nào."
+        />
+
+        {/*
+          Không có ô "Dự án" — một việc thuộc dự án của BẢNG chứa nó (v19).
+
+          Trước đây ô này ghi thẳng `cards.project_id`, cho phép tạo ra việc mang
+          dự án A trong khi nằm ở bảng của dự án B. Nay muốn đổi dự án thì chọn
+          bảng khác, và ô Bảng ở trên đã nói rõ bảng nào thuộc dự án nào.
+        */}
+        <div className="sm:col-span-2 grid grid-cols-2 gap-3">
           <Field label={t.card.startDate}>
             <DateInput value={startDate} onChange={setStartDate} />
           </Field>
@@ -453,27 +510,19 @@ export function TaskFormDialog() {
               .reverse()
               .find((k) => valueOf(k) !== '')}
             onChange={(v) => changeLink('customer_id', v)}
-          >
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </LinkSelect>
+            options={customers.map((c) => ({ id: c.id, label: c.name }))}
+          />
 
           <LinkSelect
             linkKey="contact_id"
             value={valueOf('contact_id')}
             locked={anchors.includes('contact_id')}
             onChange={(v) => changeLink('contact_id', v)}
-          >
-            {context?.contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.full_name}
-                {c.title ? ` — ${c.title}` : ''}
-              </option>
-            ))}
-          </LinkSelect>
+            options={(context?.contacts ?? []).map((c) => ({
+              id: c.id,
+              label: c.full_name + (c.title ? ` — ${c.title}` : ''),
+            }))}
+          />
 
           <LinkSelect
             linkKey="deal_id"
@@ -481,40 +530,30 @@ export function TaskFormDialog() {
             locked={anchors.includes('deal_id')}
             disabledBy={(['contract_id', 'quotation_id'] as const).find((k) => valueOf(k) !== '')}
             onChange={(v) => changeLink('deal_id', v)}
-          >
-            {context?.deals.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.title}
-              </option>
-            ))}
-          </LinkSelect>
+            options={(context?.deals ?? []).map((d) => ({ id: d.id, label: d.title }))}
+          />
 
           <LinkSelect
             linkKey="contract_id"
             value={valueOf('contract_id')}
             locked={anchors.includes('contract_id')}
             onChange={(v) => changeLink('contract_id', v)}
-          >
-            {context?.contracts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.number ? ` — ${c.number}` : ''}
-              </option>
-            ))}
-          </LinkSelect>
+            options={(context?.contracts ?? []).map((c) => ({
+              id: c.id,
+              label: c.name + (c.number ? ` — ${c.number}` : ''),
+            }))}
+          />
 
           <LinkSelect
             linkKey="quotation_id"
             value={valueOf('quotation_id')}
             locked={anchors.includes('quotation_id')}
             onChange={(v) => changeLink('quotation_id', v)}
-          >
-            {context?.quotations.map((q) => (
-              <option key={q.id} value={q.id}>
-                {q.code ?? `Báo giá #${q.id}`} (v{q.version})
-              </option>
-            ))}
-          </LinkSelect>
+            options={(context?.quotations ?? []).map((q) => ({
+              id: q.id,
+              label: `${q.code ?? `Báo giá #${q.id}`} (v${q.version})`,
+            }))}
+          />
         </div>
 
         <div className="sm:col-span-2">
@@ -539,14 +578,14 @@ function LinkSelect({
   locked,
   disabledBy,
   onChange,
-  children,
+  options,
 }: {
   linkKey: LinkKey;
   value: number | '';
   locked: boolean;
   disabledBy?: LinkKey;
   onChange: (value: number | null) => void;
-  children: React.ReactNode;
+  options: ComboboxOption[];
 }) {
   const disabled = locked || disabledBy !== undefined;
   const hint = locked
@@ -557,14 +596,16 @@ function LinkSelect({
 
   return (
     <Field label={LINK_LABELS[linkKey]} hint={hint}>
-      <Select
+      <Combobox
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-      >
-        <option value="">— {t.common.none} —</option>
-        {children}
-      </Select>
+        onChange={(v) => onChange(v === '' ? null : v)}
+        options={options}
+        placeholder={`— ${t.common.none} —`}
+        searchPlaceholder="Tìm kiếm…"
+        emptyText="Không tìm thấy kết quả."
+        ariaLabel={LINK_LABELS[linkKey]}
+      />
     </Field>
   );
 }

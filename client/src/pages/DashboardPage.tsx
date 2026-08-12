@@ -12,6 +12,7 @@ import {
   PipelineWidget,
   RecentActivityWidget,
   ReminderWidget,
+  WorkloadWidget,
   buildRecommendedActions,
   type DashboardData,
   type TaskBucketKey,
@@ -142,6 +143,18 @@ export default function DashboardPage() {
         </div>
         <div className="min-w-0 lg:col-span-5">
           <ReminderWidget reminders={data.upcoming_reminders} onOpenTask={openCard} />
+        </div>
+
+        {/* Đặt ngay dưới việc cần làm: biết việc gì đến hạn rồi thì câu hỏi kế tiếp
+            luôn là "đang nằm ở ai" — không nên phải cuộn xuống cuối trang mới thấy. */}
+        <div className="min-w-0 lg:col-span-5">
+          <WorkloadWidget
+            data={data}
+            onSelectAssignee={(assignee) => {
+              setTaskFilters({ ...emptyTaskFilters, status: 'open', assignee });
+              void navigate('/tasks');
+            }}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-7">

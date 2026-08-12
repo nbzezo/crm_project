@@ -5,7 +5,7 @@ import { api, qs } from '../../api/client';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { foldText } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
-import type { Priority, TimelineItem } from '../../types';
+import type { Priority, TimelineDependency, TimelineItem } from '../../types';
 import { Button, ErrorState, Input, Segmented, Select, Skeleton, focusRing } from '../common/ui';
 import { TimelineView, type Zoom } from '../timeline/TimelineView';
 
@@ -21,10 +21,16 @@ interface UnscheduledTimelineItem {
 interface TimelineResponse {
   items: TimelineItem[];
   unscheduled: UnscheduledTimelineItem[];
+  dependencies: TimelineDependency[];
 }
 
-/** Dòng thời gian dùng chung; trong một bảng thì nhóm theo danh sách thay vì theo bảng. */
-export function TimelineBoard({ boardId }: { boardId?: number }) {
+/**
+ * Dòng thời gian dùng chung; trong một bảng thì nhóm theo danh sách thay vì theo bảng.
+ *
+ * `projectId` cho phạm vi cả dự án (v19) — Gantt cấp dự án là dạng xem có giá trị
+ * nhất khi quản lý tiến độ, và trước đó không có cách nào mở được.
+ */
+export function TimelineBoard({ boardId, projectId }: { boardId?: number; projectId?: number }) {
   const openCard = useUiStore((state) => state.openCard);
   const [groupBy, setGroupBy] = useState<'board' | 'customer'>('board');
   const [zoom, setZoom] = useState<Zoom>('month');
@@ -34,14 +40,16 @@ export function TimelineBoard({ boardId }: { boardId?: number }) {
   const deferredSearch = useDeferredValue(search);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['timeline', groupBy, boardId ?? 'all'],
+    queryKey: ['timeline', groupBy, boardId ?? 'all', projectId ?? 'all'],
     queryFn: () =>
-      api.get<TimelineResponse>(`/api/views/timeline${qs({ groupBy, board_id: boardId })}`),
+      api.get<TimelineResponse>(
+        `/api/views/timeline${qs({ groupBy, board_id: boardId, project_id: projectId })}`
+      ),
   });
 
   const activeFilterCount = (search.trim() ? 1 : 0) + (priority ? 1 : 0);
   const filtered = useMemo(() => {
-    if (!data) return { items: [], unscheduled: [] };
+    if (!data) return { items: [], unscheduled: [], dependencies: [] };
     const query = foldText(deferredSearch.trim());
     const matches = (item: {
       title: string;
@@ -59,9 +67,16 @@ export function TimelineBoard({ boardId }: { boardId?: number }) {
           .join(' ')
       ).includes(query);
     };
+    const items = data.items.filter(matches);
+    // Lọc bỏ cạnh có đầu nằm ngoài kết quả lọc — nếu không, đường nối sẽ trỏ tới
+    // một thanh không còn hiện trên trục.
+    const visible = new Set(items.map((item) => item.id));
     return {
-      items: data.items.filter(matches),
+      items,
       unscheduled: data.unscheduled.filter(matches),
+      dependencies: (data.dependencies ?? []).filter(
+        (edge) => visible.has(edge.predecessor_id) && visible.has(edge.successor_id)
+      ),
     };
   }, [data, deferredSearch, priority]);
 
@@ -161,6 +176,7 @@ export function TimelineBoard({ boardId }: { boardId?: number }) {
         <>
           <TimelineView
             items={filtered.items}
+            dependencies={filtered.dependencies}
             zoom={zoom}
             onOpenCard={openCard}
             emptyMessage={activeFilterCount > 0 ? 'Không tìm thấy công việc phù hợp' : undefined}

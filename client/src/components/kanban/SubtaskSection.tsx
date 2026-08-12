@@ -83,7 +83,7 @@ export function SubtaskSection({ cardId, subtasks }: { cardId: number; subtasks:
               style={{ color: PRIORITY_COLORS[task.priority] }}
             >
               {PRIORITY_ORDER.map((p) => (
-                <option key={p} value={p} className="text-tr-text">
+                <option key={p} value={p} className="bg-tr-panel text-tr-text">
                   {t.priority[p]}
                 </option>
               ))}

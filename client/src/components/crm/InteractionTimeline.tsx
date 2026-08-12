@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { ScoringPrompt } from './ScoringPrompt';
+import { Combobox } from '../common/Combobox';
 import {
   Button,
   DateInput,
@@ -180,24 +181,26 @@ export function InteractionTimeline({
             />
           </Field>
           <Field label={t.interaction.relatedContact}>
-            <Select value={contactId} onChange={(e) => setContactId(e.target.value)}>
-              <option value="">— {t.common.none} —</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name}
-                </option>
-              ))}
-            </Select>
+            <Combobox
+              value={contactId === '' ? '' : Number(contactId)}
+              onChange={(v) => setContactId(v === '' ? '' : String(v))}
+              options={contacts.map((c) => ({ id: c.id, label: c.full_name }))}
+              placeholder={`— ${t.common.none} —`}
+              searchPlaceholder="Tìm người liên hệ…"
+              emptyText="Không tìm thấy người liên hệ."
+              ariaLabel={t.interaction.relatedContact}
+            />
           </Field>
           <Field label={t.interaction.relatedDeal}>
-            <Select value={dealId} onChange={(e) => setDealId(e.target.value)}>
-              <option value="">— {t.common.none} —</option>
-              {deals.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title}
-                </option>
-              ))}
-            </Select>
+            <Combobox
+              value={dealId === '' ? '' : Number(dealId)}
+              onChange={(v) => setDealId(v === '' ? '' : String(v))}
+              options={deals.map((d) => ({ id: d.id, label: d.title }))}
+              placeholder={`— ${t.common.none} —`}
+              searchPlaceholder="Tìm cơ hội…"
+              emptyText="Không tìm thấy cơ hội."
+              ariaLabel={t.interaction.relatedDeal}
+            />
           </Field>
           <div className="sm:col-span-2">
             <Field label={t.interaction.summary}>

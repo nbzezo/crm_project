@@ -18,6 +18,8 @@ import services from './routes/services.ts';
 import revenues from './routes/revenues.ts';
 import interactions from './routes/interactions.ts';
 import reminders from './routes/reminders.ts';
+import nudges from './routes/nudges.ts';
+import projects from './routes/projects.ts';
 import calendarEvents from './routes/calendarEvents.ts';
 import views from './routes/views.ts';
 import scoring from './routes/scoring.ts';
@@ -50,6 +52,8 @@ export function createApp(): Express {
   app.use('/api/revenues', revenues);
   app.use('/api/interactions', interactions);
   app.use('/api/reminders', reminders);
+  app.use('/api/nudges', nudges);
+  app.use('/api/projects', projects);
   app.use('/api/calendar', calendarEvents);
   app.use('/api/views', views);
   app.use('/api', scoring);

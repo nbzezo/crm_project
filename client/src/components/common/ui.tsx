@@ -156,8 +156,15 @@ export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInpu
   return <input {...props} className={`${inputBase} ${className}`} />;
 }
 
+/**
+ * `[&>option]:...` — trinh duyet ve popup cua `<select>` bang mau he thong, khong
+ * theo theme trang: khong co lop nay thi option chu sang tren nen sang giua giao
+ * dien toi, kho doc. Ap dung o day de moi noi dung `Select` deu duoc fix mot lan.
+ */
+export const selectOptionContrast = '[&>option]:bg-tr-panel [&>option]:text-tr-text';
+
 export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${inputBase} ${className}`} />;
+  return <select {...props} className={`${inputBase} ${selectOptionContrast} ${className}`} />;
 }
 
 export function Textarea({

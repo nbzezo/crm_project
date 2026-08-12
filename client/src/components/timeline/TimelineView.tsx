@@ -14,7 +14,7 @@ import { vi } from 'date-fns/locale';
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk, formatDate, todayStr } from '../../lib/format';
-import type { TimelineItem } from '../../types';
+import type { TimelineDependency, TimelineItem } from '../../types';
 import { EmptyState, focusRing } from '../common/ui';
 
 export type Zoom = 'week' | 'month' | 'quarter';
@@ -124,7 +124,9 @@ const TimelineTaskBar = memo(function TimelineTaskBar({
       ? differenceInCalendarDays(parseISO(today), parseISO(item.due_date))
       : 0;
   const progress = progressFor(item);
-  const milestone = item.start_date === item.due_date;
+  /* Cờ `is_milestone` (v18) là khai báo tường minh; điều kiện một-ngày vẫn giữ
+     làm suy đoán cho dữ liệu cũ chưa ai đánh dấu. */
+  const milestone = !!item.is_milestone || item.start_date === item.due_date;
   const color = PRIORITY_COLORS[item.priority];
   const tooltipId = `timeline-task-${item.id}-tooltip`;
 
@@ -235,14 +237,56 @@ const TimelineTaskBar = memo(function TimelineTaskBar({
   );
 });
 
+/**
+ * Toa do cua tung thanh dang hien — dung de ve duong phu thuoc.
+ *
+ * Phai tinh cung mot cong thuc voi luc render thanh (GROUP_HEIGHT cho tieu de
+ * nhom, ROW_HEIGHT cho moi dong, nhom thu gon thi khong chiem cho). Neu hai noi
+ * tinh khac nhau thi duong noi se lech khoi thanh ma khong co gi bao loi.
+ */
+interface BarBox {
+  left: number;
+  right: number;
+  centerY: number;
+}
+
+function layoutBars(
+  groups: TimelineGroup[],
+  collapsed: Set<string>,
+  dayWidth: number,
+  startDate: Date
+): Map<number, BarBox> {
+  const boxes = new Map<number, BarBox>();
+  let y = 0;
+  for (const group of groups) {
+    y += GROUP_HEIGHT;
+    if (collapsed.has(group.key)) continue;
+    for (const item of group.items) {
+      const rangeStart = item.start_date <= item.due_date ? item.start_date : item.due_date;
+      const rangeEnd = item.start_date <= item.due_date ? item.due_date : item.start_date;
+      const offset = differenceInCalendarDays(parseISO(rangeStart), startDate);
+      const span = differenceInCalendarDays(parseISO(rangeEnd), parseISO(rangeStart)) + 1;
+      boxes.set(item.id, {
+        left: offset * dayWidth + 1,
+        right: offset * dayWidth + Math.max(span * dayWidth - 2, 8),
+        centerY: y + ROW_HEIGHT / 2,
+      });
+      y += ROW_HEIGHT;
+    }
+  }
+  return boxes;
+}
+
 export function TimelineView({
   items,
+  dependencies = [],
   zoom,
   onOpenCard,
   emptyMessage,
   emptyHint,
 }: {
   items: TimelineItem[];
+  dependencies?: TimelineDependency[];
   zoom: Zoom;
   onOpenCard: (id: number) => void;
   emptyMessage?: string;
@@ -297,6 +341,32 @@ export function TimelineView({
   const timelineWidth = days.length * dayWidth;
   const todayIndex = differenceInCalendarDays(parseISO(todayStr()), startDate);
   const todayVisible = todayIndex >= 0 && todayIndex < days.length;
+
+  /**
+   * Đường nối từ mép phải việc trước sang mép trái việc sau, đi vòng theo hai
+   * đoạn ngang + một đoạn dọc (kiểu Gantt) thay vì đường thẳng chéo — đường chéo
+   * cắt qua các thanh khác và đọc rất khó khi có nhiều dòng.
+   */
+  const dependencyEdges = useMemo(() => {
+    if (dependencies.length === 0) return [];
+    const boxes = layoutBars(groups, collapsedGroups, dayWidth, startDate);
+    const GAP = 8;
+    return dependencies
+      .map((edge) => {
+        const from = boxes.get(edge.predecessor_id);
+        const to = boxes.get(edge.successor_id);
+        // Nhóm bị thu gọn thì thanh không tồn tại — bỏ cạnh đó thay vì vẽ vào hư không.
+        if (!from || !to) return null;
+        const midX = Math.max(from.right + GAP, to.left - GAP);
+        return {
+          from: edge.predecessor_id,
+          to: edge.successor_id,
+          violated: edge.violated === 1,
+          path: `M ${from.right} ${from.centerY} H ${midX} V ${to.centerY} H ${to.left}`,
+        };
+      })
+      .filter((edge): edge is NonNullable<typeof edge> => edge !== null);
+  }, [dependencies, groups, collapsedGroups, dayWidth, startDate]);
 
   const months = useMemo(() => {
     const result: { label: string; span: number }[] = [];
@@ -562,6 +632,30 @@ export function TimelineView({
                   );
                 })}
               </div>
+
+              {/* Đường phụ thuộc vẽ TRÊN lưới nhưng DƯỚI các thanh (z-10), và
+                  pointer-events-none để không chặn click mở thẻ. */}
+              {dependencyEdges.length > 0 && (
+                <svg
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 z-[5] h-full w-full overflow-visible"
+                >
+                  {dependencyEdges.map((edge) => (
+                    <path
+                      key={`${edge.from}-${edge.to}`}
+                      d={edge.path}
+                      fill="none"
+                      strokeWidth={edge.violated ? 2 : 1.25}
+                      strokeDasharray={edge.violated ? undefined : '3 3'}
+                      stroke={
+                        edge.violated
+                          ? 'var(--tr-danger)'
+                          : 'color-mix(in srgb, var(--tr-muted) 70%, transparent)'
+                      }
+                    />
+                  ))}
+                </svg>
+              )}
 
               <div className="relative z-10">
                 {groups.map((group) => {

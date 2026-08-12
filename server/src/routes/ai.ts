@@ -383,7 +383,10 @@ router.post('/assist/document/:id', async (req, res) => {
     }
 
     const customers = db
-      .prepare(`SELECT id, name FROM customers ORDER BY updated_at DESC LIMIT 200`)
+      .prepare(
+        `SELECT id, name FROM customers WHERE org_kind = 'customer'
+          ORDER BY updated_at DESC LIMIT 200`
+      )
       .all() as { id: number; name: string }[];
 
     const { data, meta } = await runStructured(
@@ -442,7 +445,8 @@ function searchCrm(query: string) {
     customers: db
       .prepare(
         `SELECT id, name, industry, status, notes FROM customers
-          WHERE search_text LIKE ? ORDER BY updated_at DESC LIMIT 8`
+          WHERE org_kind = 'customer' AND search_text LIKE ?
+          ORDER BY updated_at DESC LIMIT 8`
       )
       .all(like),
     deals: db

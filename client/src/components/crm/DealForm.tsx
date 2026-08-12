@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { EntityLabels } from '../labels/EntityLabels';
 import {
@@ -179,31 +180,32 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
           required
           error={submitted && customerMissing ? t.common.required : undefined}
         >
-          <Select
-            value={customerId}
-            onChange={(e) => {
-              setCustomerId(e.target.value);
+          <Combobox
+            value={customerId === '' ? '' : Number(customerId)}
+            onChange={(v) => {
+              setCustomerId(v === '' ? '' : String(v));
               setContactId('');
             }}
-          >
-            <option value="">{t.common.selectCustomer}</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+            options={customers.map((c) => ({ id: c.id, label: c.name }))}
+            placeholder={t.common.selectCustomer}
+            searchPlaceholder="Tìm khách hàng…"
+            emptyText="Không tìm thấy khách hàng."
+            ariaLabel={t.card.customer}
+          />
         </Field>
         <Field label="Người liên hệ chính">
-          <Select value={contactId} onChange={(e) => setContactId(e.target.value)}>
-            <option value="">— {t.common.none} —</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.full_name}
-                {c.title ? ` — ${c.title}` : ''}
-              </option>
-            ))}
-          </Select>
+          <Combobox
+            value={contactId === '' ? '' : Number(contactId)}
+            onChange={(v) => setContactId(v === '' ? '' : String(v))}
+            options={contacts.map((c) => ({
+              id: c.id,
+              label: c.full_name + (c.title ? ` — ${c.title}` : ''),
+            }))}
+            placeholder={`— ${t.common.none} —`}
+            searchPlaceholder="Tìm người liên hệ…"
+            emptyText="Không tìm thấy người liên hệ."
+            ariaLabel="Người liên hệ chính"
+          />
         </Field>
 
         <Field label="Sản phẩm / dịch vụ">

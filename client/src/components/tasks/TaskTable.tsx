@@ -19,7 +19,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import { Button, EmptyState, InlineDate, focusRing } from '../common/ui';
+import { Button, EmptyState, InlineDate, focusRing, selectOptionContrast } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
@@ -34,6 +34,8 @@ import {
   TaskRowActions,
   useTaskBoardLists,
 } from './TaskPresentation';
+import { AssigneeSelect } from './AssigneePicker';
+import { CardStatusSelect } from './CardStatusControl';
 
 const columnHelper = createColumnHelper<TaskRow>();
 const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -211,6 +213,22 @@ export function TaskTable({
           />
         ),
       }),
+      columnHelper.accessor('assignee_name', {
+        header: t.card.assignee,
+        sortUndefined: 'last',
+        cell: (info) => (
+          <AssigneeSelect
+            value={info.row.original.assignee_contact_id ?? null}
+            taskTitle={info.row.original.title}
+            onChange={(assigneeContactId) =>
+              mutate({
+                id: info.row.original.id,
+                patch: { assignee_contact_id: assigneeContactId },
+              })
+            }
+          />
+        ),
+      }),
       columnHelper.accessor('customer_name', {
         header: t.card.customer,
         cell: (info) => (
@@ -220,15 +238,27 @@ export function TaskTable({
         ),
       }),
       columnHelper.accessor('board_name', {
-        header: 'Dự án / Bảng',
+        header: 'Bảng',
         cell: (info) => (
           <span className="block max-w-40 truncate text-xs" title={info.getValue()}>
             {info.getValue()}
           </span>
         ),
       }),
-      columnHelper.accessor('list_name', {
+      columnHelper.accessor('status', {
         header: 'Trạng thái',
+        cell: (info) => (
+          <CardStatusSelect
+            value={info.getValue()}
+            taskTitle={info.row.original.title}
+            onChange={(status) => mutate({ id: info.row.original.id, patch: { status } })}
+          />
+        ),
+      }),
+      /* Doi tieu de tu "Trạng thái" sang "Danh sách": cot nay chuyen the giua cac
+         cot Kanban, khong phai vong doi cong viec — v16 moi co trang thai that. */
+      columnHelper.accessor('list_name', {
+        header: 'Danh sách',
         cell: (info) => (
           <StatusSelect
             task={info.row.original}
@@ -331,7 +361,7 @@ export function TaskTable({
               e.target.value = '';
             }}
             aria-label={`Đổi ${t.card.priority.toLowerCase()} cho mục đã chọn`}
-            className={`rounded-control border border-tr-border bg-tr-panel px-2 py-1 text-xs text-tr-text ${focusRing}`}
+            className={`rounded-control border border-tr-border bg-tr-panel px-2 py-1 text-xs text-tr-text ${focusRing} ${selectOptionContrast}`}
           >
             <option value="">{t.card.priority}…</option>
             {PRIORITY_ORDER.map((p) => (
@@ -350,7 +380,7 @@ export function TaskTable({
       )}
 
       <div className="tr-scroll max-h-[70vh] overflow-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <table className="w-full min-w-[960px] text-sm 2xl:min-w-[1180px]">
+        <table className="w-full min-w-[960px] text-sm lg:min-w-[1180px]">
           <caption className="sr-only">Danh sách công việc</caption>
           <thead className="sticky top-0 z-10 bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
             {table.getHeaderGroups().map((group) => (
@@ -362,8 +392,9 @@ export function TaskTable({
                     'start_date',
                     'board_name',
                     'customer_name',
+                    'list_name',
                   ].includes(header.id)
-                    ? 'hidden 2xl:table-cell'
+                    ? 'hidden lg:table-cell'
                     : '';
                   return (
                     <th
@@ -436,8 +467,9 @@ export function TaskTable({
                     'start_date',
                     'board_name',
                     'customer_name',
+                    'list_name',
                   ].includes(cell.column.id)
-                    ? 'hidden 2xl:table-cell'
+                    ? 'hidden lg:table-cell'
                     : '';
                   const actionClass =
                     cell.column.id === 'actions'

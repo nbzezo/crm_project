@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, CornerDownRight, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { EmptyState, InlineDate } from '../common/ui';
 import { t } from '../../i18n/vi';
@@ -17,11 +18,14 @@ import {
   TaskRowActions,
   useTaskBoardLists,
 } from './TaskPresentation';
+import { AssigneeSelect } from './AssigneePicker';
+import { CardStatusSelect } from './CardStatusControl';
 
 export interface TaskColumns {
   priority?: boolean;
   startDate?: boolean;
   dueDate?: boolean;
+  assignee?: boolean;
   customer?: boolean;
   board?: boolean;
   labels?: boolean;
@@ -31,6 +35,7 @@ const ALL_COLUMNS: Required<TaskColumns> = {
   priority: true,
   startDate: true,
   dueDate: true,
+  assignee: true,
   customer: true,
   board: true,
   labels: true,
@@ -38,7 +43,7 @@ const ALL_COLUMNS: Required<TaskColumns> = {
 
 /** Header va row bat buoc dung chung template nay de khong lech cot khi doi breakpoint. */
 const TASK_TREE_GRID =
-  'grid-cols-[auto_auto_minmax(220px,1fr)_100px_110px_132px_140px_80px] 2xl:grid-cols-[auto_auto_minmax(240px,1fr)_100px_110px_132px_150px_150px_180px_80px]';
+  'grid-cols-[auto_auto_minmax(180px,1fr)_100px_110px_132px_140px_130px_140px_80px] lg:grid-cols-[auto_auto_minmax(200px,1fr)_100px_110px_132px_140px_150px_150px_130px_180px_80px]';
 
 /** Gom danh sách phẳng thành cây cha – con (tối đa 1 cấp). */
 export function buildTree(tasks: TaskRow[]): { task: TaskRow; children: TaskRow[] }[] {
@@ -266,32 +271,47 @@ export function TaskTree({
           </div>
         )}
 
-        {cols.customer && (
-          <select
-            value={task.customer_id ?? ''}
-            onChange={(e) =>
-              update.mutate({
-                id: task.id,
-                patch: { customer_id: e.target.value === '' ? null : Number(e.target.value) },
-              })
+        {cols.assignee && (
+          <AssigneeSelect
+            value={task.assignee_contact_id ?? null}
+            taskTitle={task.title}
+            onChange={(assigneeContactId) =>
+              update.mutate({ id: task.id, patch: { assignee_contact_id: assigneeContactId } })
             }
-            aria-label={`Khách hàng: ${task.title}`}
-            className="hidden w-36 truncate rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle outline-none transition hover:border-tr-border focus-visible:border-tr-primary 2xl:block"
-          >
-            <option value="">— khách hàng —</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          />
+        )}
+
+        {cols.customer && (
+          <div className="hidden w-36 lg:block">
+            <Combobox
+              value={task.customer_id ?? ''}
+              onChange={(v) =>
+                update.mutate({
+                  id: task.id,
+                  patch: { customer_id: v === '' ? null : v },
+                })
+              }
+              options={customers.map((c) => ({ id: c.id, label: c.name }))}
+              placeholder="— khách hàng —"
+              searchPlaceholder="Tìm khách hàng…"
+              emptyText="Không tìm thấy khách hàng."
+              ariaLabel={`Khách hàng: ${task.title}`}
+              triggerClassName="flex w-full items-center justify-between gap-1 truncate rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle outline-none transition hover:border-tr-border focus-visible:border-tr-primary"
+            />
+          </div>
         )}
 
         {cols.board && (
-          <span className="hidden truncate text-xs text-tr-muted 2xl:block" title={task.board_name}>
+          <span className="hidden truncate text-xs text-tr-muted lg:block" title={task.board_name}>
             {task.board_name}
           </span>
         )}
+
+        <CardStatusSelect
+          value={task.status}
+          taskTitle={task.title}
+          onChange={(status) => update.mutate({ id: task.id, patch: { status } })}
+        />
 
         <span className="flex min-w-0 items-center gap-1.5">
           <StatusSelect
@@ -300,7 +320,7 @@ export function TaskTree({
             onChange={(listId) => update.mutate({ id: task.id, patch: { list_id: listId } })}
           />
           {cols.labels && (
-            <span className="hidden min-w-0 2xl:block">
+            <span className="hidden min-w-0 lg:block">
               <LabelTags
                 labels={(task.label_ids ?? [])
                   .map((labelId) => labels.find((label) => label.id === labelId))
@@ -328,7 +348,7 @@ export function TaskTree({
   return (
     <>
       <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <div className="min-w-[870px] 2xl:min-w-[1260px]">
+        <div className="min-w-[1000px] lg:min-w-[1390px]">
           <div
             className={`sticky top-0 z-10 grid ${TASK_TREE_GRID} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase`}
           >
@@ -340,9 +360,11 @@ export function TaskTree({
             <span>Ưu tiên</span>
             <span>Bắt đầu</span>
             <span>Hạn hoàn thành</span>
-            <span className="hidden 2xl:block">Khách hàng</span>
-            <span className="hidden 2xl:block">Dự án / Bảng</span>
-            <span>Trạng thái / Nhãn</span>
+            <span>Người phụ trách</span>
+            <span className="hidden lg:block">Khách hàng</span>
+            <span className="hidden lg:block">Bảng</span>
+            <span>Trạng thái</span>
+            <span>Danh sách / Nhãn</span>
             <span className="text-right">Thao tác</span>
           </div>
           <div className="divide-y divide-tr-border">

@@ -8,15 +8,17 @@ import {
   Flame,
   List,
   ListTree,
+  PauseCircle,
   Plus,
   Search,
   X,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
+import { Combobox } from '../components/common/Combobox';
 import { Popover, usePopover } from '../components/common/Popover';
 import { TaskTree, buildTree } from '../components/tasks/TaskTree';
 import { TaskTable } from '../components/tasks/TaskTable';
-import { daysFromToday, isReviewStatus } from '../components/tasks/TaskPresentation';
+import { daysFromToday } from '../components/tasks/TaskPresentation';
 import {
   Button,
   DateInput,
@@ -29,7 +31,10 @@ import {
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../i18n/vi';
 import { invalidateCardViews } from '../lib/queryKeys';
 import { emptyTaskFilters, useUiStore, type TaskFilters } from '../stores/uiStore';
-import type { Board, BoardFull, Customer, Priority, TaskRow } from '../types';
+import { useAssignees } from '../components/tasks/AssigneePicker';
+import { isWaitingStatus } from '../components/tasks/CardStatusControl';
+import { parseAssigneeFilter } from '../components/kanban/BoardFilter';
+import type { Assignee, Board, BoardFull, Customer, Priority, Project, TaskRow } from '../types';
 
 export function useTaskQuery() {
   const filters = useUiStore((s) => s.taskFilters);
@@ -38,20 +43,28 @@ export function useTaskQuery() {
     priority: filters.priority,
     customer_id: filters.customerId,
     board_id: filters.boardId,
-    done:
-      filters.status === 'done'
-        ? '1'
-        : filters.status === 'open' || filters.status === 'review'
-          ? '0'
-          : '',
+    project_id: filters.projectId,
+    // Moi lat cat vong doi deu ngu y "chua xong" — khong ai loc viec da dong de
+    // xem no tung bi chan hay khong.
+    done: filters.status === 'done' ? '1' : filters.status === 'all' ? '' : '0',
+    card_status: filters.status === 'doing' || filters.status === 'blocked' ? filters.status : '',
+    waiting: filters.status === 'waiting' ? '1' : '',
     overdue: filters.due === 'overdue' ? '1' : '',
+    /* Ba nhanh cua bo loc nguoi phu trach anh xa sang ba tham so khac nhau cua API:
+       'mine' doc contacts.is_me o may chu, 'none' loc viec chua giao, so la mot nguoi. */
+    assignee_contact_id: typeof filters.assignee === 'number' ? filters.assignee : '',
+    mine: filters.assignee === 'mine' ? '1' : '',
+    unassigned: filters.assignee === 'none' ? '1' : '',
   };
   return useQuery({
     queryKey: ['tasks', params, filters.status, filters.due],
     queryFn: () => api.get<TaskRow[]>(`/api/views/tasks${qs(params)}`),
     select: (rows) =>
       rows.filter((task) => {
-        if (filters.status === 'review' && !isReviewStatus(task.list_name)) return false;
+        /* Chỉ đọc trạng thái thật. Trước v19 còn đoán thêm từ tên cột — cột nào
+           mang nghĩa "Chờ duyệt" nay tự khai báo, và migration đã kéo trạng thái
+           của thẻ khớp theo, nên không còn gì để đoán. */
+        if (filters.status === 'review' && task.status !== 'review') return false;
         const difference = daysFromToday(task.due_date);
         if (filters.due === 'today') return difference === 0;
         if (filters.due === 'tomorrow') return difference === 1;
@@ -77,6 +90,12 @@ export function TaskFilterBar() {
   const { data: boards = [] } = useQuery({
     queryKey: ['boards', false],
     queryFn: () => api.get<Board[]>('/api/boards'),
+    staleTime: 60_000,
+  });
+  const { data: assignees = [] } = useAssignees();
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects', false],
+    queryFn: () => api.get<Project[]>('/api/projects'),
     staleTime: 60_000,
   });
 
@@ -117,6 +136,20 @@ export function TaskFilterBar() {
           clear: () => setFilters({ boardId: '' }),
         }
       : null,
+    filters.projectId !== ''
+      ? {
+          key: 'project',
+          label: `Dự án: ${projects.find((p) => p.id === filters.projectId)?.name ?? 'Đã chọn'}`,
+          clear: () => setFilters({ projectId: '' }),
+        }
+      : null,
+    filters.assignee !== ''
+      ? {
+          key: 'assignee',
+          label: `${t.card.assignee}: ${assigneeFilterLabel(filters.assignee, assignees)}`,
+          clear: () => setFilters({ assignee: '' }),
+        }
+      : null,
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   return (
@@ -146,6 +179,9 @@ export function TaskFilterBar() {
           >
             <option value="open">Đang mở</option>
             <option value="all">Mọi trạng thái</option>
+            <option value="doing">Đang làm</option>
+            <option value="waiting">Đang chờ ai đó</option>
+            <option value="blocked">Bị chặn</option>
             <option value="review">Chờ duyệt</option>
             <option value="done">Hoàn thành</option>
           </Select>
@@ -180,6 +216,22 @@ export function TaskFilterBar() {
         </div>
         <div className="w-48">
           <Select
+            value={filters.assignee}
+            aria-label={t.card.assignee}
+            onChange={(event) => setFilters({ assignee: parseAssigneeFilter(event.target.value) })}
+          >
+            <option value="">Mọi người phụ trách</option>
+            <option value="mine">{t.card.mine}</option>
+            <option value="none">{t.card.unassigned}</option>
+            {assignees.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.full_name} · {person.org_name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-48">
+          <Select
             value={filters.customerId}
             aria-label="Khách hàng"
             onChange={(event) =>
@@ -204,9 +256,9 @@ export function TaskFilterBar() {
         >
           <Filter size={14} aria-hidden="true" />
           Bộ lọc
-          {filters.boardId !== '' && (
+          {(filters.boardId !== '' || filters.projectId !== '') && (
             <span className="rounded-full bg-tr-primary px-1.5 text-2xs font-semibold text-tr-on-primary">
-              1
+              {(filters.boardId !== '' ? 1 : 0) + (filters.projectId !== '' ? 1 : 0)}
             </span>
           )}
         </button>
@@ -218,7 +270,7 @@ export function TaskFilterBar() {
           width={320}
         >
           <label className="block text-xs font-semibold text-tr-subtle" htmlFor="task-board-filter">
-            Dự án / Bảng
+            Bảng
           </label>
           <div className="mt-1.5">
             <Select
@@ -232,6 +284,30 @@ export function TaskFilterBar() {
               {boards.map((board) => (
                 <option key={board.id} value={board.id}>
                   {board.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <label
+            className="mt-3 block text-xs font-semibold text-tr-subtle"
+            htmlFor="task-project-filter"
+          >
+            {t.nav.projects}
+          </label>
+          <div className="mt-1.5">
+            <Select
+              id="task-project-filter"
+              value={filters.projectId}
+              onChange={(event) =>
+                setFilters({
+                  projectId: event.target.value === '' ? '' : Number(event.target.value),
+                })
+              }
+            >
+              <option value="">Mọi dự án</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
                 </option>
               ))}
             </Select>
@@ -278,10 +354,19 @@ export function TaskFilterBar() {
   );
 }
 
+function assigneeFilterLabel(value: TaskFilters['assignee'], assignees: Assignee[]): string {
+  if (value === 'mine') return t.card.mine;
+  if (value === 'none') return t.card.unassigned;
+  return assignees.find((person) => person.id === value)?.full_name ?? 'Đã chọn';
+}
+
 const statusLabels: Record<TaskFilters['status'], string> = {
   all: 'Tất cả',
   open: 'Đang mở',
   done: 'Hoàn thành',
+  doing: 'Đang làm',
+  waiting: 'Đang chờ ai đó',
+  blocked: 'Bị chặn',
   review: 'Chờ duyệt',
 };
 
@@ -331,9 +416,20 @@ function TaskSummaryBar() {
       tone: 'text-tr-danger',
     },
     {
+      /* Viec dang cho ben ngoai — thu khong tu chay tiep va can mot loi nhac.
+         Truoc v16 khong dem duoc vi khong co gi phan biet "cho" voi "chua lam". */
+      key: 'waiting',
+      label: 'Đang chờ',
+      count: openTasks.filter((task) => isWaitingStatus(task.status)).length,
+      icon: <PauseCircle size={15} aria-hidden="true" />,
+      active: filters.status === 'waiting',
+      patch: { status: 'waiting' } satisfies Partial<TaskFilters>,
+      tone: 'text-amber-500',
+    },
+    {
       key: 'review',
       label: 'Chờ duyệt',
-      count: openTasks.filter((task) => isReviewStatus(task.list_name)).length,
+      count: openTasks.filter((task) => task.status === 'review').length,
       icon: <CheckCircle2 size={15} aria-hidden="true" />,
       active: filters.status === 'review',
       patch: { status: 'review' } satisfies Partial<TaskFilters>,
@@ -381,7 +477,7 @@ function TaskSummaryBar() {
   );
 }
 
-type GroupBy = 'none' | 'priority' | 'customer' | 'board';
+type GroupBy = 'none' | 'priority' | 'customer' | 'board' | 'assignee';
 
 export default function TasksPage() {
   const { data: tasks = [], isLoading, error, refetch } = useTaskQuery();
@@ -412,7 +508,8 @@ export default function TasksPage() {
                   <option value="none">Không nhóm</option>
                   <option value="priority">Ưu tiên</option>
                   <option value="customer">Khách hàng</option>
-                  <option value="board">Dự án / Bảng</option>
+                  <option value="assignee">{t.card.assignee}</option>
+                  <option value="board">Bảng</option>
                 </Select>
               </span>
             </label>
@@ -592,14 +689,15 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
         <DateInput value={dueDate} onChange={setDueDate} />
       </div>
       <div className="w-48">
-        <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-          <option value="">— khách hàng —</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
+        <Combobox
+          value={customerId === '' ? '' : Number(customerId)}
+          onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
+          options={customers.map((c) => ({ id: c.id, label: c.name }))}
+          placeholder="— khách hàng —"
+          searchPlaceholder="Tìm khách hàng…"
+          emptyText="Không tìm thấy khách hàng."
+          ariaLabel="Khách hàng"
+        />
       </div>
       <Button variant="primary" disabled={!title.trim() || !listId} onClick={submit}>
         {t.common.add}
@@ -639,8 +737,17 @@ function groupTasks(
     })).filter((group) => group.tasks.length > 0);
   }
 
-  const keyOf = (task: TaskRow) =>
-    groupBy === 'customer' ? (task.customer_name ?? 'Không gắn khách hàng') : task.board_name;
+  const keyOf = (task: TaskRow) => {
+    if (groupBy === 'customer') return task.customer_name ?? 'Không gắn khách hàng';
+    if (groupBy === 'assignee') {
+      // Kèm tổ chức: hai người trùng tên ở hai công ty là chuyện thường.
+      if (!task.assignee_name) return t.card.unassigned;
+      return task.assignee_org_name
+        ? `${task.assignee_name} · ${task.assignee_org_name}`
+        : task.assignee_name;
+    }
+    return task.board_name;
+  };
 
   const names = [...new Set(tasks.map(keyOf))].sort((a, b) => a.localeCompare(b, 'vi'));
   return names.map((name) => ({

@@ -8,18 +8,32 @@ const router = Router();
 
 const TASK_SELECT = `
   SELECT k.id, k.title, k.description, k.priority, k.start_date, k.due_date, k.is_done,
+         k.status, k.blocked_reason, k.blocked_since, k.recur_rule,
          k.completed_at, k.position, k.list_id, k.parent_id,
+         (SELECT COUNT(*) FROM task_nudges n WHERE n.card_id = k.id) AS nudge_count,
+         (SELECT MAX(n.sent_at) FROM task_nudges n WHERE n.card_id = k.id) AS last_nudged_at,
          (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total,
          (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
          (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
          (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
          l.name AS list_name, b.id AS board_id, b.name AS board_name, b.color AS board_color,
-         k.customer_id, c.name AS customer_name, k.deal_id, d.title AS deal_title
+         k.customer_id, c.name AS customer_name, k.deal_id, d.title AS deal_title,
+         k.assignee_contact_id, k.assignee_org_id, ac.full_name AS assignee_name,
+         ac.phone AS assignee_phone, ac.email AS assignee_email, ac.zalo AS assignee_zalo,
+         ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
+         /* Du an suy tu BANG (v19) — cards khong con cot project_id. */
+         b.project_id, pr.name AS project_name, l.status_mapping,
+         k.estimate_hours, k.spent_hours, k.is_milestone, k.baseline_due_date,
+         (SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS slip_count,
+         CAST(julianday(k.due_date) - julianday(k.baseline_due_date) AS INTEGER) AS slip_days
     FROM cards k
     JOIN lists l ON l.id = k.list_id
     JOIN boards b ON b.id = l.board_id
     LEFT JOIN customers c ON c.id = k.customer_id
-    LEFT JOIN deals d ON d.id = k.deal_id`;
+    LEFT JOIN deals d ON d.id = k.deal_id
+    LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+    LEFT JOIN customers ao ON ao.id = k.assignee_org_id
+    LEFT JOIN projects pr ON pr.id = b.project_id`;
 
 /** Cot phu canh bao cho co hoi (FR-PIP-04, FR-DSH-05, BR-06, BR-07). */
 const DEAL_ATTENTION_SELECT = `
@@ -69,8 +83,30 @@ router.get('/tasks', (req, res) => {
     where.push(`b.id = ?`);
     params.push(Number(req.query.board_id));
   }
+  if (req.query.project_id) {
+    where.push(`b.project_id = ?`);
+    params.push(Number(req.query.project_id));
+  }
+  if (req.query.assignee_contact_id) {
+    where.push(`k.assignee_contact_id = ?`);
+    params.push(Number(req.query.assignee_contact_id));
+  }
+  if (req.query.assignee_org_id) {
+    where.push(`k.assignee_org_id = ?`);
+    params.push(Number(req.query.assignee_org_id));
+  }
+  /* "Viec cua toi" doc tu contacts.is_me thay vi bat client nho id — mot cho khai bao. */
+  if (req.query.mine === '1') where.push(`ac.is_me = 1`);
+  if (req.query.unassigned === '1') where.push(`k.assignee_contact_id IS NULL`);
   if (req.query.done === '1') where.push(`k.is_done = 1`);
   if (req.query.done === '0') where.push(`k.is_done = 0`);
+  if (req.query.card_status) {
+    where.push(`k.status = ?`);
+    params.push(String(req.query.card_status));
+  }
+  /* Viec dang cho ben ngoai: 'blocked' + 'waiting_customer'. Day la tap ma man
+     "Can nhac" quan tam — chung khong tre vi luoi, ma vi dang doi ai do. */
+  if (req.query.waiting === '1') where.push(`k.status IN ('blocked','waiting_customer')`);
   if (req.query.overdue === '1')
     where.push(`k.is_done = 0 AND k.due_date IS NOT NULL AND k.due_date < date('now','localtime')`);
 
@@ -88,29 +124,32 @@ router.get('/tasks', (req, res) => {
 router.get('/calendar', (req, res) => {
   const from = String(req.query.from ?? '1970-01-01');
   const to = String(req.query.to ?? '2999-12-31');
-  // Khi xem trong mot bang thi chi lay du lieu cua bang do
+  // Khi xem trong mot bang — hoac mot du an (v19) — thi chi lay du lieu pham vi do
   const boardId = req.query.board_id ? Number(req.query.board_id) : null;
+  const projectId = req.query.project_id ? Number(req.query.project_id) : null;
 
   const cards = db
     .prepare(
       `${TASK_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.due_date IS NOT NULL
-        AND k.due_date BETWEEN ? AND ? AND (? IS NULL OR b.id = ?)`
+        AND k.due_date BETWEEN ? AND ?
+        AND (? IS NULL OR b.id = ?) AND (? IS NULL OR b.project_id = ?)`
     )
-    .all(from, to, boardId, boardId) as Record<string, unknown>[];
+    .all(from, to, boardId, boardId, projectId, projectId) as Record<string, unknown>[];
 
   const reminders = db
     .prepare(
       `SELECT r.id, r.title, r.due_at, r.is_done, r.card_id FROM reminders r
          LEFT JOIN cards k ON k.id = r.card_id
          LEFT JOIN lists l ON l.id = k.list_id
+         LEFT JOIN boards b ON b.id = l.board_id
         WHERE substr(r.due_at, 1, 10) BETWEEN ? AND ?
-          AND (? IS NULL OR l.board_id = ?)`
+          AND (? IS NULL OR l.board_id = ?) AND (? IS NULL OR b.project_id = ?)`
     )
-    .all(from, to, boardId, boardId) as Record<string, unknown>[];
+    .all(from, to, boardId, boardId, projectId, projectId) as Record<string, unknown>[];
 
   // Chi khung nhin toan cuc moi co du lieu khong thuoc bang nao:
   // lich ca nhan (v11) va cac moc CRM.
-  const global = boardId === null;
+  const global = boardId === null && projectId === null;
   const crm = global;
 
   /**
@@ -228,28 +267,34 @@ router.get('/calendar', (req, res) => {
 router.get('/timeline', (req, res) => {
   const groupBy = req.query.groupBy === 'customer' ? 'customer' : 'board';
   const boardId = req.query.board_id ? Number(req.query.board_id) : null;
+  const projectId = req.query.project_id ? Number(req.query.project_id) : null;
   // Xem trong mot bang thi nhom theo danh sach cho de theo doi
   const groupByList = boardId !== null && req.query.groupBy !== 'customer';
+
+  const scope = `AND (? IS NULL OR b.id = ?) AND (? IS NULL OR b.project_id = ?)`;
+  const scopeArgs = [boardId, boardId, projectId, projectId];
 
   const scheduled = db
     .prepare(
       `${TASK_SELECT}
         WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0 AND k.parent_id IS NULL
           AND (k.start_date IS NOT NULL OR k.due_date IS NOT NULL)
-          AND (? IS NULL OR b.id = ?)
+          ${scope}
         ORDER BY COALESCE(k.start_date, k.due_date), k.due_date`
     )
-    .all(boardId, boardId) as Record<string, unknown>[];
+    .all(...scopeArgs) as Record<string, unknown>[];
 
   const unscheduled = db
     .prepare(
       `${TASK_SELECT}
         WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
           AND k.start_date IS NULL AND k.due_date IS NULL
-          AND (? IS NULL OR b.id = ?)
+          ${scope}
         ORDER BY k.id DESC LIMIT 100`
     )
-    .all(boardId, boardId) as Record<string, unknown>[];
+    .all(...scopeArgs) as Record<string, unknown>[];
+
+  const visibleIds = new Set(scheduled.map((k) => k.id as number));
 
   res.json({
     items: scheduled.map((k) => ({
@@ -259,6 +304,11 @@ router.get('/timeline', (req, res) => {
       due_date: (k.due_date ?? k.start_date) as string,
       priority: k.priority,
       is_done: k.is_done,
+      status: k.status,
+      is_milestone: k.is_milestone,
+      assignee_name: k.assignee_name,
+      assignee_org_kind: k.assignee_org_kind,
+      slip_count: k.slip_count,
       progress:
         Number(k.checklist_total) > 0
           ? Math.round((Number(k.checklist_done) / Number(k.checklist_total)) * 100)
@@ -286,6 +336,25 @@ router.get('/timeline', (req, res) => {
       customer_name: k.customer_name,
       priority: k.priority,
     })),
+    /*
+     * Phu thuoc CHI giua cac viec dang hien tren truc — canh tro toi mot the nam
+     * ngoai khung nhin la mot duong noi di vao hu khong.
+     *
+     * `violated` tinh o day thay vi o client: quy tac "viec truoc chua xong ma
+     * viec sau da bat dau" la quy tac nghiep vu, khong phai chi tiet trinh bay.
+     */
+    dependencies: (
+      db
+        .prepare(
+          `SELECT d.predecessor_id, d.successor_id,
+                  (p.is_done = 0 AND s.start_date IS NOT NULL
+                   AND s.start_date <= date('now','localtime')) AS violated
+             FROM card_dependencies d
+             JOIN cards p ON p.id = d.predecessor_id
+             JOIN cards s ON s.id = d.successor_id`
+        )
+        .all() as { predecessor_id: number; successor_id: number; violated: number }[]
+    ).filter((edge) => visibleIds.has(edge.predecessor_id) && visibleIds.has(edge.successor_id)),
   });
 });
 
@@ -461,6 +530,34 @@ router.get('/dashboard', (_req, res) => {
       .all(),
   };
 
+  /**
+   * Viec dang mo gom theo NGUOI PHU TRACH — de biet nen nhac ai truoc.
+   *
+   * Dong `assignee_contact_id IS NULL` duoc giu lai co y: viec chua giao la thu can
+   * xu ly som nhat, an di thi khong ai thay chung ton tai.
+   */
+  const workload = db
+    .prepare(
+      `SELECT k.assignee_contact_id, ac.full_name AS assignee_name, ac.is_me,
+              ac.phone AS assignee_phone, ac.zalo AS assignee_zalo, ac.email AS assignee_email,
+              k.assignee_org_id, ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
+              COUNT(*) AS open_count,
+              SUM(CASE WHEN k.due_date IS NOT NULL AND k.due_date < date('now','localtime')
+                       THEN 1 ELSE 0 END) AS overdue_count,
+              SUM(CASE WHEN k.due_date BETWEEN date('now','localtime')
+                                           AND date('now','localtime','+7 days')
+                       THEN 1 ELSE 0 END) AS due_week_count
+         FROM cards k
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+         LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+         LEFT JOIN customers ao ON ao.id = k.assignee_org_id
+        WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
+        GROUP BY k.assignee_contact_id
+        ORDER BY overdue_count DESC, open_count DESC`
+    )
+    .all();
+
   res.json({
     kpi: {
       open_opportunity_count: pipeline.open_count,
@@ -479,6 +576,7 @@ router.get('/dashboard', (_req, res) => {
       open: taskCounts.open_count ?? 0,
     },
     tasks: tasksByBucket,
+    workload,
     pipeline_totals,
     attention,
     expiring_contracts: {
@@ -544,7 +642,8 @@ router.get('/matrix', (req, res) => {
   const industries = db
     .prepare(
       `SELECT DISTINCT industry FROM customers
-        WHERE industry IS NOT NULL AND industry <> '' ORDER BY industry`
+        WHERE org_kind = 'customer' AND industry IS NOT NULL AND industry <> ''
+        ORDER BY industry`
     )
     .all() as { industry: string }[];
 
@@ -785,9 +884,60 @@ router.get('/reports', (req, res) => {
     )
     .get();
 
+  /**
+   * Thong luong va khoi luong theo NGUOI PHU TRACH (v18).
+   *
+   * `estimate_hours` co the trong tren nhieu the — cot `estimated_count` di kem
+   * de biet con so gio la day du hay chi la mot phan, thay vi trinh bay mot tong
+   * sai la mot tong that.
+   */
+  const by_assignee = db
+    .prepare(
+      `SELECT k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name, ac.is_me,
+              ao.name AS org_name, ao.org_kind,
+              SUM(CASE WHEN k.is_done = 1 AND k.completed_at IS NOT NULL
+                        AND date(k.completed_at) BETWEEN ? AND ? THEN 1 ELSE 0 END) AS completed,
+              SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count,
+              SUM(CASE WHEN k.is_done = 0 AND k.due_date IS NOT NULL
+                        AND k.due_date < date('now','localtime') THEN 1 ELSE 0 END) AS overdue_count,
+              SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN date('now','localtime')
+                                                            AND date('now','localtime','+7 days')
+                       THEN 1 ELSE 0 END) AS due_week_count,
+              COALESCE(SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN date('now','localtime')
+                                                                     AND date('now','localtime','+7 days')
+                                THEN k.estimate_hours ELSE 0 END), 0) AS week_hours,
+              SUM(CASE WHEN k.is_done = 0 AND k.estimate_hours IS NOT NULL THEN 1 ELSE 0 END)
+                AS estimated_count
+         FROM cards k
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+         LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+         LEFT JOIN customers ao ON ao.id = k.assignee_org_id
+        WHERE k.is_archived = 0 AND b.is_archived = 0
+        GROUP BY k.assignee_contact_id
+       HAVING completed > 0 OR open_count > 0
+        ORDER BY overdue_count DESC, open_count DESC`
+    )
+    .all(from, to);
+
+  /** Phan bo so lan doi han — duoi cang dai thi ke hoach cang khong dang tin. */
+  const slip_distribution = db
+    .prepare(
+      `SELECT slips, COUNT(*) AS task_count FROM (
+         SELECT (SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS slips
+           FROM cards k
+           JOIN lists l ON l.id = k.list_id
+           JOIN boards b ON b.id = l.board_id
+          WHERE k.is_archived = 0 AND b.is_archived = 0 AND k.due_date IS NOT NULL
+       ) GROUP BY slips ORDER BY slips`
+    )
+    .all();
+
   res.json({
     from,
     to,
+    by_assignee,
+    slip_distribution,
     completed_by_week,
     open_by_priority,
     pipeline_by_stage,

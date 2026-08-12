@@ -38,8 +38,15 @@ import {
 } from '../calendar/calendarPrefs';
 import type { CalendarConflict, CalendarItem } from '../../types';
 
-/** Lich dung chung: bo trong boardId la xem toan bo, truyen vao la xem trong mot bang. */
-export function CalendarView({ boardId }: { boardId?: number }) {
+/**
+ * Lich dung chung. Bo trong ca hai khoa la xem toan bo; truyen `boardId` la pham
+ * vi mot bang, `projectId` la pham vi mot du an (v19).
+ *
+ * `scoped` gom hai truong hop lai: ca hai deu la khung nhin thu hep, nen deu KHONG
+ * co du lieu ngoai cong viec (lich ca nhan, moc CRM) va khong tao su kien duoc.
+ */
+export function CalendarView({ boardId, projectId }: { boardId?: number; projectId?: number }) {
+  const scoped = boardId !== undefined || projectId !== undefined;
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
 
@@ -94,9 +101,11 @@ export function CalendarView({ boardId }: { boardId?: number }) {
     error,
     isPending,
   } = useQuery({
-    queryKey: ['calendar', range.from, range.to, boardId ?? 'all'],
+    queryKey: ['calendar', range.from, range.to, boardId ?? 'all', projectId ?? 'all'],
     queryFn: () =>
-      api.get<CalendarItem[]>(`/api/views/calendar${qs({ ...range, board_id: boardId })}`),
+      api.get<CalendarItem[]>(
+        `/api/views/calendar${qs({ ...range, board_id: boardId, project_id: projectId })}`
+      ),
     // Giu du lieu ky truoc khi dang tai ky moi — neu khong luoi se nhay rong
     // mot nhip moi lan bam lui/toi.
     placeholderData: keepPreviousData,
@@ -159,17 +168,13 @@ export function CalendarView({ boardId }: { boardId?: number }) {
         onViewChange={setView}
         onDateChange={setDate}
         /* Lich ca nhan khong thuoc bang nao, nen tab Lich trong Bang khong tao duoc. */
-        onCreate={
-          boardId === undefined
-            ? () => openCreate(`${date}T09:00`, `${date}T10:00`, false)
-            : undefined
-        }
+        onCreate={scoped ? undefined : () => openCreate(`${date}T09:00`, `${date}T10:00`, false)}
       />
 
       <div className="mb-3 flex shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs text-tr-muted">
         <Legend color={PRIORITY_COLORS.urgent} label={t.calendar.legendTasks} />
         <Legend color="var(--cal-reminder-bg)" label={t.reminder.reminders} />
-        {boardId === undefined && (
+        {!scoped && (
           <>
             <Legend color="var(--cal-next-action-bg)" label={t.calendar.legendNextAction} />
             <Legend color="var(--cal-deal-close-bg)" label={t.calendar.legendDealClose} />
@@ -197,7 +202,7 @@ export function CalendarView({ boardId }: { boardId?: number }) {
               onDateChange={setDate}
               onOpen={setSelected}
               onCardDrop={(id, due_date) => reschedule.mutate({ id, due_date })}
-              onCreateSlot={boardId === undefined ? openCreate : undefined}
+              onCreateSlot={scoped ? undefined : openCreate}
             />
           )}
           {/* Muc 49 — ngay trong khong nen la mot luoi im lang. */}

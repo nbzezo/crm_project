@@ -250,6 +250,489 @@ test('cong viec chan lien ket cheo khach hang va go lien ket cap duoi khi doi kh
   assert.equal(moved.data.contact_id, null);
 });
 
+test('nguoi phu trach la truc rieng, khong bi rang buoc cung khach hang', async () => {
+  const ownOrg = await createCustomer('To chuc noi bo');
+  await json('PATCH', `/api/customers/${ownOrg}`, { org_kind: 'own' });
+  const customerA = await createCustomer('Khach hang co viec');
+
+  const staff = await json('POST', `/api/customers/${ownOrg}/contacts`, {
+    full_name: 'Nhan su noi bo',
+    is_me: true,
+  });
+  assert.equal(staff.status, 201);
+  const staffId = Number(staff.data.id);
+
+  /*
+   * Diem then chot cua ca tinh nang: mot viec VE khach hang A do nhan su cong ty
+   * MINH lam. Neu assignee_contact_id lot vao TASK_LINK_KEYS thi day se la 422.
+   */
+  const card = await json('POST', '/api/cards', {
+    title: 'Viec cua khach A do noi bo lam',
+    customer_id: customerA,
+    assignee_contact_id: staffId,
+  });
+  assert.equal(card.status, 201);
+  assert.equal(card.data.customer_id, customerA);
+  assert.equal(card.data.assignee_contact_id, staffId);
+  // assignee_org_id luon suy ra tu contact — khong bao giu duoc phep lech.
+  assert.equal(card.data.assignee_org_id, ownOrg);
+  assert.equal(card.data.assignee_name, 'Nhan su noi bo');
+  const cardId = Number(card.data.id);
+
+  // Doi khach hang go lien ket cap duoi nhung KHONG duoc lam mat nguoi phu trach.
+  const moved = await json('PATCH', `/api/cards/${cardId}`, { customer_id: null });
+  assert.equal(moved.status, 200);
+  assert.equal(moved.data.customer_id, null);
+  assert.equal(moved.data.assignee_contact_id, staffId);
+
+  // Client co tu ghi assignee_org_id sai thi may chu van tinh lai tu contact.
+  const forced = await json('PATCH', `/api/cards/${cardId}`, {
+    assignee_contact_id: staffId,
+    assignee_org_id: customerA,
+  });
+  assert.equal(forced.status, 200);
+  assert.equal(forced.data.assignee_org_id, ownOrg);
+
+  // Nhan su nghi viec: giu lich su nhung khong giao viec moi duoc nua.
+  await json('PATCH', `/api/contacts/${staffId}`, { is_active: false });
+  const inactive = await json('POST', '/api/cards', {
+    title: 'Giao cho nguoi da nghi',
+    assignee_contact_id: staffId,
+  });
+  assert.equal(inactive.status, 400);
+  assert.equal(inactive.data.code, 'ASSIGNEE_INACTIVE');
+
+  const missing = await json('POST', '/api/cards', {
+    title: 'Giao cho nguoi khong ton tai',
+    assignee_contact_id: 999_999,
+  });
+  assert.equal(missing.status, 404);
+
+  // To chuc 'own' phai nam ngoai danh sach khach hang mac dinh cua CRM.
+  const crmList = await fetch(`${baseUrl}/api/customers`);
+  const crmOrgs = (await crmList.json()) as { id: number }[];
+  assert.ok(!crmOrgs.some((org) => org.id === ownOrg));
+  const allList = await fetch(`${baseUrl}/api/customers?org_kind=all`);
+  const allOrgs = (await allList.json()) as { id: number }[];
+  assert.ok(allOrgs.some((org) => org.id === ownOrg));
+
+  // Nhung van phai giao viec duoc: /assignable khong loc theo khach hang.
+  const assignable = await fetch(`${baseUrl}/api/contacts/assignable`);
+  const people = (await assignable.json()) as { id: number }[];
+  // Da tat is_active o tren nen khong con trong danh sach.
+  assert.ok(!people.some((person) => person.id === staffId));
+});
+
+test('trang thai va is_done luon dong bo, viec lap lai sinh ban ke tiep', async () => {
+  const board = await json('POST', '/api/boards', { name: 'Bang vong doi' });
+  assert.equal(board.status, 201);
+  const list = await json('POST', '/api/lists', {
+    board_id: Number(board.data.id),
+    name: 'Cần làm',
+  });
+  assert.equal(list.status, 201);
+  const listId = Number(list.data.id);
+
+  const created = await json('POST', '/api/cards', { list_id: listId, title: 'Viec vong doi' });
+  assert.equal(created.status, 201);
+  const cardId = Number(created.data.id);
+  assert.equal(created.data.status, 'todo');
+  assert.equal(created.data.is_done, 0);
+
+  // status -> is_done
+  const done = await json('PATCH', `/api/cards/${cardId}`, { status: 'done' });
+  assert.equal(done.data.is_done, 1);
+  assert.ok(done.data.completed_at);
+
+  // is_done -> status (loi tat cu van phai giu hai cot khop nhau)
+  const reopened = await json('PATCH', `/api/cards/${cardId}`, { is_done: false });
+  assert.equal(reopened.data.status, 'todo');
+  assert.equal(reopened.data.is_done, 0);
+  assert.equal(reopened.data.completed_at, null);
+
+  /* `is_done: false` gui len mot the DANG LAM khong duoc keo no ve 'todo' —
+     day la bay de nhat khi dich hai cot vao nhau. */
+  await json('PATCH', `/api/cards/${cardId}`, { status: 'doing' });
+  const noop = await json('PATCH', `/api/cards/${cardId}`, { is_done: false });
+  assert.equal(noop.data.status, 'doing');
+
+  // Chan viec: giu ly do va moc bat dau bi chan; go chan thi xoa ca hai.
+  const blocked = await json('PATCH', `/api/cards/${cardId}`, {
+    status: 'blocked',
+    blocked_reason: 'Chờ khách gửi dữ liệu đầu vào',
+  });
+  assert.equal(blocked.data.blocked_reason, 'Chờ khách gửi dữ liệu đầu vào');
+  assert.ok(blocked.data.blocked_since);
+  const unblocked = await json('PATCH', `/api/cards/${cardId}`, { status: 'doing' });
+  assert.equal(unblocked.data.blocked_reason, null);
+  assert.equal(unblocked.data.blocked_since, null);
+
+  // Viec lap lai: dong ban nay thi sinh ban ke tiep, moc tinh tu HAN CU.
+  const repeating = await json('POST', '/api/cards', {
+    list_id: listId,
+    title: 'Bao cao tuan',
+    due_date: '2026-01-05',
+  });
+  const repeatId = Number(repeating.data.id);
+  await json('PATCH', `/api/cards/${repeatId}`, {
+    recur_rule: JSON.stringify({ unit: 'week', interval: 1 }),
+  });
+  const closed = await json('PATCH', `/api/cards/${repeatId}`, { status: 'done' });
+  assert.equal(closed.data.is_done, 1);
+  // Ban vua dong khong con lap — hoan thanh lai khong duoc sinh trung.
+  assert.equal(closed.data.recur_rule, null);
+
+  /* Tim theo BANG chu khong theo cot: tu v19 the tu nhay sang cot mang dung
+     trang thai, va ban ke tiep bat dau lai o cot dau quy trinh. */
+  const next = db
+    .prepare(
+      `SELECT k.id, k.due_date, k.status, l.status_mapping
+         FROM cards k JOIN lists l ON l.id = k.list_id
+        WHERE l.board_id = ? AND k.title = 'Bao cao tuan' AND k.id <> ?`
+    )
+    .get(Number(board.data.id), repeatId) as
+    { due_date: string; status: string; status_mapping: string | null } | undefined;
+  assert.ok(next, 'phai sinh ban ke tiep');
+  assert.equal(next.due_date, '2026-01-12');
+  assert.equal(next.status, 'todo');
+  // Ban moi phai o dau quy trinh, khong ke thua cot 'Hoan thanh' cua ban vua dong.
+  assert.equal(next.status_mapping, 'todo');
+
+  // recur_rule hong khong duoc lam vo luong hoan thanh.
+  const broken = await json('POST', '/api/cards', {
+    list_id: listId,
+    title: 'Lich hong',
+    due_date: '2026-02-01',
+  });
+  const brokenId = Number(broken.data.id);
+  await json('PATCH', `/api/cards/${brokenId}`, { recur_rule: '{khong-phai-json' });
+  const brokenDone = await json('PATCH', `/api/cards/${brokenId}`, { status: 'done' });
+  assert.equal(brokenDone.status, 200);
+  assert.equal(
+    (db.prepare(`SELECT COUNT(*) AS n FROM cards WHERE title = 'Lich hong'`).get() as { n: number })
+      .n,
+    1
+  );
+});
+
+test('nhat ky nhac ghi dung nguoi phu trach tai thoi diem nhac', async () => {
+  const board = await json('POST', '/api/boards', { name: 'Bang nhac viec' });
+  const list = await json('POST', '/api/lists', {
+    board_id: Number(board.data.id),
+    name: 'Cần làm',
+  });
+  const org = await createCustomer('To chuc nhac viec');
+  await json('PATCH', `/api/customers/${org}`, { org_kind: 'partner' });
+  const person = await json('POST', `/api/customers/${org}/contacts`, { full_name: 'Doi tac A' });
+  const personId = Number(person.data.id);
+
+  const card = await json('POST', '/api/cards', {
+    list_id: Number(list.data.id),
+    title: 'Viec can nhac',
+    assignee_contact_id: personId,
+  });
+  const cardId = Number(card.data.id);
+
+  const nudge = await json('POST', '/api/nudges', {
+    card_id: cardId,
+    channel: 'zalo',
+    message: 'Anh cho em xin mốc hoàn thành nhé.',
+  });
+  assert.equal(nudge.status, 201);
+  // contact_id lay tu the, khong nhan tu client.
+  assert.equal(nudge.data.contact_id, personId);
+  assert.equal(nudge.data.responded_at, null);
+
+  const answered = await json('PATCH', `/api/nudges/${Number(nudge.data.id)}`, {
+    response: 'Thứ 6 tuần này xong.',
+  });
+  assert.equal(answered.data.response, 'Thứ 6 tuần này xong.');
+  assert.ok(answered.data.responded_at);
+
+  const reloaded = await json('GET', `/api/cards/${cardId}`);
+  assert.equal(reloaded.data.nudge_count, 1);
+  assert.ok(reloaded.data.last_nudged_at);
+});
+
+test('du an gom bang va cong viec, suc khoe tinh khi doc', async () => {
+  const project = await json('POST', '/api/projects', {
+    name: 'Trien khai he thong',
+    code: 'DA-01',
+    plan_start: '2026-01-01',
+    plan_end: '2026-12-31',
+    budget_vnd: 500_000_000,
+  });
+  assert.equal(project.status, 201);
+  const projectId = Number(project.data.id);
+  assert.equal(project.data.health, 'green');
+  assert.equal(project.data.progress_pct, 0);
+
+  const board = await json('POST', '/api/boards', {
+    name: 'Bang trien khai',
+    project_id: projectId,
+  });
+  assert.equal(board.status, 201);
+  const boardId = Number(board.data.id);
+  const full = await json('GET', `/api/boards/${boardId}/full`);
+  const listId = (full.data.lists as { id: number }[])[0].id;
+
+  // Cong viec tao trong bang cua du an tu mang project_id — khong phai gui kem.
+  const card = await json('POST', '/api/cards', { list_id: listId, title: 'Khao sat' });
+  assert.equal(card.data.project_id, projectId);
+  assert.equal(card.data.project_name, 'Trien khai he thong');
+  const cardId = Number(card.data.id);
+
+  const withOne = await json('GET', `/api/projects/${projectId}`);
+  assert.equal(withOne.data.task_total, 1);
+  assert.equal(withOne.data.progress_pct, 0);
+
+  await json('PATCH', `/api/cards/${cardId}`, { status: 'done' });
+  const halfway = await json('GET', `/api/projects/${projectId}`);
+  assert.equal(halfway.data.task_done, 1);
+  assert.equal(halfway.data.progress_pct, 100);
+  assert.equal(halfway.data.health, 'green');
+
+  // Mot viec bi chan la DO: du an se khong tu chay tiep neu khong ai lam gi.
+  const blocked = await json('POST', '/api/cards', { list_id: listId, title: 'Cho ha tang' });
+  await json('PATCH', `/api/cards/${Number(blocked.data.id)}`, {
+    status: 'blocked',
+    blocked_reason: 'Cho cap VPN',
+  });
+  const red = await json('GET', `/api/projects/${projectId}`);
+  assert.equal(red.data.health, 'red');
+  assert.equal(red.data.task_waiting, 1);
+
+  // Nhan su suy ra tu nguoi phu trach cac viec, khong phai bang thanh vien rieng.
+  const org = await createCustomer('To chuc du an');
+  await json('PATCH', `/api/customers/${org}`, { org_kind: 'own' });
+  const person = await json('POST', `/api/customers/${org}/contacts`, { full_name: 'Ky su A' });
+  await json('PATCH', `/api/cards/${cardId}`, {
+    assignee_contact_id: Number(person.data.id),
+  });
+  const withPeople = await json('GET', `/api/projects/${projectId}`);
+  assert.equal((withPeople.data.people as unknown[]).length, 1);
+
+  /* Gan mot bang DA CO cong viec vao du an phai keo theo ca cong viec cu — neu
+     khong, bao cao du an se bo qua toan bo phan lam truoc khi gan. */
+  const other = await json('POST', '/api/boards', { name: 'Bang roi' });
+  const otherFull = await json('GET', `/api/boards/${Number(other.data.id)}/full`);
+  const otherList = (otherFull.data.lists as { id: number }[])[0].id;
+  const orphan = await json('POST', '/api/cards', { list_id: otherList, title: 'Viec co truoc' });
+  assert.equal(orphan.data.project_id, null);
+  await json('PATCH', `/api/boards/${Number(other.data.id)}`, { project_id: projectId });
+  const adopted = await json('GET', `/api/cards/${Number(orphan.data.id)}`);
+  assert.equal(adopted.data.project_id, projectId);
+
+  /* Xoa du an KHONG duoc xoa cong viec: du an la lop nhom, cong viec la du lieu
+     that. ON DELETE SET NULL o moi khoa ngoai. */
+  await json('DELETE', `/api/projects/${projectId}`);
+  const survived = await json('GET', `/api/cards/${cardId}`);
+  assert.equal(survived.status, 200);
+  assert.equal(survived.data.project_id, null);
+  const boardAfter = await json('GET', `/api/boards/${boardId}/full`);
+  assert.equal(boardAfter.data.project_id, null);
+});
+
+test('doi han de lai dau vet, phu thuoc chan chu trinh', async () => {
+  const board = await json('POST', '/api/boards', { name: 'Bang truot han' });
+  const list = await json('POST', '/api/lists', {
+    board_id: Number(board.data.id),
+    name: 'Cần làm',
+  });
+  const listId = Number(list.data.id);
+
+  // Han dat luc TAO chinh la baseline — khong tinh la mot lan truot.
+  const created = await json('POST', '/api/cards', {
+    list_id: listId,
+    title: 'Viec co han',
+    due_date: '2026-03-01',
+  });
+  const cardId = Number(created.data.id);
+  assert.equal(created.data.slip_count, 0);
+
+  const first = await json('PATCH', `/api/cards/${cardId}`, {
+    due_date: '2026-03-08',
+    due_reason: 'Khách chưa duyệt yêu cầu',
+  });
+  assert.equal(first.data.slip_count, 1);
+  assert.equal(first.data.slip_days, 7);
+
+  const second = await json('PATCH', `/api/cards/${cardId}`, { due_date: '2026-03-20' });
+  assert.equal(second.data.slip_count, 2);
+  // Baseline khong bao gio bi ghi de — no la moc so sanh co dinh.
+  assert.equal(second.data.baseline_due_date, '2026-03-01');
+  assert.equal(second.data.slip_days, 19);
+
+  const detail = await json('GET', `/api/cards/${cardId}`);
+  const changes = detail.data.due_changes as {
+    old_due: string;
+    new_due: string;
+    reason: string | null;
+  }[];
+  assert.equal(changes.length, 2);
+  assert.equal(changes[1].reason, 'Khách chưa duyệt yêu cầu');
+
+  // Dat lai cung mot ngay khong sinh dong lich su rong.
+  await json('PATCH', `/api/cards/${cardId}`, { due_date: '2026-03-20' });
+  assert.equal(Number((await json('GET', `/api/cards/${cardId}`)).data.slip_count), 2);
+
+  // Viec chua co han: lan dat dau tien la baseline, khong phai mot lan truot.
+  const noDue = await json('POST', '/api/cards', { list_id: listId, title: 'Viec chua co han' });
+  const noDueId = Number(noDue.data.id);
+  const dated = await json('PATCH', `/api/cards/${noDueId}`, { due_date: '2026-04-01' });
+  assert.equal(dated.data.slip_count, 0);
+  assert.equal(dated.data.baseline_due_date, '2026-04-01');
+
+  /* Phu thuoc: chan tu tham chieu va chan chu trinh. Chu trinh se lam moi thuat
+     toan duyet do thi sau nay lap vo han. */
+  const selfDep = await json('POST', `/api/cards/${cardId}/dependencies`, {
+    predecessor_id: cardId,
+  });
+  assert.equal(selfDep.status, 400);
+  assert.equal(selfDep.data.code, 'SELF_DEPENDENCY');
+
+  const ok = await json('POST', `/api/cards/${noDueId}/dependencies`, {
+    predecessor_id: cardId,
+  });
+  assert.equal(ok.status, 201);
+  assert.equal((ok.data.predecessors as unknown[]).length, 1);
+
+  const cycle = await json('POST', `/api/cards/${cardId}/dependencies`, {
+    predecessor_id: noDueId,
+  });
+  assert.equal(cycle.status, 422);
+  assert.equal(cycle.data.code, 'DEPENDENCY_CYCLE');
+
+  // Chu trinh gian tiep A -> B -> C -> A cung phai bi chan.
+  const third = await json('POST', '/api/cards', { list_id: listId, title: 'Viec thu ba' });
+  const thirdId = Number(third.data.id);
+  await json('POST', `/api/cards/${thirdId}/dependencies`, { predecessor_id: noDueId });
+  const indirect = await json('POST', `/api/cards/${cardId}/dependencies`, {
+    predecessor_id: thirdId,
+  });
+  assert.equal(indirect.status, 422);
+  assert.equal(indirect.data.code, 'DEPENDENCY_CYCLE');
+
+  const removed = await json('DELETE', `/api/cards/${noDueId}/dependencies/${cardId}`);
+  assert.equal((removed.data.predecessors as unknown[]).length, 0);
+});
+
+test('cot Kanban va trang thai dong bo hai chieu, khong lap vo han', async () => {
+  const board = await json('POST', '/api/boards', { name: 'Bang anh xa' });
+  const boardId = Number(board.data.id);
+  const full = await json('GET', `/api/boards/${boardId}/full`);
+  const lists = full.data.lists as { id: number; name: string; status_mapping: string | null }[];
+
+  // Bang moi phai co san anh xa — neu khong, cot va trang thai lai troi tu do.
+  assert.deepEqual(
+    lists.map((l) => l.status_mapping),
+    ['todo', 'doing', 'review', 'done']
+  );
+  const [todoList, doingList, reviewList, doneList] = lists.map((l) => l.id);
+
+  const card = await json('POST', '/api/cards', { list_id: todoList, title: 'Viec anh xa' });
+  const cardId = Number(card.data.id);
+  assert.equal(card.data.status, 'todo');
+
+  // Chieu 1: keo the sang cot -> trang thai doi theo (va `is_done` di kem).
+  const moved = await json('PATCH', `/api/cards/${cardId}/move`, { list_id: doneList });
+  assert.equal(moved.status, 200);
+  const afterMove = await json('GET', `/api/cards/${cardId}`);
+  assert.equal(afterMove.data.status, 'done');
+  assert.equal(afterMove.data.is_done, 1);
+
+  // Chieu 2: doi trang thai -> the tu nhay sang cot tuong ung.
+  const restatus = await json('PATCH', `/api/cards/${cardId}`, { status: 'review' });
+  assert.equal(restatus.data.status, 'review');
+  assert.equal(restatus.data.is_done, 0);
+  assert.equal(restatus.data.list_id, reviewList);
+
+  /* Khong lap vo han: sau MOT thao tac the dung o dung mot cot, mot trang thai.
+     Neu hai ham day nhau qua lai thi cau PATCH tren da khong bao gio tra ve. */
+  const settled = await json('GET', `/api/cards/${cardId}`);
+  assert.equal(settled.data.list_id, reviewList);
+  assert.equal(settled.data.status, 'review');
+
+  // Cot KHONG anh xa: keo vao khong dung den trang thai.
+  const freeList = await json('POST', '/api/lists', { board_id: boardId, name: 'Kho ý tưởng' });
+  assert.equal(freeList.data.status_mapping, null);
+  await json('PATCH', `/api/cards/${cardId}`, { status: 'doing' });
+  assert.equal(Number((await json('GET', `/api/cards/${cardId}`)).data.list_id), doingList);
+  await json('PATCH', `/api/cards/${cardId}/move`, { list_id: Number(freeList.data.id) });
+  const parked = await json('GET', `/api/cards/${cardId}`);
+  assert.equal(parked.data.list_id, Number(freeList.data.id));
+  assert.equal(parked.data.status, 'doing', 'cot khong anh xa khong duoc doi trang thai');
+
+  /* Gan anh xa cho mot cot DA CO the: keo cac the ben trong ve dung trang thai,
+     neu khong cot vua khai bao mot dang ma the ben trong mang mot dang khac. */
+  const mapped = await json('PATCH', `/api/lists/${Number(freeList.data.id)}`, {
+    status_mapping: 'waiting_customer',
+  });
+  assert.equal(mapped.data.status_mapping, 'waiting_customer');
+  assert.equal((await json('GET', `/api/cards/${cardId}`)).data.status, 'waiting_customer');
+});
+
+test('du an suy tu bang, khong con cot rieng tren the', async () => {
+  const project = await json('POST', '/api/projects', { name: 'Du an suy dan' });
+  const projectId = Number(project.data.id);
+
+  const boardIn = await json('POST', '/api/boards', {
+    name: 'Bang trong du an',
+    project_id: projectId,
+  });
+  const boardOut = await json('POST', '/api/boards', { name: 'Bang ngoai du an' });
+  const listIn = (
+    (await json('GET', `/api/boards/${Number(boardIn.data.id)}/full`)).data.lists as {
+      id: number;
+    }[]
+  )[0].id;
+  const listOut = (
+    (await json('GET', `/api/boards/${Number(boardOut.data.id)}/full`)).data.lists as {
+      id: number;
+    }[]
+  )[0].id;
+
+  // Cot project_id da bien mat khoi `cards` — khong the mang du an khac voi bang.
+  const columns = db.prepare(`PRAGMA table_info(cards)`).all() as { name: string }[];
+  assert.ok(!columns.some((c) => c.name === 'project_id'));
+
+  const card = await json('POST', '/api/cards', { list_id: listIn, title: 'Viec trong du an' });
+  const cardId = Number(card.data.id);
+  assert.equal(card.data.project_id, projectId);
+
+  // Keo sang bang ngoai du an -> viec roi khoi du an, ngay lap tuc va nhat quan.
+  await json('PATCH', `/api/cards/${cardId}/move`, { list_id: listOut });
+  assert.equal((await json('GET', `/api/cards/${cardId}`)).data.project_id, null);
+  assert.equal((await json('GET', `/api/projects/${projectId}`)).data.task_total, 0);
+
+  // Gan CA BANG vao du an -> moi viec co san trong bang thuoc du an, khong phai cap nhat gi.
+  await json('PATCH', `/api/boards/${Number(boardOut.data.id)}`, { project_id: projectId });
+  assert.equal((await json('GET', `/api/cards/${cardId}`)).data.project_id, projectId);
+  assert.equal((await json('GET', `/api/projects/${projectId}`)).data.task_total, 1);
+
+  /* Tao viec tu trang du an: `project_id` chi dan huong chon bang, va bang duoc
+     chon phai THUOC du an do — day la lo hong nang nhat truoc v19. */
+  const context = await json('GET', `/api/cards/context?project_id=${projectId}`);
+  const boards = context.data.boards as { id: number; project_id: number | null }[];
+  assert.ok(boards.length > 0);
+  assert.ok(boards.every((b) => b.project_id === projectId));
+
+  const fromProject = await json('POST', '/api/cards', {
+    title: 'Viec tao tu trang du an',
+    project_id: projectId,
+  });
+  assert.equal(fromProject.status, 201);
+  assert.equal(fromProject.data.project_id, projectId);
+
+  // Cac dang xem pham vi theo du an.
+  const timeline = await json('GET', `/api/views/timeline?project_id=${projectId}`);
+  assert.equal(timeline.status, 200);
+  const tasks = await fetch(`${baseUrl}/api/views/tasks?project_id=${projectId}`);
+  const rows = (await tasks.json()) as { project_id: number | null }[];
+  assert.ok(rows.length >= 2);
+  assert.ok(rows.every((row) => row.project_id === projectId));
+});
+
 test('stage gate rollback khi bi chan va ghi history khi override', async () => {
   const customerId = await createCustomer('Khach hang stage gate');
   const created = await json('POST', '/api/deals', {

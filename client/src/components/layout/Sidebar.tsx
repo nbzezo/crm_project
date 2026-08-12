@@ -22,11 +22,14 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Activity,
   BarChart3,
+  BellRing,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  Contact,
   FileSignature,
+  FolderKanban,
   FolderOpen,
   GanttChartSquare,
   GripVertical,
@@ -71,8 +74,10 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     id: 'work',
     label: 'Công việc',
     items: [
+      { to: '/projects', label: t.nav.projects, icon: FolderKanban },
       { to: '/boards', label: t.nav.boards, icon: Trello },
       { to: '/tasks', label: t.nav.tasks, icon: ListChecks },
+      { to: '/follow-up', label: t.nav.followUp, icon: BellRing },
       { to: '/calendar', label: t.nav.calendar, icon: CalendarDays },
       { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare },
       { to: '/documents', label: t.nav.documents, icon: FolderOpen },
@@ -94,6 +99,7 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     label: 'Phân tích & công cụ',
     items: [
       { to: '/reports', label: t.nav.reports, icon: BarChart3 },
+      { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
       { to: '/ai', label: t.nav.ai, icon: Sparkles },
     ],
   },

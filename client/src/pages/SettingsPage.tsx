@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Database, Download, HardDriveDownload } from 'lucide-react';
+import { Bot, Database, Download, HardDriveDownload, Tag, Target } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
-import { Button, Panel } from '../components/common/ui';
+import { Button, Panel, focusRing } from '../components/common/ui';
 import { LabelManager } from '../components/labels/LabelManager';
 import { ScoringSettings } from '../components/crm/ScoringSettings';
 import { t } from '../i18n/vi';
@@ -16,7 +18,25 @@ interface BackupFile {
   created_at: string;
 }
 
-export default function SettingsPage() {
+const CSV_EXPORTS: [string, string][] = [
+  ['customers', 'Khách hàng'],
+  ['contacts', 'Người liên hệ'],
+  ['deals', 'Cơ hội'],
+  ['contracts', 'Hợp đồng'],
+  ['tasks', 'Công việc'],
+  ['revenues', 'Doanh thu theo tháng'],
+];
+
+type SettingsTab = 'labels' | 'scoring' | 'ai' | 'data';
+
+const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
+  { key: 'labels', label: t.settings.tabLabels, icon: Tag },
+  { key: 'scoring', label: t.settings.tabScoring, icon: Target },
+  { key: 'ai', label: t.settings.tabAi, icon: Bot },
+  { key: 'data', label: t.settings.tabData, icon: Database },
+];
+
+function DataSettings() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
 
@@ -34,9 +54,7 @@ export default function SettingsPage() {
   });
 
   return (
-    <div className="max-w-4xl space-y-4 p-6">
-      <AiSettings />
-
+    <div className="space-y-4">
       <Panel title={t.settings.backup}>
         <p className="mb-3 flex items-center gap-2 text-sm text-tr-subtle">
           <Database size={15} /> {t.settings.dataLocation}
@@ -56,17 +74,10 @@ export default function SettingsPage() {
         {/* NFR-06: xuất CSV mở được bằng Excel */}
         <div className="mt-4">
           <h3 className="mb-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase">
-            Xuất CSV (mở bằng Excel)
+            {t.settings.exportCsv}
           </h3>
           <div className="flex flex-wrap gap-2">
-            {[
-              ['customers', 'Khách hàng'],
-              ['contacts', 'Người liên hệ'],
-              ['deals', 'Cơ hội'],
-              ['contracts', 'Hợp đồng'],
-              ['tasks', 'Công việc'],
-              ['revenues', 'Doanh thu theo tháng'],
-            ].map(([entity, label]) => (
+            {CSV_EXPORTS.map(([entity, label]) => (
               <a
                 key={entity}
                 href={`/api/export/${entity}.csv`}
@@ -98,20 +109,67 @@ export default function SettingsPage() {
         )}
       </Panel>
 
-      <Panel title={t.settings.manageLabels}>
-        <LabelManager />
-      </Panel>
-
-      <Panel title="Chấm điểm cơ hội (BANT + 4P)">
-        <ScoringSettings />
-      </Panel>
-
-      <Panel title="Dữ liệu mẫu">
+      <Panel title={t.settings.sampleData}>
         <p className="text-sm text-tr-subtle">
           Chạy lệnh <code className="rounded bg-tr-hover px-1.5 py-0.5">npm run seed</code> trong
           thư mục dự án để nạp dữ liệu mẫu (chỉ chạy khi cơ sở dữ liệu còn trống).
         </p>
       </Panel>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const [tab, setTab] = useState<SettingsTab>('labels');
+
+  return (
+    <div className="mx-auto w-full max-w-4xl p-4 sm:p-6">
+      <header className="mb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-tr-text">
+          {t.settings.pageTitle}
+        </h1>
+        <p className="mt-1 text-sm text-tr-muted">{t.settings.pageSubtitle}</p>
+      </header>
+
+      <div
+        role="tablist"
+        aria-label={t.settings.pageTitle}
+        className="mb-4 flex flex-wrap gap-1 border-b border-tr-border"
+      >
+        {SETTINGS_TABS.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            id={`settingstab-${item.key}`}
+            aria-selected={tab === item.key}
+            aria-controls="settingstab-panel"
+            onClick={() => setTab(item.key)}
+            className={`-mb-px flex min-h-[44px] items-center gap-1.5 border-b-2 px-3 text-sm font-medium transition sm:min-h-0 sm:py-2 ${focusRing} ${
+              tab === item.key
+                ? 'border-tr-primary text-tr-primary'
+                : 'border-transparent text-tr-subtle hover:text-tr-text'
+            }`}
+          >
+            <item.icon size={15} /> {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div id="settingstab-panel" role="tabpanel" aria-labelledby={`settingstab-${tab}`}>
+        {tab === 'labels' && (
+          <Panel title={t.settings.manageLabels}>
+            <LabelManager />
+          </Panel>
+        )}
+        {tab === 'scoring' && (
+          <Panel title={t.settings.scoringTitle}>
+            <ScoringSettings />
+          </Panel>
+        )}
+        {tab === 'ai' && <AiSettings />}
+        {tab === 'data' && <DataSettings />}
+      </div>
     </div>
   );
 }

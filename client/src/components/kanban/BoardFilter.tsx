@@ -1,11 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import { Popover } from '../common/Popover';
+import { selectOptionContrast } from '../common/ui';
 import { LabelModeToggle } from '../labels/LabelFilter';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk } from '../../lib/format';
-import { useUiStore } from '../../stores/uiStore';
-import type { Customer, Label, Priority } from '../../types';
+import { useUiStore, type BoardFilters } from '../../stores/uiStore';
+import { useAssignees } from '../tasks/AssigneePicker';
+import { CARD_STATUSES } from '@workflow/contracts';
+import type { CardStatus, Customer, Label, Priority } from '../../types';
+
+/** `<select>` chỉ trả chuỗi — đưa về đúng kiểu ba nhánh của bộ lọc. */
+export function parseAssigneeFilter(raw: string): BoardFilters['assignee'] {
+  if (raw === '' || raw === 'mine' || raw === 'none') return raw;
+  return Number(raw);
+}
 
 export function BoardFilter({
   open,
@@ -28,6 +38,7 @@ export function BoardFilter({
     staleTime: 60_000,
     enabled: open,
   });
+  const { data: assignees = [] } = useAssignees();
 
   const toggleLabel = (id: number) =>
     setFilters({
@@ -140,21 +151,50 @@ export function BoardFilter({
           </Section>
         )}
 
-        <Section title={t.card.customer}>
+        {/* Vòng đời tách khỏi "Trạng thái" ở trên: cái kia là xong/chưa xong,
+            cái này là việc đang nằm ở đâu trong quy trình. */}
+        <Section title="Vòng đời công việc">
           <select
-            value={filters.customerId}
-            onChange={(e) =>
-              setFilters({ customerId: e.target.value === '' ? '' : Number(e.target.value) })
-            }
-            className="w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary"
+            value={filters.cardStatus}
+            onChange={(e) => setFilters({ cardStatus: e.target.value as CardStatus | '' })}
+            className={`w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary ${selectOptionContrast}`}
           >
-            <option value="">Mọi khách hàng</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            <option value="">Mọi vòng đời</option>
+            {CARD_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {t.cardStatus[status]}
               </option>
             ))}
           </select>
+        </Section>
+
+        <Section title={t.card.assignee}>
+          <select
+            value={filters.assignee}
+            onChange={(e) => setFilters({ assignee: parseAssigneeFilter(e.target.value) })}
+            className={`w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary ${selectOptionContrast}`}
+          >
+            <option value="">Mọi người</option>
+            <option value="mine">{t.card.mine}</option>
+            <option value="none">{t.card.unassigned}</option>
+            {assignees.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.full_name} · {a.org_name}
+              </option>
+            ))}
+          </select>
+        </Section>
+
+        <Section title={t.card.customer}>
+          <Combobox
+            value={filters.customerId}
+            onChange={(v) => setFilters({ customerId: v })}
+            options={customers.map((c) => ({ id: c.id, label: c.name }))}
+            placeholder="Mọi khách hàng"
+            searchPlaceholder="Tìm khách hàng…"
+            emptyText="Không tìm thấy khách hàng."
+            ariaLabel={t.card.customer}
+          />
         </Section>
 
         <button

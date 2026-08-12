@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Image, Plus, Tag, Trash2, X } from 'lucide-react';
+import { ChevronLeft, FolderKanban, Image, Plus, Tag, Trash2, X } from 'lucide-react';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { BOARD_COLORS, BOARD_GRADIENTS, backgroundStyle } from '../../lib/backgrounds';
 import { t } from '../../i18n/vi';
 import { contrastInk, formatDateTime } from '../../lib/format';
-import type { BoardFull, Label } from '../../types';
+import type { BoardFull, Label, Project } from '../../types';
 
 type View = 'main' | 'background' | 'labels';
 
@@ -54,6 +55,25 @@ export function BoardMenu({
   const setBackground = useMutation({
     mutationFn: (background: string) => api.patch(`/api/boards/${board.id}`, { background }),
     onSuccess: refreshBoard,
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects', false],
+    queryFn: () => api.get<Project[]>('/api/projects'),
+    staleTime: 60_000,
+    enabled: open,
+  });
+
+  const setProject = useMutation({
+    mutationFn: (projectId: number | null) =>
+      api.patch(`/api/boards/${board.id}`, { project_id: projectId }),
+    onSuccess: () => {
+      refreshBoard();
+      // Thẻ trong bảng vừa đổi project_id — mọi màn đọc theo dự án phải nạp lại.
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 
   const addLabel = useMutation({
@@ -125,6 +145,25 @@ export function BoardMenu({
                 label={t.settings.manageLabels}
                 onClick={() => setView('labels')}
               />
+
+              {/* Gắn bảng vào dự án kéo theo MỌI công việc trong bảng — máy chủ
+                  cập nhật cards.project_id cùng lúc để báo cáo dự án không bỏ sót
+                  phần việc đã có từ trước. */}
+              <label className="block px-2 pt-2">
+                <span className="mb-1 flex items-center gap-2 text-xs font-semibold text-tr-subtle">
+                  <FolderKanban size={15} aria-hidden="true" /> {t.nav.projects}
+                </span>
+                <Combobox
+                  value={board.project_id ?? ''}
+                  onChange={(v) => setProject.mutate(v === '' ? null : v)}
+                  options={projects.map((project) => ({ id: project.id, label: project.name }))}
+                  placeholder="— Không thuộc dự án nào —"
+                  searchPlaceholder="Tìm dự án…"
+                  emptyText="Không tìm thấy dự án."
+                  ariaLabel={t.nav.projects}
+                />
+              </label>
+
               <div className="my-2 border-t border-tr-border" />
               <div className="px-2 py-1 text-xs text-tr-muted">
                 Tạo lúc {formatDateTime(board.created_at?.replace(' ', 'T').slice(0, 16))}

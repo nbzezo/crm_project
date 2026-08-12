@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Archive, Building2, Plus, Star, X } from 'lucide-react';
+import { Archive, Building2, FolderKanban, Plus, Star, X } from 'lucide-react';
 import { api } from '../api/client';
 import {
   ALL_BACKGROUNDS,
@@ -9,6 +9,7 @@ import {
   BOARD_GRADIENTS,
   backgroundStyle,
 } from '../lib/backgrounds';
+import { Combobox } from '../components/common/Combobox';
 import { Popover, usePopover } from '../components/common/Popover';
 import { Button, EmptyState, ErrorState, Skeleton, focusRing } from '../components/common/ui';
 import { t } from '../i18n/vi';
@@ -61,6 +62,27 @@ export default function BoardsPage() {
 
   const starred = boards.filter((b) => b.is_starred && !b.is_archived);
   const others = boards.filter((b) => !b.is_starred || b.is_archived);
+
+  /** Bảng còn lại gom theo dự án; nhóm không thuộc dự án nào xuống cuối. */
+  const groupsByProject = useMemo(() => {
+    const byProject = new Map<number | null, { title: string; boards: Board[] }>();
+    for (const board of others) {
+      const key = board.project_id ?? null;
+      const bucket = byProject.get(key) ?? {
+        title: board.project_name ?? 'Không thuộc dự án nào',
+        boards: [],
+      };
+      bucket.boards.push(board);
+      byProject.set(key, bucket);
+    }
+    return [...byProject.entries()]
+      .map(([projectId, group]) => ({ key: String(projectId), projectId, ...group }))
+      .sort((a, b) => {
+        if (a.projectId === null) return 1;
+        if (b.projectId === null) return -1;
+        return a.title.localeCompare(b.title, 'vi');
+      });
+  }, [others]);
 
   return (
     <div className="p-6">
@@ -125,22 +147,48 @@ export default function BoardsPage() {
               ))}
             </Section>
           )}
-          <Section title="Tất cả bảng">
-            {others.map((board) => (
-              <BoardTile
-                key={board.id}
-                board={board}
-                onToggleStar={patchBoard.mutate}
-                onToggleArchive={patchBoard.mutate}
-              />
-            ))}
-            <button
-              onClick={create.toggle}
-              className="flex h-24 items-center justify-center rounded-lg bg-tr-hover text-sm text-tr-subtle transition hover:bg-tr-hover-strong"
+          {/*
+            Nhóm theo dự án thay vì một danh sách phẳng.
+
+            Một bảng thuộc dự án nào là thông tin quyết định — từ v19 nó cũng
+            quyết định luôn công việc bên trong thuộc dự án nào. Nhóm "Không thuộc
+            dự án" đứng cuối vì đó thường là việc cá nhân, không phải cam kết.
+          */}
+          {groupsByProject.map((group) => (
+            <Section
+              key={group.key}
+              title={group.title}
+              icon={group.projectId ? <FolderKanban size={15} /> : undefined}
+              action={
+                group.projectId ? (
+                  <Link
+                    to={`/projects/${group.projectId}`}
+                    className={`text-xs font-medium text-tr-primary hover:underline ${focusRing}`}
+                  >
+                    Mở dự án
+                  </Link>
+                ) : undefined
+              }
             >
-              {t.board.newBoard}
-            </button>
-          </Section>
+              {group.boards.map((board) => (
+                <BoardTile
+                  key={board.id}
+                  board={board}
+                  onToggleStar={patchBoard.mutate}
+                  onToggleArchive={patchBoard.mutate}
+                />
+              ))}
+            </Section>
+          ))}
+
+          {/* Nút tạo bảng tách khỏi các nhóm: nó không thuộc dự án nào cho tới
+              khi người dùng chọn, nên nằm trong một nhóm cụ thể là nói dối. */}
+          <button
+            onClick={create.toggle}
+            className={`flex h-16 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-tr-border text-sm text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
+          >
+            <Plus size={15} aria-hidden="true" /> {t.board.newBoard}
+          </button>
         </div>
       )}
 
@@ -200,18 +248,15 @@ export default function BoardsPage() {
             <span className="mb-1 block text-xs font-semibold text-tr-subtle">
               {t.board.linkedCustomer}
             </span>
-            <select
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary"
-            >
-              <option value="">— {t.common.none} —</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <Combobox
+              value={customerId === '' ? '' : Number(customerId)}
+              onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
+              options={customers.map((c) => ({ id: c.id, label: c.name }))}
+              placeholder={`— ${t.common.none} —`}
+              searchPlaceholder="Tìm khách hàng…"
+              emptyText="Không tìm thấy khách hàng."
+              ariaLabel={t.board.linkedCustomer}
+            />
           </label>
 
           <button
@@ -230,8 +275,10 @@ export default function BoardsPage() {
 function Section({
   title,
   icon,
+  action,
   children,
 }: {
+  action?: React.ReactNode;
   title: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
@@ -241,6 +288,7 @@ function Section({
       <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-tr-subtle">
         {icon}
         {title}
+        {action && <span className="ml-auto">{action}</span>}
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {children}

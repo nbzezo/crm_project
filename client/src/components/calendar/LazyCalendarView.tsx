@@ -13,7 +13,7 @@ const CalendarView = lazy(() =>
   import('../views/CalendarView').then((m) => ({ default: m.CalendarView }))
 );
 
-export function LazyCalendarView({ boardId }: { boardId?: number }) {
+export function LazyCalendarView({ boardId, projectId }: { boardId?: number; projectId?: number }) {
   return (
     <Suspense
       fallback={
@@ -24,7 +24,7 @@ export function LazyCalendarView({ boardId }: { boardId?: number }) {
         </div>
       }
     >
-      <CalendarView boardId={boardId} />
+      <CalendarView boardId={boardId} projectId={projectId} />
     </Suspense>
   );
 }

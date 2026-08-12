@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
+import { ORG_KINDS } from '@workflow/contracts';
 
 const router = Router();
 
@@ -18,8 +19,27 @@ const customerSchema = z.object({
   size: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
   status: z.enum(['prospect', 'customer', 'inactive']).optional(),
+  /** Loai to chuc — 'own'/'partner'/'vendor' khong phai khach hang nen nam ngoai pipeline. */
+  org_kind: z.enum(ORG_KINDS).optional(),
   notes: z.string().optional(),
 });
+
+/**
+ * Loc theo loai to chuc cho MOI truy van liet ke khach hang.
+ *
+ * `customers` giu ca cong ty cua chinh minh, doi tac va nha cung cap tu v15. Neu
+ * quen loc, "cong ty toi" se hien trong pipeline, doanh thu, bao cao va canh bao AI
+ * nhu mot khach hang that. Mac dinh la chi 'customer'; truyen ?org_kind=all de xem
+ * toan bo so danh ba (trang To chuc & nhan su dung duong nay).
+ */
+function orgKindFilter(raw: unknown, alias = 'c'): { sql: string; params: unknown[] } {
+  const value = String(raw ?? '').trim();
+  if (value === 'all') return { sql: '', params: [] };
+  if ((ORG_KINDS as readonly string[]).includes(value)) {
+    return { sql: `${alias}.org_kind = ?`, params: [value] };
+  }
+  return { sql: `${alias}.org_kind = 'customer'`, params: [] };
+}
 
 const LIST_SQL = `
   SELECT c.*,
@@ -66,8 +86,13 @@ const LIST_SQL = `
 router.get('/', (req, res) => {
   const q = fold(String(req.query.q ?? '').trim());
   const status = String(req.query.status ?? '');
+  const kind = orgKindFilter(req.query.org_kind);
   const where: string[] = [];
   const params: unknown[] = [];
+  if (kind.sql) {
+    where.push(kind.sql);
+    params.push(...kind.params);
+  }
   if (q) {
     where.push(`c.search_text LIKE '%' || ? || '%'`);
     params.push(q);
@@ -101,9 +126,10 @@ router.get('/duplicates', (req, res) => {
   const rows = db
     .prepare(
       `SELECT id, name, tax_code, website, status FROM customers
-        WHERE (? <> '' AND search_text LIKE '%' || ? || '%')
-           OR (? <> '' AND tax_code = ?)
-           OR (? <> '' AND lower(replace(replace(COALESCE(website,''), 'https://', ''), 'www.', '')) LIKE ? || '%')
+        WHERE org_kind = 'customer'
+          AND ((? <> '' AND search_text LIKE '%' || ? || '%')
+            OR (? <> '' AND tax_code = ?)
+            OR (? <> '' AND lower(replace(replace(COALESCE(website,''), 'https://', ''), 'www.', '')) LIKE ? || '%'))
         LIMIT 5`
     )
     .all(name, name, taxCode, taxCode, website, website);
@@ -115,8 +141,8 @@ router.post('/', (req, res) => {
   const info = db
     .prepare(
       `INSERT INTO customers (name, short_name, tax_code, industry, address, website, phone, email,
-                              size, source, status, notes, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                              size, source, status, org_kind, notes, search_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.name,
@@ -130,6 +156,7 @@ router.post('/', (req, res) => {
       body.size ?? null,
       body.source ?? null,
       body.status ?? 'prospect',
+      body.org_kind ?? 'customer',
       body.notes ?? '',
       buildSearchText(
         body.name,
@@ -256,8 +283,8 @@ router.patch('/:id', (req, res) => {
   const merged = { ...current, ...body };
   db.prepare(
     `UPDATE customers SET name = ?, short_name = ?, tax_code = ?, industry = ?, address = ?,
-            website = ?, phone = ?, email = ?, size = ?, source = ?, status = ?, notes = ?,
-            search_text = ?, updated_at = datetime('now','localtime')
+            website = ?, phone = ?, email = ?, size = ?, source = ?, status = ?, org_kind = ?,
+            notes = ?, search_text = ?, updated_at = datetime('now','localtime')
       WHERE id = ?`
   ).run(
     merged.name,
@@ -271,6 +298,7 @@ router.patch('/:id', (req, res) => {
     merged.size ?? null,
     merged.source ?? null,
     merged.status ?? 'prospect',
+    merged.org_kind ?? 'customer',
     merged.notes ?? '',
     buildSearchText(
       merged.name,
@@ -324,6 +352,8 @@ const contactSchema = z.object({
   buying_role: z.string().nullable().optional(),
   relationship: z.string().nullable().optional(),
   is_primary: z.boolean().optional(),
+  is_me: z.boolean().optional(),
+  is_active: z.boolean().optional(),
   notes: z.string().optional(),
 });
 
@@ -338,11 +368,14 @@ router.post('/:id/contacts', (req, res) => {
   const id = db.transaction(() => {
     if (body.is_primary)
       db.prepare(`UPDATE contacts SET is_primary = 0 WHERE customer_id = ?`).run(customerId);
+    // "Toi" la duy nhat trong toan bo so danh ba, khong phai trong mot to chuc.
+    if (body.is_me) db.prepare(`UPDATE contacts SET is_me = 0`).run();
     const info = db
       .prepare(
         `INSERT INTO contacts (customer_id, full_name, title, department, phone, email, zalo,
-                               linkedin, buying_role, relationship, is_primary, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                               linkedin, buying_role, relationship, is_primary, is_me, is_active,
+                               notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         customerId,
@@ -356,6 +389,8 @@ router.post('/:id/contacts', (req, res) => {
         body.buying_role ?? null,
         body.relationship ?? null,
         body.is_primary ? 1 : 0,
+        body.is_me ? 1 : 0,
+        body.is_active === false ? 0 : 1,
         body.notes ?? ''
       );
     return Number(info.lastInsertRowid);

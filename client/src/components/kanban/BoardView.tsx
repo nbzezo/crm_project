@@ -33,10 +33,16 @@ import { invalidateCardViews } from '../../lib/queryKeys';
 import { foldText } from '../../lib/format';
 import { undoableDelete } from '../../lib/undo';
 import { cloneBoard, locateCard } from '../../lib/dnd/board';
-import type { BoardFull, Card } from '../../types';
+import { useAssignees } from '../tasks/AssigneePicker';
+import type { BoardFull, Card, CardStatus } from '../../types';
 
-/** Ap dung bo loc cua thanh "Bộ lọc" len mot the. */
-export function matchesFilters(card: Card, f: BoardFilters): boolean {
+/**
+ * Ap dung bo loc cua thanh "Bộ lọc" len mot the.
+ *
+ * `meContactId` phai truyen vao thay vi doc trong ham: "Viec cua toi" duoc dinh
+ * nghia boi contacts.is_me o may chu, va ham nay la ham thuan de con test duoc.
+ */
+export function matchesFilters(card: Card, f: BoardFilters, meContactId?: number | null): boolean {
   if (f.q && !foldText(`${card.title} ${card.description ?? ''}`).includes(foldText(f.q)))
     return false;
   // FR-TAG-22: 'and' = phai co du moi nhan da chon; 'or' (mac dinh) = co it nhat mot
@@ -52,6 +58,13 @@ export function matchesFilters(card: Card, f: BoardFilters): boolean {
   if (f.status === 'open' && card.is_done) return false;
   if (f.status === 'done' && !card.is_done) return false;
   if (f.customerId !== '' && card.customer_id !== f.customerId) return false;
+  if (f.cardStatus !== '' && (card.status ?? 'todo') !== f.cardStatus) return false;
+  if (f.assignee !== '') {
+    const assigned = card.assignee_contact_id ?? null;
+    if (f.assignee === 'none' && assigned !== null) return false;
+    if (f.assignee === 'mine' && assigned !== (meContactId ?? null)) return false;
+    if (typeof f.assignee === 'number' && assigned !== f.assignee) return false;
+  }
 
   if (f.due) {
     const today = todayStr();
@@ -72,6 +85,8 @@ export function BoardView({ board }: { board: BoardFull }) {
   const openCard = useUiStore((s) => s.openCard);
   const filters = useUiStore((s) => s.boardFilters);
   const pushToast = useUiStore((s) => s.pushToast);
+  const { data: assignees } = useAssignees();
+  const meContactId = assignees?.find((a) => a.is_me)?.id ?? null;
   const boardKey = useMemo(() => ['board', board.id], [board.id]);
 
   const [activeCard, setActiveCard] = useState<Card | null>(null);
@@ -349,12 +364,19 @@ export function BoardView({ board }: { board: BoardFull }) {
       patchList.mutate({ listId, patch: { is_collapsed: collapsed } }),
     [patchList]
   );
+  /* Gán nghĩa cho cột kéo theo trạng thái của mọi thẻ đang nằm trong đó (server
+     làm), nên phải nạp lại cả bảng chứ không chỉ danh sách cột. */
+  const handleMapStatus = useCallback(
+    (listId: number, status: CardStatus | null) =>
+      patchList.mutate({ listId, patch: { status_mapping: status } }),
+    [patchList]
+  );
 
   /* Loc mot lan cho ca bang thay vi loc lai trong moi lan render cua tung cot. */
   const columns = useMemo(
     () =>
       board.lists.map((list) => {
-        const visible = list.cards.filter((c) => matchesFilters(c, filters));
+        const visible = list.cards.filter((c) => matchesFilters(c, filters, meContactId));
         return { list, visible, hiddenCount: list.cards.length - visible.length };
       }),
     [board.lists, filters]
@@ -405,6 +427,7 @@ export function BoardView({ board }: { board: BoardFull }) {
                 onCopyList={handleCopyList}
                 onSortList={handleSortList}
                 onCollapseList={handleCollapseList}
+                onMapStatus={handleMapStatus}
               />
             ))}
           </SortableContext>

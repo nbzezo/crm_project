@@ -22,6 +22,10 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
+const FollowUpPage = lazy(() => import('./pages/FollowUpPage'));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
+const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
 
@@ -74,6 +78,26 @@ const router = createBrowserRouter([
       { path: 'table', element: <Navigate to="/tasks" replace /> },
       { path: 'reports', element: <ReportsPage />, handle: { title: 'Báo cáo' } },
       { path: 'tasks', element: <TasksPage />, handle: { title: 'Công việc' } },
+      {
+        path: 'projects',
+        element: <ProjectsPage />,
+        handle: { title: 'Dự án', visibleHeading: true },
+      },
+      {
+        path: 'projects/:projectId',
+        element: <ProjectDetailPage />,
+        handle: { title: 'Chi tiết dự án', visibleHeading: true },
+      },
+      {
+        path: 'follow-up',
+        element: <FollowUpPage />,
+        handle: { title: 'Cần nhắc', visibleHeading: true },
+      },
+      {
+        path: 'org-directory',
+        element: <OrgDirectoryPage />,
+        handle: { title: 'Tổ chức & nhân sự', visibleHeading: true },
+      },
       { path: 'ai', element: <AiWorkspacePage />, handle: { title: 'Trợ lý AI' } },
       { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },
     ],

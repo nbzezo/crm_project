@@ -62,8 +62,10 @@ router.get('/search', (req, res) => {
 
   const customers = db
     .prepare(
+      /* Muc nay hien duoi tieu de "Khach hang" nen chi liet ke org_kind='customer';
+         to chuc noi bo / doi tac tim o trang To chuc & nhan su. */
       `SELECT id, name, industry, phone, status FROM customers
-        WHERE search_text LIKE ? ORDER BY name LIMIT 8`
+        WHERE org_kind = 'customer' AND search_text LIKE ? ORDER BY name LIMIT 8`
     )
     .all(like);
 
@@ -159,7 +161,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
     sql: `SELECT name AS "Tên doanh nghiệp", short_name AS "Tên viết tắt", tax_code AS "Mã số thuế",
                  industry AS "Ngành nghề", size AS "Quy mô", source AS "Nguồn", status AS "Trạng thái",
                  phone AS "Điện thoại", email AS "Email", website AS "Website", address AS "Địa chỉ",
-                 notes AS "Ghi chú" FROM customers ORDER BY name`,
+                 notes AS "Ghi chú" FROM customers WHERE org_kind = 'customer' ORDER BY name`,
   },
   contacts: {
     label: 'nguoi-lien-he',
@@ -202,11 +204,20 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
     label: 'cong-viec',
     sql: `SELECT k.title AS "Công việc", b.name AS "Bảng", l.name AS "Danh sách",
                  c.name AS "Khách hàng", d.title AS "Cơ hội", k.priority AS "Ưu tiên",
+                 ac.full_name AS "Người phụ trách", ao.name AS "Tổ chức phụ trách",
+                 pr.name AS "Dự án",
                  k.start_date AS "Bắt đầu", k.due_date AS "Hạn",
+                 k.baseline_due_date AS "Hạn ban đầu",
+                 (SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS "Số lần dời hạn",
+                 k.estimate_hours AS "Ước lượng (giờ)", k.spent_hours AS "Đã dùng (giờ)",
+                 k.status AS "Vòng đời", k.blocked_reason AS "Lý do bị chặn",
                  CASE k.is_done WHEN 1 THEN 'Hoàn thành' ELSE 'Đang mở' END AS "Trạng thái"
             FROM cards k JOIN lists l ON l.id = k.list_id JOIN boards b ON b.id = l.board_id
             LEFT JOIN customers c ON c.id = k.customer_id
             LEFT JOIN deals d ON d.id = k.deal_id
+            LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+            LEFT JOIN customers ao ON ao.id = k.assignee_org_id
+            LEFT JOIN projects pr ON pr.id = b.project_id
            WHERE k.is_archived = 0 ORDER BY k.due_date IS NULL, k.due_date`,
   },
   contracts: {

@@ -61,6 +61,40 @@ export function assertEntityLinks(db: Database, links: EntityLinks): void {
   }
 }
 
+export interface AssigneeColumns {
+  assignee_contact_id: number | null;
+  assignee_org_id: number | null;
+}
+
+/**
+ * Nguoi phu trach — TRUC RIENG, CO Y khong di qua assertEntityLinks.
+ *
+ * assertEntityLinks bat moi lien ket tren mot the phai cung MOT khach hang, vi
+ * chung tra loi cau hoi "viec nay VE cai gi". Nguoi phu trach tra loi cau hoi khac
+ * han — "AI LAM" — va cau tra loi thuong xuyen nam ngoai pham vi khach hang do:
+ * viec ve khach hang A phan lon do nhan su cong ty minh lam. Neu gop hai truc lai
+ * cho gon, moi task giao noi bo se bi tu choi 422 CROSS_CUSTOMER_LINK.
+ *
+ * `assignee_org_id` luon duoc suy ra tu contact o day, khong bao gio lay tu client:
+ * hai cot phai khong bao gio lech nhau, va client khong co ly do gi de biet contact
+ * thuoc to chuc nao.
+ */
+export function resolveAssignee(
+  db: Database,
+  contactId: number | null | undefined
+): AssigneeColumns {
+  if (contactId == null) return { assignee_contact_id: null, assignee_org_id: null };
+  const row = required(
+    db.prepare(`SELECT id, customer_id, is_active FROM contacts WHERE id = ?`).get(contactId) as
+      { id: number; customer_id: number; is_active: number } | undefined,
+    'Khong tim thay nguoi phu trach'
+  );
+  if (row.is_active === 0) {
+    throw new HttpError(400, 'Người phụ trách đã ngừng hoạt động', { code: 'ASSIGNEE_INACTIVE' });
+  }
+  return { assignee_contact_id: row.id, assignee_org_id: row.customer_id };
+}
+
 type ParentLinks = { customer_id: number | null; deal_id: number | null };
 
 function parentLinks(

@@ -2,11 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Database } from 'better-sqlite3';
+import type { CardStatus } from '@workflow/contracts';
 import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 14;
+export const LATEST_VERSION = 19;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -117,6 +118,55 @@ function fillCompetitorNameNorm(db: Database): void {
   for (const row of rows) {
     update.run(fold(row.name).replace(/\s+/g, ' ').trim(), row.id);
   }
+}
+
+/**
+ * v19: doan `status_mapping` cho cac cot da co, roi keo `cards.status` khop lai.
+ *
+ * Phai lam o TypeScript vi SQLite khong bo dau tieng Viet duoc — giong
+ * fillLabelNameNorm. Bang cu co the da doi ten cot tuy y; cot nao khong khop mau
+ * nao thi de NULL, nghia la "cot nay khong mang nghia vong doi". De NULL an toan
+ * hon la doan bua: nguoi dung gan tay sau, con doan sai thi keo the vao cot se
+ * am tham doi trang thai khong dung y ho.
+ */
+const STATUS_PATTERNS: [CardStatus, string[]][] = [
+  ['done', ['hoan thanh', 'hoan tat', 'done', 'xong', 'ket thuc']],
+  ['review', ['cho duyet', 'review', 'phe duyet', 'nghiem thu', 'kiem tra']],
+  ['blocked', ['bi chan', 'block', 'tac', 'vuong']],
+  ['waiting_customer', ['cho khach', 'cho phan hoi', 'cho tra loi', 'waiting']],
+  ['doing', ['dang lam', 'doing', 'progress', 'thuc hien', 'trien khai']],
+  ['todo', ['can lam', 'todo', 'backlog', 'chua lam', 'moi']],
+];
+
+function guessStatus(name: string): CardStatus | null {
+  const normalized = fold(name);
+  // Duyet theo thu tu tren xuong: 'cho duyet' phai thang truoc 'cho khach',
+  // va 'hoan thanh' thang truoc moi thu — nguoc lai se bat nham.
+  for (const [status, patterns] of STATUS_PATTERNS) {
+    if (patterns.some((pattern) => normalized.includes(pattern))) return status;
+  }
+  return null;
+}
+
+function fillListStatusMapping(db: Database): void {
+  const rows = db.prepare(`SELECT id, name FROM lists`).all() as { id: number; name: string }[];
+  const update = db.prepare(`UPDATE lists SET status_mapping = ? WHERE id = ?`);
+  for (const row of rows) update.run(guessStatus(row.name), row.id);
+
+  /*
+   * Keo `cards.status` khop voi cot dang chua no.
+   *
+   * Truoc v19 hai ben troi tu do nen du lieu hien tai gan nhu chac chan da lech.
+   * CHI dong bo the CHUA XONG: mot the da dong ma bi keo ve 'todo' chi vi no nam
+   * o cot 'Can lam' la mo lai mot viec da hoan thanh — mat mat that.
+   */
+  db.prepare(
+    `UPDATE cards
+        SET status = (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id)
+      WHERE is_done = 0
+        AND (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id) IS NOT NULL
+        AND (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id) <> 'done'`
+  ).run();
 }
 
 export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
@@ -260,5 +310,51 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v14 (cong viec gan hop dong / bao gia)');
     current = 14;
+  }
+
+  if (current === 14 && targetVersion >= 15) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v15.sql'));
+      db.pragma('user_version = 15');
+    })();
+    console.log('[db] Da nang cap schema len v15 (nguoi phu trach cong viec)');
+    current = 15;
+  }
+
+  if (current === 15 && targetVersion >= 16) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v16.sql'));
+      db.pragma('user_version = 16');
+    })();
+    console.log('[db] Da nang cap schema len v16 (vong doi trang thai, nhat ky nhac viec)');
+    current = 16;
+  }
+
+  if (current === 16 && targetVersion >= 17) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v17.sql'));
+      db.pragma('user_version = 17');
+    })();
+    console.log('[db] Da nang cap schema len v17 (lop du an)');
+    current = 17;
+  }
+
+  if (current === 17 && targetVersion >= 18) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v18.sql'));
+      db.pragma('user_version = 18');
+    })();
+    console.log('[db] Da nang cap schema len v18 (truot han, khoi luong, phu thuoc)');
+    current = 18;
+  }
+
+  if (current === 18 && targetVersion >= 19) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v19.sql'));
+      fillListStatusMapping(db);
+      db.pragma('user_version = 19');
+    })();
+    console.log('[db] Da nang cap schema len v19 (cot anh xa trang thai, du an suy tu bang)');
+    current = 19;
   }
 }

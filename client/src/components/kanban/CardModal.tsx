@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlignLeft,
@@ -9,10 +10,13 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  CircleDot,
   Clock,
   Copy,
   Flag,
+  FolderKanban,
   Image,
+  Link2,
   ListTree,
   MessageSquare,
   Paperclip,
@@ -21,17 +25,23 @@ import {
   SquareCheck,
   Tag,
   Trash2,
+  UserRound,
   X,
 } from 'lucide-react';
+import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { useDialog } from '../common/useDialog';
-import { Button, focusRing } from '../common/ui';
+import { Button, focusRing, selectOptionContrast } from '../common/ui';
 import { AttachmentSection } from './AttachmentSection';
 import { ChecklistSection } from './ChecklistSection';
 import { CustomFieldsSection } from './CustomFieldsSection';
 import { LabelsPopover, ListPopover } from './CardModalPopovers';
 import { SubtaskSection } from './SubtaskSection';
+import { ScheduleSection } from './ScheduleSection';
+import { AssigneeChip, AssigneePicker } from '../tasks/AssigneePicker';
+import { CARD_STATUS_TONE } from '../tasks/CardStatusControl';
+import { CARD_STATUSES } from '@workflow/contracts';
 import { api } from '../../api/client';
 import { COVER_COLORS } from '../../lib/backgrounds';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
@@ -58,6 +68,8 @@ export function CardModal() {
   const datePop = usePopover();
   const priorityPop = usePopover();
   const customerPop = usePopover();
+  const assigneePop = usePopover();
+  const statusPop = usePopover();
   const coverPop = usePopover();
   const movePop = usePopover();
   const reminderPop = usePopover();
@@ -265,34 +277,54 @@ export function CardModal() {
                     if (e.key === 'Escape') setTitle(card.title);
                   }}
                   aria-label="Tiêu đề thẻ"
-                  className="w-full rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-2xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
+                  className="w-full rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
                 />
               </div>
 
               {/* Hang nut hanh dong ngang (giong Trello moi) */}
-              <div className="mt-3 mb-5 flex flex-wrap gap-2 pl-8">
-                <ActionChip icon={<Plus size={15} />} onClick={addPop.toggle}>
+              <div className="mt-2.5 mb-4 flex flex-wrap gap-1.5 pl-8">
+                <ActionChip icon={<Plus size={14} />} onClick={addPop.toggle}>
                   Thêm
                 </ActionChip>
-                <ActionChip icon={<Clock size={15} />} onClick={datePop.toggle}>
+                <ActionChip icon={<Clock size={14} />} onClick={datePop.toggle}>
                   Ngày
                 </ActionChip>
-                <ActionChip icon={<Flag size={15} />} onClick={priorityPop.toggle}>
+                <ActionChip icon={<Flag size={14} />} onClick={priorityPop.toggle}>
                   Ưu tiên
                 </ActionChip>
-                <ActionChip icon={<Building2 size={15} />} onClick={customerPop.toggle}>
+                <ActionChip icon={<Building2 size={14} />} onClick={customerPop.toggle}>
                   {t.card.customer}
+                </ActionChip>
+                <ActionChip icon={<UserRound size={14} />} onClick={assigneePop.toggle}>
+                  {t.card.assignee}
+                </ActionChip>
+                <ActionChip icon={<CircleDot size={14} />} onClick={statusPop.toggle}>
+                  Trạng thái
                 </ActionChip>
               </div>
 
+              {/* Việc bị chặn phải nói rõ vì sao ngay dưới tiêu đề — một thẻ “bị
+                  chặn” không lý do thì không nhắc được ai. */}
+              {card.status === 'blocked' && card.blocked_reason && (
+                <div className="mb-4 ml-8 rounded-panel border border-tr-danger/40 bg-tr-danger/10 px-3 py-2 text-sm">
+                  <span className="font-medium text-tr-danger">Bị chặn: </span>
+                  <span className="text-tr-text">{card.blocked_reason}</span>
+                  {card.blocked_since && (
+                    <span className="ml-1 text-xs text-tr-muted">
+                      (từ {formatDateTime(card.blocked_since.replace(' ', 'T').slice(0, 16))})
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Thuoc tinh */}
-              <div className="mb-6 flex flex-wrap gap-x-8 gap-y-4 pl-8">
+              <div className="mb-5 flex flex-wrap items-start gap-x-6 gap-y-3 pl-8">
                 <Field label={t.card.labels}>
                   <div className="flex flex-wrap items-center gap-1">
                     {card.labels.map((l) => (
                       <span
                         key={l.id}
-                        className="inline-flex h-8 items-center rounded px-3 text-sm font-medium"
+                        className="inline-flex h-7 items-center rounded px-2.5 text-xs font-medium"
                         style={{ backgroundColor: l.color, color: contrastInk(l.color) }}
                       >
                         {l.name}
@@ -300,9 +332,9 @@ export function CardModal() {
                     ))}
                     <button
                       onClick={labelPop.toggle}
-                      className="flex h-8 w-8 items-center justify-center rounded bg-tr-hover text-tr-subtle transition hover:bg-tr-hover-strong"
+                      className="flex h-7 w-7 items-center justify-center rounded bg-tr-hover text-tr-subtle transition hover:bg-tr-hover-strong"
                     >
-                      <Plus size={15} />
+                      <Plus size={14} />
                     </button>
                   </div>
                 </Field>
@@ -310,7 +342,7 @@ export function CardModal() {
                 <Field label={t.card.priority}>
                   <button
                     onClick={priorityPop.toggle}
-                    className="inline-flex h-8 items-center rounded px-3 text-sm font-medium"
+                    className="inline-flex h-7 items-center rounded px-2.5 text-xs font-medium"
                     style={{
                       backgroundColor: PRIORITY_COLORS[card.priority],
                       color: contrastInk(PRIORITY_COLORS[card.priority]),
@@ -324,11 +356,11 @@ export function CardModal() {
                   <Field label="Ngày">
                     <button
                       onClick={datePop.toggle}
-                      className="inline-flex h-8 items-center gap-1.5 rounded bg-tr-hover px-3 text-sm text-tr-text transition hover:bg-tr-hover-strong"
+                      className="inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
                     >
                       {dateLabel}
                       {!!card.is_done && (
-                        <span className="tr-badge-done rounded px-1.5 text-xs font-medium">
+                        <span className="tr-badge-done rounded px-1.5 text-[11px] font-medium">
                           {t.common.done}
                         </span>
                       )}
@@ -336,13 +368,58 @@ export function CardModal() {
                   </Field>
                 )}
 
+                {/* Luon hien, ke ca khi chua giao: viec khong co nguoi phu trach la
+                    thu can nhin thay chu khong phai thu nen an di. */}
+                <Field label="Trạng thái">
+                  <button
+                    onClick={statusPop.toggle}
+                    className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${CARD_STATUS_TONE[card.status ?? 'todo']}`}
+                  >
+                    {t.cardStatus[card.status ?? 'todo']}
+                  </button>
+                </Field>
+
+                <Field label={t.card.assignee}>
+                  <button
+                    onClick={assigneePop.toggle}
+                    className="inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
+                  >
+                    {card.assignee_name ? (
+                      <AssigneeChip
+                        name={card.assignee_name}
+                        orgKind={card.assignee_org_kind}
+                        orgName={card.assignee_org_name}
+                      />
+                    ) : (
+                      <>
+                        <UserRound size={13} />
+                        <span className="text-tr-muted">{t.card.unassigned}</span>
+                      </>
+                    )}
+                  </button>
+                </Field>
+
+                {/* Chỉ để đọc: dự án suy từ bảng chứa thẻ (v19). Muốn đổi dự án
+                    thì chuyển thẻ sang bảng khác — menu ··· › Di chuyển. */}
+                {card.project_name && (
+                  <Field label={t.nav.projects}>
+                    <Link
+                      to={`/projects/${card.project_id}`}
+                      title={`Theo bảng “${card.board?.name}”. Đổi dự án bằng cách chuyển thẻ sang bảng khác.`}
+                      className={`inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                    >
+                      <FolderKanban size={13} aria-hidden="true" /> {card.project_name}
+                    </Link>
+                  </Field>
+                )}
+
                 {card.customer_name && (
                   <Field label={t.card.customer}>
                     <button
                       onClick={customerPop.toggle}
-                      className="inline-flex h-8 items-center gap-1.5 rounded bg-tr-hover px-3 text-sm text-tr-text transition hover:bg-tr-hover-strong"
+                      className="inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
                     >
-                      <Building2 size={14} /> {card.customer_name}
+                      <Building2 size={13} /> {card.customer_name}
                       {card.deal_title && (
                         <span className="text-tr-muted">· {card.deal_title}</span>
                       )}
@@ -352,14 +429,16 @@ export function CardModal() {
               </div>
 
               {/* Mo ta */}
-              <section className="mb-6">
-                <div className="mb-2 flex items-center gap-3">
-                  <AlignLeft size={18} className="text-tr-subtle" />
-                  <h3 className="flex-1 text-base font-semibold text-tr-text">
+              <section className="mb-5">
+                <div className="mb-1.5 flex items-center gap-2.5">
+                  <AlignLeft size={16} className="text-tr-subtle" />
+                  <h3 className="flex-1 text-sm font-semibold text-tr-text">
                     {t.card.description}
                   </h3>
                   {!editingDesc && card.description && (
-                    <Button onClick={() => setEditingDesc(true)}>Chỉnh sửa</Button>
+                    <Button size="sm" onClick={() => setEditingDesc(true)}>
+                      Chỉnh sửa
+                    </Button>
                   )}
                 </div>
                 <div className="pl-8">
@@ -416,7 +495,7 @@ export function CardModal() {
                   con truong tuy chinh thi hiem khi mo. */}
               <CardSection
                 id={SECTION_IDS.subtasks}
-                icon={<ListTree size={18} className="text-tr-subtle" />}
+                icon={<ListTree size={16} className="text-tr-subtle" />}
                 title="Việc con"
                 hint="Công việc độc lập, có hạn và ưu tiên riêng, hiện ở trang Công việc."
                 count={card.subtasks?.length ?? 0}
@@ -427,7 +506,7 @@ export function CardModal() {
               {/* Viec can lam — danh sach kiem */}
               <CardSection
                 id={SECTION_IDS.checklist}
-                icon={<SquareCheck size={18} className="text-tr-subtle" />}
+                icon={<SquareCheck size={16} className="text-tr-subtle" />}
                 title={t.card.checklist}
                 hint="Các bước cần hoàn tất, chỉ nằm trong thẻ này."
                 count={card.checklist.length}
@@ -435,10 +514,21 @@ export function CardModal() {
                 <ChecklistSection cardId={card.id} items={card.checklist} />
               </CardSection>
 
+              {/* Ke hoach: uoc luong, moc, phu thuoc va lich su doi han */}
+              <CardSection
+                id={SECTION_IDS.schedule}
+                icon={<Link2 size={16} className="text-tr-subtle" />}
+                title="Kế hoạch & phụ thuộc"
+                hint="Ước lượng, mốc quan trọng, việc phải xong trước và số lần đã dời hạn."
+                count={(card.dependencies?.predecessors.length ?? 0) + (card.slip_count ?? 0)}
+              >
+                <ScheduleSection card={card} onChanged={refresh} />
+              </CardSection>
+
               {/* Tep dinh kem */}
               <CardSection
                 id={SECTION_IDS.attachments}
-                icon={<Paperclip size={18} className="text-tr-subtle" />}
+                icon={<Paperclip size={16} className="text-tr-subtle" />}
                 title="Tệp đính kèm"
                 count={card.attachments?.length ?? 0}
               >
@@ -448,7 +538,7 @@ export function CardModal() {
               {/* Truong thong tin tuy chinh */}
               <CardSection
                 id={SECTION_IDS.fields}
-                icon={<SlidersHorizontal size={18} className="text-tr-subtle" />}
+                icon={<SlidersHorizontal size={16} className="text-tr-subtle" />}
                 title="Trường thông tin"
                 hint="Cột dữ liệu riêng của bảng — áp dụng cho mọi thẻ."
                 count={card.fields?.length ?? 0}
@@ -463,9 +553,9 @@ export function CardModal() {
               {/* Nhac hen */}
               {card.reminders.length > 0 && (
                 <section>
-                  <div className="mb-2 flex items-center gap-3">
-                    <Bell size={18} className="text-tr-subtle" />
-                    <h3 className="text-base font-semibold text-tr-text">{t.reminder.reminders}</h3>
+                  <div className="mb-1.5 flex items-center gap-2.5">
+                    <Bell size={16} className="text-tr-subtle" />
+                    <h3 className="text-sm font-semibold text-tr-text">{t.reminder.reminders}</h3>
                   </div>
                   <ul className="space-y-1 pl-8">
                     {card.reminders.map((r) => (
@@ -585,6 +675,8 @@ export function CardModal() {
         onChange={(p) => update.mutate({ priority: p })}
       />
       <CustomerPopover card={card} pop={customerPop} onChange={(p) => update.mutate(p)} />
+      <AssigneePopover card={card} pop={assigneePop} onChange={(p) => update.mutate(p)} />
+      <StatusPopover card={card} pop={statusPop} onChange={(p) => update.mutate(p)} />
       <CoverPopover
         card={card}
         pop={coverPop}
@@ -637,6 +729,7 @@ const SECTION_IDS = {
   fields: 'card-sec-fields',
   subtasks: 'card-sec-subtasks',
   checklist: 'card-sec-checklist',
+  schedule: 'card-sec-schedule',
   attachments: 'card-sec-attachments',
 } as const;
 
@@ -671,8 +764,8 @@ function CardSection({
   const bodyId = `${id}-body`;
 
   return (
-    <section id={id} className="mb-6 scroll-mt-4">
-      <div className="mb-2 flex items-start gap-3">
+    <section id={id} className="mb-5 scroll-mt-4">
+      <div className="mb-1.5 flex items-start gap-2.5">
         <span className="mt-0.5" aria-hidden="true">
           {icon}
         </span>
@@ -683,7 +776,7 @@ function CardSection({
           aria-controls={bodyId}
           className={`min-w-0 flex-1 rounded-control text-left ${focusRing}`}
         >
-          <h3 className="flex items-center gap-1.5 text-base font-semibold text-tr-text">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-tr-text">
             {title}
             {count !== undefined && count > 0 && (
               <span className="rounded-full bg-tr-hover px-1.5 text-xs font-medium text-tr-subtle">
@@ -691,7 +784,7 @@ function CardSection({
               </span>
             )}
             <ChevronDown
-              size={15}
+              size={14}
               aria-hidden="true"
               className={`text-tr-muted transition-transform duration-150 ${open ? '' : '-rotate-90'}`}
             />
@@ -729,7 +822,7 @@ function ActionChip({
       type="button"
       onClick={onClick}
       aria-haspopup="dialog"
-      className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-control bg-tr-hover px-3 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong sm:min-h-0 sm:py-1.5 ${focusRing}`}
+      className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-control bg-tr-hover px-2.5 text-xs font-medium text-tr-text transition hover:bg-tr-hover-strong sm:min-h-0 sm:py-1 sm:text-[13px] ${focusRing}`}
     >
       {icon}
       {children}
@@ -771,9 +864,9 @@ function ActivityColumn({ card }: { card: CardDetail }) {
 
   return (
     <aside className="min-w-0">
-      <div className="mb-3 flex items-center gap-3">
-        <MessageSquare size={18} className="text-tr-subtle" />
-        <h3 className="text-base font-semibold text-tr-text">Nhận xét và hoạt động</h3>
+      <div className="mb-2.5 flex items-center gap-2.5">
+        <MessageSquare size={16} className="text-tr-subtle" />
+        <h3 className="text-sm font-semibold text-tr-text">Nhận xét và hoạt động</h3>
       </div>
 
       <textarea
@@ -853,7 +946,7 @@ function Avatar({ muted }: { muted?: boolean }) {
 }
 
 const POPOVER_INPUT =
-  'w-full rounded border border-tr-border bg-tr-card px-2.5 py-1.5 text-sm text-tr-text outline-none focus:border-tr-primary';
+  `w-full rounded border border-tr-border bg-tr-card px-2.5 py-1.5 text-sm text-tr-text outline-none focus:border-tr-primary ${selectOptionContrast}`;
 
 function DatesPopover({
   card,
@@ -957,41 +1050,173 @@ function CustomerPopover({
   return (
     <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.card.customer}>
       <div className="space-y-3">
-        <select
+        <Combobox
           value={card.customer_id ?? ''}
-          onChange={(e) =>
-            onChange({ customer_id: e.target.value === '' ? null : Number(e.target.value) })
-          }
-          className={POPOVER_INPUT}
-        >
-          <option value="">— {t.common.none} —</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => onChange({ customer_id: v === '' ? null : v })}
+          options={customers.map((c) => ({ id: c.id, label: c.name }))}
+          placeholder={`— ${t.common.none} —`}
+          searchPlaceholder="Tìm khách hàng…"
+          emptyText="Không tìm thấy khách hàng."
+          ariaLabel={t.card.customer}
+        />
 
         {card.customer_id && (
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-tr-subtle">{t.card.deal}</span>
-            <select
+            <Combobox
               value={card.deal_id ?? ''}
-              onChange={(e) =>
-                onChange({ deal_id: e.target.value === '' ? null : Number(e.target.value) })
-              }
-              className={POPOVER_INPUT}
-            >
-              <option value="">— {t.common.none} —</option>
-              {deals.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title} ({t.stage[d.stage]})
-                </option>
-              ))}
-            </select>
+              onChange={(v) => onChange({ deal_id: v === '' ? null : v })}
+              options={deals.map((d) => ({ id: d.id, label: `${d.title} (${t.stage[d.stage]})` }))}
+              placeholder={`— ${t.common.none} —`}
+              searchPlaceholder="Tìm cơ hội…"
+              emptyText="Không tìm thấy cơ hội."
+              ariaLabel={t.card.deal}
+            />
           </label>
         )}
       </div>
+    </Popover>
+  );
+}
+
+/** Lich lap — luu duoi dang JSON de doi don vi ma khong phai them cot moi. */
+function parseRecur(raw: string | null | undefined): { unit: string; interval: number } | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { unit?: string; interval?: number };
+    if (!parsed.unit || !parsed.interval) return null;
+    return { unit: parsed.unit, interval: parsed.interval };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Vong doi cong viec + he qua di kem.
+ *
+ * Ly do chan nam CUNG cho voi o chon trang thai: chon 'Bi chan' roi phai di tim
+ * cho khac de go ly do la cach chac chan de co mot the bi chan ma khong ai biet
+ * vi sao. `blocked_reason` cung duoc gui kem trong dung mot lan PATCH.
+ */
+function StatusPopover({
+  card,
+  pop,
+  onChange,
+}: {
+  card: CardDetail;
+  pop: Pop;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const status = card.status ?? 'todo';
+  const [reason, setReason] = useState(card.blocked_reason ?? '');
+  const recur = parseRecur(card.recur_rule);
+
+  // Nap lai o ly do khi mo popover cho mot the khac.
+  const [loadedId, setLoadedId] = useState(card.id);
+  if (loadedId !== card.id) {
+    setLoadedId(card.id);
+    setReason(card.blocked_reason ?? '');
+  }
+
+  return (
+    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Trạng thái" width={300}>
+      <div className="space-y-3">
+        <div className="space-y-0.5">
+          {CARD_STATUSES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() =>
+                onChange(
+                  value === 'blocked'
+                    ? { status: value, blocked_reason: reason.trim() || null }
+                    : { status: value }
+                )
+              }
+              className={`flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm transition hover:bg-tr-hover ${focusRing} ${
+                status === value ? 'font-semibold text-tr-text' : 'text-tr-subtle'
+              }`}
+            >
+              <span className={`h-2.5 w-2.5 rounded-full ${CARD_STATUS_TONE[value]}`} />
+              {t.cardStatus[value]}
+              {status === value && <Check size={13} className="ml-auto text-tr-primary" />}
+            </button>
+          ))}
+        </div>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">
+            Lý do bị chặn / đang chờ ai
+          </span>
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            onBlur={() => {
+              if ((card.blocked_reason ?? '') === reason) return;
+              onChange({ status: 'blocked', blocked_reason: reason.trim() || null });
+            }}
+            placeholder="Chờ khách gửi dữ liệu đầu vào…"
+            className={POPOVER_INPUT}
+          />
+        </label>
+
+        <div className="border-t border-tr-border pt-3">
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">Lặp lại</span>
+          <select
+            value={recur ? `${recur.unit}:${recur.interval}` : ''}
+            onChange={(e) => {
+              if (e.target.value === '') {
+                onChange({ recur_rule: null, recur_until: null });
+                return;
+              }
+              const [unit, interval] = e.target.value.split(':');
+              onChange({ recur_rule: JSON.stringify({ unit, interval: Number(interval) }) });
+            }}
+            className={POPOVER_INPUT}
+          >
+            <option value="">Không lặp</option>
+            <option value="day:1">Hằng ngày</option>
+            <option value="week:1">Hằng tuần</option>
+            <option value="week:2">2 tuần một lần</option>
+            <option value="month:1">Hằng tháng</option>
+            <option value="month:3">Hằng quý</option>
+          </select>
+          {recur && (
+            <p className="mt-1.5 text-xs text-tr-muted">
+              Khi đánh dấu hoàn thành, bản kế tiếp được tạo dựa trên hạn hiện tại
+              {card.due_date ? '' : ' (cần đặt hạn hoặc ngày bắt đầu)'}.
+            </p>
+          )}
+        </div>
+      </div>
+    </Popover>
+  );
+}
+
+/**
+ * Nguoi phu trach — popover RIENG, khong gop vao CustomerPopover.
+ *
+ * Hai o trong CustomerPopover rang buoc nhau theo chuoi so huu (doi khach hang thi
+ * co hoi bi xoa). Nguoi phu trach doc lap: doi khach hang cua the KHONG lam mat
+ * nguoi dang lam no.
+ */
+function AssigneePopover({
+  card,
+  pop,
+  onChange,
+}: {
+  card: CardDetail;
+  pop: Pop;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  return (
+    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.card.assignee}>
+      <AssigneePicker
+        label=""
+        value={card.assignee_contact_id ?? null}
+        onChange={(v) => onChange({ assignee_contact_id: v })}
+        hint="Ai sẽ làm việc này — người của bất kỳ tổ chức nào."
+      />
     </Popover>
   );
 }
@@ -1060,17 +1285,17 @@ function MovePopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone
       <div className="space-y-3">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-tr-subtle">Bảng</span>
-          <select
+          <Combobox
             value={targetBoardId ?? ''}
-            onChange={(e) => setBoardId(Number(e.target.value))}
-            className={POPOVER_INPUT}
-          >
-            {boards.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => {
+              if (v !== '') setBoardId(v);
+            }}
+            options={boards.map((b) => ({ id: b.id, label: b.name }))}
+            searchPlaceholder="Tìm bảng…"
+            emptyText="Không tìm thấy bảng."
+            ariaLabel="Bảng"
+            allowClear={false}
+          />
         </label>
         <div>
           <span className="mb-1 block text-xs font-semibold text-tr-subtle">Danh sách</span>

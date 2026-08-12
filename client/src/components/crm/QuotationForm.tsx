@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import {
   Button,
@@ -143,24 +144,26 @@ export function QuotationForm({
           required
           error={submitted && customerMissing ? t.common.required : undefined}
         >
-          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-            <option value="">{t.common.selectCustomer}</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+          <Combobox
+            value={customerId === '' ? '' : Number(customerId)}
+            onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
+            options={customers.map((c) => ({ id: c.id, label: c.name }))}
+            placeholder={t.common.selectCustomer}
+            searchPlaceholder="Tìm khách hàng…"
+            emptyText="Không tìm thấy khách hàng."
+            ariaLabel={t.card.customer}
+          />
         </Field>
         <Field label={t.contract.relatedDeal} hint={t.quotation.versionHint}>
-          <Select value={dealId} onChange={(e) => setDealId(e.target.value)}>
-            <option value="">— {t.common.none} —</option>
-            {deals.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.title}
-              </option>
-            ))}
-          </Select>
+          <Combobox
+            value={dealId === '' ? '' : Number(dealId)}
+            onChange={(v) => setDealId(v === '' ? '' : String(v))}
+            options={deals.map((d) => ({ id: d.id, label: d.title }))}
+            placeholder={`— ${t.common.none} —`}
+            searchPlaceholder="Tìm cơ hội…"
+            emptyText="Không tìm thấy cơ hội."
+            ariaLabel={t.contract.relatedDeal}
+          />
         </Field>
         <Field label={t.customer.status}>
           <Select value={form.status} onChange={(e) => set('status', e.target.value)}>

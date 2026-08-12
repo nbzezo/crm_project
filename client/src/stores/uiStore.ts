@@ -1,13 +1,24 @@
 import { create } from 'zustand';
-import type { Priority } from '../types';
+import type { CardStatus, Priority } from '../types';
 
 export interface TaskFilters {
   q: string;
   priority: Priority | '';
   customerId: number | '';
   boardId: number | '';
-  status: 'all' | 'open' | 'done' | 'review';
+  /** Lọc theo dự án — máy chủ lọc qua `boards.project_id`, không qua cột trên thẻ. */
+  projectId: number | '';
+  /**
+   * Một trục duy nhất cho cả "đã xong chưa" và vòng đời (v16).
+   *
+   * Tách thành hai ô sẽ có hai dropdown cùng tên "Trạng thái" cạnh nhau; gộp lại
+   * đúng với cách người dùng nghĩ — họ chọn *một* lát cắt tại một thời điểm.
+   * 'waiting' gộp `blocked` + `waiting_customer`: cả hai đều là đang chờ ai đó.
+   */
+  status: 'all' | 'open' | 'done' | 'doing' | 'waiting' | 'blocked' | 'review';
   due: '' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'none';
+  /** '' = mọi người, 'mine' = việc của tôi, 'none' = chưa giao, số = một người cụ thể. */
+  assignee: number | '' | 'mine' | 'none';
 }
 
 export const emptyTaskFilters: TaskFilters = {
@@ -15,8 +26,10 @@ export const emptyTaskFilters: TaskFilters = {
   priority: '',
   customerId: '',
   boardId: '',
+  projectId: '',
   status: 'open',
   due: '',
+  assignee: '',
 };
 
 /** Bo loc the ngay tren bang (giong nut "Bộ lọc" cua Trello). */
@@ -28,7 +41,11 @@ export interface BoardFilters {
   priorities: Priority[];
   due: '' | 'overdue' | 'today' | 'week' | 'none';
   status: 'all' | 'open' | 'done';
+  /** Vòng đời (v16) — trục riêng, độc lập với `status` ở trên. '' = mọi trạng thái. */
+  cardStatus: CardStatus | '';
   customerId: number | '';
+  /** '' = mọi người, 'mine' = việc của tôi, 'none' = chưa giao, số = một người cụ thể. */
+  assignee: number | '' | 'mine' | 'none';
 }
 
 export const emptyBoardFilters: BoardFilters = {
@@ -38,7 +55,9 @@ export const emptyBoardFilters: BoardFilters = {
   priorities: [],
   due: '',
   status: 'all',
+  cardStatus: '',
   customerId: '',
+  assignee: '',
 };
 
 export function countActiveFilters(f: BoardFilters): number {
@@ -48,7 +67,9 @@ export function countActiveFilters(f: BoardFilters): number {
     f.priorities.length +
     (f.due ? 1 : 0) +
     (f.status !== 'all' ? 1 : 0) +
-    (f.customerId !== '' ? 1 : 0)
+    (f.cardStatus !== '' ? 1 : 0) +
+    (f.customerId !== '' ? 1 : 0) +
+    (f.assignee !== '' ? 1 : 0)
   );
 }
 
@@ -79,6 +100,13 @@ export interface TaskContext {
 export interface TaskComposerState {
   context: TaskContext;
   listId?: number;
+  /**
+   * Nguoi phu trach dat truoc — tach khoi `context` vi day khong phai lien ket CRM.
+   * Vi du: mo form tu the "Viec cua Anh Tuan" thi dien san chinh nguoi do.
+   */
+  assigneeContactId?: number | null;
+  /** Dự án đặt trước — bỏ trống thì máy chủ suy ra theo bảng chứa danh sách đích. */
+  projectId?: number | null;
   /** Tieu de go san — vi du khi nguoi dung dang go o o them nhanh roi mo form day du. */
   draftTitle?: string;
 }

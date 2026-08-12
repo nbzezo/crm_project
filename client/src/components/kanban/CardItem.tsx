@@ -13,6 +13,8 @@ import {
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import { contrastInk, formatDateShort, isOverdue, todayStr } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
+import { AssigneeChip } from '../tasks/AssigneePicker';
+import { CardStatusChip } from '../tasks/CardStatusControl';
 import type { Card, Label } from '../../types';
 
 interface Props {
@@ -123,6 +125,9 @@ export function CardBody({ card, labels, dragging }: Props) {
         </div>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-tr-muted">
+          {/* Đặt trước hạn: "bị chặn" quan trọng hơn "trễ 2 ngày" — một việc bị
+              chặn thì hạn không còn nói lên điều gì về người phụ trách. */}
+          <CardStatusChip status={card.status} blockedReason={card.blocked_reason} />
           <span
             aria-hidden="true"
             className="h-2 w-2 shrink-0 rounded-full"
@@ -174,6 +179,16 @@ export function CardBody({ card, labels, dragging }: Props) {
               {card.customer_name}
             </span>
           )}
+          {/* Nguoi phu trach day sang phai — trong mot cot hep, day la thong tin
+              can quet mat nhanh nhat sau tieu de va han. */}
+          <span className="ml-auto">
+            <AssigneeChip
+              compact
+              name={card.assignee_name}
+              orgKind={card.assignee_org_kind}
+              orgName={card.assignee_org_name}
+            />
+          </span>
         </div>
       </div>
 

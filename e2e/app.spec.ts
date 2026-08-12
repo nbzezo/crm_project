@@ -194,6 +194,222 @@ test('timeline full-width, filter, tooltip, group va responsive sidebar', async 
   expect(overflow, `${testInfo.project.name}: timeline tran ngang trang`).toBeLessThanOrEqual(1);
 });
 
+test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async ({
+  page,
+  request,
+}, testInfo) => {
+  const suffix = testInfo.project.name;
+
+  // To chuc noi bo + nhan su cua chinh minh — thu khong ton tai truoc v15.
+  const orgResponse = await request.post('/api/customers', {
+    data: { name: `E2E Noi bo ${suffix}`, org_kind: 'own' },
+  });
+  expect(orgResponse.ok()).toBeTruthy();
+  const org = (await orgResponse.json()) as { id: number };
+  const staffResponse = await request.post(`/api/customers/${org.id}/contacts`, {
+    data: { full_name: `E2E Nhan su ${suffix}` },
+  });
+  expect(staffResponse.ok()).toBeTruthy();
+  const staff = (await staffResponse.json()) as { id: number };
+
+  // Khach hang rieng biet: viec VE khach hang nay nhung DO nhan su noi bo lam.
+  const customerResponse = await request.post('/api/customers', {
+    data: { name: `E2E Khach giao viec ${suffix}` },
+  });
+  expect(customerResponse.ok()).toBeTruthy();
+  const customer = (await customerResponse.json()) as { id: number };
+  const boardResponse = await request.post('/api/boards', {
+    data: { name: `E2E Bang giao viec ${suffix}` },
+  });
+  expect(boardResponse.ok()).toBeTruthy();
+  const board = (await boardResponse.json()) as { id: number };
+  const listResponse = await request.post('/api/lists', {
+    data: { board_id: board.id, name: 'Cần làm' },
+  });
+  expect(listResponse.ok()).toBeTruthy();
+  const list = (await listResponse.json()) as { id: number };
+
+  const cardTitle = `E2E Viec da giao ${suffix}`;
+  const cardResponse = await request.post('/api/cards', {
+    data: {
+      list_id: list.id,
+      title: cardTitle,
+      customer_id: customer.id,
+      assignee_contact_id: staff.id,
+    },
+  });
+  expect(cardResponse.ok(), 'giao viec lien to chuc phai duoc chap nhan').toBeTruthy();
+
+  await page.goto('/tasks');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Công việc');
+  const taskRow = page.getByRole('button', { name: cardTitle, exact: true });
+  await expect(taskRow).toBeVisible();
+
+  // Loc theo dung nguoi do — viec phai con lai.
+  await page
+    .getByRole('combobox', { name: 'Người phụ trách' })
+    .first()
+    .selectOption(String(staff.id));
+  await expect(taskRow).toBeVisible();
+
+  // Loc "Chua giao" — viec da co nguoi nen phai bien mat.
+  await page.getByRole('combobox', { name: 'Người phụ trách' }).first().selectOption('none');
+  await expect(taskRow).toHaveCount(0);
+
+  /* Man "Cần nhắc": viec qua han cua nguoi do phai hien ra, va ghi mot lan nhac
+     phai lam bo dem tren the tang len. */
+  const overdueTitle = `E2E Viec qua han ${suffix}`;
+  const overdue = await request.post('/api/cards', {
+    data: {
+      list_id: list.id,
+      title: overdueTitle,
+      due_date: localDate(-2),
+      assignee_contact_id: staff.id,
+    },
+  });
+  expect(overdue.ok()).toBeTruthy();
+  const overdueCard = (await overdue.json()) as { id: number };
+
+  await page.goto('/follow-up');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cần nhắc');
+  await expect(page.getByText(overdueTitle, { exact: true })).toBeVisible();
+  await expect(page.getByText(`trễ 2 ngày`).first()).toBeVisible();
+
+  const nudge = await request.post('/api/nudges', {
+    data: { card_id: overdueCard.id, channel: 'zalo', message: 'Nhắc tiến độ' },
+  });
+  expect(nudge.ok()).toBeTruthy();
+
+  await page.reload();
+  await expect(page.getByText(/đã nhắc 1/).first()).toBeVisible();
+});
+
+test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
+  page,
+  request,
+}, testInfo) => {
+  const suffix = testInfo.project.name;
+  const projectName = `E2E Du an ${suffix}`;
+
+  const project = await request.post('/api/projects', {
+    data: { name: projectName, code: 'E2E-01', plan_end: localDate(30), status: 'active' },
+  });
+  expect(project.ok()).toBeTruthy();
+  const projectId = ((await project.json()) as { id: number }).id;
+
+  const board = await request.post('/api/boards', {
+    data: { name: `E2E Bang du an ${suffix}`, project_id: projectId },
+  });
+  expect(board.ok()).toBeTruthy();
+  const boardId = ((await board.json()) as { id: number }).id;
+  const full = await request.get(`/api/boards/${boardId}/full`);
+  const listId = ((await full.json()) as { lists: { id: number }[] }).lists[0].id;
+
+  // Có ngày thì mới lên được trục thời gian — Gantt chỉ vẽ việc đã xếp lịch.
+  await request.post('/api/cards', {
+    data: {
+      list_id: listId,
+      title: `E2E Viec du an ${suffix}`,
+      start_date: localDate(1),
+      due_date: localDate(5),
+    },
+  });
+
+  await page.goto('/projects');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dự án');
+  const card = page.getByRole('link', { name: new RegExp(escapeRegex(projectName)) });
+  await expect(card).toBeVisible();
+  await expect(card.getByText('Đúng kế hoạch')).toBeVisible();
+
+  await card.click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`));
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(projectName);
+
+  // Tab Công việc phải thấy việc tạo trong bảng của dự án (project_id suy ra từ bảng).
+  await page.getByRole('tab', { name: 'Công việc' }).click();
+  await expect(page.getByText(`E2E Viec du an ${suffix}`).first()).toBeVisible();
+
+  /* Một việc bị chặn kéo sức khỏe xuống đỏ ngay — chỉ số tính khi đọc, không có
+     cột lưu nào để lệch. */
+  const blocked = await request.post('/api/cards', {
+    data: { list_id: listId, title: `E2E Viec bi chan ${suffix}` },
+  });
+  const blockedId = ((await blocked.json()) as { id: number }).id;
+  await request.patch(`/api/cards/${blockedId}`, {
+    data: { status: 'blocked', blocked_reason: 'Chờ cấp quyền' },
+  });
+
+  await page.goto('/projects');
+  await expect(
+    page.getByRole('link', { name: new RegExp(escapeRegex(projectName)) }).getByText('Có rủi ro')
+  ).toBeVisible();
+
+  /* Dự án có đủ dạng xem như một bảng (v19) — Gantt cấp dự án là thứ trước đó
+     không có cách nào mở được. */
+  await page.goto(`/projects/${projectId}?view=timeline`);
+  await page.getByRole('tab', { name: 'Công việc' }).click();
+  await expect(page.getByTestId('timeline-canvas')).toBeVisible();
+
+  /* Kéo thẻ sang bảng của dự án khác thì việc rời khỏi dự án ngay — dự án suy từ
+     bảng, không còn cột riêng trên thẻ để lệch. */
+  const outsideBoard = await request.post('/api/boards', {
+    data: { name: `E2E Bang ngoai ${suffix}` },
+  });
+  const outsideId = ((await outsideBoard.json()) as { id: number }).id;
+  const outsideFull = await request.get(`/api/boards/${outsideId}/full`);
+  const outsideList = ((await outsideFull.json()) as { lists: { id: number }[] }).lists[0].id;
+  await request.patch(`/api/cards/${blockedId}/move`, { data: { list_id: outsideList } });
+
+  const moved = await request.get(`/api/cards/${blockedId}`);
+  expect(((await moved.json()) as { project_id: number | null }).project_id).toBeNull();
+});
+
+test('cot Kanban khai bao trang thai va dong bo hai chieu tren giao dien', async ({
+  page,
+  request,
+}, testInfo) => {
+  const suffix = testInfo.project.name;
+  const board = await request.post('/api/boards', { data: { name: `E2E Bang anh xa ${suffix}` } });
+  const boardId = ((await board.json()) as { id: number }).id;
+  const full = await request.get(`/api/boards/${boardId}/full`);
+  const lists = ((await full.json()) as { lists: { id: number; status_mapping: string | null }[] })
+    .lists;
+
+  // Bảng mới phải có sẵn ánh xạ — nếu không, cột và trạng thái lại trôi tự do.
+  expect(lists.map((l) => l.status_mapping)).toEqual(['todo', 'doing', 'review', 'done']);
+
+  const cardTitle = `E2E The anh xa ${suffix}`;
+  const created = await request.post('/api/cards', {
+    data: { list_id: lists[0].id, title: cardTitle },
+  });
+  const cardId = ((await created.json()) as { id: number }).id;
+
+  await page.goto(`/boards/${boardId}`);
+  // Cột mang nghĩa vòng đời thì nói ra ngay trên tiêu đề cột.
+  await expect(page.getByText('Hoàn thành', { exact: true }).first()).toBeVisible();
+
+  // Kéo thẻ sang cột "Hoàn thành" (qua API) rồi kiểm tra giao diện phản ánh đúng.
+  await request.patch(`/api/cards/${cardId}/move`, { data: { list_id: lists[3].id } });
+  const afterMove = (await (await request.get(`/api/cards/${cardId}`)).json()) as {
+    status: string;
+    is_done: number;
+  };
+  expect(afterMove.status).toBe('done');
+  expect(afterMove.is_done).toBe(1);
+
+  // Chiều ngược lại: đổi trạng thái thì thẻ tự nhảy về đúng cột.
+  await request.patch(`/api/cards/${cardId}`, { data: { status: 'doing' } });
+  const afterStatus = (await (await request.get(`/api/cards/${cardId}`)).json()) as {
+    list_id: number;
+    status: string;
+  };
+  expect(afterStatus.list_id).toBe(lists[1].id);
+  expect(afterStatus.status).toBe('doing');
+
+  await page.reload();
+  await expect(page.getByText(cardTitle, { exact: true })).toBeVisible();
+});
+
 test('WCAG AA scan, skip-link va reflow 200%', async ({ page, request }, testInfo) => {
   const boardResponse = await request.post('/api/boards', {
     data: { name: `E2E Accessibility ${testInfo.project.name}` },

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition } from '../lib/position.ts';
-import { createCard, reloadCard } from '../services/cardService.ts';
+import { createCard, reloadCard, setCardStatus } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -70,11 +70,8 @@ router.post('/:id/promote', (req, res) => {
       priority: parent.priority as 'low' | 'medium' | 'high' | 'urgent',
     });
     const cardId = card.id as number;
-    if (item.is_done) {
-      db.prepare(
-        `UPDATE cards SET is_done = 1, completed_at = datetime('now','localtime') WHERE id = ?`
-      ).run(cardId);
-    }
+    // Qua setCardStatus de `status` khong tut lai 'todo' trong khi is_done = 1.
+    if (item.is_done) setCardStatus(cardId, 'done');
     db.prepare(`DELETE FROM checklist_items WHERE id = ?`).run(id);
     return cardId;
   })();

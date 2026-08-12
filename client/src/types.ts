@@ -1,20 +1,30 @@
 import type {
+  CardStatus,
   ContractKind,
   ContractTerm,
   InteractionType,
   LabelEntity,
+  NudgeChannel,
+  OrgKind,
   Priority,
+  ProjectHealth,
+  ProjectStatus,
   RevenueStage,
   ServiceStatus,
   Stage,
 } from '@workflow/contracts';
 
 export type {
+  CardStatus,
   ContractKind,
   ContractTerm,
   InteractionType,
   LabelEntity,
+  NudgeChannel,
+  OrgKind,
   Priority,
+  ProjectHealth,
+  ProjectStatus,
   RevenueStage,
   ServiceStatus,
   Stage,
@@ -69,6 +79,8 @@ export interface Board {
   is_starred: number;
   customer_id: number | null;
   customer_name?: string | null;
+  project_id?: number | null;
+  project_name?: string | null;
   is_archived: number;
   card_count?: number;
   created_at: string;
@@ -80,6 +92,15 @@ export interface List {
   name: string;
   position: number;
   is_collapsed: number;
+  /**
+   * Cột này **nghĩa là** trạng thái nào (v19); `null` = cột không mang nghĩa vòng đời.
+   *
+   * Kéo thẻ vào cột có ánh xạ sẽ đặt `card.status`, và đổi `status` sẽ kéo thẻ
+   * sang cột tương ứng. Cột không ánh xạ ("Kho ý tưởng", "Theo khách"…) vẫn dùng
+   * bình thường để xếp thẻ mà không đụng đến vòng đời — đó là chỗ giữ được tự do
+   * bố cục kiểu Trello trong khi vòng đời chỉ có một nguồn sự thật.
+   */
+  status_mapping: CardStatus | null;
   cards: Card[];
 }
 
@@ -102,6 +123,49 @@ export interface Card {
   contract_name?: string | null;
   quotation_id?: number | null;
   quotation_code?: string | null;
+  /**
+   * Người phụ trách — trục riêng, KHÔNG thuộc nhóm liên kết CRM ở trên.
+   *
+   * Các khóa `customer_id`…`quotation_id` trả lời "việc này VỀ cái gì" và bắt buộc
+   * cùng một khách hàng. Người phụ trách trả lời "AI LÀM" và thường nằm ngoài phạm
+   * vi đó — việc về khách hàng A phần lớn do nhân sự công ty mình làm.
+   */
+  assignee_contact_id?: number | null;
+  assignee_name?: string | null;
+  assignee_title?: string | null;
+  assignee_phone?: string | null;
+  assignee_email?: string | null;
+  assignee_zalo?: string | null;
+  assignee_org_id?: number | null;
+  assignee_org_name?: string | null;
+  assignee_org_kind?: OrgKind | null;
+  /**
+   * Vòng đời công việc (v16) — `is_done` vẫn tồn tại và luôn khớp:
+   * `is_done === 1` ⇔ `status === 'done'`. Máy chủ giữ bất biến này.
+   */
+  status: CardStatus;
+  blocked_reason?: string | null;
+  blocked_since?: string | null;
+  approver_contact_id?: number | null;
+  approver_name?: string | null;
+  /** JSON `{"unit":"day|week|month","interval":n}` hoặc null. */
+  recur_rule?: string | null;
+  recur_until?: string | null;
+  nudge_count?: number;
+  last_nudged_at?: string | null;
+  project_id?: number | null;
+  project_name?: string | null;
+  /**
+   * Hạn **lần đầu tiên** được đặt — không bao giờ ghi đè. `slip_count` là số lần
+   * đã dời hạn kể từ đó, `slip_days` là tổng độ trượt. Trước v18 việc dời hạn
+   * không để lại dấu vết nào.
+   */
+  baseline_due_date?: string | null;
+  slip_count?: number;
+  slip_days?: number | null;
+  estimate_hours?: number | null;
+  spent_hours?: number;
+  is_milestone?: number;
   is_done: number;
   completed_at?: string | null;
   cover_color: string | null;
@@ -155,6 +219,8 @@ export interface CardFieldValue extends CardField {
 }
 
 export interface CardDetail extends Card {
+  dependencies: { predecessors: CardDependency[]; successors: CardDependency[] };
+  due_changes: CardDueChange[];
   labels: Label[];
   checklist: ChecklistItem[];
   reminders: Reminder[];
@@ -175,6 +241,23 @@ export interface SubTask {
   is_done: number;
   customer_id: number | null;
   customer_name: string | null;
+  assignee_contact_id?: number | null;
+  assignee_name?: string | null;
+  assignee_org_kind?: OrgKind | null;
+}
+
+/** Một người có thể giao việc — mọi nhân sự đang hoạt động của mọi tổ chức. */
+export interface Assignee {
+  id: number;
+  full_name: string;
+  title: string | null;
+  phone: string | null;
+  email: string | null;
+  zalo: string | null;
+  is_me: number;
+  org_id: number;
+  org_name: string;
+  org_kind: OrgKind;
 }
 
 export interface Customer {
@@ -190,6 +273,8 @@ export interface Customer {
   size: string | null;
   source: string | null;
   status: 'prospect' | 'customer' | 'inactive';
+  /** Chỉ `customer` là đối tượng của pipeline / doanh thu / báo cáo CRM. */
+  org_kind: OrgKind;
   notes: string;
   deal_count?: number;
   open_deal_count?: number;
@@ -224,6 +309,10 @@ export interface Contact {
   buying_role: string | null;
   relationship: string | null;
   is_primary: number;
+  /** Đại diện chính người dùng — dùng cho bộ lọc "Việc của tôi". Duy nhất toàn sổ. */
+  is_me: number;
+  /** Nghỉ việc thì tắt: ẩn khỏi ô chọn người phụ trách mà không mất lịch sử. */
+  is_active: number;
   notes: string;
 }
 
@@ -504,6 +593,141 @@ export interface TaskRow {
   subtask_total?: number;
   subtask_done?: number;
   label_ids: number[];
+  assignee_contact_id: number | null;
+  assignee_name: string | null;
+  assignee_phone?: string | null;
+  assignee_email?: string | null;
+  assignee_zalo?: string | null;
+  assignee_org_id: number | null;
+  assignee_org_name: string | null;
+  assignee_org_kind: OrgKind | null;
+  status: CardStatus;
+  blocked_reason: string | null;
+  blocked_since: string | null;
+  recur_rule: string | null;
+  nudge_count: number;
+  last_nudged_at: string | null;
+  project_id: number | null;
+  project_name: string | null;
+  baseline_due_date: string | null;
+  slip_count: number;
+  slip_days: number | null;
+  estimate_hours: number | null;
+  spent_hours: number;
+  is_milestone: number;
+}
+
+/** Một lần dời hạn — biến "trượt tiến độ" thành con số đọc được. */
+export interface CardDueChange {
+  id: number;
+  card_id: number;
+  old_due: string | null;
+  new_due: string | null;
+  reason: string | null;
+  changed_at: string;
+}
+
+/** Phụ thuộc finish-to-start; `violated` = việc trước chưa xong mà việc sau đã bắt đầu. */
+export interface CardDependency {
+  id: number;
+  title: string;
+  is_done: number;
+  status: CardStatus;
+  due_date?: string | null;
+  start_date?: string | null;
+  violated?: number;
+}
+
+/**
+ * Dự án — lớp nhóm bên trên bảng và công việc.
+ *
+ * Các trường chỉ số (`task_*`, `health`, `progress_pct`, `days_left`) được **tính
+ * khi đọc** ở máy chủ, không có cột nào trong CSDL: chúng phụ thuộc vào ngày hôm
+ * nay nên một giá trị lưu sẵn sẽ sai ngay hôm sau mà không ai sửa gì.
+ */
+export interface Project {
+  id: number;
+  name: string;
+  code: string | null;
+  customer_id: number | null;
+  customer_name: string | null;
+  owner_contact_id: number | null;
+  owner_name: string | null;
+  owner_org_name: string | null;
+  owner_org_kind: OrgKind | null;
+  status: ProjectStatus;
+  plan_start: string | null;
+  plan_end: string | null;
+  actual_start: string | null;
+  actual_end: string | null;
+  budget_vnd: number;
+  notes: string;
+  is_archived: number;
+  task_total: number;
+  task_done: number;
+  task_overdue: number;
+  task_waiting: number;
+  task_unassigned: number;
+  people_count: number;
+  board_count: number;
+  contract_count: number;
+  contract_value_vnd: number;
+  days_left: number | null;
+  health: ProjectHealth;
+  progress_pct: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Người xuất hiện trong dự án — suy ra từ người phụ trách các công việc. */
+export interface ProjectPerson {
+  contact_id: number;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  zalo: string | null;
+  org_id: number | null;
+  org_name: string | null;
+  org_kind: OrgKind | null;
+  task_total: number;
+  open_count: number;
+  overdue_count: number;
+}
+
+export interface ProjectDetail extends Project {
+  boards: {
+    id: number;
+    name: string;
+    background: string;
+    is_archived: number;
+    card_count: number;
+  }[];
+  contracts: {
+    id: number;
+    name: string;
+    number: string | null;
+    value_vnd: number;
+    status: string;
+    end_date: string | null;
+    customer_name: string | null;
+  }[];
+  deals: { id: number; title: string; stage: Stage; value_vnd: number }[];
+  people: ProjectPerson[];
+  tasks: TaskRow[];
+}
+
+/** Một lần đã nhắc người phụ trách — biến "đã nhắc chưa" thành số đo được. */
+export interface TaskNudge {
+  id: number;
+  card_id: number;
+  card_title: string | null;
+  contact_id: number | null;
+  contact_name: string | null;
+  channel: NudgeChannel;
+  message: string;
+  sent_at: string;
+  response: string | null;
+  responded_at: string | null;
 }
 
 /** Loai lich ca nhan (bang calendar_events, v11). */
@@ -613,6 +837,20 @@ export interface TimelineItem {
   customer_name: string | null;
   group_id: number;
   group_name: string;
+  status?: CardStatus;
+  /** Mốc quan trọng — vẽ thành hình thoi tại ngày hạn thay vì một thanh. */
+  is_milestone?: number;
+  assignee_name?: string | null;
+  assignee_org_kind?: OrgKind | null;
+  slip_count?: number;
+}
+
+/** Cạnh phụ thuộc giữa hai việc **đang hiện trên trục** — xem /views/timeline. */
+export interface TimelineDependency {
+  predecessor_id: number;
+  successor_id: number;
+  /** Việc trước chưa xong mà việc sau đã tới ngày bắt đầu. */
+  violated: number;
 }
 
 export interface DealsResponse {

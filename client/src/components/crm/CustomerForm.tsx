@@ -6,7 +6,8 @@ import { Modal } from '../common/Modal';
 import { Button, Field, FormError, Input, Select, Textarea } from '../common/ui';
 import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
-import type { Customer } from '../../types';
+import { ORG_KINDS } from '@workflow/contracts';
+import type { Customer, OrgKind } from '../../types';
 
 const EMPTY = {
   name: '',
@@ -20,19 +21,30 @@ const EMPTY = {
   size: '',
   source: '',
   status: 'prospect' as 'prospect' | 'customer' | 'inactive',
+  org_kind: 'customer' as OrgKind,
   notes: '',
 };
 
 type Duplicate = { id: number; name: string; tax_code: string | null; website: string | null };
 
+/**
+ * Form hồ sơ tổ chức — dùng chung cho màn Khách hàng và màn Tổ chức & nhân sự.
+ *
+ * `showOrgKind` chỉ bật ở màn danh bạ: trong luồng CRM, mọi bản ghi tạo ra đều là
+ * khách hàng nên bày thêm một ô "loại tổ chức" chỉ tạo cơ hội chọn nhầm.
+ */
 export function CustomerForm({
   open,
   onClose,
   customer,
+  defaultOrgKind = 'customer',
+  showOrgKind = false,
 }: {
   open: boolean;
   onClose: () => void;
   customer?: Customer;
+  defaultOrgKind?: OrgKind;
+  showOrgKind?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY);
@@ -55,9 +67,10 @@ export function CustomerForm({
           size: customer.size ?? '',
           source: customer.source ?? '',
           status: customer.status,
+          org_kind: customer.org_kind ?? 'customer',
           notes: customer.notes ?? '',
         }
-      : EMPTY;
+      : { ...EMPTY, org_kind: defaultOrgKind };
     setForm(next);
     initialRef.current = next;
     setTouchedName(false);
@@ -193,6 +206,20 @@ export function CustomerForm({
             ))}
           </Select>
         </Field>
+        {showOrgKind && (
+          <Field
+            label="Loại tổ chức"
+            hint="Chỉ “Khách hàng” mới nằm trong pipeline, doanh thu và báo cáo CRM."
+          >
+            <Select value={form.org_kind} onChange={(e) => set('org_kind', e.target.value)}>
+              {ORG_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {t.orgKind[kind]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         <div className="sm:col-span-2">
           <Field label={t.customer.address}>
             <Input value={form.address} onChange={(e) => set('address', e.target.value)} />

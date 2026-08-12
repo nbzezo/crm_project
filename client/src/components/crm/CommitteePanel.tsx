@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CalendarClock, Crown, Plus, Trash2, UserPlus } from 'lucide-react';
 import { api } from '../../api/client';
+import { Combobox } from '../common/Combobox';
 import {
   Button,
   ColorBadge,
@@ -203,15 +204,18 @@ function MembersBlock({ dealId, onChange }: { dealId: number; onChange: () => vo
         <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-tr-border pt-3">
           <div className="min-w-[12rem] flex-1">
             <Field label="Thêm từ danh sách người liên hệ">
-              <Select value={adding} onChange={(e) => setAdding(e.target.value)}>
-                <option value="">— Chọn người —</option>
-                {candidates.map((c) => (
-                  <option key={c.contact_id} value={c.contact_id}>
-                    {c.full_name}
-                    {c.role ? ` — ${t.buyingRole[c.role] ?? c.role}` : ''}
-                  </option>
-                ))}
-              </Select>
+              <Combobox
+                value={adding === '' ? '' : Number(adding)}
+                onChange={(v) => setAdding(v === '' ? '' : String(v))}
+                options={candidates.map((c) => ({
+                  id: c.contact_id,
+                  label: c.full_name + (c.role ? ` — ${t.buyingRole[c.role] ?? c.role}` : ''),
+                }))}
+                placeholder="— Chọn người —"
+                searchPlaceholder="Tìm người liên hệ…"
+                emptyText="Không tìm thấy người liên hệ."
+                ariaLabel="Thêm từ danh sách người liên hệ"
+              />
             </Field>
           </div>
           <Button
