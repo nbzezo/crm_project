@@ -1,9 +1,9 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import type { Database } from 'better-sqlite3';
 import { FILES_DIR } from '../../db/connection.ts';
 import { buildSearchText, fold } from '../../lib/viSearch.ts';
 import { required } from '../../lib/validate.ts';
+import { extractText, type ExtractMethod } from './textExtract.ts';
 
 interface DocumentRow {
   id: number;
@@ -18,28 +18,7 @@ interface DocumentRow {
   confidentiality: string;
 }
 
-const TEXT_EXTENSIONS = new Set([
-  '.txt',
-  '.md',
-  '.csv',
-  '.tsv',
-  '.json',
-  '.xml',
-  '.html',
-  '.htm',
-  '.log',
-  '.yaml',
-  '.yml',
-]);
-
-function isTextDocument(document: DocumentRow): boolean {
-  return (
-    Boolean(document.mime?.startsWith('text/')) ||
-    TEXT_EXTENSIONS.has(path.extname(document.file_name).toLowerCase())
-  );
-}
-
-function safeFilePath(storedName: string): string {
+export function safeFilePath(storedName: string): string {
   const root = path.resolve(FILES_DIR);
   const file = path.resolve(root, storedName);
   if (file !== root && !file.startsWith(`${root}${path.sep}`))
@@ -71,7 +50,34 @@ function chunks(text: string, size = 1_600, overlap = 200): string[] {
   return result.filter(Boolean);
 }
 
-export function indexDocument(db: Database, documentId: number) {
+/**
+ * Doc noi dung mot tai lieu de lap chi muc hoac de AI phan tich.
+ *
+ * Tach rieng khoi indexDocument vi endpoint de xuat metadata can dung nguon van ban
+ * nay ma khong phai lap lai chi muc.
+ */
+export async function readDocumentText(
+  db: Database,
+  documentId: number
+): Promise<{ document: DocumentRow; text: string; method: ExtractMethod; reason?: string }> {
+  const document = required(
+    db
+      .prepare(
+        `SELECT id, name, doc_type, file_name, stored_name, mime, size, description, tags, confidentiality
+           FROM documents WHERE id = ? AND deleted_at IS NULL`
+      )
+      .get(documentId) as DocumentRow | undefined,
+    'Không tìm thấy tài liệu'
+  );
+  const extracted = await extractText(
+    safeFilePath(document.stored_name),
+    document.mime,
+    document.file_name
+  );
+  return { document, ...extracted };
+}
+
+export async function indexDocument(db: Database, documentId: number) {
   const document = required(
     db
       .prepare(
@@ -91,15 +97,14 @@ export function indexDocument(db: Database, documentId: number) {
   ]
     .filter(Boolean)
     .join('\n');
-  let content = metadata;
-  let extraction: 'text' | 'metadata' = 'metadata';
-  if (isTextDocument(document) && document.size <= 5 * 1024 * 1024) {
-    const file = safeFilePath(document.stored_name);
-    if (fs.existsSync(file)) {
-      content = `${metadata}\n\n${fs.readFileSync(file, 'utf8')}`;
-      extraction = 'text';
-    }
-  }
+  // Tu v14 ca PDF/DOCX/XLSX deu vao duoc chi muc; truoc day chi co tep text thuan.
+  const extracted = await extractText(
+    safeFilePath(document.stored_name),
+    document.mime,
+    document.file_name
+  );
+  const content = extracted.text ? `${metadata}\n\n${extracted.text}` : metadata;
+  const extraction: ExtractMethod | 'metadata' = extracted.text ? extracted.method : 'metadata';
 
   const parts = chunks(content);
   db.transaction(() => {
@@ -127,7 +132,7 @@ export function indexDocument(db: Database, documentId: number) {
   return { document_id: documentId, chunks: parts.length, extraction };
 }
 
-export function indexAllDocuments(db: Database) {
+export async function indexAllDocuments(db: Database) {
   const ids = db.prepare(`SELECT id FROM documents WHERE deleted_at IS NULL ORDER BY id`).all() as {
     id: number;
   }[];
@@ -136,7 +141,7 @@ export function indexAllDocuments(db: Database) {
   const failures: { document_id: number; error: string }[] = [];
   for (const { id } of ids) {
     try {
-      const result = indexDocument(db, id);
+      const result = await indexDocument(db, id);
       indexed += 1;
       chunksCount += result.chunks;
     } catch (error) {

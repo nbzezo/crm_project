@@ -1,6 +1,10 @@
+import fs from 'node:fs';
 import { Router } from 'express';
 import { z } from 'zod';
+import { DOC_TYPES, PRIORITIES } from '@workflow/contracts';
+import { taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
+import { deriveTaskLinks } from '../lib/entityRelations.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import {
@@ -19,15 +23,18 @@ import {
 import {
   buildCustomerContext,
   buildDealContext,
+  buildTaskAssistContext,
   buildTodayContext,
   compactJson,
 } from '../services/ai/contextBuilder.ts';
 import {
   indexAllDocuments,
   indexDocument,
+  readDocumentText,
+  safeFilePath,
   searchDocumentChunks,
 } from '../services/ai/documentIndex.ts';
-import { parseAiJson, runAi } from '../services/ai/gateway.ts';
+import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 
 const router = Router();
@@ -203,6 +210,231 @@ router.post('/assist/interaction', async (req, res) => {
   }
 });
 
+const taskAssistSchema = z.object({
+  draft: z.string().trim().min(3).max(5000),
+  context: taskLinksSchema.optional(),
+  list_id: z.number().int().positive().nullable().optional(),
+  mode: z.enum(['fast', 'balanced', 'reasoning']).optional(),
+});
+
+const taskAssistResponse = z.object({
+  title: z.string().trim().min(1).max(300),
+  description: z.string().max(5000).default(''),
+  priority: z.enum(PRIORITIES).default('medium'),
+  start_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
+  due_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
+  checklist: z.array(z.string().trim().min(1).max(500)).max(20).default([]),
+  links: taskLinksSchema.default({}),
+  confidence: z.number().min(0).max(1).default(0.5),
+  rationale: z.string().max(1000).default(''),
+});
+
+/**
+ * Loai bo moi id khong nam trong tap ung vien da gui cho mo hinh.
+ *
+ * Mo hinh doi khi "nho" mot id tu ngu canh khac hoac don gian la doan. Mot id sai
+ * o day khong chi la goi y sai — no se ghi lien ket sai vao CRM neu nguoi dung bam
+ * Luu ngay. Nen thu gi khong chung minh duoc thi bo, va noi ro da bo cai gi.
+ */
+function keepKnownIds(
+  proposed: Record<string, number | null | undefined>,
+  candidates: Record<string, unknown[]>,
+  warnings: string[]
+) {
+  const kept: Record<string, number> = {};
+  const sources = {
+    contact_id: 'contacts',
+    deal_id: 'deals',
+    contract_id: 'contracts',
+    quotation_id: 'quotations',
+  } as const;
+  const hasId = (list: unknown[] | undefined, id: number) =>
+    (list ?? []).some((item) => (item as { id?: unknown }).id === id);
+
+  for (const [key, source] of Object.entries(sources)) {
+    const value = proposed[key];
+    if (value == null) continue;
+    if (hasId(candidates[source], value)) kept[key] = value;
+    else warnings.push(`Bỏ qua ${key}=${value} do không nằm trong dữ liệu của khách hàng này.`);
+  }
+  return kept;
+}
+
+/**
+ * Nhap lieu thong minh: nguoi dung go noi dung cong viec, AI dien not cac truong.
+ *
+ * KHONG di qua ai_action_proposals — day la goi y dien vao form, nguoi dung xem lai
+ * roi moi bam Luu, giong het luong /assist/interaction da chay on. Ket qua van phai
+ * qua deriveTaskLinks + assertEntityLinks nen mot goi y sai lien ket bi chan ngay
+ * tai day chu khong doi den luc ghi.
+ */
+router.post('/assist/task', async (req, res) => {
+  try {
+    const body = parseBody(taskAssistSchema, req);
+    const anchor = deriveTaskLinks(db, body.context ?? {});
+    const context = buildTaskAssistContext(db, anchor);
+
+    const { data, meta } = await runStructured(
+      db,
+      {
+        task: 'task_assist',
+        mode: body.mode ?? 'fast',
+        contextType: 'task',
+        contextId: anchor.customer_id ?? undefined,
+        maxOutputTokens: 1200,
+        system:
+          'Bạn giúp hoàn thiện phiếu công việc CRM tiếng Việt. Chỉ dùng dữ kiện có trong bản nháp và ngữ cảnh, ' +
+          'không bịa thêm sự kiện. Với các trường liên kết, chỉ được chọn id có trong candidates; không chắc thì để null. ' +
+          'Ngày phải đúng YYYY-MM-DD hoặc null.',
+        prompt:
+          'Từ bản nháp dưới đây, điền JSON ' +
+          '{"title":"tiêu đề ngắn, bắt đầu bằng động từ","description":"","priority":"low|medium|high|urgent",' +
+          '"start_date":null,"due_date":null,"checklist":["bước 1"],' +
+          '"links":{"contact_id":null,"deal_id":null,"contract_id":null,"quotation_id":null},' +
+          '"confidence":0.0,"rationale":"vì sao chọn như vậy"}.\n' +
+          `Bản nháp:\n${body.draft}\n\nNgữ cảnh:\n${compactJson(context, 25_000)}`,
+      },
+      taskAssistResponse
+    );
+
+    const warnings: string[] = [];
+    const known = keepKnownIds(data.links, context.candidates, warnings);
+    // Lien ket neo cua nguoi dung luon thang goi y cua mo hinh.
+    let links = anchor;
+    try {
+      links = deriveTaskLinks(db, { ...known, ...stripNull(anchor) });
+    } catch {
+      warnings.push('Bỏ qua liên kết AI đề xuất vì mâu thuẫn với ngữ cảnh đang mở.');
+    }
+
+    res.json({ ...data, links, warnings, meta });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+/** Chi giu cac khoa co gia tri — de `{...known, ...anchor}` khong bi null cua anchor de len. */
+function stripNull(links: Record<string, number | null | undefined>) {
+  return Object.fromEntries(Object.entries(links).filter(([, value]) => value != null));
+}
+
+const documentAssistResponse = z.object({
+  name: z.string().trim().min(1).max(300),
+  doc_type: z.enum(DOC_TYPES).default('other'),
+  description: z.string().max(2000).default(''),
+  tags: z.string().max(500).default(''),
+  owner: z.string().max(200).nullable().default(null),
+  effective_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
+  expires_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
+  confidentiality: z.enum(['public', 'internal', 'confidential']).default('internal'),
+  customer_name: z.string().max(300).nullable().default(null),
+  confidence: z.number().min(0).max(1).default(0.5),
+});
+
+/** Do dai toi thieu de coi la "doc duoc" — duoi muc nay coi nhu PDF scan / anh. */
+const MIN_USEFUL_CHARS = 200;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+/**
+ * AI doc noi dung tai lieu roi de xuat metadata.
+ *
+ * KHONG tu ghi vao documents — chi tra de xuat de nguoi dung duyet, giong luong
+ * /assist/task. Doc bang parser cuc bo truoc; chi khi parser khong ra chu (PDF scan,
+ * anh) moi gui nguyen tep cho model doc duoc tai lieu, va chi voi tep <= 10 MB.
+ */
+router.post('/assist/document/:id', async (req, res) => {
+  try {
+    const id = intParam(req.params.id);
+    const { document, text, method, reason } = await readDocumentText(db, id);
+    const warnings: string[] = [];
+
+    const usable = text.trim().length >= MIN_USEFUL_CHARS;
+    let attachments: { mime: string; dataBase64: string; fileName: string }[] | undefined;
+    if (!usable) {
+      if (reason) warnings.push(reason);
+      if (document.size <= MAX_ATTACHMENT_BYTES) {
+        attachments = [
+          {
+            mime: document.mime ?? 'application/octet-stream',
+            dataBase64: fs.readFileSync(safeFilePath(document.stored_name)).toString('base64'),
+            fileName: document.file_name,
+          },
+        ];
+        warnings.push('Không tách được chữ nên đã gửi tệp cho AI đọc trực tiếp.');
+      } else {
+        warnings.push('Tệp quá lớn để gửi cho AI đọc trực tiếp — chỉ suy đoán từ tên tệp.');
+      }
+    }
+
+    const customers = db
+      .prepare(`SELECT id, name FROM customers ORDER BY updated_at DESC LIMIT 200`)
+      .all() as { id: number; name: string }[];
+
+    const { data, meta } = await runStructured(
+      db,
+      {
+        task: 'document_assist',
+        mode: 'balanced',
+        contextType: 'document',
+        contextId: id,
+        maxOutputTokens: 1200,
+        requiresCapability: attachments ? 'documentInput' : undefined,
+        attachments,
+        system:
+          'Bạn đọc tài liệu kinh doanh tiếng Việt và rút ra metadata. Chỉ dùng thông tin có trong tài liệu; ' +
+          'không suy đoán. Không chắc thì để null hoặc chuỗi rỗng. Ngày phải đúng YYYY-MM-DD.',
+        prompt:
+          'Trả JSON {"name":"tên tài liệu ngắn gọn","doc_type":"' +
+          DOC_TYPES.join('|') +
+          '","description":"tóm tắt 1-3 câu","tags":"nhãn, cách nhau bởi dấu phẩy",' +
+          '"owner":null,"effective_date":null,"expires_at":null,' +
+          '"confidentiality":"public|internal|confidential","customer_name":null,"confidence":0.0}.\n' +
+          `Tên tệp: ${document.file_name}\n` +
+          (usable
+            ? `Nội dung (đã trích bằng ${method}):\n${text.slice(0, 12_000)}`
+            : 'Nội dung tệp được gửi kèm; nếu không đọc được thì chỉ suy ra từ tên tệp.'),
+      },
+      documentAssistResponse
+    );
+
+    /*
+     * Mo hinh tra ve TEN khach hang chu khong phai id — khop lai bang chuoi da bo dau
+     * de mot ten viet hoa/thieu dau van tim ra. Khong khop thi bo, khong doan bua.
+     */
+    const { customer_name: proposedName, ...metadata } = data;
+    let customerId: number | null = null;
+    if (proposedName) {
+      const needle = fold(proposedName);
+      const match = customers.find(
+        (c) =>
+          fold(c.name) === needle || fold(c.name).includes(needle) || needle.includes(fold(c.name))
+      );
+      if (match) customerId = match.id;
+      else warnings.push(`Không tìm thấy khách hàng "${proposedName}" trong hệ thống.`);
+    }
+
+    res.json({ ...metadata, customer_id: customerId, extraction: method, warnings, meta });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
 function searchCrm(query: string) {
   const q = fold(query);
   const like = `%${q}%`;
@@ -264,7 +496,7 @@ router.post('/ask', async (req, res) => {
       const documents = db
         .prepare(`SELECT COUNT(*) AS n FROM documents WHERE deleted_at IS NULL`)
         .get() as { n: number };
-      if (count.n === 0 && documents.n > 0) indexAllDocuments(db);
+      if (count.n === 0 && documents.n > 0) await indexAllDocuments(db);
     }
     const context = {
       crm: body.scope === 'documents' ? null : searchCrm(body.question),
@@ -324,9 +556,9 @@ router.post('/actions/:id/reject', (req, res) =>
   res.json(rejectActionProposal(db, intParam(req.params.id)))
 );
 
-router.post('/documents/index', (_req, res) => res.json(indexAllDocuments(db)));
-router.post('/documents/:id/index', (req, res) =>
-  res.json(indexDocument(db, intParam(req.params.id)))
+router.post('/documents/index', async (_req, res) => res.json(await indexAllDocuments(db)));
+router.post('/documents/:id/index', async (req, res) =>
+  res.json(await indexDocument(db, intParam(req.params.id)))
 );
 router.get('/documents/search', (req, res) => {
   const query = String(req.query.q ?? '').trim();

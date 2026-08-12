@@ -296,11 +296,10 @@ router.patch('/:id', (req, res) => {
     ),
     id
   );
-  try {
-    indexDocument(db, id);
-  } catch (error) {
-    console.warn('[ai-index] Khong cap nhat duoc chi muc tai lieu:', error);
-  }
+  // Lap chi muc chay nen: doc PDF/DOCX ton thoi gian va khong duoc lam cham phan hoi.
+  void indexDocument(db, id).catch((error: unknown) =>
+    console.warn('[ai-index] Khong cap nhat duoc chi muc tai lieu:', error)
+  );
   res.json(reload(id));
 });
 
@@ -312,11 +311,9 @@ router.post('/:id/restore', (req, res) => {
     )
     .run(id);
   if (result.changes === 0) throw new HttpError(404, 'Không tìm thấy tài liệu trong thùng rác');
-  try {
-    indexDocument(db, id);
-  } catch (error) {
-    console.warn('[ai-index] Khong khoi phuc duoc chi muc tai lieu:', error);
-  }
+  void indexDocument(db, id).catch((error: unknown) =>
+    console.warn('[ai-index] Khong khoi phuc duoc chi muc tai lieu:', error)
+  );
   res.json(reload(id));
 });
 

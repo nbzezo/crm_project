@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, CircleX, FileUp, RefreshCw, Trash2, Upload, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  CircleX,
+  FileUp,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import type { Contract, Customer, Deal, Quotation } from '../../types';
@@ -22,6 +31,8 @@ interface QueueItem {
   status: QueueStatus;
   progress: number;
   error?: string;
+  /** Id tai lieu vua tao — de mo lai ho so va nho AI doc noi dung. */
+  documentId?: number;
 }
 
 interface UploadMetadata {
@@ -67,7 +78,14 @@ function errorFrom(xhr: XMLHttpRequest): string {
   }
 }
 
-export function DocumentUploadManager({ options }: { options: DocumentOptions }) {
+export function DocumentUploadManager({
+  options,
+  onReview,
+}: {
+  options: DocumentOptions;
+  /** Mo ho so mot tai lieu vua tai len (noi co nut "Đọc bằng AI"). */
+  onReview?: (documentId: number) => void;
+}) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +200,14 @@ export function DocumentUploadManager({ options }: { options: DocumentOptions })
     };
     xhr.onload = () => {
       const ok = xhr.status >= 200 && xhr.status < 300;
+      let documentId: number | undefined;
+      if (ok) {
+        try {
+          documentId = (JSON.parse(xhr.responseText) as { id?: number }).id;
+        } catch {
+          /* Tai len van thanh cong; chi mat nut mo nhanh ho so. */
+        }
+      }
       setQueue((current) =>
         current.map((item) =>
           item.id === next.id
@@ -190,6 +216,7 @@ export function DocumentUploadManager({ options }: { options: DocumentOptions })
                 status: ok ? 'done' : 'error',
                 progress: ok ? 100 : item.progress,
                 error: ok ? undefined : errorFrom(xhr),
+                documentId,
               }
             : item
         )
@@ -460,6 +487,12 @@ export function DocumentUploadManager({ options }: { options: DocumentOptions })
                   </div>
                   {item.error && <p className="mt-1 text-xs text-tr-danger">{item.error}</p>}
                 </div>
+                {/* Khong tu ghi metadata — mo ho so de AI de xuat, nguoi dung duyet roi luu. */}
+                {item.status === 'done' && item.documentId !== undefined && onReview && (
+                  <Button onClick={() => onReview(item.documentId!)}>
+                    <Sparkles size={14} aria-hidden="true" /> Để AI đọc
+                  </Button>
+                )}
                 {(item.status === 'error' || item.status === 'cancelled') &&
                   allowedExtensions.has(extensionOf(item.file.name)) &&
                   item.file.size <= MAX_UPLOAD_BYTES && (

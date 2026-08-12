@@ -24,6 +24,13 @@ export interface ProviderConnection {
   apiKey: string;
 }
 
+/** Tep gui kem cho mo hinh doc truc tiep — dung khi parser cuc bo khong ra chu. */
+export interface AiAttachment {
+  mime: string;
+  dataBase64: string;
+  fileName: string;
+}
+
 export interface GenerateRequest {
   model: string;
   system: string;
@@ -31,6 +38,7 @@ export interface GenerateRequest {
   maxOutputTokens?: number;
   temperature?: number;
   json?: boolean;
+  attachments?: AiAttachment[];
 }
 
 export interface GenerateResult {
@@ -52,6 +60,15 @@ export interface AiRunRequest {
   maxOutputTokens?: number;
   contextType?: string;
   contextId?: number;
+  attachments?: AiAttachment[];
+  /**
+   * Chi dung nha cung cap co model dap ung nang luc nay.
+   *
+   * Nang luc cua tung model da duoc luu vao ai_models luc dong bo nhung truoc day
+   * khong bao gio duoc doc — gui tep cho model khong doc duoc file thi chi ton token
+   * roi that bai.
+   */
+  requiresCapability?: keyof ModelCapabilities;
 }
 
 export interface AiRunResult extends GenerateResult {

@@ -7,6 +7,7 @@ import {
   type AiProviderName,
   type AiRunRequest,
   type AiRunResult,
+  type ModelCapabilities,
 } from './types.ts';
 
 interface GatewayConfig {
@@ -37,6 +38,30 @@ function modelFor(config: GatewayConfig, request: AiRunRequest): string | null {
   if (request.mode === 'fast') return config.fast_model ?? config.default_model;
   if (request.mode === 'reasoning') return config.reasoning_model ?? config.default_model;
   return config.default_model ?? config.fast_model ?? config.reasoning_model;
+}
+
+/**
+ * Model nay co lam duoc viec dang can khong?
+ *
+ * Nang luc duoc luu vao ai_models luc dong bo. Khong tim thay dong nao thi coi nhu
+ * KHONG dap ung — tha bo qua mot nha cung cap con hon gui tep cho model khong doc
+ * duoc roi bao loi kho hieu cho nguoi dung.
+ */
+function modelSupports(
+  db: Database,
+  provider: AiProviderName,
+  model: string,
+  capability: keyof ModelCapabilities
+): boolean {
+  const row = db
+    .prepare(`SELECT capabilities_json FROM ai_models WHERE provider = ? AND model_id = ?`)
+    .get(provider, model) as { capabilities_json: string } | undefined;
+  if (!row) return false;
+  try {
+    return Boolean((JSON.parse(row.capabilities_json) as ModelCapabilities)[capability]);
+  } catch {
+    return false;
+  }
 }
 
 function usageToday(db: Database, provider: AiProviderName) {
@@ -134,6 +159,17 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
     const model = modelFor(config, request);
     const connection = providerConnection(db, config.provider);
     if (!model || !connection) continue;
+    if (
+      request.requiresCapability &&
+      !modelSupports(db, config.provider, model, request.requiresCapability)
+    ) {
+      lastError = new AiProviderError(
+        `Model ${model} không đọc được tệp đính kèm`,
+        'capability_missing'
+      );
+      fallbackCount += 1;
+      continue;
+    }
     lastProvider = config.provider;
     lastModel = model;
 
@@ -160,6 +196,7 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
         prompt: request.prompt,
         json: request.json,
         maxOutputTokens: request.maxOutputTokens,
+        attachments: request.attachments,
       });
       const estimatedCostUsd = estimateCost(config, result.inputTokens, result.outputTokens);
       saveUsage(db, {
@@ -210,6 +247,37 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
     errorCode: providerError.code,
   });
   throw providerError;
+}
+
+/**
+ * Goi AI va tra ve du lieu da qua schema, thay cho mau `schema.parse(parseAiJson(...))`
+ * lap lai o tung route.
+ *
+ * Cho phep mot lan thu lai voi loi nhac chat hon: khong nha cung cap nao dam bao
+ * duoc JSON dung cau truc (Anthropic khong co che do JSON that su), nen lan hong
+ * dau tien la binh thuong chu chua phai loi. Lan thu hai hong thi moi bao loi.
+ */
+export async function runStructured<T>(
+  db: Database,
+  request: AiRunRequest,
+  schema: { parse: (value: unknown) => T }
+): Promise<{ data: T; meta: AiRunResult }> {
+  const attempt = async (prompt: string) => {
+    const meta = await runAi(db, { ...request, prompt, json: true });
+    return { data: schema.parse(parseAiJson(meta.text)), meta };
+  };
+
+  try {
+    return await attempt(request.prompt);
+  } catch (error) {
+    // Loi tu nha cung cap (het quota, mat mang) thi thu lai cung vo ich.
+    if (error instanceof AiProviderError && error.code !== 'invalid_json') throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    return attempt(
+      `${request.prompt}\n\nLan tra loi truoc khong dung dinh dang (${reason}). ` +
+        'Lan nay chi tra ve DUY NHAT mot doi tuong JSON hop le, khong kem loi giai thich hay dau ```.'
+    );
+  }
 }
 
 export function parseAiJson<T>(text: string): T {

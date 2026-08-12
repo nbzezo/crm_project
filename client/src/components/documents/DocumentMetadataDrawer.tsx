@@ -1,12 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
+import { Save, Sparkles } from 'lucide-react';
 import { api } from '../../api/client';
 import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import type { CrmDocument } from '../../types';
 import { Drawer } from '../common/Drawer';
 import { Button, Field, Input, Select, Textarea } from '../common/ui';
 import type { DocumentOptions } from './DocumentUploadManager';
+
+/** De xuat metadata do AI doc tu noi dung tep — chua ghi vao CSDL. */
+export interface DocumentAssistResult {
+  name: string;
+  doc_type: string;
+  description: string;
+  tags: string;
+  owner: string | null;
+  effective_date: string | null;
+  expires_at: string | null;
+  confidentiality: CrmDocument['confidentiality'];
+  customer_id: number | null;
+  confidence: number;
+  extraction: string;
+  warnings: string[];
+}
 
 interface MetadataForm {
   name: string;
@@ -51,8 +67,16 @@ export function DocumentMetadataDrawer({
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<MetadataForm | null>(document ? formOf(document) : null);
+  const [aiResult, setAiResult] = useState<{
+    filled: string[];
+    warnings: string[];
+    extraction: string;
+  } | null>(null);
 
-  useEffect(() => setForm(document ? formOf(document) : null), [document]);
+  useEffect(() => {
+    setForm(document ? formOf(document) : null);
+    setAiResult(null);
+  }, [document]);
 
   const customerId = form?.customer_id ? Number(form.customer_id) : null;
   const deals = useMemo(
@@ -83,6 +107,47 @@ export function DocumentMetadataDrawer({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       onClose();
+    },
+  });
+
+  /**
+   * AI doc noi dung tep roi de xuat metadata.
+   *
+   * Chi dien vao o DANG TRONG — nguoi dung da nhap gi thi giu nguyen. Khong tu luu:
+   * de xuat chi vao form, phai bam "Lưu thay đổi" moi ghi.
+   */
+  const assist = useMutation({
+    mutationFn: () => api.post<DocumentAssistResult>(`/api/ai/assist/document/${document!.id}`),
+    onSuccess: (result) => {
+      const filled: string[] = [];
+      setForm((current) => {
+        if (!current) return current;
+        const next = { ...current };
+        const fill = <K extends keyof MetadataForm>(
+          key: K,
+          empty: boolean,
+          value: MetadataForm[K] | null
+        ) => {
+          if (!empty || value === null || value === '') return;
+          next[key] = value;
+          filled.push(String(key));
+        };
+        fill('name', !current.name.trim(), result.name);
+        fill('doc_type', current.doc_type === 'other', result.doc_type);
+        fill('description', !current.description.trim(), result.description);
+        fill('tags', !current.tags.trim(), result.tags);
+        fill('owner', !current.owner.trim(), result.owner);
+        fill('effective_date', !current.effective_date, result.effective_date);
+        fill('expires_at', !current.expires_at, result.expires_at);
+        fill('confidentiality', current.confidentiality === 'internal', result.confidentiality);
+        fill(
+          'customer_id',
+          !current.customer_id,
+          result.customer_id ? String(result.customer_id) : null
+        );
+        return next;
+      });
+      setAiResult({ filled, warnings: result.warnings, extraction: result.extraction });
     },
   });
 
@@ -141,6 +206,15 @@ export function DocumentMetadataDrawer({
       width="w-[min(34rem,100vw)]"
       footer={
         <>
+          <Button
+            disabled={assist.isPending}
+            onClick={() => assist.mutate()}
+            title="AI đọc nội dung tệp và điền các trường còn trống"
+          >
+            <Sparkles size={15} aria-hidden="true" />
+            {assist.isPending ? 'Đang đọc…' : 'Đọc bằng AI'}
+          </Button>
+          <span className="flex-1" />
           <Button onClick={onClose}>Hủy</Button>
           <Button
             variant="primary"
@@ -154,6 +228,27 @@ export function DocumentMetadataDrawer({
     >
       {form && (
         <div className="space-y-4">
+          {assist.error && (
+            <p role="alert" className="text-sm text-tr-danger">
+              {assist.error instanceof Error ? assist.error.message : 'Không đọc được tài liệu'}
+            </p>
+          )}
+          {aiResult && (
+            <div className="rounded-control border border-tr-border bg-tr-hover px-3 py-2 text-xs text-tr-subtle">
+              <span className="inline-flex items-center gap-1 font-semibold text-tr-text">
+                <Sparkles size={12} aria-hidden="true" />
+                {aiResult.filled.length > 0
+                  ? `AI đã điền: ${aiResult.filled.join(', ')}`
+                  : 'Các trường đã có nội dung nên AI không ghi đè'}
+              </span>
+              <span className="ml-1">— kiểm tra rồi bấm Lưu thay đổi.</span>
+              {aiResult.warnings.map((warning) => (
+                <div key={warning} className="mt-1 text-tr-danger">
+                  {warning}
+                </div>
+              ))}
+            </div>
+          )}
           <Field label="Tên hiển thị" required>
             <Input value={form.name} onChange={(event) => set('name', event.target.value)} />
           </Field>

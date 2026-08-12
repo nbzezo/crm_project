@@ -62,12 +62,11 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
       return Number(info.lastInsertRowid);
     })();
     committed = true;
-    try {
-      indexDocument(db, id);
-    } catch (error) {
-      // Upload van thanh cong; co the lap lai chi muc tu trang Tro ly AI.
-      console.warn('[ai-index] Khong lap duoc chi muc tai lieu moi:', error);
-    }
+    // Upload van thanh cong du chi muc hong; co the lap lai tu trang Tro ly AI.
+    // Chay nen vi doc PDF/DOCX ton thoi gian, khong duoc giu chan phan hoi upload.
+    void indexDocument(db, id).catch((error: unknown) =>
+      console.warn('[ai-index] Khong lap duoc chi muc tai lieu moi:', error)
+    );
     return id;
   } finally {
     if (!committed) {

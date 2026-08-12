@@ -210,6 +210,89 @@ export function buildDealContext(db: Database, dealId: number) {
   };
 }
 
+/**
+ * Ngu canh cho viec dien not cac truong con thieu cua mot cong viec.
+ *
+ * Diem khac cac builder con lai: ngoai phan tom tat de hieu boi canh, no con liet ke
+ * TAP UNG VIEN KEM ID (nguoi lien he, co hoi, hop dong, bao gia cua dung khach hang
+ * do). Mo hinh phai chon tu tap nay chu khong duoc bia ten — route sau do loai bo
+ * moi id khong nam trong tap da gui di.
+ */
+export function buildTaskAssistContext(
+  db: Database,
+  links: {
+    customer_id?: number | null;
+    contact_id?: number | null;
+    deal_id?: number | null;
+    contract_id?: number | null;
+    quotation_id?: number | null;
+  }
+) {
+  const customerId = links.customer_id ?? null;
+  const scoped = (sql: string, limit = 30) =>
+    customerId === null ? [] : rows(db, sql, [customerId], limit);
+
+  return {
+    today: new Date().toISOString().slice(0, 10),
+    current_links: links,
+    customer: customerId
+      ? db
+          .prepare(`SELECT id, name, industry, status, notes FROM customers WHERE id = ?`)
+          .get(customerId)
+      : null,
+    deal: links.deal_id
+      ? db
+          .prepare(
+            `SELECT id, title, stage, probability, value_vnd, need, next_action,
+                    next_action_date, expected_close_date
+               FROM deals WHERE id = ?`
+          )
+          .get(links.deal_id)
+      : null,
+    contract: links.contract_id
+      ? db
+          .prepare(
+            `SELECT id, name, number, status, start_date, end_date, payment_terms
+               FROM contracts WHERE id = ?`
+          )
+          .get(links.contract_id)
+      : null,
+    recent_interactions: customerId
+      ? rows(
+          db,
+          `SELECT type, occurred_at, summary, result FROM interactions
+            WHERE customer_id = ? ORDER BY occurred_at DESC`,
+          [customerId],
+          10
+        )
+      : [],
+    open_tasks: customerId
+      ? rows(
+          db,
+          `SELECT id, title, priority, due_date FROM cards
+            WHERE customer_id = ? AND is_done = 0 AND is_archived = 0
+            ORDER BY due_date IS NULL, due_date`,
+          [customerId],
+          15
+        )
+      : [],
+    /* Tap ung vien — mo hinh chi duoc chon id tu day. */
+    candidates: {
+      contacts: scoped(
+        `SELECT id, full_name, title, buying_role FROM contacts WHERE customer_id = ?
+          ORDER BY is_primary DESC, full_name`
+      ),
+      deals: scoped(`SELECT id, title, stage FROM deals WHERE customer_id = ? ORDER BY id DESC`),
+      contracts: scoped(
+        `SELECT id, name, number, status FROM contracts WHERE customer_id = ? ORDER BY id DESC`
+      ),
+      quotations: scoped(
+        `SELECT id, code, version, status FROM quotations WHERE customer_id = ? ORDER BY id DESC`
+      ),
+    },
+  };
+}
+
 export function compactJson(value: unknown, maxChars = 45_000): string {
   const text = JSON.stringify(value);
   return text.length <= maxChars ? text : `${text.slice(0, maxChars)}\n[Đã cắt bớt dữ liệu]`;

@@ -187,7 +187,17 @@ async function generateGemini(
       headers: { ...JSON_HEADERS, 'x-goog-api-key': connection.apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: request.system }] },
-        contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              ...(request.attachments ?? []).map((file) => ({
+                inline_data: { mime_type: file.mime, data: file.dataBase64 },
+              })),
+              { text: request.prompt },
+            ],
+          },
+        ],
         generationConfig: {
           maxOutputTokens: request.maxOutputTokens ?? 2048,
           temperature: request.temperature ?? 0.2,
@@ -226,15 +236,35 @@ async function generateAnthropic(
       max_tokens: request.maxOutputTokens ?? 2048,
       temperature: request.temperature ?? 0.2,
       system: request.system,
-      messages: [{ role: 'user', content: request.prompt }],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            ...(request.attachments ?? []).map((file) => ({
+              // Anthropic tach anh va tai lieu thanh hai loai khoi noi dung khac nhau.
+              type: file.mime.startsWith('image/') ? 'image' : 'document',
+              source: { type: 'base64', media_type: file.mime, data: file.dataBase64 },
+            })),
+            { type: 'text', text: request.prompt },
+          ],
+        },
+        /*
+         * Anthropic khong co tham so ep JSON nhu Gemini/DeepSeek. Moi cho mot luot
+         * assistant bang dau '{' la cach duy nhat lam mo hinh bat dau ngay bang doi
+         * tuong JSON thay vi mot cau dan nhap — phan mo dau nay khong nam trong
+         * phan hoi nen phai tu ghep lai ben duoi.
+         */
+        ...(request.json ? [{ role: 'assistant', content: '{' }] : []),
+      ],
     }),
   });
-  const text = asArray(body.content)
+  const raw = asArray(body.content)
     .map((part) => asRecord(part))
     .filter((part) => part.type === 'text')
     .map((part) => String(part.text ?? ''))
     .join('')
     .trim();
+  const text = request.json && raw && !raw.startsWith('{') ? `{${raw}` : raw;
   const usage = asRecord(body.usage);
   return {
     text,
@@ -275,6 +305,9 @@ export async function generateWithProvider(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
+  if (request.attachments?.length && connection.provider === 'deepseek') {
+    throw new AiProviderError('DeepSeek chưa hỗ trợ đọc tệp đính kèm', 'attachment_unsupported');
+  }
   const result =
     connection.provider === 'gemini'
       ? await generateGemini(connection, request)

@@ -183,7 +183,15 @@ export default function DocumentsPage() {
         </p>
       </header>
 
-      {view === 'active' && <DocumentUploadManager options={options} />}
+      {view === 'active' && (
+        <DocumentUploadManager
+          options={options}
+          onReview={(documentId) =>
+            // Danh sach vua duoc lam moi sau upload nen tai lieu da co trong `documents`.
+            setEditing(documents.find((item) => item.id === documentId) ?? null)
+          }
+        />
+      )}
 
       <section aria-label="Kho tài liệu" className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm">

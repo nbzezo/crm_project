@@ -13,11 +13,13 @@
     "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
-    "@workflow/contracts": "*",
     "@types/multer": "^2.2.0",
+    "@workflow/contracts": "*",
     "better-sqlite3": "^12.2.0",
     "express": "^5.1.0",
+    "mammoth": "^1.12.1",
     "multer": "^2.2.0",
+    "pdfjs-dist": "^6.2.108",
     "zod": "^4.0.5"
   },
   "devDependencies": {

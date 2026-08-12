@@ -24,8 +24,11 @@
 ### Giai đoạn 3 — RAG, hỏi đáp và automation
 
 - Tệp text/Markdown/CSV/JSON/XML/HTML tối đa 5 MB được chia đoạn và lập chỉ mục FTS5 local.
-- Định dạng nhị phân chưa có bộ trích xuất nội dung được lập chỉ mục bằng metadata. Có thể thêm parser
-  PDF/DOCX sau mà không đổi API truy xuất.
+- PDF, DOCX và XLSX được trích xuất nội dung thật (`services/ai/textExtract.ts`) rồi mới lập chỉ mục.
+  PDF dùng `pdfjs-dist` (tối đa 60 trang, không đọc font hệ thống, không gọi mạng), DOCX dùng
+  `mammoth`, XLSX dùng bộ đọc ZIP tự viết trên `node:zlib` — SheetJS bị loại vì có lỗ hổng chưa vá
+  trên đúng bề mặt tấn công này. Định dạng còn lại vẫn lập chỉ mục bằng metadata.
+- Lập chỉ mục chạy nền sau khi upload trả về: đọc PDF mất vài giây, không được giữ chân phản hồi.
 - Tài liệu có `confidentiality = confidential` không xuất hiện trong kết quả RAG gửi tới LLM.
 - Trang *Trợ lý AI* hỏi kết hợp CRM và tài liệu, hiển thị nguồn và đề xuất action cần duyệt.
 - Automation pipeline risk, Next Action quá hạn, hợp đồng sắp hết hạn và daily brief chạy định kỳ,
@@ -57,5 +60,5 @@ flowchart LR
 - Ứng dụng hiện là local-first một người dùng, chưa có RBAC. Không mở API ra Internet trước khi bổ
   sung đăng nhập, CSRF/rate limit và phân quyền admin cho cấu hình provider.
 - Chi phí chỉ là ước tính khi đã cấu hình đơn giá trên mỗi triệu token.
-- RAG hiện ưu tiên dữ liệu text. PDF/DOCX dùng metadata cho tới khi có parser được kiểm chứng và giới
-  hạn tài nguyên.
+- PDF scan / ảnh không tách được chữ: chỉ khi đó tệp mới được gửi thẳng cho model đọc được tài liệu
+  (Gemini, Claude — DeepSeek không hỗ trợ) và chỉ với tệp ≤ 10 MB.

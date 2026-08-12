@@ -540,6 +540,15 @@ test('RAG lap chi muc noi dung text va loai tai lieu confidential khoi ket qua',
   const secretSearch = await json('GET', '/api/ai/documents/search?q=mat%20khau%20noi%20bo');
   assert.equal(secretSearch.status, 200);
   assert.equal((secretSearch.data as unknown as unknown[]).length, 0);
+
+  // Nhan trich xuat phai di het duong tu textExtract ra API, khong con la 'text'|'metadata' cung.
+  const document = db
+    .prepare(`SELECT id FROM documents WHERE file_name = 'chien-luoc.txt'`)
+    .get() as { id: number };
+  const reindex = await json('POST', `/api/ai/documents/${document.id}/index`);
+  assert.equal(reindex.status, 200);
+  assert.equal(reindex.data.extraction, 'text');
+  assert.ok(Number(reindex.data.chunks) > 0);
 });
 
 test('automation AI chi tao canh bao va khong tu y sua CRM', async () => {

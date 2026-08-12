@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lock } from 'lucide-react';
+import { Lock, Sparkles } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '../common/ui';
@@ -37,6 +37,27 @@ interface TaskContextResponse {
   deals: { id: number; title: string; stage: string }[];
   contracts: { id: number; name: string; number: string | null; status: string }[];
   quotations: { id: number; code: string | null; version: number; status: string }[];
+}
+
+interface TaskAssistResult {
+  title: string;
+  description: string;
+  priority: Priority;
+  start_date: string | null;
+  due_date: string | null;
+  checklist: string[];
+  links: Record<LinkKey, number | null>;
+  confidence: number;
+  rationale: string;
+  warnings: string[];
+  meta: { requestId: string; provider: string; model: string };
+}
+
+/** Bo cac khoa rong de goi y cua AI khong xoa mat lien ket dang co. */
+function stripEmpty(links: Record<string, number | null>): TaskContext {
+  return Object.fromEntries(
+    Object.entries(links).filter(([, value]) => value != null)
+  ) as TaskContext;
 }
 
 const DISPLAY_KEY: Record<LinkKey, keyof TaskContextResponse['display']> = {
@@ -79,6 +100,11 @@ export function TaskFormDialog() {
   const [submitted, setSubmitted] = useState(false);
   /** Nguoi dung da tu chon danh sach thi khong de goi y cua server ghi de nua. */
   const [listTouched, setListTouched] = useState(false);
+  /** Ten cac truong vua duoc AI dien — de deo huy hieu nhac nguoi dung kiem lai. */
+  const [aiFilled, setAiFilled] = useState<string[]>([]);
+  const [aiMeta, setAiMeta] = useState<{ requestId: string; warnings: string[] } | null>(null);
+  /** Nguoi dung co sua lai sau khi AI dien khong — gui kem phan hoi chat luong. */
+  const [aiEdited, setAiEdited] = useState(false);
 
   const { data: context } = useQuery({
     queryKey: ['card-context', links],
@@ -105,7 +131,11 @@ export function TaskFormDialog() {
     setLinks(composer.context);
     setAnchors(LINK_KEYS.filter((key) => composer.context[key] != null));
     setSubmitted(false);
+    setAiFilled([]);
+    setAiMeta(null);
+    setAiEdited(false);
     save.reset();
+    assist.reset();
   }, [composer]);
 
   // Goi y danh sach chi ap dung khi nguoi dung chua tu chon.
@@ -115,6 +145,10 @@ export function TaskFormDialog() {
 
   const derived = context?.links;
   const valueOf = (key: LinkKey): number | '' => derived?.[key] ?? links[key] ?? '';
+  /** Ghi nhan nguoi dung da chinh lai sau khi AI dien — di kem phan hoi chat luong. */
+  const markEdited = () => {
+    if (aiMeta) setAiEdited(true);
+  };
   const boardId = useMemo(
     () => context?.lists.find((l) => l.id === listId)?.board_id ?? '',
     [context?.lists, listId]
@@ -125,6 +159,7 @@ export function TaskFormDialog() {
    * server se tu choi bang 422 CROSS_CUSTOMER_LINK neu con giu lai.
    */
   const changeLink = (key: LinkKey, value: number | null) => {
+    markEdited();
     const cutoff = LINK_KEYS.indexOf(key);
     const next: TaskContext = {};
     for (const other of LINK_KEYS.slice(0, cutoff)) {
@@ -135,6 +170,55 @@ export function TaskFormDialog() {
     setLinks(next);
     setAnchors((prev) => prev.filter((k) => next[k] != null));
   };
+
+  /**
+   * Nhap lieu thong minh: AI chi dien vao o DANG TRONG.
+   *
+   * Nguoi dung go gi thi giu nguyen cai do — mot goi y de hon la mot goi y ghi de.
+   * Cac o duoc dien se deo huy hieu "AI" de ho biet cho nao can kiem lai.
+   */
+  const assist = useMutation({
+    mutationFn: () =>
+      api.post<TaskAssistResult>('/api/ai/assist/task', {
+        draft: [title, description].filter(Boolean).join('\n'),
+        context: Object.fromEntries(
+          LINK_KEYS.map((key) => [key, valueOf(key) === '' ? undefined : valueOf(key)]).filter(
+            ([, value]) => value !== undefined
+          )
+        ),
+        list_id: listId === '' ? null : listId,
+      }),
+    onSuccess: (result) => {
+      const filled: string[] = [];
+      const fill = (key: string, isEmpty: boolean, apply: () => void) => {
+        if (!isEmpty) return;
+        apply();
+        filled.push(key);
+      };
+      fill('title', !title.trim(), () => setTitle(result.title));
+      fill('description', !description.trim(), () => setDescription(result.description));
+      fill('priority', priority === 'medium', () => setPriority(result.priority));
+      fill('start_date', startDate === null, () => setStartDate(result.start_date));
+      fill('due_date', dueDate === null, () => setDueDate(result.due_date));
+      fill('checklist', !checklistText.trim() && result.checklist.length > 0, () =>
+        setChecklistText(result.checklist.join('\n'))
+      );
+
+      const nextLinks = stripEmpty(result.links);
+      if (Object.keys(nextLinks).length > 0) {
+        setLinks(nextLinks);
+        filled.push('liên kết');
+      }
+      setAiFilled(filled);
+      setAiMeta({ requestId: result.meta.requestId, warnings: result.warnings });
+      pushToast(
+        filled.length > 0
+          ? 'AI đã điền nháp — hãy kiểm tra trước khi lưu'
+          : 'Các trường đã có nội dung nên AI không ghi đè',
+        'success'
+      );
+    },
+  });
 
   const save = useMutation({
     mutationFn: () =>
@@ -156,6 +240,15 @@ export function TaskFormDialog() {
     onSuccess: (created) => {
       invalidateCardViews(queryClient, boardId === '' ? undefined : boardId);
       invalidateCrmViews(queryClient, created.customer_id ?? undefined);
+      // Bao cho AI biet goi y duoc giu nguyen hay da bi sua — dung de danh gia chat luong prompt.
+      if (aiMeta) {
+        void api
+          .post('/api/ai/feedback', {
+            request_id: aiMeta.requestId,
+            action: aiEdited ? 'edited' : 'accepted',
+          })
+          .catch(() => undefined);
+      }
       pushToast('Đã tạo công việc', 'success', {
         label: 'Mở công việc',
         run: () => openCard(created.id),
@@ -177,6 +270,15 @@ export function TaskFormDialog() {
       dirty={dirty && !save.isPending}
       footer={
         <>
+          <Button
+            disabled={!title.trim() || assist.isPending}
+            onClick={() => assist.mutate()}
+            title="AI đọc nội dung đang gõ và điền các trường còn trống"
+          >
+            <Sparkles size={15} />
+            {assist.isPending ? 'Đang phân tích…' : 'Gợi ý bằng AI'}
+          </Button>
+          <span className="flex-1" />
           <Button onClick={close}>{t.common.cancel}</Button>
           <Button
             variant="primary"
@@ -192,6 +294,21 @@ export function TaskFormDialog() {
       }
     >
       <FormError error={save.error} />
+      <FormError error={assist.error} />
+
+      {aiFilled.length > 0 && (
+        <div className="mb-3 rounded-control border border-tr-border bg-tr-hover px-3 py-2 text-xs text-tr-subtle">
+          <span className="inline-flex items-center gap-1 font-semibold text-tr-text">
+            <Sparkles size={12} aria-hidden="true" /> AI đã điền: {aiFilled.join(', ')}
+          </span>
+          <span className="ml-1">— hãy kiểm tra trước khi lưu.</span>
+          {aiMeta?.warnings.map((warning) => (
+            <div key={warning} className="mt-1 text-tr-danger">
+              {warning}
+            </div>
+          ))}
+        </div>
+      )}
 
       {anchors.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-control bg-tr-hover px-3 py-2">
@@ -225,7 +342,10 @@ export function TaskFormDialog() {
             <Input
               autoFocus
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                markEdited();
+                setTitle(e.target.value);
+              }}
               placeholder="Gọi lại khách hàng, gửi báo giá…"
             />
           </Field>
@@ -236,7 +356,10 @@ export function TaskFormDialog() {
             <Textarea
               rows={3}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                markEdited();
+                setDescription(e.target.value);
+              }}
               placeholder={t.card.descriptionPlaceholder}
             />
           </Field>
