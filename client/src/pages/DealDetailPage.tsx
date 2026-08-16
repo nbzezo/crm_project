@@ -16,6 +16,7 @@ import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { AiBrief } from '../components/ai/AiBrief';
 import { EntityLabels } from '../components/labels/EntityLabels';
+import { Tabs } from '../components/common/Tabs';
 import {
   Button,
   ColorBadge,
@@ -164,32 +165,14 @@ export default function DealDetailPage() {
         <AiBrief contextType="deal" contextId={id} compact />
       </div>
 
-      <div
-        role="tablist"
-        aria-label="Nội dung cơ hội"
-        className="mb-4 flex flex-wrap gap-1 border-b border-tr-border"
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={TABS.map((item) => ({ value: item.key, label: item.label }))}
+        ariaLabel="Nội dung cơ hội"
+        idPrefix="dealtab"
+        className="mb-4"
       >
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            id={`dealtab-${item.key}`}
-            aria-selected={tab === item.key}
-            aria-controls="dealtab-panel"
-            onClick={() => setTab(item.key)}
-            className={`-mb-px min-h-[44px] border-b-2 px-3 text-sm font-medium transition sm:min-h-0 sm:py-2 ${focusRing} ${
-              tab === item.key
-                ? 'border-tr-primary text-tr-primary'
-                : 'border-transparent text-tr-subtle hover:text-tr-text'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div id="dealtab-panel" role="tabpanel" aria-labelledby={`dealtab-${tab}`}>
         {tab === 'score' && (
           <Scorecard
             dealId={id}
@@ -240,7 +223,7 @@ export default function DealDetailPage() {
           ) : (
             <Skeleton className="h-48 rounded-panel" />
           ))}
-      </div>
+      </Tabs>
 
       <DealForm
         open={editing}

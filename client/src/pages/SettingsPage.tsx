@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bot, Database, Download, HardDriveDownload, Tag, Target } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
-import { Button, Panel, focusRing } from '../components/common/ui';
+import { Button, Panel } from '../components/common/ui';
+import { Tabs } from '../components/common/Tabs';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { LabelManager } from '../components/labels/LabelManager';
 import { ScoringSettings } from '../components/crm/ScoringSettings';
 import { t } from '../i18n/vi';
@@ -123,40 +125,25 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('labels');
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-4 sm:p-6">
-      <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-tr-text">
-          {t.settings.pageTitle}
-        </h1>
-        <p className="mt-1 text-sm text-tr-muted">{t.settings.pageSubtitle}</p>
-      </header>
+    <PageShell width="narrow" spacing="none">
+      <PageHeader
+        title={t.settings.pageTitle}
+        description={t.settings.pageSubtitle}
+        className="mb-5"
+      />
 
-      <div
-        role="tablist"
-        aria-label={t.settings.pageTitle}
-        className="mb-4 flex flex-wrap gap-1 border-b border-tr-border"
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={SETTINGS_TABS.map((item) => ({
+          value: item.key,
+          label: item.label,
+          icon: <item.icon size={15} aria-hidden="true" />,
+        }))}
+        ariaLabel={t.settings.pageTitle}
+        idPrefix="settingstab"
+        className="mb-4"
       >
-        {SETTINGS_TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            id={`settingstab-${item.key}`}
-            aria-selected={tab === item.key}
-            aria-controls="settingstab-panel"
-            onClick={() => setTab(item.key)}
-            className={`-mb-px flex min-h-[44px] items-center gap-1.5 border-b-2 px-3 text-sm font-medium transition sm:min-h-0 sm:py-2 ${focusRing} ${
-              tab === item.key
-                ? 'border-tr-primary text-tr-primary'
-                : 'border-transparent text-tr-subtle hover:text-tr-text'
-            }`}
-          >
-            <item.icon size={15} /> {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div id="settingstab-panel" role="tabpanel" aria-labelledby={`settingstab-${tab}`}>
         {tab === 'labels' && (
           <Panel title={t.settings.manageLabels}>
             <LabelManager />
@@ -169,7 +156,7 @@ export default function SettingsPage() {
         )}
         {tab === 'ai' && <AiSettings />}
         {tab === 'data' && <DataSettings />}
-      </div>
-    </div>
+      </Tabs>
+    </PageShell>
   );
 }

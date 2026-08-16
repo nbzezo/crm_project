@@ -11,12 +11,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Check, Download, Pencil, Plus, Settings2, Table2, Trash2 } from 'lucide-react';
+import { Check, Download, Plus, Settings2 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { RevenueLineForm } from '../components/crm/RevenueLineForm';
 import { MonthlyRevenueModal } from '../components/crm/MonthlyRevenueModal';
 import { ServiceCatalog } from '../components/crm/ServiceCatalog';
+import { RevenueLineActions } from '../components/crm/RevenueLineActions';
+import { RevenueFunnelCards } from '../components/crm/RevenueFunnelCards';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { PageShell } from '../components/common/PageShell';
 import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
 import {
   Button,
@@ -26,6 +29,7 @@ import {
   Panel,
   Select,
   SkeletonRows,
+  TableHead,
 } from '../components/common/ui';
 import {
   CHART_INK,
@@ -36,13 +40,7 @@ import {
   SERVICE_STATUS_ORDER,
   t,
 } from '../i18n/vi';
-import {
-  formatShare,
-  formatVND,
-  formatVNDInput,
-  formatVNDShort,
-  parseVNDInput,
-} from '../lib/format';
+import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../lib/format';
 import { funnel } from '../lib/revenue';
 import type {
   RevenueCell,
@@ -188,34 +186,10 @@ export default function RevenuePage() {
   });
 
   const total = funnel(summary?.totals);
-  const variance = total.amount - total.forecast;
-  const collectRate = total.amount > 0 ? Math.round((total.paid / total.amount) * 100) : 0;
   const yearOptions = years.includes(year) ? years : [year, ...years];
 
-  const KPIS: { key: RevenueStage | 'amount'; label: string; value: number; color?: string }[] = [
-    { key: 'amount', label: t.revenueFunnel.amount, value: total.amount },
-    {
-      key: 'reconciled',
-      label: t.revenueFunnel.reconciled,
-      value: total.reconciled,
-      color: REVENUE_STAGE_COLORS.reconciled,
-    },
-    {
-      key: 'invoiced',
-      label: t.revenueFunnel.invoiced,
-      value: total.invoiced,
-      color: REVENUE_STAGE_COLORS.invoiced,
-    },
-    {
-      key: 'paid',
-      label: t.revenueFunnel.paid,
-      value: total.paid,
-      color: REVENUE_STAGE_COLORS.paid,
-    },
-  ];
-
   return (
-    <div className="space-y-4 p-6">
+    <PageShell width="wide">
       {/* Thanh điều khiển: năm, bộ lọc, thao tác */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-28">
@@ -270,7 +244,7 @@ export default function RevenuePage() {
           </Button>
           <a
             href="/api/export/revenues.csv"
-            className="inline-flex items-center gap-1.5 rounded-[3px] bg-tr-hover px-3 py-1.5 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong"
+            className="inline-flex items-center gap-1.5 rounded-compact bg-tr-hover px-3 py-1.5 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong"
           >
             <Download size={15} /> Xuất CSV
           </a>
@@ -281,47 +255,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {KPIS.map((kpi) => (
-          <div key={kpi.key} className="rounded-lg border border-tr-border bg-tr-panel p-3">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-tr-subtle">
-              {kpi.color && (
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-sm"
-                  style={{ backgroundColor: kpi.color }}
-                />
-              )}
-              {kpi.label}
-            </div>
-            <div className="mt-1 text-lg font-semibold tabular-nums text-tr-text">
-              {formatVND(kpi.value)}
-            </div>
-            {kpi.key === 'amount' ? (
-              <div className="mt-1 text-xs text-tr-muted">
-                {t.revenue.forecast} {formatVNDShort(total.forecast)}
-                {variance !== 0 && (
-                  <span className={variance > 0 ? 'text-tr-success' : 'text-tr-danger'}>
-                    {' '}
-                    ({variance > 0 ? '+' : ''}
-                    {formatVNDShort(variance)})
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="mt-1 text-xs text-tr-muted">
-                {formatShare(kpi.value, total.amount)} tổng doanh thu
-              </div>
-            )}
-          </div>
-        ))}
-        <div className="rounded-lg border border-tr-border bg-tr-panel p-3">
-          <div className="text-xs font-medium text-tr-subtle">{t.revenue.collectRate}</div>
-          <div className="mt-1 text-lg font-semibold tabular-nums text-tr-text">{collectRate}%</div>
-          <div className="mt-1 text-xs text-tr-muted">
-            {summary?.line_count ?? 0} dòng dịch vụ · năm {year}
-          </div>
-        </div>
-      </div>
+      <RevenueFunnelCards total={total} detailed lineCount={summary?.line_count ?? 0} year={year} />
 
       <Panel title={`Doanh thu theo tháng — năm ${year} (cột chia theo trạng thái)`}>
         <div className="h-64">
@@ -383,7 +317,7 @@ export default function RevenuePage() {
             </span>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+            <TableHead>
               <tr>
                 <th scope="col" className="sticky left-0 z-10 bg-tr-surface px-3 py-2.5">
                   STT
@@ -425,7 +359,7 @@ export default function RevenuePage() {
                 ))}
                 <th scope="col" className="px-2 py-2.5"></th>
               </tr>
-            </thead>
+            </TableHead>
             <tbody className="divide-y divide-tr-border">
               {lines.map((line, index) => (
                 <tr key={line.id} className="group hover:bg-tr-hover">
@@ -479,32 +413,12 @@ export default function RevenuePage() {
                     );
                   })}
                   <td className="px-2 py-1.5">
-                    <div className="flex justify-end gap-0.5">
-                      <button
-                        onClick={() => setMonthsFor(line)}
-                        title={t.revenue.enterMonths}
-                        aria-label={t.revenue.enterMonths}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-primary"
-                      >
-                        <Table2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => setLineForm({ open: true, line })}
-                        title={t.common.edit}
-                        aria-label={t.common.edit}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(line.id)}
-                        title={t.common.delete}
-                        aria-label={t.common.delete}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    <RevenueLineActions
+                      line={line}
+                      onMonths={setMonthsFor}
+                      onEdit={(next) => setLineForm({ open: true, line: next })}
+                      onDelete={(next) => setDeleteId(next.id)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -586,7 +500,7 @@ export default function RevenuePage() {
           setDeleteId(null);
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

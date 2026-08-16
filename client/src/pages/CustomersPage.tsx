@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { CustomerDrawer } from '../components/crm/CustomerDrawer';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { CustomerForm } from '../components/crm/CustomerForm';
 import { DealForm } from '../components/crm/DealForm';
 import {
@@ -178,20 +179,19 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[112rem] p-4 sm:p-6">
-      <header className="mb-5 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-tr-text">Khách hàng</h1>
-          <p className="mt-1 text-sm text-tr-muted">
-            Quản lý khách hàng, cơ hội và hoạt động chăm sóc
-          </p>
-        </div>
-        <Button variant="primary" className="shrink-0" onClick={() => setCreating(true)}>
-          <Plus size={16} aria-hidden="true" />
-          <span className="hidden sm:inline">Thêm khách hàng</span>
-          <span className="sm:hidden">Thêm</span>
-        </Button>
-      </header>
+    <PageShell width="wide" spacing="none">
+      <PageHeader
+        title="Khách hàng"
+        description="Quản lý khách hàng, cơ hội và hoạt động chăm sóc"
+        className="mb-5"
+        actions={
+          <Button variant="primary" className="shrink-0" onClick={() => setCreating(true)}>
+            <Plus size={16} aria-hidden="true" />
+            <span className="hidden sm:inline">Thêm khách hàng</span>
+            <span className="sm:hidden">Thêm</span>
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <CustomerWorkspaceSkeleton />
@@ -439,7 +439,7 @@ export default function CustomersPage() {
         onClose={() => setDealCustomerId(null)}
         defaultCustomerId={dealCustomerId ?? undefined}
       />
-    </div>
+    </PageShell>
   );
 }
 

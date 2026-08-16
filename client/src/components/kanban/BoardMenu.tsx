@@ -7,22 +7,10 @@ import { ConfirmDialog } from '../common/ConfirmDialog';
 import { BOARD_COLORS, BOARD_GRADIENTS, backgroundStyle } from '../../lib/backgrounds';
 import { t } from '../../i18n/vi';
 import { contrastInk, formatDateTime } from '../../lib/format';
+import { LABEL_PALETTE } from '../../theme/palettes';
 import type { BoardFull, Label, Project } from '../../types';
 
 type View = 'main' | 'background' | 'labels';
-
-const LABEL_PALETTE = [
-  '#4bce97',
-  '#f5cd47',
-  '#fea362',
-  '#f87168',
-  '#9f8fef',
-  '#579dff',
-  '#6cc3e0',
-  '#94c748',
-  '#e774bb',
-  '#8590a2',
-];
 
 export function BoardMenu({
   board,
@@ -39,7 +27,7 @@ export function BoardMenu({
   const [view, setView] = useState<View>('main');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [labelName, setLabelName] = useState('');
-  const [labelColor, setLabelColor] = useState(LABEL_PALETTE[0]);
+  const [labelColor, setLabelColor] = useState<string>(LABEL_PALETTE[0]);
 
   const { data: labels = [] } = useQuery({
     queryKey: ['labels'],
@@ -254,7 +242,7 @@ export function BoardMenu({
                 <button
                   disabled={!labelName.trim()}
                   onClick={() => addLabel.mutate()}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-[3px] bg-tr-primary py-1.5 text-sm font-medium text-white transition hover:bg-tr-primary-hover disabled:opacity-50"
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-compact bg-tr-primary py-1.5 text-sm font-medium text-white transition hover:bg-tr-primary-hover disabled:opacity-50"
                 >
                   <Plus size={15} /> Tạo nhãn
                 </button>

@@ -18,22 +18,8 @@ import { LabelChip } from './LabelChips';
 import { contrastInk, foldText } from '../../lib/format';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
+import { LABEL_PALETTE } from '../../theme/palettes';
 import type { Label, LabelEntity, LabelGroup, LabelNameCheck, LabelRecord } from '../../types';
-
-const LABEL_COLORS = [
-  '#61bd4f',
-  '#f2d600',
-  '#ff9f1a',
-  '#eb5a46',
-  '#c377e0',
-  '#0079bf',
-  '#00c2e0',
-  '#51e898',
-  '#ff78cb',
-  '#344563',
-  '#8993a4',
-  '#026aa7',
-];
 
 const ENTITIES: LabelEntity[] = ['card', 'customer', 'deal', 'contact', 'contract'];
 
@@ -51,7 +37,7 @@ function emptyDraft(parentId: number | null): Draft {
   return {
     parent_id: parentId,
     name: '',
-    color: LABEL_COLORS[parentId === null ? 9 : 0],
+    color: LABEL_PALETTE[parentId === null ? 9 : 0],
     description: '',
     scope: [],
     status: 'active',
@@ -501,7 +487,7 @@ function LabelEditor({
         <div>
           <span className="mb-1 block text-xs font-semibold text-tr-subtle">{t.labels.color}</span>
           <div className="flex flex-wrap gap-1.5">
-            {LABEL_COLORS.map((color) => (
+            {LABEL_PALETTE.map((color) => (
               <button
                 key={color}
                 type="button"

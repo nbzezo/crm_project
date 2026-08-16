@@ -5,10 +5,10 @@ import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { EntityLabels } from '../labels/EntityLabels';
 import {
-  Button,
   DateInput,
   Field,
   FormError,
+  FormModalActions,
   Input,
   MoneyInput,
   Select,
@@ -24,7 +24,8 @@ import {
 } from '../../i18n/vi';
 import { formatVND } from '../../lib/format';
 import { invalidateCrmViews } from '../../lib/queryKeys';
-import type { Contact, Customer, Deal, Stage } from '../../types';
+import { useCustomerOptions } from '../../lib/useCrmOptions';
+import type { Contact, Deal, Stage } from '../../types';
 
 interface Props {
   open: boolean;
@@ -55,12 +56,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
   /** Chi hien loi sau lan bam Luu dau tien — khong mang chu do khi vua mo form. */
   const [submitted, setSubmitted] = useState(false);
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers', 'select'],
-    queryFn: () => api.get<Customer[]>('/api/customers'),
-    staleTime: 60_000,
-    enabled: open,
-  });
+  const { data: customers = [] } = useCustomerOptions(open);
 
   const { data: customerFull } = useQuery({
     queryKey: ['customer', Number(customerId)],
@@ -138,19 +134,15 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
       width="max-w-2xl"
       title={deal ? `${t.common.edit}: ${deal.title}` : t.deal.newDeal}
       footer={
-        <>
-          <Button onClick={onClose}>{t.common.cancel}</Button>
-          <Button
-            variant="primary"
-            disabled={invalid || save.isPending}
-            onClick={() => {
-              setSubmitted(true);
-              save.mutate();
-            }}
-          >
-            {save.isPending ? t.common.saving : t.common.save}
-          </Button>
-        </>
+        <FormModalActions
+          onCancel={onClose}
+          onSubmit={() => {
+            setSubmitted(true);
+            save.mutate();
+          }}
+          pending={save.isPending}
+          disabled={invalid}
+        />
       }
     >
       <FormError error={save.error} />

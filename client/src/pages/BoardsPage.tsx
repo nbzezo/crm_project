@@ -13,6 +13,7 @@ import { Combobox } from '../components/common/Combobox';
 import { Popover, usePopover } from '../components/common/Popover';
 import { Button, EmptyState, ErrorState, Skeleton, focusRing } from '../components/common/ui';
 import { t } from '../i18n/vi';
+import { STAR_COLOR } from '../theme/palettes';
 import type { Board, Customer } from '../types';
 
 export default function BoardsPage() {
@@ -262,7 +263,7 @@ export default function BoardsPage() {
           <button
             disabled={!name.trim()}
             onClick={() => createBoard.mutate()}
-            className="w-full rounded-[3px] bg-tr-primary py-1.5 text-sm font-medium text-white transition hover:bg-tr-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-compact bg-tr-primary py-1.5 text-sm font-medium text-white transition hover:bg-tr-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Tạo mới
           </button>
@@ -336,8 +337,8 @@ function BoardTile({
       >
         <Star
           size={14}
-          fill={board.is_starred ? '#f2d600' : 'none'}
-          color={board.is_starred ? '#f2d600' : 'currentColor'}
+          fill={board.is_starred ? STAR_COLOR : 'none'}
+          color={board.is_starred ? STAR_COLOR : 'currentColor'}
         />
       </button>
 

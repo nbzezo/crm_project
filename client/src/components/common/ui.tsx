@@ -1,6 +1,7 @@
 import { cloneElement, isValidElement, useId, useState } from 'react';
 import type {
   ButtonHTMLAttributes,
+  HTMLAttributes,
   InputHTMLAttributes,
   ReactElement,
   ReactNode,
@@ -45,6 +46,64 @@ export function Button({
       {...props}
       className={`inline-flex items-center justify-center gap-1.5 rounded-control font-medium transition-[background-color,color,filter,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${SIZES[size]} ${VARIANTS[variant]} ${focusRing} ${className}`}
     />
+  );
+}
+
+/* ---------- IconButton ---------- */
+type IconButtonTone = 'default' | 'primary' | 'danger';
+
+const ICON_BUTTON_TONES: Record<IconButtonTone, string> = {
+  default: 'hover:text-tr-text',
+  primary: 'hover:text-tr-primary',
+  danger: 'hover:text-tr-danger',
+};
+
+export function IconButton({
+  label,
+  tone = 'default',
+  className = '',
+  title,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string;
+  tone?: IconButtonTone;
+}) {
+  return (
+    <button
+      type={props.type ?? 'button'}
+      aria-label={label}
+      title={title ?? label}
+      {...props}
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 ${ICON_BUTTON_TONES[tone]} ${focusRing} ${className}`}
+    />
+  );
+}
+
+/* ---------- Footer chung cho modal biểu mẫu ---------- */
+export function FormModalActions({
+  onCancel,
+  onSubmit,
+  pending = false,
+  disabled = false,
+  cancelLabel = t.common.cancel,
+  submitLabel = t.common.save,
+  pendingLabel = t.common.saving,
+}: {
+  onCancel: () => void;
+  onSubmit: () => void;
+  pending?: boolean;
+  disabled?: boolean;
+  cancelLabel?: ReactNode;
+  submitLabel?: ReactNode;
+  pendingLabel?: ReactNode;
+}) {
+  return (
+    <>
+      <Button onClick={onCancel}>{cancelLabel}</Button>
+      <Button variant="primary" disabled={disabled || pending} onClick={onSubmit}>
+        {pending ? pendingLabel : submitLabel}
+      </Button>
+    </>
   );
 }
 
@@ -358,6 +417,16 @@ export function SkeletonRows({ rows = 6, cols = 4 }: { rows?: number; cols?: num
         </div>
       ))}
     </div>
+  );
+}
+
+/* ---------- Phần đầu bảng ---------- */
+export function TableHead({ className = '', ...props }: HTMLAttributes<HTMLTableSectionElement>) {
+  return (
+    <thead
+      {...props}
+      className={`bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase ${className}`}
+    />
   );
 }
 

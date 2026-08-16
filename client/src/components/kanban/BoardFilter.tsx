@@ -199,7 +199,7 @@ export function BoardFilter({
 
         <button
           onClick={reset}
-          className="w-full rounded-[3px] bg-tr-hover py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover-strong"
+          className="w-full rounded-compact bg-tr-hover py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover-strong"
         >
           Xóa bộ lọc
         </button>

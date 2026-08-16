@@ -4,15 +4,15 @@ import { Settings2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
-import { Button, DateInput, Field, Input, Select, Textarea } from '../common/ui';
+import { DateInput, Field, FormModalActions, Input, Select, Textarea } from '../common/ui';
 import { ServiceCatalog } from './ServiceCatalog';
 import { CONTRACT_KIND_ORDER, CONTRACT_TERM_ORDER, SERVICE_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateRevenueViews } from '../../lib/queryKeys';
+import { useCustomerOptions } from '../../lib/useCrmOptions';
 import type {
   ContractKind,
   ContractTerm,
   Contract,
-  Customer,
   RevenueLine,
   Service,
   ServiceStatus,
@@ -47,12 +47,7 @@ export function RevenueLineForm({
   const [form, setForm] = useState(EMPTY);
   const [catalogOpen, setCatalogOpen] = useState(false);
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers', 'select'],
-    queryFn: () => api.get<Customer[]>('/api/customers'),
-    staleTime: 60_000,
-    enabled: open,
-  });
+  const { data: customers = [] } = useCustomerOptions(open);
 
   const { data: services = [] } = useQuery({
     queryKey: ['services'],
@@ -124,16 +119,12 @@ export function RevenueLineForm({
         width="max-w-2xl"
         title={line ? `${t.common.edit}: ${line.customer_name}` : t.revenue.newLine}
         footer={
-          <>
-            <Button onClick={onClose}>{t.common.cancel}</Button>
-            <Button
-              variant="primary"
-              disabled={!customerId || save.isPending}
-              onClick={() => save.mutate()}
-            >
-              {t.common.save}
-            </Button>
-          </>
+          <FormModalActions
+            onCancel={onClose}
+            onSubmit={() => save.mutate()}
+            pending={save.isPending}
+            disabled={!customerId}
+          />
         }
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

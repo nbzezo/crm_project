@@ -24,6 +24,7 @@ import {
   Textarea,
   focusRing,
 } from '../components/common/ui';
+import { PageShell } from '../components/common/PageShell';
 import { AssigneeChip } from '../components/tasks/AssigneePicker';
 import { CardStatusChip } from '../components/tasks/CardStatusControl';
 import { daysFromToday } from '../components/tasks/TaskPresentation';
@@ -100,7 +101,7 @@ export default function FollowUpPage() {
    * hong ca dieu huong ban phim lan bo doc man hinh.
    */
   return (
-    <div className="space-y-4 p-4 sm:p-6">
+    <PageShell>
       <h1 className="text-2xl font-semibold tracking-tight text-tr-text">{t.nav.followUp}</h1>
       <p className="max-w-3xl text-sm text-tr-subtle">
         Việc quá hạn, sắp đến hạn trong {NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn / chờ khách
@@ -174,7 +175,7 @@ export default function FollowUpPage() {
       )}
 
       <NudgeDialog group={drafting} onClose={() => setDrafting(null)} />
-    </div>
+    </PageShell>
   );
 }
 

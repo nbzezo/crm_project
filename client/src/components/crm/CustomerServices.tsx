@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Pencil, Plus, Table2, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { RevenueLineForm } from './RevenueLineForm';
 import { MonthlyRevenueModal } from './MonthlyRevenueModal';
+import { RevenueLineActions } from './RevenueLineActions';
+import { RevenueFunnelCards } from './RevenueFunnelCards';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { Button, ColorBadge, EmptyState, Select } from '../common/ui';
-import { REVENUE_STAGE_COLORS, SERVICE_STATUS_COLORS, t } from '../../i18n/vi';
-import { formatDate, formatVND, formatVNDShort } from '../../lib/format';
+import { Button, ColorBadge, EmptyState, Select, TableHead } from '../common/ui';
+import { SERVICE_STATUS_COLORS, t } from '../../i18n/vi';
+import { formatDate, formatVND } from '../../lib/format';
 import { funnel, sumTotals } from '../../lib/revenue';
 import type { RevenueLine, RevenueLinesResponse } from '../../types';
 
@@ -42,28 +44,6 @@ export function CustomerServices({ customerId }: { customerId: number }) {
   });
 
   const total = funnel(sumTotals(lines.map((l) => l.totals)));
-  const CARDS = [
-    { key: 'amount', label: t.revenueFunnel.amount, value: total.amount, color: undefined },
-    {
-      key: 'reconciled',
-      label: t.revenueFunnel.reconciled,
-      value: total.reconciled,
-      color: REVENUE_STAGE_COLORS.reconciled,
-    },
-    {
-      key: 'invoiced',
-      label: t.revenueFunnel.invoiced,
-      value: total.invoiced,
-      color: REVENUE_STAGE_COLORS.invoiced,
-    },
-    {
-      key: 'paid',
-      label: t.revenueFunnel.paid,
-      value: total.paid,
-      color: REVENUE_STAGE_COLORS.paid,
-    },
-  ];
-
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -94,33 +74,13 @@ export function CustomerServices({ customerId }: { customerId: number }) {
         <EmptyState message="Khách hàng này chưa được gán dịch vụ nào." />
       ) : (
         <>
-          <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {CARDS.map((card) => (
-              <div key={card.key} className="rounded-lg border border-tr-border bg-tr-panel p-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-tr-subtle">
-                  {card.color && (
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-sm"
-                      style={{ backgroundColor: card.color }}
-                    />
-                  )}
-                  {card.label}
-                </div>
-                <div className="mt-1 font-semibold tabular-nums text-tr-text">
-                  {formatVND(card.value)}
-                </div>
-                {card.key === 'amount' && (
-                  <div className="mt-1 text-xs text-tr-muted">
-                    {t.revenue.forecast} {formatVNDShort(total.forecast)}
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="mb-3">
+            <RevenueFunnelCards total={total} />
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel">
             <table className="w-full text-sm">
-              <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+              <TableHead>
                 <tr>
                   <th scope="col" className="px-4 py-2.5">
                     {t.revenue.service}
@@ -151,7 +111,7 @@ export function CustomerServices({ customerId }: { customerId: number }) {
                   </th>
                   <th scope="col" className="px-4 py-2.5"></th>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody className="divide-y divide-tr-border">
                 {lines.map((line) => (
                   <tr key={line.id} className="hover:bg-tr-hover">
@@ -186,32 +146,12 @@ export function CustomerServices({ customerId }: { customerId: number }) {
                       {formatVND(funnel(line.totals).paid)}
                     </td>
                     <td className="px-4 py-2.5">
-                      <div className="flex justify-end gap-0.5">
-                        <button
-                          onClick={() => setMonthsFor(line)}
-                          title={t.revenue.enterMonths}
-                          aria-label={t.revenue.enterMonths}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-primary"
-                        >
-                          <Table2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => setForm({ open: true, line })}
-                          title={t.common.edit}
-                          aria-label={t.common.edit}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(line.id)}
-                          title={t.common.delete}
-                          aria-label={t.common.delete}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      <RevenueLineActions
+                        line={line}
+                        onMonths={setMonthsFor}
+                        onEdit={(next) => setForm({ open: true, line: next })}
+                        onDelete={(next) => setDeleteId(next.id)}
+                      />
                     </td>
                   </tr>
                 ))}

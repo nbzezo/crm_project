@@ -17,6 +17,7 @@ import {
   Textarea,
   focusRing,
 } from '../components/common/ui';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { AssigneePicker } from '../components/tasks/AssigneePicker';
 import { PROJECT_STATUSES } from '@workflow/contracts';
 import { t } from '../i18n/vi';
@@ -55,27 +56,28 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-56 flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-tr-text">{t.nav.projects}</h1>
-          <p className="mt-1 text-sm text-tr-muted">
-            Kế hoạch so với thực tế, ngân sách và sức khỏe của từng dự án
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-tr-subtle">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-            className="h-4 w-4 rounded border-tr-border"
-          />
-          Hiện cả dự án đã lưu trữ
-        </label>
-        <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus size={16} aria-hidden="true" /> Dự án mới
-        </Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t.nav.projects}
+        description="Kế hoạch so với thực tế, ngân sách và sức khỏe của từng dự án"
+        align="center"
+        actions={
+          <>
+            <label className="flex items-center gap-2 text-sm text-tr-subtle">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="h-4 w-4 rounded border-tr-border"
+              />
+              Hiện cả dự án đã lưu trữ
+            </label>
+            <Button variant="primary" onClick={() => setCreating(true)}>
+              <Plus size={16} aria-hidden="true" /> Dự án mới
+            </Button>
+          </>
+        }
+      />
 
       {isLoading ? (
         <div className="rounded-panel border border-tr-border bg-tr-panel">
@@ -98,7 +100,7 @@ export default function ProjectsPage() {
       )}
 
       <ProjectForm open={creating} onClose={() => setCreating(false)} />
-    </div>
+    </PageShell>
   );
 }
 

@@ -55,6 +55,24 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hợp đồng');
   await page.goto('/documents');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tài liệu');
+
+  await page.goto('/settings');
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(4);
+
+  await tabs.nth(0).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.nth(1)).toBeFocused();
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+
+  await page.keyboard.press('End');
+  await expect(tabs.nth(3)).toBeFocused();
+  await expect(tabs.nth(3)).toHaveAttribute('aria-selected', 'true');
+
+  await page.keyboard.press('Home');
+  await expect(tabs.nth(0)).toBeFocused();
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'settingstab-labels');
 });
 
 test('dashboard va board khong tran ngang viewport', async ({ page, request }, testInfo) => {

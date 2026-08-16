@@ -46,14 +46,14 @@ const ICONS: Record<InteractionType, typeof Phone> = {
 };
 
 const COLORS: Record<InteractionType, string> = {
-  call: 'bg-[#e9f2ff] text-[#0c66e4]',
-  email: 'bg-[#f3f0ff] text-[#6e5dc6]',
-  meeting: 'bg-[#dcfff1] text-[#216e4e]',
-  demo: 'bg-[#fff7d6] text-[#7f5f01]',
-  proposal: 'bg-[#ffedeb] text-[#ae2e24]',
-  followup: 'bg-[#e3fafc] text-[#164555]',
+  call: 'bg-interaction-call-bg text-interaction-call-fg',
+  email: 'bg-interaction-email-bg text-interaction-email-fg',
+  meeting: 'bg-interaction-meeting-bg text-interaction-meeting-fg',
+  demo: 'bg-interaction-demo-bg text-interaction-demo-fg',
+  proposal: 'bg-interaction-proposal-bg text-interaction-proposal-fg',
+  followup: 'bg-interaction-followup-bg text-interaction-followup-fg',
   note: 'bg-tr-hover text-tr-subtle',
-  zalo: 'bg-[#e9f2ff] text-[#0055cc]',
+  zalo: 'bg-interaction-zalo-bg text-interaction-zalo-fg',
   other: 'bg-tr-hover text-tr-subtle',
 };
 

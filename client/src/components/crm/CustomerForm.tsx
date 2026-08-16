@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Modal } from '../common/Modal';
-import { Button, Field, FormError, Input, Select, Textarea } from '../common/ui';
+import { Field, FormError, FormModalActions, Input, Select, Textarea } from '../common/ui';
 import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { ORG_KINDS } from '@workflow/contracts';
@@ -110,17 +110,12 @@ export function CustomerForm({
       dirty={dirty && !save.isPending}
       title={customer ? `${t.common.edit}: ${customer.name}` : t.customer.newCustomer}
       footer={
-        <>
-          <Button onClick={onClose}>{t.common.cancel}</Button>
-          {/* disabled theo isPending: mang cham + bam hai lan truoc day tao hai khach hang */}
-          <Button
-            variant="primary"
-            disabled={nameMissing || save.isPending}
-            onClick={() => save.mutate()}
-          >
-            {save.isPending ? t.common.saving : t.common.save}
-          </Button>
-        </>
+        <FormModalActions
+          onCancel={onClose}
+          onSubmit={() => save.mutate()}
+          pending={save.isPending}
+          disabled={nameMissing}
+        />
       }
     >
       <FormError error={save.error} />

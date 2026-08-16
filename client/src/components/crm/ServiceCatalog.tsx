@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../common/Modal';
-import { Button, EmptyState, Input, MoneyInput, Select } from '../common/ui';
+import { Button, EmptyState, IconButton, Input, MoneyInput, Select, TableHead } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { formatVND } from '../../lib/format';
 import { invalidateRevenueViews } from '../../lib/queryKeys';
@@ -140,7 +140,7 @@ export function ServiceCatalog({ open, onClose }: { open: boolean; onClose: () =
       ) : (
         <div className="overflow-x-auto rounded-lg border border-tr-border">
           <table className="w-full text-sm">
-            <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+            <TableHead>
               <tr>
                 <th scope="col" className="px-3 py-2">
                   {t.service.name}
@@ -159,7 +159,7 @@ export function ServiceCatalog({ open, onClose }: { open: boolean; onClose: () =
                 </th>
                 <th scope="col" className="px-3 py-2"></th>
               </tr>
-            </thead>
+            </TableHead>
             <tbody className="divide-y divide-tr-border">
               {services.map((s) => (
                 <tr key={s.id} className={s.is_active ? '' : 'opacity-60'}>
@@ -186,7 +186,7 @@ export function ServiceCatalog({ open, onClose }: { open: boolean; onClose: () =
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
-                      <button
+                      <IconButton
                         onClick={() => {
                           setEditingId(s.id);
                           setDraft({
@@ -198,18 +198,17 @@ export function ServiceCatalog({ open, onClose }: { open: boolean; onClose: () =
                             is_active: !!s.is_active,
                           });
                         }}
-                        aria-label={`${t.common.edit}: ${s.name}`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                        label={`${t.common.edit}: ${s.name}`}
                       >
                         <Pencil size={14} aria-hidden="true" />
-                      </button>
-                      <button
+                      </IconButton>
+                      <IconButton
                         onClick={() => remove.mutate(s.id)}
-                        aria-label={`${t.common.delete}: ${s.name}`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger"
+                        label={`${t.common.delete}: ${s.name}`}
+                        tone="danger"
                       >
                         <Trash2 size={14} aria-hidden="true" />
-                      </button>
+                      </IconButton>
                     </div>
                   </td>
                 </tr>

@@ -34,6 +34,23 @@
   --color-tr-navfg-muted: var(--tr-navfg-muted);
   --color-tr-navfg-border: var(--tr-navfg-border);
 
+  /* Mau kenh tuong tac CRM — cap nen/muc rieng cho sang va toi */
+  --color-interaction-call-bg: var(--interaction-call-bg);
+  --color-interaction-call-fg: var(--interaction-call-fg);
+  --color-interaction-email-bg: var(--interaction-email-bg);
+  --color-interaction-email-fg: var(--interaction-email-fg);
+  --color-interaction-meeting-bg: var(--interaction-meeting-bg);
+  --color-interaction-meeting-fg: var(--interaction-meeting-fg);
+  --color-interaction-demo-bg: var(--interaction-demo-bg);
+  --color-interaction-demo-fg: var(--interaction-demo-fg);
+  --color-interaction-proposal-bg: var(--interaction-proposal-bg);
+  --color-interaction-proposal-fg: var(--interaction-proposal-fg);
+  --color-interaction-followup-bg: var(--interaction-followup-bg);
+  --color-interaction-followup-fg: var(--interaction-followup-fg);
+  --color-interaction-zalo-bg: var(--interaction-zalo-bg);
+  --color-interaction-zalo-fg: var(--interaction-zalo-fg);
+  --color-tr-relation-good: var(--tr-relation-good);
+
   /* Bo chu — bo sung cap 11px dang dung rai rac duoi dang text-[11px] */
   --text-2xs: 11px;
   --text-2xs--line-height: 1.45;
@@ -41,6 +58,7 @@
   --text-sm--line-height: 1.45;
 
   /* Bo goc phan cap theo Bento: control < card < lop noi */
+  --radius-compact: 3px;
   --radius-control: 14px;
   --radius-panel: 20px;
   --radius-modal: 26px;
@@ -91,6 +109,22 @@
   --tr-badge-overdue-fg: #a72f25;
   --tr-badge-soon-bg: #f4e9b5;
   --tr-badge-soon-fg: #70540a;
+
+  --interaction-call-bg: #e9f2ff;
+  --interaction-call-fg: #0c66e4;
+  --interaction-email-bg: #f3f0ff;
+  --interaction-email-fg: #6e5dc6;
+  --interaction-meeting-bg: #dcfff1;
+  --interaction-meeting-fg: #216e4e;
+  --interaction-demo-bg: #fff7d6;
+  --interaction-demo-fg: #7f5f01;
+  --interaction-proposal-bg: #ffedeb;
+  --interaction-proposal-fg: #ae2e24;
+  --interaction-followup-bg: #e3fafc;
+  --interaction-followup-fg: #164555;
+  --interaction-zalo-bg: #e9f2ff;
+  --interaction-zalo-fg: #0055cc;
+  --tr-relation-good: #94c748;
 
   /* Thanh tren cung luon nen toi (--tr-nav) o ca hai che do,
      nen bo mau chu cua no khong duoc doi theo theme.
@@ -170,6 +204,22 @@
   --tr-badge-overdue-fg: #fd9891;
   --tr-badge-soon-bg: #533f04;
   --tr-badge-soon-fg: #f5cd47;
+
+  --interaction-call-bg: #0c2d55;
+  --interaction-call-fg: #85b8ff;
+  --interaction-email-bg: #2b244a;
+  --interaction-email-fg: #b8acf6;
+  --interaction-meeting-bg: #164b35;
+  --interaction-meeting-fg: #7ee2b8;
+  --interaction-demo-bg: #4b4325;
+  --interaction-demo-fg: #f5cd47;
+  --interaction-proposal-bg: #42221f;
+  --interaction-proposal-fg: #fd9891;
+  --interaction-followup-bg: #153f4c;
+  --interaction-followup-fg: #9dd9ee;
+  --interaction-zalo-bg: #0c2d55;
+  --interaction-zalo-fg: #85b8ff;
+  --tr-relation-good: #b3df72;
 
   --tr-nav-panel: #22272b;
   --tr-nav-text: #b6c2cf;
@@ -360,7 +410,7 @@ body {
 }
 
 .tr-header-btn {
-  @apply inline-flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-sm font-medium text-white transition;
+  @apply inline-flex items-center gap-1.5 rounded-compact px-2.5 py-1.5 text-sm font-medium text-white transition;
   background-color: #ffffff29;
 }
 .tr-header-btn:hover {

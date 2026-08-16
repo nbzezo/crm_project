@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { Tabs } from '../components/common/Tabs';
+import { PageShell } from '../components/common/PageShell';
 import {
   Button,
   EmptyState,
@@ -79,7 +81,7 @@ export default function ProjectDetailPage() {
     );
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
+    <PageShell>
       <Link
         to="/projects"
         className={`inline-flex items-center gap-1 text-sm text-tr-muted hover:text-tr-primary ${focusRing}`}
@@ -121,36 +123,26 @@ export default function ProjectDetailPage() {
         </Button>
       </div>
 
-      <div role="tablist" className="flex flex-wrap gap-1 border-b border-tr-border">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            role="tab"
-            aria-selected={tab === item.id}
-            onClick={() => setTab(item.id)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${focusRing} ${
-              tab === item.id
-                ? 'border-tr-primary font-medium text-tr-primary'
-                : 'border-transparent text-tr-subtle hover:text-tr-text'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={TABS.map((item) => ({ value: item.id, label: item.label }))}
+        ariaLabel="Nội dung dự án"
+        idPrefix="projecttab"
+      >
+        {tab === 'overview' && <Overview project={project} />}
 
-      {tab === 'overview' && <Overview project={project} />}
+        {tab === 'tasks' && <TasksTab project={project} />}
 
-      {tab === 'tasks' && <TasksTab project={project} />}
-
-      {tab === 'people' && <People project={project} />}
-      {tab === 'commercial' && <Commercial project={project} />}
-      {tab === 'documents' && (
-        <DocumentPanel
-          links={project.customer_id ? { customer_id: project.customer_id } : {}}
-          title="Tài liệu của khách hàng thuộc dự án"
-        />
-      )}
+        {tab === 'people' && <People project={project} />}
+        {tab === 'commercial' && <Commercial project={project} />}
+        {tab === 'documents' && (
+          <DocumentPanel
+            links={project.customer_id ? { customer_id: project.customer_id } : {}}
+            title="Tài liệu của khách hàng thuộc dự án"
+          />
+        )}
+      </Tabs>
 
       <ProjectForm open={editing} onClose={() => setEditing(false)} project={project} />
       <ConfirmDialog
@@ -162,7 +154,7 @@ export default function ProjectDetailPage() {
           remove.mutate();
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

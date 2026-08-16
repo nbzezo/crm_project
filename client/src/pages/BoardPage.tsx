@@ -22,6 +22,7 @@ import { ErrorState, Skeleton } from '../components/common/ui';
 import { backgroundStyle } from '../lib/backgrounds';
 import { t } from '../i18n/vi';
 import { countActiveFilters, useUiStore } from '../stores/uiStore';
+import { STAR_COLOR } from '../theme/palettes';
 import type { BoardFull, TaskRow } from '../types';
 
 const VIEW_MODES: BoardViewMode[] = ['board', 'calendar', 'timeline', 'table'];
@@ -155,8 +156,8 @@ export default function BoardPage() {
         >
           <Star
             size={17}
-            fill={board.is_starred ? '#f2d600' : 'none'}
-            color={board.is_starred ? '#f2d600' : 'currentColor'}
+            fill={board.is_starred ? STAR_COLOR : 'none'}
+            color={board.is_starred ? STAR_COLOR : 'currentColor'}
           />
         </button>
 

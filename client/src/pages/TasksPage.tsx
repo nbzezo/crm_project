@@ -16,6 +16,7 @@ import {
 import { api, qs } from '../api/client';
 import { Combobox } from '../components/common/Combobox';
 import { Popover, usePopover } from '../components/common/Popover';
+import { PageShell } from '../components/common/PageShell';
 import { TaskTree, buildTree } from '../components/tasks/TaskTree';
 import { TaskTable } from '../components/tasks/TaskTable';
 import { daysFromToday } from '../components/tasks/TaskPresentation';
@@ -489,7 +490,7 @@ export default function TasksPage() {
   const groups = groupTasks(tasks, groupBy);
 
   return (
-    <div className="space-y-3 p-4 sm:p-6">
+    <PageShell spacing="sm">
       <TaskSummaryBar />
 
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
@@ -581,7 +582,7 @@ export default function TasksPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 

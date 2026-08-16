@@ -882,7 +882,7 @@ function ActivityColumn({ card }: { card: CardDetail }) {
           <button
             disabled={!draft.trim()}
             onClick={() => add.mutate()}
-            className="rounded-[3px] bg-tr-primary px-3 py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-50"
+            className="rounded-compact bg-tr-primary px-3 py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-50"
           >
             {t.common.save}
           </button>
@@ -891,7 +891,7 @@ function ActivityColumn({ card }: { card: CardDetail }) {
               setDraft('');
               setFocused(false);
             }}
-            className="rounded-[3px] px-3 py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover"
+            className="rounded-compact px-3 py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover"
           >
             {t.common.cancel}
           </button>
@@ -945,8 +945,7 @@ function Avatar({ muted }: { muted?: boolean }) {
   );
 }
 
-const POPOVER_INPUT =
-  `w-full rounded border border-tr-border bg-tr-card px-2.5 py-1.5 text-sm text-tr-text outline-none focus:border-tr-primary ${selectOptionContrast}`;
+const POPOVER_INPUT = `w-full rounded border border-tr-border bg-tr-card px-2.5 py-1.5 text-sm text-tr-text outline-none focus:border-tr-primary ${selectOptionContrast}`;
 
 function DatesPopover({
   card,
@@ -982,7 +981,7 @@ function DatesPopover({
         </label>
         <button
           onClick={() => onChange({ start_date: null, due_date: null })}
-          className="w-full rounded-[3px] bg-tr-hover py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover-strong"
+          className="w-full rounded-compact bg-tr-hover py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover-strong"
         >
           Gỡ ngày
         </button>
@@ -1247,7 +1246,7 @@ function CoverPopover({
       {card.cover_color && (
         <button
           onClick={() => onChange(null)}
-          className="mt-3 w-full rounded-[3px] bg-tr-hover py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover-strong"
+          className="mt-3 w-full rounded-compact bg-tr-hover py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover-strong"
         >
           Gỡ ảnh bìa
         </button>
@@ -1359,7 +1358,7 @@ function ReminderPopover({ card, pop }: { card: CardDetail; pop: Pop }) {
         </label>
         <button
           onClick={() => create.mutate()}
-          className="w-full rounded-[3px] bg-tr-primary py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover"
+          className="w-full rounded-compact bg-tr-primary py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover"
         >
           {t.common.save}
         </button>

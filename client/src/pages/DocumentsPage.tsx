@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { PageShell } from '../components/common/PageShell';
 import {
   Button,
   EmptyState,
@@ -20,6 +21,7 @@ import {
   Input,
   Select,
   SkeletonRows,
+  TableHead,
   focusRing,
 } from '../components/common/ui';
 import { DocumentMetadataDrawer } from '../components/documents/DocumentMetadataDrawer';
@@ -176,7 +178,7 @@ export default function DocumentsPage() {
   const zipHref = `/api/documents/download.zip?ids=${selected.join(',')}`;
 
   return (
-    <div className="mx-auto w-full max-w-[112rem] space-y-4 p-4 sm:p-6">
+    <PageShell width="wide">
       <header>
         <p className="text-sm text-tr-muted">
           Quản lý hồ sơ khách hàng, liên kết bán hàng và vòng đời tài liệu tại một nơi.
@@ -349,7 +351,7 @@ export default function DocumentsPage() {
         ) : (
           <div className="overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
             <table className="min-w-[1100px] w-full text-sm">
-              <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+              <TableHead>
                 <tr>
                   <th scope="col" className="w-10 px-3 py-2.5">
                     <input
@@ -382,7 +384,7 @@ export default function DocumentsPage() {
                   </th>
                   <th scope="col" className="px-3 py-2.5"></th>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody className="divide-y divide-tr-border">
                 {documents.map((document) => {
                   const checked = selected.includes(document.id);
@@ -590,6 +592,6 @@ export default function DocumentsPage() {
           setPendingAction(null);
         }}
       />
-    </div>
+    </PageShell>
   );
 }

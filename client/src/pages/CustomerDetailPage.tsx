@@ -27,13 +27,15 @@ import { CustomerServices } from '../components/crm/CustomerServices';
 import { TaskTree } from '../components/tasks/TaskTree';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import { Modal } from '../components/common/Modal';
+import { Tabs } from '../components/common/Tabs';
 import {
   Button,
   ColorBadge,
   EmptyState,
   ErrorState,
+  IconButton,
   Skeleton,
-  focusRing,
+  TableHead,
 } from '../components/common/ui';
 import {
   ACCOUNT_STATUS_COLORS,
@@ -190,35 +192,18 @@ export default function CustomerDetailPage() {
         <AiBrief contextType="customer" contextId={id} compact />
       </div>
 
-      {/* Thanh the: khai bao tablist/tab de trinh doc man hinh doc duoc
-          "the 3 trong 9, dang chon" thay vi chin nut roi rac. */}
-      <div
-        role="tablist"
-        aria-label="Nội dung khách hàng"
-        className="mb-4 flex flex-wrap gap-1 border-b border-tr-border"
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={TABS.map((item) => ({
+          value: item.key,
+          label: item.label,
+          count: item.count,
+        }))}
+        ariaLabel="Nội dung khách hàng"
+        idPrefix="custab"
+        className="mb-4"
       >
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            id={`custab-${item.key}`}
-            aria-selected={tab === item.key}
-            aria-controls="custab-panel"
-            onClick={() => setTab(item.key)}
-            className={`-mb-px min-h-[44px] border-b-2 px-3 text-sm font-medium transition sm:min-h-0 sm:py-2 ${focusRing} ${
-              tab === item.key
-                ? 'border-tr-primary text-tr-primary'
-                : 'border-transparent text-tr-subtle hover:text-tr-text'
-            }`}
-          >
-            {item.label}
-            {item.count ? ` (${item.count})` : ''}
-          </button>
-        ))}
-      </div>
-
-      <div id="custab-panel" role="tabpanel" aria-labelledby={`custab-${tab}`}>
         {tab === 'info' && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-2 rounded-lg border border-tr-border bg-tr-panel p-4 text-sm">
@@ -290,13 +275,12 @@ export default function CustomerDetailPage() {
                     : '—'}
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <button
+                  <IconButton
                     onClick={() => setDealForm({ open: true, deal: d })}
-                    aria-label={`${t.common.edit}: ${d.title}`}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                    label={`${t.common.edit}: ${d.title}`}
                   >
-                    <Pencil size={13} />
-                  </button>
+                    <Pencil size={13} aria-hidden="true" />
+                  </IconButton>
                 </td>
               </tr>
             ))}
@@ -337,21 +321,18 @@ export default function CustomerDetailPage() {
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex justify-end gap-1">
-                    <button
+                    <IconButton
                       onClick={() => openTaskComposer({ context: { quotation_id: q.id } })}
-                      aria-label={`Tạo công việc cho báo giá ${q.code || q.id}`}
-                      title="Tạo công việc"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                      label={`Tạo công việc cho báo giá ${q.code || q.id}`}
                     >
-                      <ListPlus size={13} />
-                    </button>
-                    <button
+                      <ListPlus size={13} aria-hidden="true" />
+                    </IconButton>
+                    <IconButton
                       onClick={() => setQuoteForm({ open: true, quotation: q })}
-                      aria-label={`${t.common.edit}: ${q.code || 'báo giá'}`}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                      label={`${t.common.edit}: ${q.code || 'báo giá'}`}
                     >
-                      <Pencil size={13} />
-                    </button>
+                      <Pencil size={13} aria-hidden="true" />
+                    </IconButton>
                   </div>
                 </td>
               </tr>
@@ -395,13 +376,12 @@ export default function CustomerDetailPage() {
                   </ColorBadge>
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <button
+                  <IconButton
                     onClick={() => setContractForm({ open: true, contract: c })}
-                    aria-label={`${t.common.edit}: ${c.name}`}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted hover:bg-tr-hover hover:text-tr-text"
+                    label={`${t.common.edit}: ${c.name}`}
                   >
-                    <Pencil size={13} />
-                  </button>
+                    <Pencil size={13} aria-hidden="true" />
+                  </IconButton>
                 </td>
               </tr>
             ))}
@@ -439,7 +419,7 @@ export default function CustomerDetailPage() {
             />
           </div>
         )}
-      </div>
+      </Tabs>
 
       <CustomerForm open={editing} onClose={() => setEditing(false)} customer={customer} />
       <DealForm
@@ -530,7 +510,7 @@ function TableSection({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel">
           <table className="w-full text-sm">
-            <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+            <TableHead>
               <tr>
                 {headers.map((h, i) => (
                   <th scope="col" key={i} className="px-4 py-2.5 whitespace-nowrap">
@@ -538,7 +518,7 @@ function TableSection({
                   </th>
                 ))}
               </tr>
-            </thead>
+            </TableHead>
             <tbody className="divide-y divide-tr-border">{children}</tbody>
           </table>
         </div>

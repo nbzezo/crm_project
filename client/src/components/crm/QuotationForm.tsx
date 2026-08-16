@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import {
-  Button,
   DateInput,
   Field,
   FormError,
+  FormModalActions,
   Input,
   MoneyInput,
   Select,
   Textarea,
 } from '../common/ui';
+import { CustomerDealFields } from './CustomerDealFields';
 import { DocumentPanel } from './DocumentUpload';
 import { QUOTATION_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
-import type { Customer, DealsResponse, Quotation } from '../../types';
+import type { Quotation } from '../../types';
 
 const EMPTY = {
   code: '',
@@ -45,19 +45,6 @@ export function QuotationForm({
   const [dealId, setDealId] = useState('');
   const [form, setForm] = useState(EMPTY);
   const [submitted, setSubmitted] = useState(false);
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers', 'select'],
-    queryFn: () => api.get<Customer[]>('/api/customers'),
-    staleTime: 60_000,
-    enabled: open,
-  });
-  const { data: dealsData } = useQuery({
-    queryKey: ['deals', 'byCustomer', customerId],
-    queryFn: () => api.get<DealsResponse>(`/api/deals?customer_id=${customerId}`),
-    enabled: open && customerId !== '',
-  });
-  const deals = dealsData ? Object.values(dealsData.stages).flat() : [];
 
   useEffect(() => {
     if (!open) return;
@@ -113,19 +100,15 @@ export function QuotationForm({
           : t.quotation.newQuotation
       }
       footer={
-        <>
-          <Button onClick={onClose}>{t.common.cancel}</Button>
-          <Button
-            variant="primary"
-            disabled={customerMissing || save.isPending}
-            onClick={() => {
-              setSubmitted(true);
-              save.mutate();
-            }}
-          >
-            {save.isPending ? t.common.saving : t.common.save}
-          </Button>
-        </>
+        <FormModalActions
+          onCancel={onClose}
+          onSubmit={() => {
+            setSubmitted(true);
+            save.mutate();
+          }}
+          pending={save.isPending}
+          disabled={customerMissing}
+        />
       }
     >
       <FormError error={save.error} />
@@ -139,32 +122,15 @@ export function QuotationForm({
             placeholder="BG-2026-001"
           />
         </Field>
-        <Field
-          label={t.card.customer}
-          required
-          error={submitted && customerMissing ? t.common.required : undefined}
-        >
-          <Combobox
-            value={customerId === '' ? '' : Number(customerId)}
-            onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
-            options={customers.map((c) => ({ id: c.id, label: c.name }))}
-            placeholder={t.common.selectCustomer}
-            searchPlaceholder="Tìm khách hàng…"
-            emptyText="Không tìm thấy khách hàng."
-            ariaLabel={t.card.customer}
-          />
-        </Field>
-        <Field label={t.contract.relatedDeal} hint={t.quotation.versionHint}>
-          <Combobox
-            value={dealId === '' ? '' : Number(dealId)}
-            onChange={(v) => setDealId(v === '' ? '' : String(v))}
-            options={deals.map((d) => ({ id: d.id, label: d.title }))}
-            placeholder={`— ${t.common.none} —`}
-            searchPlaceholder="Tìm cơ hội…"
-            emptyText="Không tìm thấy cơ hội."
-            ariaLabel={t.contract.relatedDeal}
-          />
-        </Field>
+        <CustomerDealFields
+          open={open}
+          customerId={customerId}
+          onCustomerChange={setCustomerId}
+          dealId={dealId}
+          onDealChange={setDealId}
+          customerError={submitted && customerMissing ? t.common.required : undefined}
+          dealHint={t.quotation.versionHint}
+        />
         <Field label={t.customer.status}>
           <Select value={form.status} onChange={(e) => set('status', e.target.value)}>
             {QUOTATION_STATUS_ORDER.map((s) => (

@@ -19,10 +19,11 @@ import {
   EmptyState,
   Field,
   FormError,
+  FormModalActions,
+  IconButton,
   Input,
   Select,
   Textarea,
-  focusRing,
 } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
@@ -47,7 +48,7 @@ const EMPTY = {
 /** Màu theo mức độ quan hệ (FR-CON-03). */
 const RELATION_COLORS: Record<string, string> = {
   excellent: 'text-tr-success',
-  good: 'text-[#94c748]',
+  good: 'text-tr-relation-good',
   normal: 'text-tr-subtle',
   new: 'text-tr-muted',
   difficult: 'text-tr-danger',
@@ -141,7 +142,7 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate font-medium text-tr-text">{c.full_name}</span>
                     {!!c.is_primary && (
-                      <span className="inline-flex items-center gap-0.5 rounded bg-[#fff7d6] px-1.5 py-0.5 text-[10px] font-medium text-[#7f5f01]">
+                      <span className="inline-flex items-center gap-0.5 rounded bg-tr-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-warning">
                         <Star size={10} /> {t.contact.primary}
                       </span>
                     )}
@@ -169,34 +170,29 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
                     va khi Tab toi — nen hien lai khi nhan focus, va luon hien
                     tren thiet bi khong co con tro di chuot. */}
                 <div className="flex gap-0.5 opacity-100 transition group-hover:opacity-100 sm:opacity-0 sm:focus-within:opacity-100">
-                  <button
-                    type="button"
+                  <IconButton
                     onClick={() => {
                       setEditing(c);
                       setOpen(true);
                     }}
-                    aria-label={`${t.common.edit}: ${c.full_name}`}
-                    className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-text sm:h-7 sm:w-7 ${focusRing}`}
+                    label={`${t.common.edit}: ${c.full_name}`}
                   >
                     <Pencil size={13} aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
+                  </IconButton>
+                  <IconButton
                     onClick={() => openTaskComposer({ context: { contact_id: c.id } })}
-                    aria-label={`Tạo công việc cho ${c.full_name}`}
+                    label={`Tạo công việc cho ${c.full_name}`}
                     title="Tạo công việc"
-                    className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-text sm:h-7 sm:w-7 ${focusRing}`}
                   >
                     <ListPlus size={13} aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
+                  </IconButton>
+                  <IconButton
                     onClick={() => setDeleteId(c.id)}
-                    aria-label={`${t.common.delete}: ${c.full_name}`}
-                    className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-danger sm:h-7 sm:w-7 ${focusRing}`}
+                    label={`${t.common.delete}: ${c.full_name}`}
+                    tone="danger"
                   >
                     <Trash2 size={13} aria-hidden="true" />
-                  </button>
+                  </IconButton>
                 </div>
               </div>
 
@@ -253,16 +249,12 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
         title={editing ? `${t.common.edit}: ${editing.full_name}` : t.contact.addContact}
         width="max-w-2xl"
         footer={
-          <>
-            <Button onClick={() => setOpen(false)}>{t.common.cancel}</Button>
-            <Button
-              variant="primary"
-              disabled={!form.full_name.trim() || save.isPending}
-              onClick={() => save.mutate()}
-            >
-              {save.isPending ? t.common.saving : t.common.save}
-            </Button>
-          </>
+          <FormModalActions
+            onCancel={() => setOpen(false)}
+            onSubmit={() => save.mutate()}
+            pending={save.isPending}
+            disabled={!form.full_name.trim()}
+          />
         }
       >
         <FormError error={save.error} />

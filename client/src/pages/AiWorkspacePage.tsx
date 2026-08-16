@@ -25,6 +25,7 @@ import {
   Select,
   Textarea,
 } from '../components/common/ui';
+import { PageShell } from '../components/common/PageShell';
 import { formatDateTime } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 
@@ -85,7 +86,7 @@ interface UsageData {
 export default function AiWorkspacePage() {
   const [tab, setTab] = useState<Tab>('assistant');
   return (
-    <div className="mx-auto max-w-[1400px] space-y-4 p-4 sm:p-6">
+    <PageShell width="content">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-tr-primary/10 px-2.5 py-1 text-xs font-semibold text-tr-primary">
@@ -113,7 +114,7 @@ export default function AiWorkspacePage() {
       {tab === 'assistant' && <AssistantTab />}
       {tab === 'operations' && <OperationsTab />}
       {tab === 'usage' && <UsageTab />}
-    </div>
+    </PageShell>
   );
 }
 

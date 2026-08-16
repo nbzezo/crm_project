@@ -10,10 +10,12 @@ import {
   ColorBadge,
   EmptyState,
   ErrorState,
+  IconButton,
   Input,
   Panel,
   Select,
   SkeletonRows,
+  TableHead,
 } from '../components/common/ui';
 import { CONTRACT_STATUS_COLORS, CONTRACT_STATUS_ORDER, t } from '../i18n/vi';
 import { formatDate, formatVND } from '../lib/format';
@@ -193,7 +195,7 @@ export default function ContractsPage() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+            <TableHead>
               <tr>
                 <th scope="col" className="px-4 py-2.5">
                   Hợp đồng
@@ -215,7 +217,7 @@ export default function ContractsPage() {
                 </th>
                 <th scope="col" className="px-4 py-2.5"></th>
               </tr>
-            </thead>
+            </TableHead>
             <tbody className="divide-y divide-tr-border">
               {contracts.map((c) => (
                 <tr key={c.id} className="transition hover:bg-tr-hover">
@@ -256,28 +258,25 @@ export default function ContractsPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex justify-end gap-1">
-                      <button
+                      <IconButton
                         onClick={() => setForm({ open: true, contract: c })}
-                        aria-label={`${t.common.edit}: ${c.name}`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                        label={`${t.common.edit}: ${c.name}`}
                       >
                         <Pencil size={14} aria-hidden="true" />
-                      </button>
-                      <button
+                      </IconButton>
+                      <IconButton
                         onClick={() => openTaskComposer({ context: { contract_id: c.id } })}
-                        aria-label={`Tạo công việc cho hợp đồng ${c.name}`}
-                        title="Tạo công việc"
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                        label={`Tạo công việc cho hợp đồng ${c.name}`}
                       >
                         <ListPlus size={14} aria-hidden="true" />
-                      </button>
-                      <button
+                      </IconButton>
+                      <IconButton
                         onClick={() => setDeleteId(c.id)}
-                        aria-label={`${t.common.delete}: ${c.name}`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control sm:h-8 sm:w-8 text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger"
+                        label={`${t.common.delete}: ${c.name}`}
+                        tone="danger"
                       >
                         <Trash2 size={14} aria-hidden="true" />
-                      </button>
+                      </IconButton>
                     </div>
                   </td>
                 </tr>
