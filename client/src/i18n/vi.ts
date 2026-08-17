@@ -32,7 +32,7 @@ export const t = {
     table: 'Bảng tính',
     reports: 'Báo cáo',
     tasks: 'Công việc',
-    followUp: 'Cần nhắc',
+    followUp: 'Theo dõi tiến độ',
     orgDirectory: 'Tổ chức & nhân sự',
     ai: 'Trợ lý AI',
     settings: 'Cài đặt',
@@ -88,6 +88,7 @@ export const t = {
     lead: 'Tiềm năng',
     approaching: 'Đang tiếp cận',
     discussing: 'Đang trao đổi',
+    poc: 'PoC / Thử nghiệm',
     quoted: 'Gửi báo giá',
     negotiating: 'Đàm phán',
     won: 'Thành công',
@@ -150,13 +151,14 @@ export const t = {
   /** Doanh thu khách hàng hiện hữu. */
   revenue: {
     title: 'Doanh thu khách hàng hiện hữu',
+    subtitle: 'Theo dõi kế hoạch, đối soát, hóa đơn và thu tiền.',
     line: 'Dòng doanh thu',
-    newLine: 'Thêm dòng doanh thu',
+    newLine: 'Thêm doanh thu',
     service: 'Dịch vụ sử dụng',
     services: 'Danh mục dịch vụ',
     am: 'AM',
-    contractKind: 'Loại HĐ',
-    contractTerm: 'Loại hợp đồng',
+    contractKind: 'Loại hợp đồng',
+    contractTerm: 'Thời hạn HĐ.',
     status: 'Tình trạng hợp đồng',
     total: 'Doanh thu',
     grandTotal: 'Tổng doanh thu',
@@ -165,12 +167,17 @@ export const t = {
     enterMonths: 'Nhập doanh thu 12 tháng',
     noLines:
       'Chưa có dòng doanh thu nào. Thêm khách hàng đang sử dụng dịch vụ để bắt đầu theo dõi.',
+    noResults: 'Không tìm thấy dữ liệu phù hợp',
     collectRate: 'Tỷ lệ thu tiền',
+    remaining: 'Còn phải thu',
     stage: 'Trạng thái doanh thu',
     amount: 'Doanh thu thực tế',
     forecast: 'Dự kiến ban đầu',
     variance: 'Chênh lệch so với dự kiến',
     setStageForMonth: 'Chuyển trạng thái cả tháng',
+    guide: 'Nhập doanh thu theo tháng · Bấm trạng thái để cập nhật tiến độ',
+    guideFlow: 'Dự kiến → Đối soát → Xuất hóa đơn → Đã thu tiền',
+    searchPlaceholder: 'Tìm khách hàng…',
   },
   /** Giai đoạn của một khoản doanh thu — chuyển tiếp, không cộng dồn thành nhiều khoản. */
   revenueStage: {
@@ -188,9 +195,14 @@ export const t = {
   /** Tổng lũy kế theo phễu: đã thanh toán thì đương nhiên đã đối soát và đã XHĐ. */
   revenueFunnel: {
     amount: 'Tổng doanh thu',
-    reconciled: 'Đã đối soát trở lên',
-    invoiced: 'Đã xuất hóa đơn trở lên',
-    paid: 'Đã thanh toán',
+    reconciled: 'Đã đối soát',
+    invoiced: 'Đã xuất hóa đơn',
+    paid: 'Đã thu tiền',
+  } as Record<string, string>,
+  /** Chú thích ngắn cho KPI lũy kế — giải thích một khoản "đã XHĐ" cũng tính cả khoản đã thu tiền. */
+  revenueFunnelHint: {
+    reconciled: 'Bao gồm các khoản đã chuyển sang các bước sau đối soát.',
+    invoiced: 'Bao gồm các khoản đã xuất hóa đơn hoặc đã thanh toán.',
   } as Record<string, string>,
   contractKind: {
     new: 'Mới',
@@ -297,9 +309,45 @@ export const t = {
 
   /** Sức khỏe dự án — tính khi đọc, không bao giờ lưu (xem projectService.ts). */
   projectHealth: {
+    unknown: 'Chưa đủ dữ liệu',
     green: 'Đúng kế hoạch',
     amber: 'Cần theo dõi',
     red: 'Có rủi ro',
+  } as Record<string, string>,
+
+  /** Sổ rủi ro của dự án (v26) — một bảng cho bốn loại. */
+  riskKind: {
+    risk: 'Rủi ro',
+    issue: 'Vấn đề',
+    change: 'Đề nghị thay đổi',
+    decision: 'Quyết định',
+  } as Record<string, string>,
+
+  riskSeverity: {
+    low: 'Thấp',
+    medium: 'Trung bình',
+    high: 'Cao',
+  } as Record<string, string>,
+
+  riskStatus: {
+    open: 'Đang mở',
+    mitigating: 'Đang xử lý',
+    closed: 'Đã đóng',
+  } as Record<string, string>,
+
+  /** Hai mô hình quản lý triển khai của đặc tả 6.2. */
+  deliveryModel: {
+    A: 'Mô hình A — bảng dự án riêng',
+    B: 'Mô hình B — bảng triển khai chung',
+  } as Record<string, string>,
+
+  /** Trạng thái mốc của một giai đoạn — suy ra khi đọc. */
+  milestoneState: {
+    none: 'Chưa đặt mốc',
+    done: 'Đã xong',
+    overdue: 'Trễ hạn',
+    due_soon: 'Sắp đến hạn',
+    on_track: 'Đúng tiến độ',
   } as Record<string, string>,
 
   nudgeChannel: {
@@ -342,7 +390,7 @@ export const t = {
     size: 'Quy mô',
     source: 'Nguồn',
     duplicateWarning: 'Có thể trùng với khách hàng đã có:',
-    duplicateHint: 'Bạn vẫn có thể tiếp tục lưu nếu chắc chắn.',
+    duplicateHint: 'Tên hoặc website tương tự vẫn có thể lưu; mã số thuế trùng sẽ bị chặn.',
     revenue: 'Doanh thu',
   },
   contact: {
@@ -499,11 +547,17 @@ export const t = {
     pageSubtitle: 'Cấu hình nhãn, chấm điểm cơ hội, trợ lý AI và dữ liệu hệ thống',
     tabLabels: 'Nhãn',
     tabScoring: 'Chấm điểm cơ hội',
+    tabHandover: 'Bàn giao',
+    tabDelivery: 'Triển khai',
     tabAi: 'Trợ lý AI',
+    tabTelegram: 'Telegram',
     tabData: 'Dữ liệu & sao lưu',
     scoringTitle: 'Chấm điểm cơ hội (BANT + 4P)',
     backup: 'Sao lưu & xuất dữ liệu',
-    backupNow: 'Sao lưu ngay',
+    backupChoiceHint: 'Chọn tải bản sao lưu về máy hoặc gửi trực tiếp vào nhóm Telegram.',
+    backupDownload: 'Tải về máy',
+    backupSendTelegram: 'Gửi qua Telegram',
+    backupTelegramNotReady: 'Chưa cấu hình Telegram (xem tab Telegram) để gửi sao lưu',
     backupList: 'Các bản sao lưu',
     exportJson: 'Xuất dữ liệu JSON',
     exportCsv: 'Xuất CSV (mở bằng Excel)',
@@ -577,6 +631,7 @@ export const STAGE_ORDER: Stage[] = [
   'lead',
   'approaching',
   'discussing',
+  'poc',
   'quoted',
   'negotiating',
   'won',
@@ -636,7 +691,7 @@ export const SERVICE_STATUS_COLORS: Record<ServiceStatus, string> = {
 export const REVENUE_STAGE_COLORS: Record<RevenueStage, string> = {
   forecast: '#9ec5f4',
   reconciled: '#3987e5',
-  invoiced: '#1c5cab',
+  invoiced: '#7c6fd6',
   paid: '#0ca30c',
 };
 
@@ -644,7 +699,7 @@ export const REVENUE_STAGE_COLORS: Record<RevenueStage, string> = {
 export const REVENUE_STAGE_TINTS: Record<RevenueStage, string> = {
   forecast: 'transparent',
   reconciled: 'rgba(57, 135, 229, 0.12)',
-  invoiced: 'rgba(28, 92, 171, 0.18)',
+  invoiced: 'rgba(124, 111, 214, 0.16)',
   paid: 'rgba(12, 163, 12, 0.16)',
 };
 
@@ -712,6 +767,9 @@ export const STAGE_COLORS: Record<Stage, string> = {
   lead: '#cde2fb',
   approaching: '#9ec5f4',
   discussing: '#6da7ec',
+  /* Chen giữa 'discussing' và 'quoted' trên cùng một dải xanh — thang màu phải
+     đọc được như một tiến trình, không phải một bảng màu ngẫu nhiên. */
+  poc: '#4f95e8',
   quoted: '#3987e5',
   negotiating: '#1c5cab',
   won: '#0ca30c',

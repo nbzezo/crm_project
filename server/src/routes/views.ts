@@ -42,7 +42,7 @@ const DEAL_ATTENTION_SELECT = `
          CAST(julianday('now','localtime') -
               julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.deal_id = d.id),
                                  substr(d.created_at,1,10))) AS INTEGER) AS days_idle
-    FROM deals d JOIN customers c ON c.id = d.customer_id
+    FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
    WHERE d.stage NOT IN ('won','lost')`;
 
 function attachLabels(rows: Record<string, unknown>[]): Record<string, unknown>[] {
@@ -183,7 +183,7 @@ router.get('/calendar', (req, res) => {
       ? db
           .prepare(
             `SELECT d.id, d.title, d.expected_close_date, d.value_vnd, c.name AS customer_name
-             FROM deals d JOIN customers c ON c.id = d.customer_id
+             FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             WHERE d.expected_close_date IS NOT NULL AND d.expected_close_date BETWEEN ? AND ?
               AND d.stage NOT IN ('won','lost')`
           )
@@ -196,7 +196,7 @@ router.get('/calendar', (req, res) => {
       ? db
           .prepare(
             `SELECT d.id, d.next_action, d.next_action_date, c.name AS customer_name
-             FROM deals d JOIN customers c ON c.id = d.customer_id
+             FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             WHERE d.next_action_date IS NOT NULL AND d.next_action_date BETWEEN ? AND ?
               AND d.stage NOT IN ('won','lost')`
           )
@@ -209,7 +209,7 @@ router.get('/calendar', (req, res) => {
       ? db
           .prepare(
             `SELECT k.id, k.name, k.end_date, k.value_vnd, c.name AS customer_name
-             FROM contracts k JOIN customers c ON c.id = k.customer_id
+             FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
             WHERE k.end_date IS NOT NULL AND k.end_date BETWEEN ? AND ? AND k.status = 'active'`
           )
           .all(from, to)
@@ -494,7 +494,7 @@ router.get('/dashboard', (_req, res) => {
       `SELECT k.id, k.name, k.number, k.value_vnd, k.end_date, k.renewal_followed,
               c.id AS customer_id, c.name AS customer_name,
               CAST(julianday(k.end_date) - julianday(date('now','localtime')) AS INTEGER) AS days_left
-         FROM contracts k JOIN customers c ON c.id = k.customer_id
+         FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
         WHERE k.status = 'active' AND k.end_date IS NOT NULL
           AND julianday(k.end_date) - julianday(date('now','localtime')) <= 90
         ORDER BY k.end_date`
@@ -629,7 +629,7 @@ router.get('/matrix', (req, res) => {
               s.bant_total, s.p4_total, s.quadrant, s.score_age_days,
               s.v1_no_event, s.v2_no_economic, s.v3_shaped
          FROM deals d
-         JOIN customers c ON c.id = d.customer_id
+         JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
          JOIN deal_scorecard s ON s.deal_id = d.id
         WHERE d.stage NOT IN ('won','lost')
           AND (? IS NULL OR d.stage = ?)
@@ -667,7 +667,7 @@ router.get('/pipeline-health', (_req, res) => {
               s.bant_total, s.p4_total, s.quadrant, s.score_age_days,
               s.v1_no_event, s.v2_no_economic, s.v3_shaped
          FROM deals d
-         JOIN customers c ON c.id = d.customer_id
+         JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
          JOIN deal_scorecard s ON s.deal_id = d.id
         WHERE d.stage NOT IN ('won','lost')`
     )
@@ -717,7 +717,7 @@ router.get('/pipeline-health', (_req, res) => {
               h.factor, h.old_score, h.new_score, h.changed_at
          FROM deal_score_history h
          JOIN deals d ON d.id = h.deal_id
-         JOIN customers c ON c.id = d.customer_id
+         JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
         WHERE d.stage NOT IN ('won','lost')
           AND h.old_score IS NOT NULL AND h.new_score < h.old_score
           AND date(h.changed_at) >= date('now','localtime','-30 days')

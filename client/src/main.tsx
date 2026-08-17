@@ -91,12 +91,12 @@ const router = createBrowserRouter([
       {
         path: 'follow-up',
         element: <FollowUpPage />,
-        handle: { title: 'Cần nhắc', visibleHeading: true },
+        handle: { title: 'Theo dõi tiến độ', visibleHeading: true },
       },
       {
         path: 'org-directory',
         element: <OrgDirectoryPage />,
-        handle: { title: 'Tổ chức & nhân sự', visibleHeading: true },
+        handle: { title: 'Tổ chức & nhân sự' },
       },
       { path: 'ai', element: <AiWorkspacePage />, handle: { title: 'Trợ lý AI' } },
       { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },

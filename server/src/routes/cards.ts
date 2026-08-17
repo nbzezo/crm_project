@@ -8,6 +8,7 @@ import { nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import {
   assertParentListCompatible,
+  assertListProjectCustomer,
   deriveTaskLinks,
   resolveAssignee,
   type EntityLinks,
@@ -21,6 +22,7 @@ import {
   resolveDefaultList,
   setCardStatus,
 } from '../services/cardService.ts';
+import { notifyAssigneeChangeTelegram } from '../services/telegram/telegramNotifier.ts';
 
 const router = Router();
 
@@ -291,12 +293,14 @@ router.patch('/:id', (req, res) => {
       /* Truc rieng — khong nam trong TASK_LINK_KEYS nen khong bi xoa khi doi khach hang. */
       assignee_contact_id: z.number().int().nullable().optional(),
       approver_contact_id: z.number().int().nullable().optional(),
+      /* Dau vao ao: project_id khong luu tren cards. Doi du an nghia la chuyen
+         the sang mot danh sach thuoc bang cua du an dich. */
+      project_id: z.number().int().positive().nullable().optional(),
       /* Vong doi v16 — di qua setCardStatus, khong ghi thang xuong cot. */
       status: z.enum(CARD_STATUSES).optional(),
       blocked_reason: z.string().max(500).nullable().optional(),
       recur_rule: z.string().max(200).nullable().optional(),
       recur_until: dateOnly.optional(),
-      project_id: z.number().int().nullable().optional(),
       /* Ly do doi han — ghi kem vao card_due_changes, khong luu tren the. */
       due_reason: z.string().max(300).nullable().optional(),
       estimate_hours: z.number().min(0).max(10_000).nullable().optional(),
@@ -329,6 +333,56 @@ router.patch('/:id', (req, res) => {
     else nextLinks[key] = customerChanged ? null : currentLinks[key];
   }
   const derived = deriveTaskLinks(db, nextLinks);
+  let targetListId = body.list_id ?? card.list_id;
+
+  if (body.project_id !== undefined) {
+    const current = required(
+      db
+        .prepare(
+          `SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`
+        )
+        .get(card.list_id),
+      'Khong tim thay danh sach'
+    ) as { project_id: number | null };
+
+    if (body.list_id !== undefined) {
+      const requested = required(
+        db
+          .prepare(
+            `SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`
+          )
+          .get(body.list_id),
+        'Khong tim thay danh sach'
+      ) as { project_id: number | null };
+      if (requested.project_id !== body.project_id) {
+        throw new HttpError(422, 'Danh sách được chọn không thuộc dự án đích', {
+          code: 'PROJECT_LIST_MISMATCH',
+        });
+      }
+    } else if (current.project_id !== body.project_id) {
+      const destination = db
+        .prepare(
+          `SELECT l.id
+             FROM lists l JOIN boards b ON b.id = l.board_id
+            WHERE b.is_archived = 0 AND b.project_id IS ?
+            ORDER BY (l.status_mapping = ?) DESC, b.is_starred DESC, b.id, l.position, l.id
+            LIMIT 1`
+        )
+        .get(body.project_id, card.status) as { id: number } | undefined;
+      if (!destination) {
+        throw new HttpError(
+          422,
+          body.project_id === null
+            ? 'Chưa có bảng công việc chung để bỏ liên kết dự án'
+            : 'Dự án chưa có bảng công việc để nhận công việc này',
+          { code: 'PROJECT_HAS_NO_BOARD' }
+        );
+      }
+      targetListId = destination.id;
+    }
+  }
+
+  assertListProjectCustomer(db, targetListId, derived.customer_id, 'Công việc');
 
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -392,8 +446,12 @@ router.patch('/:id', (req, res) => {
    * Nguoi phu trach doi doc lap voi khoi lien ket tren: doi khach hang KHONG lam
    * mat nguoi phu trach, vi viec ve khach hang moi van co the do dung nguoi do lam.
    */
+  let assigneeChanged = false;
   if (body.assignee_contact_id !== undefined) {
     const assignee = resolveAssignee(db, body.assignee_contact_id);
+    const previousAssigneeContactId = (card as CardRow & { assignee_contact_id: number | null })
+      .assignee_contact_id;
+    assigneeChanged = assignee.assignee_contact_id !== previousAssigneeContactId;
     set('assignee_contact_id = ?', assignee.assignee_contact_id);
     set('assignee_org_id = ?', assignee.assignee_org_id);
   }
@@ -406,13 +464,20 @@ router.patch('/:id', (req, res) => {
   }
   if (body.recur_rule !== undefined) set('recur_rule = ?', body.recur_rule);
   if (body.recur_until !== undefined) set('recur_until = ?', body.recur_until);
-  if (body.list_id !== undefined) {
+  if (
+    (body.list_id !== undefined || body.project_id !== undefined) &&
+    targetListId !== card.list_id
+  ) {
     required(
-      db.prepare(`SELECT id FROM lists WHERE id = ?`).get(body.list_id),
+      db.prepare(`SELECT id FROM lists WHERE id = ?`).get(targetListId),
       'Khong tim thay danh sach'
     );
-    assertParentListCompatible(db, id, body.list_id);
-    set('list_id = ?', body.list_id);
+    assertParentListCompatible(db, id, targetListId);
+    set('list_id = ?', targetListId);
+    set(
+      'position = ?',
+      nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: targetListId })
+    );
     /*
      * Doi danh sach co the doi ca du an — nhung khong con gi phai ghi: du an suy
      * thang tu bang chua danh sach moi lan doc (v19).
@@ -451,19 +516,24 @@ router.patch('/:id', (req, res) => {
     setCardStatus(id, body.is_done ? 'done' : 'todo');
   } else if (body.blocked_reason !== undefined && card.status === 'blocked') {
     setCardStatus(id, 'blocked', { blockedReason: body.blocked_reason });
-  } else if (body.list_id !== undefined) {
+  } else if (
+    (body.list_id !== undefined || body.project_id !== undefined) &&
+    targetListId !== card.list_id
+  ) {
     /*
      * Doi danh sach ma khong noi ro trang thai: cot dich quyet dinh (v19).
      *
      * `moveToMappedList: false` vi the DA nam o cot dich sau UPDATE o tren —
      * cung ly do voi moveCard.
      */
-    const mapped = db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(body.list_id) as
+    const mapped = db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(targetListId) as
       { status_mapping: CardStatus | null } | undefined;
     if (mapped?.status_mapping) {
       setCardStatus(id, mapped.status_mapping, { moveToMappedList: false });
     }
   }
+
+  if (assigneeChanged) notifyAssigneeChangeTelegram(db, id);
 
   res.json(reloadCard(id));
 });
@@ -520,17 +590,27 @@ router.post('/:id/copy', (req, res) => {
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
     'Khong tim thay the'
   ) as Record<string, unknown>;
+  const destinationListId = body.list_id ?? (source.list_id as number);
+  assertListProjectCustomer(db, destinationListId, source.customer_id as number | null);
+  const destination = required(
+    db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(destinationListId),
+    'Khong tim thay danh sach'
+  ) as { status_mapping: string | null };
+  const initialStatus = destination.status_mapping ?? 'todo';
 
   const newId = db.transaction(() => {
-    const listId = body.list_id ?? (source.list_id as number);
+    const listId = destinationListId;
     const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: listId });
     const title = body.title ?? `${source.title} (sao chép)`;
     const info = db
       .prepare(
         `INSERT INTO cards (list_id, title, description, position, start_date, due_date, priority,
+                            status, is_done, completed_at,
                             customer_id, contact_id, deal_id, contract_id, quotation_id,
                             cover_color, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 CASE WHEN ? = 'done' THEN datetime('now','localtime') ELSE NULL END,
+                 ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         listId,
@@ -540,6 +620,9 @@ router.post('/:id/copy', (req, res) => {
         source.start_date,
         source.due_date,
         source.priority,
+        initialStatus,
+        initialStatus === 'done' ? 1 : 0,
+        initialStatus,
         source.customer_id,
         source.contact_id,
         source.deal_id,

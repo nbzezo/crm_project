@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, X } from 'lucide-react';
 import { useDialog } from './useDialog';
 
@@ -53,13 +54,19 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
 
   const maxHeight = Math.max(220, window.innerHeight - pos.top - 16);
 
-  return (
+  /* Portal ra <body>: mo tu ben trong vung `overflow-auto`/`tr-app-shell` (overflow:
+     hidden) se cat/lech phan tu `fixed` neu khong portal — cung van de nhu Drawer.tsx. */
+  return createPortal(
     <div
       ref={ref}
       role="dialog"
       aria-modal="false"
       aria-label={title}
-      className="tr-popover-shadow tr-anim-pop fixed z-[70] overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
+      /* Popover co the chua mot Combobox, ma Combobox lai portal popover con ra
+         body. Chan mousedown noi bo noi bot len document de popover cha khong
+         dong va unmount lua chon con truoc khi su kien click kip chay. */
+      onMouseDown={(event) => event.stopPropagation()}
+      className="tr-popover tr-popover-shadow tr-anim-pop fixed z-[70] overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
       style={{ top: pos.top, left: pos.left, width: Math.min(width, window.innerWidth - 16) }}
     >
       <div className="relative flex h-10 items-center justify-center border-b border-tr-border px-9">
@@ -84,7 +91,8 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
       <div className="tr-scroll overflow-y-auto p-3" style={{ maxHeight }}>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -104,7 +112,7 @@ export function PopoverItem({
     <button
       type="button"
       onClick={onClick}
-      className={`-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary sm:py-1.5 ${
+      className={`tr-popover-item -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary sm:py-1.5 ${
         danger ? 'text-tr-danger' : 'text-tr-text'
       }`}
     >

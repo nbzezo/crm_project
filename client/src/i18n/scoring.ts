@@ -146,7 +146,7 @@ export const QUADRANT_LABELS: Record<Quadrant, string> = {
   pursue: 'Theo đuổi',
   reshape: 'Tái định hình',
   nurture: 'Nuôi dưỡng',
-  disqualify: 'Loại bỏ',
+  disqualify: 'Chưa đủ điều kiện',
 };
 
 /** Quy ước màu thống nhất toàn hệ thống (Mục 5 của spec). */

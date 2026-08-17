@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
   Activity,
   Bell,
@@ -84,7 +84,20 @@ interface UsageData {
 }
 
 export default function AiWorkspacePage() {
-  const [tab, setTab] = useState<Tab>('assistant');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const tab: Tab =
+    requestedTab === 'operations' || requestedTab === 'usage' ? requestedTab : 'assistant';
+  const setTab = (next: Tab) => {
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        params.set('tab', next);
+        return params;
+      },
+      { replace: true }
+    );
+  };
   return (
     <PageShell width="content">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -324,6 +337,7 @@ function OperationsTab() {
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['ai-automations'] });
       void queryClient.invalidateQueries({ queryKey: ['ai-notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
       pushToast(`Đã quét ${result.found} mục, tạo ${result.created} cảnh báo mới`, 'success');
     },
   });

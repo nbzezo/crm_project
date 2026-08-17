@@ -105,11 +105,11 @@ export default function DashboardPage() {
         className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-5"
       >
         <DashboardHeader refreshing onRefresh={() => void refetch()} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-12">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-12">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton
               key={index}
-              className={`rounded-panel ${index === 0 ? 'h-40 sm:col-span-2 md:col-span-8 md:row-span-2' : 'h-[76px] md:col-span-4'}`}
+              className={`rounded-panel ${index === 0 ? 'col-span-2 h-40 md:col-span-8 md:row-span-2' : 'h-[76px] md:col-span-4'}`}
             />
           ))}
         </div>
@@ -123,6 +123,18 @@ export default function DashboardPage() {
     );
 
   const recommendations = buildRecommendedActions(data);
+  const prioritizedReminderIds = new Set(
+    recommendations
+      .map((item) => /^reminder-(\d+)$/.exec(item.id)?.[1])
+      .filter((id): id is string => Boolean(id))
+      .map(Number)
+  );
+  const prioritizedDealIds = new Set(
+    recommendations
+      .map((item) => /^deal-(\d+)$/.exec(item.id)?.[1])
+      .filter((id): id is string => Boolean(id))
+      .map(Number)
+  );
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
@@ -142,7 +154,11 @@ export default function DashboardPage() {
           />
         </div>
         <div className="min-w-0 lg:col-span-5">
-          <ReminderWidget reminders={data.upcoming_reminders} onOpenTask={openCard} />
+          <ReminderWidget
+            reminders={data.upcoming_reminders}
+            onOpenTask={openCard}
+            excludedIds={prioritizedReminderIds}
+          />
         </div>
 
         {/* Đặt ngay dưới việc cần làm: biết việc gì đến hạn rồi thì câu hỏi kế tiếp
@@ -165,7 +181,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <AttentionWidget data={data} />
+      <AttentionWidget data={data} excludedDealIds={prioritizedDealIds} />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-7">

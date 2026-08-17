@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import { Popover, PopoverItem } from './Popover';
 import { focusRing } from './ui';
 import { normalizeSearchText } from '../../lib/text';
@@ -9,7 +9,6 @@ export interface ComboboxOption {
   label: string;
   sublabel?: string;
 }
-
 
 /**
  * O chon co tim kiem, thay cho `<select>` khi danh sach dai hoac kho tim bang mat.
@@ -30,6 +29,8 @@ export function Combobox({
   triggerClassName,
   allowClear = true,
   disabled = false,
+  onQuickCreate,
+  quickCreateLabel,
 }: {
   value: number | '';
   onChange: (value: number | '') => void;
@@ -43,9 +44,14 @@ export function Combobox({
   /** Tat khi truong bat buoc co gia tri — an dong "bo chon" dau danh sach. */
   allowClear?: boolean;
   disabled?: boolean;
+  /** Khi co, cho phep tao nhanh mot ban ghi moi tu chinh o tim kiem — khong roi khoi form. */
+  onQuickCreate?: (query: string) => Promise<ComboboxOption>;
+  quickCreateLabel?: (query: string) => string;
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const open = anchor !== null;
 
@@ -55,18 +61,36 @@ export function Combobox({
     const q = normalizeSearchText(query.trim());
     if (!q) return options;
     return options.filter(
-      (o) => normalizeSearchText(o.label).includes(q) || (o.sublabel && normalizeSearchText(o.sublabel).includes(q))
+      (o) =>
+        normalizeSearchText(o.label).includes(q) ||
+        (o.sublabel && normalizeSearchText(o.sublabel).includes(q))
     );
   }, [options, query]);
 
   const close = () => {
     setAnchor(null);
     setQuery('');
+    setCreateError(null);
   };
 
   const select = (id: number | '') => {
     onChange(id);
     close();
+  };
+
+  const handleQuickCreate = async () => {
+    const trimmed = query.trim();
+    if (!onQuickCreate || !trimmed || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const created = await onQuickCreate(trimmed);
+      select(created.id);
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Không tạo được.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -90,7 +114,13 @@ export function Combobox({
         <ChevronDown size={14} className="shrink-0 text-tr-muted" />
       </button>
 
-      <Popover open={open} anchor={anchor} onClose={close} title={ariaLabel ?? placeholder} width={288}>
+      <Popover
+        open={open}
+        anchor={anchor}
+        onClose={close}
+        title={ariaLabel ?? placeholder}
+        width={288}
+      >
         <div className="sticky -top-3 z-10 -mx-3 -mt-3 bg-tr-panel px-3 pb-2 pt-3">
           <div className="relative">
             <Search
@@ -100,7 +130,10 @@ export function Combobox({
             <input
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setCreateError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && filtered.length > 0) select(filtered[0].id);
               }}
@@ -114,16 +147,30 @@ export function Combobox({
           {allowClear && (
             <PopoverItem
               onClick={() => select('')}
-              icon={value === '' ? <Check size={14} className="shrink-0 text-tr-primary" /> : <span className="w-3.5 shrink-0" />}
+              icon={
+                value === '' ? (
+                  <Check size={14} className="shrink-0 text-tr-primary" />
+                ) : (
+                  <span className="w-3.5 shrink-0" />
+                )
+              }
             >
-              <span className={value === '' ? 'text-tr-primary' : 'text-tr-muted'}>{placeholder}</span>
+              <span className={value === '' ? 'text-tr-primary' : 'text-tr-muted'}>
+                {placeholder}
+              </span>
             </PopoverItem>
           )}
           {filtered.map((o) => (
             <PopoverItem
               key={o.id}
               onClick={() => select(o.id)}
-              icon={o.id === value ? <Check size={14} className="shrink-0 text-tr-primary" /> : <span className="w-3.5 shrink-0" />}
+              icon={
+                o.id === value ? (
+                  <Check size={14} className="shrink-0 text-tr-primary" />
+                ) : (
+                  <span className="w-3.5 shrink-0" />
+                )
+              }
             >
               <span className="truncate">
                 {o.label}
@@ -131,9 +178,23 @@ export function Combobox({
               </span>
             </PopoverItem>
           ))}
-          {filtered.length === 0 && (
+          {onQuickCreate && query.trim() && (
+            <button
+              type="button"
+              onClick={handleQuickCreate}
+              disabled={creating}
+              className="flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm text-tr-primary transition hover:bg-tr-hover disabled:opacity-60"
+            >
+              <Plus size={14} className="shrink-0" />
+              {creating
+                ? 'Đang tạo…'
+                : (quickCreateLabel?.(query.trim()) ?? `Tạo mới "${query.trim()}"`)}
+            </button>
+          )}
+          {filtered.length === 0 && !(onQuickCreate && query.trim()) && (
             <p className="px-1 py-3 text-center text-xs text-tr-muted">{emptyText}</p>
           )}
+          {createError && <p className="px-2 pb-1 text-xs text-tr-danger">{createError}</p>}
         </div>
       </Popover>
     </>

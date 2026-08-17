@@ -1,8 +1,16 @@
 import { create } from 'zustand';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'neo-tactile' | 'neat-slate' | 'cream-teal' | 'system';
 
 const STORAGE_KEY = 'workflow-theme';
+const THEME_MODES: readonly ThemeMode[] = [
+  'light',
+  'dark',
+  'neo-tactile',
+  'neat-slate',
+  'cream-teal',
+  'system',
+];
 
 function systemPrefersDark(): boolean {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
@@ -10,13 +18,13 @@ function systemPrefersDark(): boolean {
 
 /** Gan thuoc tinh data-theme len <html> de bo token CSS doi theo. */
 export function applyTheme(mode: ThemeMode): void {
-  const dark = mode === 'dark' || (mode === 'system' && systemPrefersDark());
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const resolved = mode === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : mode;
+  document.documentElement.setAttribute('data-theme', resolved);
 }
 
 function initialMode(): ThemeMode {
-  const saved = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-  return saved ?? 'dark';
+  const saved = localStorage.getItem(STORAGE_KEY);
+  return THEME_MODES.includes(saved as ThemeMode) ? (saved as ThemeMode) : 'dark';
 }
 
 interface ThemeState {

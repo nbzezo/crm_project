@@ -33,7 +33,7 @@ export function Toasts() {
         <div
           key={toast.id}
           role={toast.kind === 'error' ? 'alert' : 'status'}
-          className={`tr-anim-toast pointer-events-auto flex items-start gap-2 rounded-panel px-3 py-2.5 text-sm shadow-lg ${
+          className={`tr-toast tr-anim-toast pointer-events-auto flex items-start gap-2 rounded-panel px-3 py-2.5 text-sm shadow-lg ${
             toast.kind === 'error'
               ? 'bg-tr-danger text-tr-on-danger'
               : 'bg-tr-success text-tr-on-success'

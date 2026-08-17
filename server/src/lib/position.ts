@@ -9,7 +9,8 @@ export type PositionScope =
   | { table: 'lists'; scopeCol: 'board_id'; scopeVal: number }
   | { table: 'cards'; scopeCol: 'list_id'; scopeVal: number }
   | { table: 'deals'; scopeCol: 'stage'; scopeVal: string }
-  | { table: 'checklist_items'; scopeCol: 'card_id'; scopeVal: number };
+  | { table: 'checklist_items'; scopeCol: 'card_id'; scopeVal: number }
+  | { table: 'deal_handover_items'; scopeCol: 'deal_id'; scopeVal: number };
 
 /** Vi tri cho item them vao cuoi danh sach. */
 export function nextPosition(scope: PositionScope): number {

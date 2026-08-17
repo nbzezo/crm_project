@@ -62,6 +62,21 @@ test('health check kiem tra ca ung dung va database', async () => {
   assert.equal(missing.status, 404);
 });
 
+test('xoa nguon thong bao cung don state, khong ro ri sang id tai su dung', () => {
+  const reminderId = Number(
+    db
+      .prepare(`INSERT INTO reminders (title, due_at) VALUES (?, ?)`)
+      .run('Nguon se xoa', '2026-08-18T09:00').lastInsertRowid
+  );
+  const key = `reminder-${reminderId}`;
+  db.prepare(`INSERT INTO notification_states (notification_key, is_read) VALUES (?, 1)`).run(key);
+  db.prepare(`DELETE FROM reminders WHERE id = ?`).run(reminderId);
+  const state = db
+    .prepare(`SELECT notification_key FROM notification_states WHERE notification_key = ?`)
+    .get(key);
+  assert.equal(state, undefined);
+});
+
 test('API chan lien ket contact/deal/contract khac khach hang', async () => {
   const customerA = await createCustomer('Khach hang A');
   const customerB = await createCustomer('Khach hang B');
@@ -102,6 +117,152 @@ test('API chan lien ket contact/deal/contract khac khach hang', async () => {
     board_id: 999_999,
   });
   assert.equal(invalidField.status, 404);
+});
+
+test('CRM va du an giu cung mot khach hang tren moi duong ghi', async () => {
+  const customerA = await createCustomer('Khach hang invariant A');
+  const customerB = await createCustomer('Khach hang invariant B');
+  const project = await json('POST', '/api/projects', {
+    name: 'Du an invariant A',
+    customer_id: customerA,
+  });
+  const projectId = Number(project.data.id);
+
+  const board = await json('POST', '/api/boards', {
+    name: 'Bang tu dong ke thua khach hang',
+    project_id: projectId,
+  });
+  assert.equal(board.status, 201);
+  assert.equal(board.data.customer_id, customerA);
+
+  const wrongBoard = await json('POST', '/api/boards', {
+    name: 'Bang sai khach hang',
+    project_id: projectId,
+    customer_id: customerB,
+  });
+  assert.equal(wrongBoard.status, 422);
+  assert.equal(wrongBoard.data.code, 'CROSS_CUSTOMER_LINK');
+
+  const wrongContract = await json('POST', '/api/contracts', {
+    customer_id: customerB,
+    project_id: projectId,
+    name: 'Hop dong sai khach hang',
+  });
+  assert.equal(wrongContract.status, 422);
+
+  const lists = (await json('GET', `/api/boards/${Number(board.data.id)}/full`)).data.lists as {
+    id: number;
+  }[];
+  const wrongTask = await json('POST', '/api/cards', {
+    list_id: lists[0].id,
+    customer_id: customerB,
+    title: 'Viec sai khach hang',
+  });
+  assert.equal(wrongTask.status, 422);
+
+  const deal = await json('POST', '/api/deals', {
+    customer_id: customerA,
+    project_id: projectId,
+    title: 'Co hoi khoa khach hang du an',
+  });
+  assert.equal(deal.status, 201);
+  const changeProjectCustomer = await json('PATCH', `/api/projects/${projectId}`, {
+    customer_id: customerB,
+  });
+  assert.equal(changeProjectCustomer.status, 422);
+  assert.equal(changeProjectCustomer.data.code, 'PROJECT_CUSTOMER_CONFLICT');
+});
+
+test('chuan hoa MST va tach to chuc ngoai CRM', async () => {
+  const normalized = await json('POST', '/api/customers', {
+    name: 'Khach hang MST chuan',
+    tax_code: ' 0101234567 ',
+    email: ' SALES@EXAMPLE.COM ',
+  });
+  assert.equal(normalized.status, 201);
+  assert.equal(normalized.data.tax_code, '0101234567');
+  assert.equal(normalized.data.email, 'sales@example.com');
+
+  const duplicate = await json('POST', '/api/customers', {
+    name: 'Khach hang MST trung',
+    tax_code: '0101234567',
+  });
+  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.data.code, 'DUPLICATE_TAX_CODE');
+
+  const partner = await json('POST', '/api/customers', {
+    name: 'Doi tac khong nam trong CRM',
+    org_kind: 'partner',
+    status: 'prospect',
+  });
+  assert.equal(partner.data.status, 'inactive');
+  const invalidDeal = await json('POST', '/api/deals', {
+    customer_id: Number(partner.data.id),
+    title: 'Co hoi cua doi tac',
+  });
+  assert.equal(invalidDeal.status, 422);
+  assert.equal(invalidDeal.data.code, 'ORG_NOT_CRM_CUSTOMER');
+
+  const account = await createCustomer('Tai khoan khong duoc doi loai');
+  assert.equal(
+    (await json('POST', '/api/deals', { customer_id: account, title: 'Co hoi dang mo' })).status,
+    201
+  );
+  const blockedChange = await json('PATCH', `/api/customers/${account}`, {
+    org_kind: 'vendor',
+  });
+  assert.equal(blockedChange.status, 409);
+  assert.equal(blockedChange.data.code, 'ORG_KIND_HAS_CRM_DATA');
+});
+
+test('ngay du an va cong hoan thanh chan trang thai khong trung thuc', async () => {
+  const invalidDates = await json('POST', '/api/projects', {
+    name: 'Du an ngay sai',
+    plan_start: '2026-08-20',
+    plan_end: '2026-08-10',
+  });
+  assert.equal(invalidDates.status, 422);
+  assert.equal(invalidDates.data.code, 'INVALID_DATE_RANGE');
+
+  const contractCustomer = await createCustomer('Khach hang hop dong ngay sai');
+  const invalidContractDates = await json('POST', '/api/contracts', {
+    customer_id: contractCustomer,
+    name: 'Hop dong ngay sai',
+    start_date: '2026-08-20',
+    end_date: '2026-08-10',
+  });
+  assert.equal(invalidContractDates.status, 422);
+  assert.equal(invalidContractDates.data.code, 'INVALID_DATE_RANGE');
+
+  const project = await json('POST', '/api/projects', { name: 'Du an cong hoan thanh' });
+  const projectId = Number(project.data.id);
+  const board = await json('POST', '/api/boards', {
+    name: 'Bang cong hoan thanh',
+    project_id: projectId,
+  });
+  const lists = (await json('GET', `/api/boards/${Number(board.data.id)}/full`)).data.lists as {
+    id: number;
+  }[];
+  const task = await json('POST', '/api/cards', {
+    list_id: lists[0].id,
+    title: 'Viec chua xong',
+  });
+  const blocked = await json('PATCH', `/api/projects/${projectId}`, {
+    status: 'done',
+    actual_end: '2026-08-18',
+    accepted_at: '2026-08-18',
+  });
+  assert.equal(blocked.status, 422);
+  assert.equal(blocked.data.code, 'PROJECT_COMPLETION_BLOCKED');
+
+  await json('PATCH', `/api/cards/${Number(task.data.id)}`, { status: 'done' });
+  const completed = await json('PATCH', `/api/projects/${projectId}`, {
+    status: 'done',
+    actual_end: '2026-08-18',
+    accepted_at: '2026-08-18',
+  });
+  assert.equal(completed.status, 200);
+  assert.equal(completed.data.status, 'done');
 });
 
 test('reorder chi chap nhan hang xom trong dung scope va rollback khi loi', async () => {
@@ -464,7 +625,7 @@ test('du an gom bang va cong viec, suc khoe tinh khi doc', async () => {
   });
   assert.equal(project.status, 201);
   const projectId = Number(project.data.id);
-  assert.equal(project.data.health, 'green');
+  assert.equal(project.data.health, 'unknown');
   assert.equal(project.data.progress_pct, 0);
 
   const board = await json('POST', '/api/boards', {
@@ -510,7 +671,11 @@ test('du an gom bang va cong viec, suc khoe tinh khi doc', async () => {
     assignee_contact_id: Number(person.data.id),
   });
   const withPeople = await json('GET', `/api/projects/${projectId}`);
-  assert.equal((withPeople.data.people as unknown[]).length, 1);
+  assert.ok(
+    (withPeople.data.people as { full_name: string }[]).some(
+      (entry) => entry.full_name === 'Ky su A'
+    )
+  );
 
   /* Gan mot bang DA CO cong viec vao du an phai keo theo ca cong viec cu — neu
      khong, bao cao du an se bo qua toan bo phan lam truoc khi gan. */
@@ -634,6 +799,21 @@ test('cot Kanban va trang thai dong bo hai chieu, khong lap vo han', async () =>
   const cardId = Number(card.data.id);
   assert.equal(card.data.status, 'todo');
 
+  // Tao THANG vao cot da anh xa cung phai dung ngay, khong cho den lan keo dau tien.
+  const started = await json('POST', '/api/cards', {
+    list_id: doingList,
+    title: 'Viec tao o dang lam',
+  });
+  assert.equal(started.data.status, 'doing');
+  assert.equal(started.data.is_done, 0);
+  const completed = await json('POST', '/api/cards', {
+    list_id: doneList,
+    title: 'Viec tao o hoan thanh',
+  });
+  assert.equal(completed.data.status, 'done');
+  assert.equal(completed.data.is_done, 1);
+  assert.ok(completed.data.completed_at);
+
   // Chieu 1: keo the sang cot -> trang thai doi theo (va `is_done` di kem).
   const moved = await json('PATCH', `/api/cards/${cardId}/move`, { list_id: doneList });
   assert.equal(moved.status, 200);
@@ -709,6 +889,39 @@ test('du an suy tu bang, khong con cot rieng tren the', async () => {
   await json('PATCH', `/api/boards/${Number(boardOut.data.id)}`, { project_id: projectId });
   assert.equal((await json('GET', `/api/cards/${cardId}`)).data.project_id, projectId);
   assert.equal((await json('GET', `/api/projects/${projectId}`)).data.task_total, 1);
+
+  /* Picker tren drawer gui project_id nhu mot lenh chuyen ngu canh. API phai
+     chuyen sang bang cua du an dich, nhung project_id van KHONG duoc luu tren card. */
+  const targetProject = await json('POST', '/api/projects', { name: 'Du an dich cua picker' });
+  const targetProjectId = Number(targetProject.data.id);
+  const targetBoard = await json('POST', '/api/boards', {
+    name: 'Bang dich cua picker',
+    project_id: targetProjectId,
+  });
+  await json('PATCH', `/api/cards/${cardId}`, { status: 'doing' });
+  const switched = await json('PATCH', `/api/cards/${cardId}`, {
+    project_id: targetProjectId,
+  });
+  assert.equal(switched.status, 200);
+  assert.equal(switched.data.project_id, targetProjectId);
+  assert.equal(switched.data.status, 'doing', 'doi du an phai uu tien cot cung trang thai');
+  const switchedList = db
+    .prepare(`SELECT board_id, status_mapping FROM lists WHERE id = ?`)
+    .get(Number(switched.data.list_id)) as { board_id: number; status_mapping: string | null };
+  assert.equal(switchedList.board_id, Number(targetBoard.data.id));
+  assert.equal(switchedList.status_mapping, 'doing');
+
+  const emptyProject = await json('POST', '/api/projects', { name: 'Du an chua co bang' });
+  const noBoard = await json('PATCH', `/api/cards/${cardId}`, {
+    project_id: Number(emptyProject.data.id),
+  });
+  assert.equal(noBoard.status, 422);
+  assert.equal(noBoard.data.code, 'PROJECT_HAS_NO_BOARD');
+  assert.equal((await json('GET', `/api/cards/${cardId}`)).data.project_id, targetProjectId);
+
+  const switchedBack = await json('PATCH', `/api/cards/${cardId}`, { project_id: projectId });
+  assert.equal(switchedBack.status, 200);
+  assert.equal(switchedBack.data.project_id, projectId);
 
   /* Tao viec tu trang du an: `project_id` chi dan huong chon bang, va bang duoc
      chon phai THUOC du an do — day la lo hong nang nhat truoc v19. */
@@ -1059,4 +1272,118 @@ test('automation AI chi tao canh bao va khong tu y sua CRM', async () => {
     next_action: string;
   };
   assert.equal(unchanged.next_action, 'Goi lai khach hang');
+});
+
+test('trung tam thong bao hop nhat nguon va ho tro doc, snooze, hoan tac', async () => {
+  const date = db
+    .prepare(
+      `SELECT strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+1 hour')) AS reminder_due,
+              date('now','localtime') AS task_due,
+              strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+1 day')) AS snooze_until`
+    )
+    .get() as { reminder_due: string; task_due: string; snooze_until: string };
+  const reminder = await json('POST', '/api/reminders', {
+    title: 'Nhắc hẹn notification center',
+    note: 'Nội dung kiểm thử action center',
+    due_at: date.reminder_due,
+  });
+  assert.equal(reminder.status, 201);
+  const reminderId = Number(reminder.data.id);
+  const reminderKey = `reminder-${reminderId}`;
+
+  const firstFeed = await json('GET', '/api/notifications');
+  assert.equal(firstFeed.status, 200);
+  const firstItems = firstFeed.data.items as unknown as {
+    key: string;
+    kind: string;
+    is_read: boolean;
+    link: string | null;
+  }[];
+  const reminderItem = firstItems.find((item) => item.key === reminderKey);
+  assert.equal(reminderItem?.kind, 'reminder');
+  assert.equal(reminderItem?.is_read, false);
+  assert.match(reminderItem?.link ?? '', /\/calendar\?.*focus=reminder-/);
+
+  const read = await json('PATCH', `/api/notifications/${reminderKey}/state`, {
+    is_read: true,
+  });
+  assert.equal(read.status, 200);
+  const readFeed = await json('GET', '/api/notifications');
+  assert.equal(
+    (readFeed.data.items as unknown as { key: string; is_read: boolean }[]).find(
+      (item) => item.key === reminderKey
+    )?.is_read,
+    true
+  );
+
+  const snoozed = await json('PATCH', `/api/notifications/${reminderKey}/state`, {
+    is_read: false,
+    snoozed_until: date.snooze_until,
+  });
+  assert.equal(snoozed.status, 200);
+  const hiddenFeed = await json('GET', '/api/notifications');
+  assert.equal(
+    (hiddenFeed.data.items as unknown as { key: string }[]).some(
+      (item) => item.key === reminderKey
+    ),
+    false
+  );
+  const unsnoozed = await json('PATCH', `/api/notifications/${reminderKey}/state`, {
+    snoozed_until: null,
+  });
+  assert.equal(unsnoozed.status, 200);
+
+  const completedReminder = await json('POST', `/api/notifications/${reminderKey}/complete`, {
+    done: true,
+  });
+  assert.equal(completedReminder.status, 200);
+  assert.equal(
+    (
+      db.prepare(`SELECT is_done FROM reminders WHERE id = ?`).get(reminderId) as {
+        is_done: number;
+      }
+    ).is_done,
+    1
+  );
+  const restoredReminder = await json('POST', `/api/notifications/${reminderKey}/complete`, {
+    done: false,
+  });
+  assert.equal(restoredReminder.status, 200);
+
+  const list = db.prepare(`SELECT id FROM lists ORDER BY id LIMIT 1`).get() as { id: number };
+  const task = await json('POST', '/api/cards', {
+    list_id: list.id,
+    title: 'Task notification center',
+    due_date: date.task_due,
+    priority: 'high',
+  });
+  assert.equal(task.status, 201);
+  const taskId = Number(task.data.id);
+  const taskKey = `task-${taskId}`;
+  const taskFeed = await json('GET', '/api/notifications');
+  assert.ok(
+    (taskFeed.data.items as unknown as { key: string }[]).some((item) => item.key === taskKey)
+  );
+
+  const completedTask = await json('POST', `/api/notifications/${taskKey}/complete`, {
+    done: true,
+  });
+  assert.equal(completedTask.status, 200);
+  assert.equal(completedTask.data.previous_status, 'todo');
+  const doneRow = db.prepare(`SELECT status, is_done FROM cards WHERE id = ?`).get(taskId) as {
+    status: string;
+    is_done: number;
+  };
+  assert.deepEqual(doneRow, { status: 'done', is_done: 1 });
+
+  const restoredTask = await json('POST', `/api/notifications/${taskKey}/complete`, {
+    done: false,
+    restore_status: completedTask.data.previous_status,
+  });
+  assert.equal(restoredTask.status, 200);
+  const restoredRow = db.prepare(`SELECT status, is_done FROM cards WHERE id = ?`).get(taskId) as {
+    status: string;
+    is_done: number;
+  };
+  assert.deepEqual(restoredRow, { status: 'todo', is_done: 0 });
 });

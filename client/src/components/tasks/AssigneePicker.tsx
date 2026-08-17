@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { Combobox } from '../common/Combobox';
+import { Combobox, type ComboboxOption } from '../common/Combobox';
 import { Field, focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
-import type { Assignee, OrgKind } from '../../types';
+import type { Assignee, Contact, OrgKind } from '../../types';
 
 /** Màu chip theo tổ chức: nhìn thẻ là biết việc đang nằm ở bên mình hay bên khách. */
 const ORG_TONE: Record<OrgKind, string> = {
@@ -25,6 +25,28 @@ export function useAssignees() {
     queryFn: () => api.get<Assignee[]>('/api/contacts/assignable'),
     staleTime: 5 * 60_000,
   });
+}
+
+/**
+ * Tao nhanh mot lien he noi bo tu o chon nguoi phu trach.
+ *
+ * Khong co API tao lien he doc lap — moi lien he phai thuoc mot khach hang.
+ * O day suy ra "cong ty cua toi" tu chinh lien he `is_me` da co (khong the
+ * doan bua ID), nen tra ve undefined neu chua co ai duoc danh dau `is_me`.
+ */
+function useQuickCreateAssignee(
+  assignees: Assignee[]
+): ((fullName: string) => Promise<ComboboxOption>) | undefined {
+  const queryClient = useQueryClient();
+  const ownOrgId = assignees.find((a) => a.is_me)?.org_id;
+  if (ownOrgId == null) return undefined;
+  return async (fullName) => {
+    const created = await api.post<Contact>(`/api/customers/${ownOrgId}/contacts`, {
+      full_name: fullName,
+    });
+    queryClient.invalidateQueries({ queryKey: ['assignees'] });
+    return { id: created.id, label: created.full_name };
+  };
 }
 
 /** Hai chữ cái đầu — họ tên tiếng Việt lấy chữ đầu của từ đầu và từ cuối. */
@@ -55,6 +77,7 @@ export function AssigneePicker({
   hint?: string;
 }) {
   const { data: assignees = [] } = useAssignees();
+  const onQuickCreate = useQuickCreateAssignee(assignees);
 
   return (
     <Field label={label} hint={hint}>
@@ -70,6 +93,8 @@ export function AssigneePicker({
         searchPlaceholder="Tìm người phụ trách…"
         emptyText="Không tìm thấy ai phù hợp."
         ariaLabel={label}
+        onQuickCreate={onQuickCreate}
+        quickCreateLabel={(q) => `+ Tạo người mới "${q}"`}
       />
     </Field>
   );
@@ -89,6 +114,7 @@ export function AssigneeSelect({
   taskTitle: string;
 }) {
   const { data: assignees = [] } = useAssignees();
+  const onQuickCreate = useQuickCreateAssignee(assignees);
 
   return (
     <Combobox
@@ -104,6 +130,8 @@ export function AssigneeSelect({
       emptyText="Không tìm thấy ai phù hợp."
       ariaLabel={`${t.card.assignee}: ${taskTitle}`}
       triggerClassName={`flex max-w-36 items-center justify-between gap-1 rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle outline-none transition hover:border-tr-border hover:bg-tr-panel focus:border-tr-primary ${focusRing}`}
+      onQuickCreate={onQuickCreate}
+      quickCreateLabel={(q) => `+ Tạo người mới "${q}"`}
     />
   );
 }

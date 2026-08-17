@@ -12,9 +12,11 @@ import {
   Select,
   Textarea,
 } from '../common/ui';
+import { Combobox } from '../common/Combobox';
 import { CustomerDealFields } from './CustomerDealFields';
 import { CONTRACT_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
+import { useProjectOptions } from '../../lib/useCrmOptions';
 import type { Contract } from '../../types';
 
 const EMPTY = {
@@ -43,13 +45,17 @@ export function ContractForm({
   const queryClient = useQueryClient();
   const [customerId, setCustomerId] = useState('');
   const [dealId, setDealId] = useState('');
+  /** v27: dự án mà hợp đồng này tài trợ — nguồn của "Giá trị hợp đồng đã ký". */
+  const [projectId, setProjectId] = useState('');
   const [form, setForm] = useState(EMPTY);
   const [submitted, setSubmitted] = useState(false);
+  const { data: projects = [] } = useProjectOptions(open);
 
   useEffect(() => {
     if (!open) return;
     setCustomerId(String(contract?.customer_id ?? defaultCustomerId ?? ''));
     setDealId(String(contract?.deal_id ?? ''));
+    setProjectId(contract?.project_id ? String(contract.project_id) : '');
     setForm(
       contract
         ? {
@@ -75,6 +81,7 @@ export function ContractForm({
         ...form,
         customer_id: Number(customerId),
         deal_id: dealId === '' ? null : Number(dealId),
+        project_id: projectId === '' ? null : Number(projectId),
       };
       return contract
         ? api.patch(`/api/contracts/${contract.id}`, payload)
@@ -83,6 +90,9 @@ export function ContractForm({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       invalidateCrmViews(queryClient, Number(customerId));
+      // Giá trị hợp đồng và ngưỡng phân loại A/B của dự án đều đọc từ đây.
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
       onClose();
     },
   });
@@ -162,6 +172,28 @@ export function ContractForm({
               value={form.payment_terms}
               onChange={(e) => set('payment_terms', e.target.value)}
               placeholder="50% tạm ứng, 50% khi nghiệm thu…"
+            />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field
+            label="Dự án triển khai"
+            hint="Gắn để giá trị hợp đồng được tính vào dự án — cũng là một tiêu chí phân loại quy mô."
+          >
+            <Combobox
+              value={projectId === '' ? '' : Number(projectId)}
+              onChange={(v) => setProjectId(v === '' ? '' : String(v))}
+              options={projects.map((p) => ({
+                id: p.id,
+                label: p.name,
+                sublabel:
+                  [p.code, p.customer_name].filter(Boolean).join(' · ') ||
+                  t.projectStatus[p.status],
+              }))}
+              placeholder={`— ${t.common.none} —`}
+              searchPlaceholder="Tìm dự án…"
+              emptyText="Không tìm thấy dự án."
+              ariaLabel="Dự án triển khai"
             />
           </Field>
         </div>

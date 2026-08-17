@@ -12,7 +12,7 @@ export function Topbar() {
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-1 border-b border-tr-border/70 bg-transparent px-2.5 sm:gap-2 sm:px-5">
+    <header className="tr-topbar flex h-14 shrink-0 items-center gap-1 border-b border-tr-border/70 bg-transparent px-2.5 sm:gap-2 sm:px-5">
       <button
         type="button"
         onClick={() => setNavOpen(true)}

@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Check, Download, Plus, Settings2 } from 'lucide-react';
+import { Check, Download, Info, Plus, Settings2 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { RevenueLineForm } from '../components/crm/RevenueLineForm';
 import { MonthlyRevenueModal } from '../components/crm/MonthlyRevenueModal';
@@ -19,17 +19,18 @@ import { ServiceCatalog } from '../components/crm/ServiceCatalog';
 import { RevenueLineActions } from '../components/crm/RevenueLineActions';
 import { RevenueFunnelCards } from '../components/crm/RevenueFunnelCards';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import { PageShell } from '../components/common/PageShell';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
 import {
   Button,
-  ColorBadge,
   EmptyState,
   Input,
   Panel,
+  Segmented,
   Select,
   SkeletonRows,
   TableHead,
+  focusRing,
 } from '../components/common/ui';
 import {
   CHART_INK,
@@ -63,6 +64,11 @@ const AXIS_PROPS = {
   tickLine: false,
 };
 
+const CHART_VIEW_OPTIONS = [
+  { value: 'monthly' as const, label: 'Theo tháng' },
+  { value: 'cumulative' as const, label: 'Lũy kế' },
+];
+
 export default function RevenuePage() {
   const queryClient = useQueryClient();
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -70,6 +76,7 @@ export default function RevenuePage() {
   const [status, setStatus] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [am, setAm] = useState('');
+  const [chartView, setChartView] = useState<'monthly' | 'cumulative'>('monthly');
   const [lineForm, setLineForm] = useState<{ open: boolean; line?: RevenueLine | null }>({
     open: false,
   });
@@ -82,6 +89,14 @@ export default function RevenuePage() {
 
   const filters = { q: term, status, service_id: serviceId, am };
   const listKey = ['revenues', 'lines', year, filters] as const;
+  const hasActiveFilters = Boolean(term || status || serviceId || am);
+
+  const clearFilters = () => {
+    setTerm('');
+    setStatus('');
+    setServiceId('');
+    setAm('');
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: listKey,
@@ -185,15 +200,53 @@ export default function RevenuePage() {
     };
   });
 
+  /** Cùng dữ liệu tháng, cộng dồn dần — không cần API riêng. */
+  const cumulativeChartData = (() => {
+    const running = { forecast: 0, reconciled: 0, invoiced: 0, paid: 0 };
+    return chartData.map((row) => {
+      running.forecast += row.forecast;
+      running.reconciled += row.reconciled;
+      running.invoiced += row.invoiced;
+      running.paid += row.paid;
+      return { name: row.name, ...running };
+    });
+  })();
+
   const total = funnel(summary?.totals);
   const yearOptions = years.includes(year) ? years : [year, ...years];
 
   return (
     <PageShell width="wide">
-      {/* Thanh điều khiển: năm, bộ lọc, thao tác */}
-      <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title={t.nav.revenue}
+        description={t.revenue.subtitle}
+        align="center"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="/api/export/revenues.csv"
+              className={`inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
+            >
+              <Download size={15} aria-hidden="true" /> Xuất CSV
+            </a>
+            <Button onClick={() => setCatalogOpen(true)}>
+              <Settings2 size={15} aria-hidden="true" /> {t.service.manage}
+            </Button>
+            <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
+              <Plus size={16} aria-hidden="true" /> {t.revenue.newLine}
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Thanh lọc: năm, tìm kiếm, bộ lọc nghiệp vụ */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-tr-border bg-tr-panel p-2.5">
         <div className="w-28">
-          <Select value={year} onChange={(e) => setYear(Number(e.target.value))}>
+          <Select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            aria-label={t.revenue.year}
+          >
             {yearOptions.map((y) => (
               <option key={y} value={y}>
                 Năm {y}
@@ -201,15 +254,20 @@ export default function RevenuePage() {
             ))}
           </Select>
         </div>
-        <div className="w-60">
+        <div className="min-w-[200px] flex-1 sm:max-w-xs">
           <Input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Tìm khách hàng (không cần dấu)…"
+            placeholder={t.revenue.searchPlaceholder}
+            aria-label={t.card.customer}
           />
         </div>
         <div className="w-44">
-          <Select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+          <Select
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+            aria-label={t.revenue.service}
+          >
             <option value="">Mọi dịch vụ</option>
             {services.map((s) => (
               <option key={s.id} value={s.id}>
@@ -219,7 +277,11 @@ export default function RevenuePage() {
           </Select>
         </div>
         <div className="w-40">
-          <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <Select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label={t.revenue.status}
+          >
             <option value="">{t.common.all}</option>
             {SERVICE_STATUS_ORDER.map((s) => (
               <option key={s} value={s}>
@@ -229,7 +291,7 @@ export default function RevenuePage() {
           </Select>
         </div>
         <div className="w-36">
-          <Select value={am} onChange={(e) => setAm(e.target.value)}>
+          <Select value={am} onChange={(e) => setAm(e.target.value)} aria-label={t.revenue.am}>
             <option value="">Mọi AM</option>
             {ams.map((a) => (
               <option key={a} value={a}>
@@ -238,36 +300,37 @@ export default function RevenuePage() {
             ))}
           </Select>
         </div>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button onClick={() => setCatalogOpen(true)}>
-            <Settings2 size={15} /> {t.service.manage}
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            {t.common.clearFilter}
           </Button>
-          <a
-            href="/api/export/revenues.csv"
-            className="inline-flex items-center gap-1.5 rounded-compact bg-tr-hover px-3 py-1.5 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong"
-          >
-            <Download size={15} /> Xuất CSV
-          </a>
-          <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
-            <Plus size={16} /> {t.revenue.newLine}
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
       <RevenueFunnelCards total={total} detailed lineCount={summary?.line_count ?? 0} year={year} />
 
-      <Panel title={`Doanh thu theo tháng — năm ${year} (cột chia theo trạng thái)`}>
-        <div className="h-64">
+      <Panel
+        title={`Doanh thu theo tháng — năm ${year}`}
+        action={
+          <Segmented
+            label="Chế độ xem biểu đồ"
+            value={chartView}
+            onChange={setChartView}
+            options={CHART_VIEW_OPTIONS}
+          />
+        }
+      >
+        <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+            <BarChart
+              data={chartView === 'monthly' ? chartData : cumulativeChartData}
+              margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
+            >
               <CartesianGrid stroke={CHART_INK.grid} vertical={false} />
               <XAxis dataKey="name" {...AXIS_PROPS} />
               <YAxis {...AXIS_PROPS} tickFormatter={(v: number) => formatVNDShort(v)} width={64} />
-              <Tooltip
-                formatter={(value: number, name: string) => [formatVND(value), name]}
-                contentStyle={{ fontSize: 12 }}
-              />
+              <Tooltip content={<RevenueChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               {REVENUE_STAGE_ORDER.map((stage) => (
                 <Bar
@@ -289,24 +352,35 @@ export default function RevenuePage() {
           <SkeletonRows rows={6} cols={6} />
         </div>
       ) : lines.length === 0 ? (
-        <EmptyState
-          message={t.revenue.noLines}
-          action={
-            <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
-              <Plus size={16} /> {t.revenue.newLine}
-            </Button>
-          }
-        />
+        hasActiveFilters ? (
+          <EmptyState
+            message={t.revenue.noResults}
+            action={
+              <Button variant="secondary" onClick={clearFilters}>
+                {t.common.clearFilter}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            message={t.revenue.noLines}
+            action={
+              <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
+                <Plus size={16} /> {t.revenue.newLine}
+              </Button>
+            }
+          />
+        )
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-tr-border px-4 py-2 text-xs text-tr-muted">
-            <span>
-              Gõ số tiền vào ô tháng; bấm chấm trạng thái trong ô để chuyển giai đoạn của chính
-              khoản đó.
+        <div className="overflow-hidden rounded-lg border border-tr-border bg-tr-panel shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-tr-border px-3 py-2 text-xs text-tr-muted">
+            <span className="inline-flex items-center gap-1.5" title={t.revenue.guideFlow}>
+              <Info size={12} className="shrink-0" aria-hidden="true" />
+              {t.revenue.guide}
             </span>
-            <span className="flex items-center gap-2">
+            <span className="flex flex-wrap items-center gap-3">
               {REVENUE_STAGE_ORDER.map((stage) => (
-                <span key={stage} className="flex items-center gap-1">
+                <span key={stage} className="flex items-center gap-1.5">
                   <span
                     className="inline-block h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
@@ -316,132 +390,144 @@ export default function RevenuePage() {
               ))}
             </span>
           </div>
-          <table className="w-full text-sm">
-            <TableHead>
-              <tr>
-                <th scope="col" className="sticky left-0 z-10 bg-tr-surface px-3 py-2.5">
-                  STT
-                </th>
-                <th scope="col" className="sticky left-12 z-10 min-w-56 bg-tr-surface px-3 py-2.5">
-                  {t.card.customer}
-                </th>
-                <th scope="col" className="px-3 py-2.5">
-                  {t.revenue.am}
-                </th>
-                <th scope="col" className="px-3 py-2.5">
-                  {t.revenue.contractKind}
-                </th>
-                <th scope="col" className="px-3 py-2.5">
-                  {t.revenue.contractTerm}
-                </th>
-                <th scope="col" className="px-3 py-2.5">
-                  {t.revenue.service}
-                </th>
-                <th scope="col" className="px-3 py-2.5">
-                  {t.revenue.status}
-                </th>
-                <th scope="col" className="px-3 py-2.5 text-right">
-                  {t.revenue.total}
-                </th>
-                {MONTHS.map((m) => (
-                  <th scope="col" key={m} className="px-2 py-2.5 text-right whitespace-nowrap">
-                    <button
-                      onClick={(e) => {
-                        setBulkMonth(m);
-                        bulkPopover.show(e);
-                      }}
-                      title={t.revenue.setStageForMonth}
-                      className="rounded px-1 py-0.5 uppercase transition hover:bg-tr-hover hover:text-tr-primary"
-                    >
-                      {t.revenue.month} {m}
-                    </button>
-                  </th>
-                ))}
-                <th scope="col" className="px-2 py-2.5"></th>
-              </tr>
-            </TableHead>
-            <tbody className="divide-y divide-tr-border">
-              {lines.map((line, index) => (
-                <tr key={line.id} className="group hover:bg-tr-hover">
-                  <td className="sticky left-0 z-10 bg-tr-panel px-3 py-1.5 text-tr-muted tabular-nums group-hover:bg-tr-hover">
-                    {index + 1}
-                  </td>
-                  <td className="sticky left-12 z-10 bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
-                    <Link
-                      to={`/customers/${line.customer_id}`}
-                      className="font-medium text-tr-text hover:text-tr-primary hover:underline"
-                    >
-                      {line.customer_name}
-                    </Link>
-                    {line.contract_name && (
-                      <div className="text-2xs text-tr-muted">{line.contract_name}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">{line.am || '—'}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                    {t.contractKind[line.contract_kind]}
-                  </td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                    {t.contractTerm[line.contract_term]}
-                  </td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-tr-text">
-                    {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <ColorBadge color={SERVICE_STATUS_COLORS[line.status]} small>
-                      {t.serviceStatus[line.status]}
-                    </ColorBadge>
-                  </td>
-                  <td
-                    className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
-                    title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
+          <div className="tr-scroll max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <TableHead className="sticky top-0 z-20 shadow-[0_1px_0_var(--tr-border)]">
+                <tr>
+                  <th
+                    scope="col"
+                    className="sticky top-0 left-0 z-30 min-w-12 bg-tr-surface px-3 py-2.5"
                   >
-                    {formatVNDInput(line.totals.amount_vnd) || '0'}
-                  </td>
-                  {MONTHS.map((m) => {
-                    const period = periodOf(year, m);
-                    const cell = line.months[period];
-                    return (
-                      <MonthCell
-                        key={m}
-                        cell={cell}
-                        onAmount={(amount_vnd) =>
-                          saveCell.mutate({ lineId: line.id, period, amount_vnd })
-                        }
-                        onStage={(stage) => saveCell.mutate({ lineId: line.id, period, stage })}
-                      />
-                    );
-                  })}
-                  <td className="px-2 py-1.5">
-                    <RevenueLineActions
-                      line={line}
-                      onMonths={setMonthsFor}
-                      onEdit={(next) => setLineForm({ open: true, line: next })}
-                      onDelete={(next) => setDeleteId(next.id)}
-                    />
-                  </td>
+                    STT
+                  </th>
+                  <th
+                    scope="col"
+                    className="sticky top-0 left-12 z-30 min-w-56 border-r border-tr-border bg-tr-surface px-3 py-2.5"
+                  >
+                    {t.card.customer}
+                  </th>
+                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                    {t.revenue.am}
+                  </th>
+                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                    {t.revenue.contractKind}
+                  </th>
+                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                    {t.revenue.contractTerm}
+                  </th>
+                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                    {t.revenue.service}
+                  </th>
+                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                    {t.revenue.status}
+                  </th>
+                  <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
+                    {t.revenue.total}
+                  </th>
+                  {MONTHS.map((m) => (
+                    <th scope="col" key={m} className="px-2 py-2.5 text-right whitespace-nowrap">
+                      <button
+                        onClick={(e) => {
+                          setBulkMonth(m);
+                          bulkPopover.show(e);
+                        }}
+                        title={t.revenue.setStageForMonth}
+                        aria-label={`${t.revenue.setStageForMonth}: ${t.revenue.month} ${m}`}
+                        className={`rounded px-1 py-0.5 uppercase transition hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                      >
+                        {t.revenue.month} {m}
+                      </button>
+                    </th>
+                  ))}
+                  <th scope="col" className="px-2 py-2.5"></th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-tr-surface text-sm font-semibold">
-              <tr>
-                <td className="sticky left-0 z-10 bg-tr-surface px-3 py-2" />
-                <td className="sticky left-12 z-10 bg-tr-surface px-3 py-2 text-tr-subtle">
-                  {t.revenue.grandTotal}
-                </td>
-                <td colSpan={5} />
-                <td className="px-3 py-2 text-right tabular-nums text-tr-text">
-                  {formatVNDInput(grandTotal) || '0'}
-                </td>
-                {monthTotals.map((value, i) => (
-                  <td key={i} className="px-2 py-2 text-right tabular-nums text-tr-text">
-                    {formatVNDInput(value) || '—'}
-                  </td>
+              </TableHead>
+              <tbody className="divide-y divide-tr-border">
+                {lines.map((line, index) => (
+                  <tr key={line.id} className="group hover:bg-tr-hover">
+                    <td className="sticky left-0 z-10 min-w-12 bg-tr-panel px-3 py-1.5 text-tr-muted tabular-nums group-hover:bg-tr-hover">
+                      {index + 1}
+                    </td>
+                    <td className="sticky left-12 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
+                      <Link
+                        to={`/customers/${line.customer_id}`}
+                        className="font-medium text-tr-text hover:text-tr-primary hover:underline"
+                      >
+                        {line.customer_name}
+                      </Link>
+                      {line.contract_name && (
+                        <div className="text-2xs text-tr-muted">{line.contract_name}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+                      {line.am || '—'}
+                    </td>
+                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+                      {t.contractKind[line.contract_kind]}
+                    </td>
+                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+                      {t.contractTerm[line.contract_term]}
+                    </td>
+                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-text">
+                      {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <StatusChip color={SERVICE_STATUS_COLORS[line.status]}>
+                        {t.serviceStatus[line.status]}
+                      </StatusChip>
+                    </td>
+                    <td
+                      className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
+                      title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
+                    >
+                      {formatVNDInput(line.totals.amount_vnd) || '0'}
+                    </td>
+                    {MONTHS.map((m) => {
+                      const period = periodOf(year, m);
+                      const cell = line.months[period];
+                      return (
+                        <MonthCell
+                          key={m}
+                          cell={cell}
+                          monthLabel={`T${m}`}
+                          onAmount={(amount_vnd) =>
+                            saveCell.mutate({ lineId: line.id, period, amount_vnd })
+                          }
+                          onStage={(stage) => saveCell.mutate({ lineId: line.id, period, stage })}
+                        />
+                      );
+                    })}
+                    <td className="px-2 py-1.5">
+                      <RevenueLineActions
+                        line={line}
+                        onMonths={setMonthsFor}
+                        onEdit={(next) => setLineForm({ open: true, line: next })}
+                        onDelete={(next) => setDeleteId(next.id)}
+                      />
+                    </td>
+                  </tr>
                 ))}
-                <td />
-              </tr>
-            </tfoot>
-          </table>
+              </tbody>
+              <tfoot className="sticky bottom-0 z-20 bg-tr-surface text-sm font-semibold shadow-[0_-1px_0_var(--tr-border)]">
+                <tr>
+                  <td className="sticky bottom-0 left-0 z-30 min-w-12 bg-tr-surface px-3 py-2" />
+                  <td className="sticky bottom-0 left-12 z-30 border-r border-tr-border bg-tr-surface px-3 py-2 text-tr-subtle">
+                    {t.revenue.grandTotal}
+                  </td>
+                  <td colSpan={5} />
+                  <td className="px-3 py-2 text-right tabular-nums text-tr-text">
+                    {formatVNDInput(grandTotal) || '0'}
+                  </td>
+                  {monthTotals.map((value, i) => (
+                    <td key={i} className="px-2 py-2 text-right tabular-nums text-tr-text">
+                      {formatVNDInput(value) || '—'}
+                    </td>
+                  ))}
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
@@ -525,13 +611,85 @@ function recomputeTotals(line: RevenueLine): RevenueLine {
   return { ...line, totals };
 }
 
+/** hex + alpha -> rgba(); dùng cho badge nền nhạt/viền mảnh không cần đổi bảng màu nguồn. */
+function hexToRgba(hex: string, alpha: number): string {
+  const v = hex.replace('#', '');
+  const r = parseInt(v.slice(0, 2), 16);
+  const g = parseInt(v.slice(2, 4), 16);
+  const b = parseInt(v.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Badge trạng thái nhẹ: chấm màu + nền nhạt/viền mảnh cùng tông thay vì nền đặc bão hòa. */
+function StatusChip({ color, children }: { color: string; children: string }) {
+  return (
+    <span
+      className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      style={{
+        backgroundColor: hexToRgba(color, 0.14),
+        borderColor: hexToRgba(color, 0.35),
+        color,
+      }}
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: color }}
+        aria-hidden="true"
+      />
+      {children}
+    </span>
+  );
+}
+
+/** Tooltip biểu đồ: liệt kê từng giai đoạn của tháng kèm tổng cộng — dễ đọc ở cả hai theme. */
+function RevenueChartTooltip({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean;
+  label?: string;
+  payload?: { dataKey?: string | number; name?: string; value?: number; color?: string }[];
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const total = payload.reduce((sum, p) => sum + (p.value ?? 0), 0);
+  return (
+    <div className="min-w-[190px] rounded-control border border-tr-border bg-tr-panel px-3 py-2 text-xs shadow-lg">
+      <div className="mb-1.5 font-semibold text-tr-text">
+        Tháng {typeof label === 'string' ? label.replace(/^T/, '') : label}
+      </div>
+      <div className="space-y-1">
+        {payload.map((p) => (
+          <div key={p.dataKey} className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-1.5 text-tr-subtle">
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: p.color }}
+                aria-hidden="true"
+              />
+              {p.name}
+            </span>
+            <span className="tabular-nums text-tr-text">{formatVND(p.value)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-tr-border pt-1.5 font-semibold text-tr-text">
+        <span>Tổng</span>
+        <span className="tabular-nums">{formatVND(total)}</span>
+      </div>
+    </div>
+  );
+}
+
 /** Ô tháng: số tiền sửa tại chỗ + chấm trạng thái mở menu chuyển giai đoạn. */
 function MonthCell({
   cell,
+  monthLabel,
   onAmount,
   onStage,
 }: {
   cell: RevenueCell | undefined;
+  monthLabel: string;
   onAmount: (value: number) => void;
   onStage: (stage: RevenueStage) => void;
 }) {
@@ -551,9 +709,14 @@ function MonthCell({
           title={
             amount === 0
               ? 'Nhập số tiền trước khi chọn trạng thái'
-              : `${t.revenueStage[stage]}${variance !== 0 ? ` · dự kiến ${formatVNDInput(cell!.forecast_vnd)}` : ''}${cell?.note ? ` · ${cell.note}` : ''}`
+              : `${t.revenueStage[stage]} · Bấm để đổi trạng thái${variance !== 0 ? ` · dự kiến ${formatVNDInput(cell!.forecast_vnd)}` : ''}${cell?.note ? ` · ${cell.note}` : ''}`
           }
-          className="shrink-0 rounded-full p-0.5 transition hover:ring-2 hover:ring-tr-border disabled:opacity-25"
+          aria-label={
+            amount === 0
+              ? `${monthLabel}: chưa có số tiền`
+              : `${monthLabel}: ${t.revenueStage[stage]} — bấm để đổi trạng thái`
+          }
+          className={`shrink-0 rounded-full p-0.5 transition hover:ring-2 hover:ring-tr-border disabled:opacity-25 ${focusRing}`}
         >
           <span
             className="block h-2.5 w-2.5 rounded-full"
@@ -563,6 +726,7 @@ function MonthCell({
         <input
           inputMode="numeric"
           value={shown}
+          aria-label={`Doanh thu ${monthLabel}`}
           onChange={(e) => setText(formatVNDInput(parseVNDInput(e.target.value)))}
           onFocus={(e) => e.currentTarget.select()}
           onBlur={() => {

@@ -1,4 +1,5 @@
 import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useDialog } from './useDialog';
 import { Button, focusRing } from './ui';
@@ -46,7 +47,10 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  /* Portal ra <body>: mo tu ben trong vung `overflow-auto` cua noi dung trang hoac
+     `tr-app-shell` (overflow: hidden) se cat/lech phan tu `fixed` neu khong portal —
+     xem giai thich chi tiet hon trong Drawer.tsx, cung mot van de. */
+  return createPortal(
     <div
       className="tr-anim-fade fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-tr-overlay p-4 sm:p-8"
       onMouseDown={(e) => {
@@ -58,7 +62,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
-        className={`tr-anim-pop w-full ${width} rounded-modal bg-tr-panel shadow-2xl`}
+        className={`tr-modal tr-anim-pop w-full ${width} rounded-modal bg-tr-panel shadow-2xl`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-tr-border px-5 py-4">
           <div id={titleId} className="min-w-0 flex-1 text-lg font-semibold text-tr-text">
@@ -95,7 +99,7 @@ export function Modal({
             role="alertdialog"
             aria-modal="true"
             aria-label={t.common.unsavedTitle}
-            className="tr-anim-pop w-full max-w-sm rounded-modal bg-tr-panel p-5 shadow-2xl"
+            className="tr-modal tr-anim-pop w-full max-w-sm rounded-modal bg-tr-panel p-5 shadow-2xl"
           >
             <h2 className="text-base font-semibold text-tr-text">{t.common.unsavedTitle}</h2>
             <p className="mt-2 text-sm text-tr-subtle">{t.common.unsavedBody}</p>
@@ -114,6 +118,7 @@ export function Modal({
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 19;
+export const LATEST_VERSION = 28;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -167,6 +167,68 @@ function fillListStatusMapping(db: Database): void {
         AND (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id) IS NOT NULL
         AND (SELECT l.status_mapping FROM lists l WHERE l.id = cards.list_id) <> 'done'`
   ).run();
+}
+
+/**
+ * v27: dung lai bang `deals` de rang buoc CHECK cua `stage` nhan them 'poc'.
+ *
+ * SQLite khong sua duoc CHECK tai cho. Thay vi chep tay dinh nghia bang — no da
+ * co gan ba muoi cot tich tu tu v4 den v27 va chep sot mot cot la mat du lieu im
+ * lang — cho nay lay chinh cau CREATE TABLE tu `sqlite_master` roi CHI thay cum
+ * CHECK. Moi thu khac (mac dinh, khoa ngoai, kieu) di theo nguyen ven.
+ *
+ * `legacy_alter_table = ON` la bat buoc trong luc doi ten: mac dinh SQLite se co
+ * sua cac tham chieu toi bang bi doi ten trong view va trigger, va o giua hai
+ * buoc DROP/RENAME thi cac tham chieu do dang tro toi mot cai ten khong ton tai.
+ */
+function rebuildDealsForPoc(db: Database): void {
+  const table = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'deals'`)
+    .get() as { sql: string } | undefined;
+  if (!table) throw new Error('v27: khong tim thay bang deals');
+
+  const CHECK_PATTERN = /CHECK\s*\(\s*stage\s+IN\s*\([^)]*\)\s*\)/i;
+  if (!CHECK_PATTERN.test(table.sql)) {
+    // Khong co CHECK thi khong co gi de noi rong — bo qua, khong dung lai bang.
+    return;
+  }
+
+  /* Chup lai chi muc va view PHU THUOC truoc khi dong vao bang. */
+  const indexes = db
+    .prepare(
+      `SELECT sql FROM sqlite_master
+        WHERE type = 'index' AND tbl_name = 'deals' AND sql IS NOT NULL`
+    )
+    .all() as { sql: string }[];
+  const views = db
+    .prepare(`SELECT name, sql FROM sqlite_master WHERE type = 'view' AND sql LIKE '%deals%'`)
+    .all() as { name: string; sql: string }[];
+
+  const columns = (db.prepare(`PRAGMA table_info(deals)`).all() as { name: string }[])
+    .map((column) => `"${column.name}"`)
+    .join(', ');
+
+  const createNew = table.sql
+    .replace(
+      CHECK_PATTERN,
+      `CHECK (stage IN ('lead','approaching','discussing','poc','quoted','negotiating','won','lost'))`
+    )
+    .replace(/^CREATE\s+TABLE\s+("?deals"?|\[deals\]|`deals`)/i, 'CREATE TABLE deals_new');
+
+  for (const view of views) db.exec(`DROP VIEW IF EXISTS "${view.name}"`);
+  db.exec(createNew);
+  db.exec(`INSERT INTO deals_new (${columns}) SELECT ${columns} FROM deals`);
+  db.exec(`DROP TABLE deals`);
+
+  db.pragma('legacy_alter_table = ON');
+  try {
+    db.exec(`ALTER TABLE deals_new RENAME TO deals`);
+  } finally {
+    db.pragma('legacy_alter_table = OFF');
+  }
+
+  for (const index of indexes) db.exec(index.sql);
+  for (const view of views) db.exec(view.sql);
 }
 
 export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
@@ -356,5 +418,105 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v19 (cot anh xa trang thai, du an suy tu bang)');
     current = 19;
+  }
+
+  if (current === 19 && targetVersion >= 20) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v20.sql'));
+      db.pragma('user_version = 20');
+    })();
+    console.log('[db] Da nang cap schema len v20 (trung tam thong bao)');
+    current = 20;
+  }
+
+  if (current === 20 && targetVersion >= 21) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v21.sql'));
+      db.pragma('user_version = 21');
+    })();
+    console.log('[db] Da nang cap schema len v21 (thong bao qua Telegram)');
+    current = 21;
+  }
+
+  if (current === 21 && targetVersion >= 22) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v22.sql'));
+      db.pragma('user_version = 22');
+    })();
+    console.log('[db] Da nang cap schema len v22 (sao luu dinh ky qua Telegram)');
+    current = 22;
+  }
+
+  if (current === 22 && targetVersion >= 23) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v23.sql'));
+      db.pragma('user_version = 23');
+    })();
+    console.log('[db] Da nang cap schema len v23 (lien ket co hoi - du an, nhat ky thay doi)');
+    current = 23;
+  }
+
+  if (current === 23 && targetVersion >= 24) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v24.sql'));
+      db.pragma('user_version = 24');
+    })();
+    console.log('[db] Da nang cap schema len v24 (checklist ban giao, nguoi thuc hien)');
+    current = 24;
+  }
+
+  if (current === 24 && targetVersion >= 25) {
+    /* v25 dung lai bang ai_automations (doi rang buoc CHECK) nen phai tam tat
+       khoa ngoai — ai_automation_runs va ai_notifications deu tro toi no. Cung
+       cach v4 lam; PRAGMA nay khong co tac dung neu dat ben trong transaction. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v25.sql'));
+        db.pragma('user_version = 25');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v25:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v25 (canh bao Won qua han cho ban giao)');
+    current = 25;
+  }
+
+  if (current === 25 && targetVersion >= 26) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v26.sql'));
+      db.pragma('user_version = 26');
+    })();
+    console.log('[db] Da nang cap schema len v26 (giai doan, phan loai A/B, rui ro, nghiem thu)');
+    current = 26;
+  }
+
+  if (current === 26 && targetVersion >= 27) {
+    /* Dung lai bang deals nen phai tat khoa ngoai — hon muoi bang tro toi no. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v27.sql'));
+        rebuildDealsForPoc(db);
+        db.pragma('user_version = 27');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v27:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v27 (PoC, tam dung, tuoi giai doan)');
+    current = 27;
+  }
+
+  if (current === 27 && targetVersion >= 28) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v28.sql'));
+      db.pragma('user_version = 28');
+    })();
+    console.log('[db] Da nang cap schema len v28 (toan ven du lieu CRM va du an)');
+    current = 28;
   }
 }

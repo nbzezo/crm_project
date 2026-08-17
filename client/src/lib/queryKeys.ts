@@ -2,11 +2,17 @@ import type { QueryClient } from '@tanstack/react-query';
 
 /** Lam moi moi khung nhin phu thuoc vao du lieu the: kanban, bang, lich, timeline, tong quan. */
 export function invalidateCardViews(queryClient: QueryClient, boardId?: number): void {
+  queryClient.invalidateQueries({ queryKey: ['notifications'] });
   queryClient.invalidateQueries({ queryKey: ['tasks'] });
   queryClient.invalidateQueries({ queryKey: ['calendar'] });
   queryClient.invalidateQueries({ queryKey: ['timeline'] });
   queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   queryClient.invalidateQueries({ queryKey: ['reports'] });
+  /* Chi tiet va danh sach du an deu tinh lai cong viec, tien do, suc khoe va
+     nhan su tu cards. Thieu hai key nay lam PATCH da thanh cong nhung tab Du an
+     van hien gia tri cu (ro nhat o cot Nguoi phu trach). */
+  queryClient.invalidateQueries({ queryKey: ['project'] });
+  queryClient.invalidateQueries({ queryKey: ['projects'] });
   if (boardId) queryClient.invalidateQueries({ queryKey: ['board', boardId] });
   else queryClient.invalidateQueries({ queryKey: ['board'] });
 }
@@ -19,6 +25,7 @@ export function invalidateCardViews(queryClient: QueryClient, boardId?: number):
  * sau khoa do chi vi nguoi dung keo mot su kien.
  */
 export function invalidateCalendar(queryClient: QueryClient): void {
+  queryClient.invalidateQueries({ queryKey: ['notifications'] });
   queryClient.invalidateQueries({ queryKey: ['calendar'] });
   queryClient.invalidateQueries({ queryKey: ['reminders'] });
 }
@@ -34,6 +41,9 @@ export function invalidateRevenueViews(queryClient: QueryClient, customerId?: nu
 /** Lam moi cac khung nhin CRM. */
 export function invalidateCrmViews(queryClient: QueryClient, customerId?: number): void {
   queryClient.invalidateQueries({ queryKey: ['customers'] });
+  // Trang To chuc & nhan su doc danh sach rieng ('orgs') — thieu dong nay thi tao/sua
+  // cong ty/doi tac/nha cung cap khong lam moi duoc bang o trang do.
+  queryClient.invalidateQueries({ queryKey: ['orgs'] });
   queryClient.invalidateQueries({ queryKey: ['deals'] });
   queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   queryClient.invalidateQueries({ queryKey: ['reports'] });

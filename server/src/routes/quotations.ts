@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { QUOTATION_STATUSES } from '../lib/crm.ts';
-import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
 
@@ -24,13 +24,23 @@ const quotationSchema = z.object({
   notes: z.string().optional(),
 });
 
+function assertQuotationDates(value: Record<string, unknown>): void {
+  const issued = value.quote_date as string | null | undefined;
+  const validUntil = value.valid_until as string | null | undefined;
+  if (issued && validUntil && validUntil < issued) {
+    throw new HttpError(422, 'Ngày hết hiệu lực báo giá không được trước ngày báo giá', {
+      code: 'INVALID_DATE_RANGE',
+    });
+  }
+}
+
 const QUOTATION_SELECT = `
   SELECT q.*, c.name AS customer_name, d.title AS deal_title,
          CASE WHEN q.valid_until IS NULL THEN 0
               WHEN q.valid_until < date('now','localtime') THEN 1 ELSE 0 END AS is_expired,
          (SELECT COUNT(*) FROM documents dc WHERE dc.quotation_id = q.id AND dc.deleted_at IS NULL) AS document_count
     FROM quotations q
-    JOIN customers c ON c.id = q.customer_id
+    JOIN customers c ON c.id = q.customer_id AND c.org_kind = 'customer'
     LEFT JOIN deals d ON d.id = q.deal_id`;
 
 function reload(id: number) {
@@ -65,6 +75,8 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(quotationSchema, req);
   assertEntityLinks(db, body);
+  assertCrmCustomer(db, body.customer_id);
+  assertQuotationDates(body);
 
   // FR-QUO-04: bao gia moi cua cung co hoi tu tang phien ban
   const version =
@@ -111,12 +123,15 @@ router.patch('/:id', (req, res) => {
     customer_id: merged.customer_id as number,
     deal_id: merged.deal_id as number | null,
   });
+  assertCrmCustomer(db, merged.customer_id as number);
+  assertQuotationDates(merged);
 
   db.prepare(
-    `UPDATE quotations SET deal_id = ?, code = ?, version = ?, quote_date = ?, value_vnd = ?,
+    `UPDATE quotations SET customer_id = ?, deal_id = ?, code = ?, version = ?, quote_date = ?, value_vnd = ?,
             valid_until = ?, status = ?, notes = ?, updated_at = datetime('now','localtime')
       WHERE id = ?`
   ).run(
+    merged.customer_id,
     merged.deal_id ?? null,
     merged.code ?? null,
     merged.version ?? 1,

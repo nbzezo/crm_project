@@ -1,10 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { FileSignature, ListPlus, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  Eye,
+  FileSignature,
+  ListPlus,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ContractForm } from '../components/crm/ContractForm';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { Popover, PopoverItem } from '../components/common/Popover';
 import {
   Button,
   ColorBadge,
@@ -18,17 +28,35 @@ import {
   TableHead,
 } from '../components/common/ui';
 import { CONTRACT_STATUS_COLORS, CONTRACT_STATUS_ORDER, t } from '../i18n/vi';
-import { formatDate, formatVND } from '../lib/format';
+import { formatDate, formatVND, formatVNDShort } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type { Contract } from '../types';
 
-/** Màu cảnh báo theo số ngày còn lại (FR-CTR-04). */
+/** Màu cảnh báo theo số ngày còn lại (FR-CTR-04). Đỏ chỉ dùng cho hợp đồng đã quá hạn. */
 function urgencyClass(days: number | null | undefined): string {
   if (days === null || days === undefined) return 'text-tr-muted';
   if (days < 0) return 'tr-badge-overdue rounded px-1.5 py-0.5';
-  if (days <= 30) return 'tr-badge-overdue rounded px-1.5 py-0.5';
+  if (days <= 30) return 'tr-badge-warn rounded px-1.5 py-0.5';
   if (days <= 60) return 'tr-badge-soon rounded px-1.5 py-0.5';
   return 'text-tr-subtle';
+}
+
+type DeadlineFilter = '' | 'overdue' | 'expiring' | 'safe';
+
+const DEADLINE_FILTERS: { value: DeadlineFilter; label: string }[] = [
+  { value: '', label: 'Mọi thời hạn' },
+  { value: 'overdue', label: 'Quá hạn' },
+  { value: 'expiring', label: 'Sắp hết hạn (≤ 90 ngày)' },
+  { value: 'safe', label: 'Còn hiệu lực dài' },
+];
+
+/** Lọc client-side dựa trên days_left đã có sẵn trên mỗi hợp đồng — không gọi thêm API. */
+function matchesDeadline(contract: Contract, filter: DeadlineFilter): boolean {
+  if (!filter) return true;
+  const d = contract.days_left;
+  if (filter === 'overdue') return d !== null && d !== undefined && d < 0;
+  if (filter === 'expiring') return d !== null && d !== undefined && d >= 0 && d <= 90;
+  return d === null || d === undefined || d > 90;
 }
 
 export default function ContractsPage() {
@@ -39,8 +67,10 @@ export default function ContractsPage() {
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
+  const [deadline, setDeadline] = useState<DeadlineFilter>('');
   const [form, setForm] = useState<{ open: boolean; contract?: Contract | null }>({ open: false });
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [menuFor, setMenuFor] = useState<{ id: number; anchor: HTMLElement } | null>(null);
   const focusId = Number(searchParams.get('focus')) || null;
 
   const {
@@ -89,7 +119,7 @@ export default function ContractsPage() {
   });
 
   const buckets = [
-    { label: 'Còn dưới 30 ngày', items: expiring.filter((c) => (c.days_left ?? 0) <= 30) },
+    { label: 'Dưới 30 ngày', items: expiring.filter((c) => (c.days_left ?? 0) <= 30) },
     {
       label: '30 – 60 ngày',
       items: expiring.filter((c) => (c.days_left ?? 0) > 30 && (c.days_left ?? 0) <= 60),
@@ -97,77 +127,109 @@ export default function ContractsPage() {
     { label: '60 – 90 ngày', items: expiring.filter((c) => (c.days_left ?? 0) > 60) },
   ];
 
+  const filteredContracts = useMemo(
+    () => contracts.filter((c) => matchesDeadline(c, deadline)),
+    [contracts, deadline]
+  );
+  const totalValue = useMemo(
+    () => filteredContracts.reduce((sum, c) => sum + (c.value_vnd ?? 0), 0),
+    [filteredContracts]
+  );
+  const hasActiveFilters = Boolean(term || status || deadline);
+  const menuTarget = menuFor ? (contracts.find((c) => c.id === menuFor.id) ?? null) : null;
+
   return (
     <div className="space-y-4 p-6">
-      {/* FR-REN-01: danh sách hợp đồng sắp hết hạn theo 3 mốc */}
-      <Panel title="Sắp hết hạn — cần gia hạn">
+      {/* FR-REN-01: danh sách hợp đồng sắp hết hạn theo 3 mốc — panel gọn, ưu tiên mật độ thông tin */}
+      <Panel
+        title="Sắp hết hạn — cần gia hạn"
+        action={
+          expiring.length > 0 ? (
+            <span className="text-xs font-normal text-tr-muted">
+              {expiring.length} hợp đồng cần theo dõi
+            </span>
+          ) : undefined
+        }
+      >
         {expiring.length === 0 ? (
-          <p className="py-4 text-center text-sm text-tr-muted">
+          <p className="py-2 text-center text-sm text-tr-muted">
             Không có hợp đồng nào hết hạn trong 90 ngày tới.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {buckets.map((bucket) => (
-              <div key={bucket.label}>
-                <h3 className="mb-2 text-xs font-semibold text-tr-subtle">
-                  {bucket.label}{' '}
-                  <span className="font-normal text-tr-muted">({bucket.items.length})</span>
-                </h3>
-                <ul className="space-y-2">
-                  {bucket.items.map((c) => (
-                    <li key={c.id} className="tr-card-shadow rounded-lg bg-tr-card p-2.5 text-sm">
-                      <div className="font-medium text-tr-text">{c.name}</div>
-                      <Link
-                        to={`/customers/${c.customer_id}`}
-                        className="text-xs text-tr-primary hover:underline"
-                      >
-                        {c.customer_name}
-                      </Link>
-                      <div className="mt-1 flex items-center justify-between text-xs">
-                        <span className={urgencyClass(c.days_left)}>
-                          {c.days_left! < 0
-                            ? `Quá hạn ${-c.days_left!} ngày`
-                            : `Còn ${c.days_left} ngày`}
-                        </span>
-                        <span className="text-tr-subtle">{formatVND(c.value_vnd)}</span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <Button
-                          variant={c.renewal_followed ? 'secondary' : 'primary'}
-                          onClick={() => renew.mutate(c.id)}
-                          className="px-2 py-1 text-xs"
-                        >
-                          <RefreshCw size={13} />
-                          {c.renewal_followed ? 'Tạo lại cơ hội' : 'Tạo cơ hội gia hạn'}
-                        </Button>
-                        {!!c.renewal_followed && (
-                          <span className="text-2xs text-tr-success">Đã theo dõi</span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                  {bucket.items.length === 0 && <li className="text-xs text-tr-muted">—</li>}
-                </ul>
-              </div>
-            ))}
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {buckets.map((bucket) => (
+                <span
+                  key={bucket.label}
+                  className={`inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-xs font-medium ${
+                    bucket.items.length > 0
+                      ? 'border-tr-border bg-tr-hover text-tr-text'
+                      : 'border-dashed border-tr-border/60 text-tr-muted'
+                  }`}
+                >
+                  {bucket.label}
+                  <span className={bucket.items.length > 0 ? 'font-bold' : ''}>
+                    {bucket.items.length}
+                  </span>
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {expiring.map((c) => (
+                <RenewalCard
+                  key={c.id}
+                  contract={c}
+                  onRenew={() => renew.mutate(c.id)}
+                  pending={renew.isPending}
+                />
+              ))}
+            </div>
           </div>
         )}
       </Panel>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-72">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-base font-bold text-tr-text">Hợp đồng</p>
+        {!isLoading && !error && (
+          <p className="text-xs text-tr-muted">
+            {filteredContracts.length} hợp đồng · Tổng giá trị {formatVNDShort(totalValue)} ·{' '}
+            {expiring.length} sắp hết hạn
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-tr-border bg-tr-panel p-2.5">
+        <div className="min-w-[220px] flex-1 sm:max-w-xs">
           <Input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Tìm hợp đồng (không cần dấu)…"
+            placeholder="Tìm theo tên hoặc số hợp đồng…"
+            aria-label="Tìm hợp đồng"
           />
         </div>
-        <div className="w-48">
-          <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <div className="w-40">
+          <Select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label="Trạng thái"
+          >
             <option value="">{t.common.all}</option>
             {CONTRACT_STATUS_ORDER.map((s) => (
               <option key={s} value={s}>
                 {t.contractStatus[s]}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-52">
+          <Select
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value as DeadlineFilter)}
+            aria-label="Thời hạn"
+          >
+            {DEADLINE_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
               </option>
             ))}
           </Select>
@@ -179,56 +241,86 @@ export default function ContractsPage() {
 
       {isLoading ? (
         <div className="rounded-panel border border-tr-border bg-tr-panel">
-          <SkeletonRows rows={6} cols={5} />
+          <SkeletonRows rows={6} cols={6} />
         </div>
       ) : error ? (
         <ErrorState onRetry={() => refetch()} />
-      ) : contracts.length === 0 ? (
+      ) : filteredContracts.length === 0 && !hasActiveFilters ? (
         <EmptyState
-          message="Chưa có hợp đồng nào."
+          message="Chưa có hợp đồng nào"
+          hint="Bạn chưa có hợp đồng nào trong danh sách này."
           action={
             <Button variant="primary" onClick={() => setForm({ open: true })}>
               <Plus size={16} /> Thêm hợp đồng
             </Button>
           }
         />
+      ) : filteredContracts.length === 0 ? (
+        <EmptyState
+          message="Không tìm thấy hợp đồng"
+          hint="Thử thay đổi từ khóa hoặc bộ lọc."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTerm('');
+                setStatus('');
+                setDeadline('');
+              }}
+            >
+              Xóa bộ lọc
+            </Button>
+          }
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[880px] text-sm">
             <TableHead>
               <tr>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="px-4 py-2">
                   Hợp đồng
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="px-4 py-2">
                   Khách hàng
                 </th>
-                <th scope="col" className="px-4 py-2.5 text-right">
+                <th scope="col" className="px-4 py-2 text-right">
                   Giá trị
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="px-4 py-2">
                   Hiệu lực
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="px-4 py-2">
                   Còn lại
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="px-4 py-2">
                   Trạng thái
                 </th>
-                <th scope="col" className="px-4 py-2.5"></th>
+                <th scope="col" className="px-4 py-2"></th>
               </tr>
             </TableHead>
             <tbody className="divide-y divide-tr-border">
-              {contracts.map((c) => (
+              {filteredContracts.map((c) => (
                 <tr key={c.id} className="transition hover:bg-tr-hover">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2 font-medium text-tr-text">
-                      <FileSignature size={14} className="text-tr-muted" />
-                      {c.name}
-                    </div>
-                    {c.number && <div className="text-xs text-tr-muted">Số {c.number}</div>}
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ open: true, contract: c })}
+                      className="group flex items-center gap-2 text-left"
+                    >
+                      <FileSignature
+                        size={14}
+                        className="shrink-0 text-tr-muted"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate font-semibold text-tr-text group-hover:text-tr-primary group-hover:underline">
+                        {c.name}
+                      </span>
+                    </button>
+                    {c.number && (
+                      <div className="mt-0.5 pl-[22px] text-xs text-tr-muted">Số {c.number}</div>
+                    )}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2 whitespace-nowrap">
                     <Link
                       to={`/customers/${c.customer_id}`}
                       className="text-tr-primary hover:underline"
@@ -236,46 +328,42 @@ export default function ContractsPage() {
                       {c.customer_name}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+                  <td className="px-4 py-2 text-right font-medium tabular-nums whitespace-nowrap">
                     {formatVND(c.value_vnd)}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-tr-subtle">
+                  <td className="px-4 py-2 text-xs whitespace-nowrap text-tr-muted">
                     {formatDate(c.start_date) || '—'} → {formatDate(c.end_date) || '—'}
                   </td>
-                  <td className="px-4 py-2.5 text-xs">
+                  <td className="px-4 py-2 text-xs whitespace-nowrap">
                     {c.days_left === null || c.days_left === undefined ? (
                       <span className="text-tr-muted">—</span>
                     ) : (
                       <span className={urgencyClass(c.days_left)}>
-                        {c.days_left < 0 ? `Quá ${-c.days_left} ngày` : `${c.days_left} ngày`}
+                        {c.days_left < 0
+                          ? `Quá hạn ${-c.days_left} ngày`
+                          : `Còn ${c.days_left} ngày`}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2">
                     <ColorBadge color={CONTRACT_STATUS_COLORS[c.status]}>
-                      {t.contractStatus[c.status]}
+                      {`● ${t.contractStatus[c.status]}`}
                     </ColorBadge>
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-1">
-                      <IconButton
+                  <td className="px-4 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => setForm({ open: true, contract: c })}
-                        label={`${t.common.edit}: ${c.name}`}
                       >
-                        <Pencil size={14} aria-hidden="true" />
-                      </IconButton>
+                        <Eye size={13} /> Xem
+                      </Button>
                       <IconButton
-                        onClick={() => openTaskComposer({ context: { contract_id: c.id } })}
-                        label={`Tạo công việc cho hợp đồng ${c.name}`}
+                        onClick={(e) => setMenuFor({ id: c.id, anchor: e.currentTarget })}
+                        label={`Thao tác khác: ${c.name}`}
                       >
-                        <ListPlus size={14} aria-hidden="true" />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => setDeleteId(c.id)}
-                        label={`${t.common.delete}: ${c.name}`}
-                        tone="danger"
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
+                        <MoreHorizontal size={16} aria-hidden="true" />
                       </IconButton>
                     </div>
                   </td>
@@ -300,6 +388,107 @@ export default function ContractsPage() {
           setDeleteId(null);
         }}
       />
+      {menuFor && menuTarget && (
+        <Popover
+          open
+          onClose={() => setMenuFor(null)}
+          anchor={menuFor.anchor}
+          title={menuTarget.name}
+          width={232}
+        >
+          <PopoverItem
+            icon={<Pencil size={15} aria-hidden="true" />}
+            onClick={() => {
+              setForm({ open: true, contract: menuTarget });
+              setMenuFor(null);
+            }}
+          >
+            {t.common.edit}
+          </PopoverItem>
+          <PopoverItem
+            icon={<ListPlus size={15} aria-hidden="true" />}
+            onClick={() => {
+              openTaskComposer({ context: { contract_id: menuTarget.id } });
+              setMenuFor(null);
+            }}
+          >
+            Tạo công việc
+          </PopoverItem>
+          {menuTarget.status === 'active' && (
+            <PopoverItem
+              icon={<RefreshCw size={15} aria-hidden="true" />}
+              onClick={() => {
+                renew.mutate(menuTarget.id);
+                setMenuFor(null);
+              }}
+            >
+              Tạo cơ hội gia hạn
+            </PopoverItem>
+          )}
+          <div className="my-1 -mx-3 border-t border-tr-border" />
+          <PopoverItem
+            icon={<Trash2 size={15} aria-hidden="true" />}
+            danger
+            onClick={() => {
+              setDeleteId(menuTarget.id);
+              setMenuFor(null);
+            }}
+          >
+            Xóa hợp đồng
+          </PopoverItem>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+/** Card gọn cho hợp đồng cần gia hạn — tên, khách hàng, số ngày còn lại, giá trị, CTA. */
+function RenewalCard({
+  contract,
+  onRenew,
+  pending,
+}: {
+  contract: Contract;
+  onRenew: () => void;
+  pending: boolean;
+}) {
+  return (
+    <div className="tr-card-shadow flex flex-col gap-1.5 rounded-lg border border-tr-border bg-tr-card p-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium text-tr-text">{contract.name}</div>
+          <Link
+            to={`/customers/${contract.customer_id}`}
+            className="block truncate text-xs text-tr-primary hover:underline"
+          >
+            {contract.customer_name}
+          </Link>
+        </div>
+        <span className={`shrink-0 text-xs font-medium ${urgencyClass(contract.days_left)}`}>
+          {contract.days_left! < 0
+            ? `Quá hạn ${-contract.days_left!} ngày`
+            : `Còn ${contract.days_left} ngày`}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold tabular-nums text-tr-text">
+          {formatVND(contract.value_vnd)}
+        </span>
+        <div className="flex items-center gap-2">
+          {!!contract.renewal_followed && (
+            <span className="text-2xs whitespace-nowrap text-tr-success">Đã theo dõi</span>
+          )}
+          <Button
+            variant={contract.renewal_followed ? 'secondary' : 'primary'}
+            onClick={onRenew}
+            disabled={pending}
+            className="px-2 py-1 text-xs whitespace-nowrap"
+          >
+            <RefreshCw size={13} />
+            Tạo cơ hội gia hạn
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

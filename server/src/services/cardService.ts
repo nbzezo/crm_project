@@ -3,6 +3,7 @@ import type { CreateTaskInput } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import {
   assertParentListCompatible,
+  assertListProjectCustomer,
   deriveTaskLinks,
   resolveAssignee,
   type EntityLinks,
@@ -50,12 +51,16 @@ function mappedListInBoard(listId: number, status: CardStatus): number | null {
  * mac dinh `true` se khien hai ham day nhau qua lai.
  */
 export function moveCard(id: number, input: MoveCardInput) {
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(id), 'Khong tim thay the');
+  const card = required(
+    db.prepare(`SELECT id, customer_id FROM cards WHERE id = ?`).get(id),
+    'Khong tim thay the'
+  ) as { id: number; customer_id: number | null };
   required(
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(input.list_id),
     'Khong tim thay danh sach'
   );
   assertParentListCompatible(db, id, input.list_id);
+  assertListProjectCustomer(db, input.list_id, card.customer_id);
 
   const position = db.transaction(() => {
     db.prepare(`UPDATE cards SET list_id = ? WHERE id = ?`).run(input.list_id, id);
@@ -187,14 +192,21 @@ export function resolveDefaultList(
        * khac la sai ngu canh nang hon — va tu v19, no con am tham doi luon du an
        * cua viec do, vi du an suy tu bang chua the.
        */
-      `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
+      `SELECT l.id FROM lists l
+         JOIN boards b ON b.id = l.board_id
         WHERE b.is_archived = 0
-        ORDER BY (? IS NOT NULL AND b.project_id = ?) DESC,
-                 (? IS NOT NULL AND b.customer_id = ?) DESC,
+          /* Co ngu canh du an thi khong duoc roi sang du an khac; khong co ngu
+             canh thi chi dung bang chung, tranh am tham gan task vao du an. */
+          AND ((? IS NOT NULL AND b.project_id = ?)
+            OR (? IS NULL AND b.project_id IS NULL))
+          /* Bang danh rieng cho khach A khong phai fallback cho khach B. */
+          AND (? IS NULL OR b.customer_id IS NULL OR b.customer_id = ?)
+        ORDER BY (? IS NOT NULL AND b.customer_id = ?) DESC,
                  b.is_starred DESC, b.id, l.position
         LIMIT 1`
     )
-    .get(projectId, projectId, customerId, customerId) as { id: number } | undefined;
+    .get(projectId, projectId, projectId, customerId, customerId, customerId, customerId) as
+    { id: number } | undefined;
   return row?.id ?? null;
 }
 
@@ -257,6 +269,10 @@ export function createCard(input: CreateTaskInput) {
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(targetList),
     'Khong tim thay danh sach'
   );
+  /* Tao thang trong mot cot co anh xa thi vong doi phai dung ngay tu dong ghi
+     dau tien. Truoc day chi MOVE/PATCH dong bo, con CREATE luon roi ve `todo`. */
+  const initialStatus = listStatusMapping(targetList) ?? 'todo';
+  assertListProjectCustomer(db, targetList, derived.customer_id, 'Công việc');
 
   const description = input.description ?? '';
   const id = db.transaction(() => {
@@ -264,10 +280,13 @@ export function createCard(input: CreateTaskInput) {
     const info = db
       .prepare(
         `INSERT INTO cards (list_id, parent_id, title, description, position, priority,
-                            start_date, due_date, customer_id, contact_id, deal_id,
+                            status, is_done, completed_at, start_date, due_date,
+                            customer_id, contact_id, deal_id,
                             contract_id, quotation_id, assignee_contact_id, assignee_org_id,
                             baseline_due_date, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+                 CASE WHEN ? = 'done' THEN datetime('now','localtime') ELSE NULL END,
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         targetList,
@@ -276,6 +295,9 @@ export function createCard(input: CreateTaskInput) {
         description,
         position,
         input.priority ?? 'medium',
+        initialStatus,
+        initialStatus === 'done' ? 1 : 0,
+        initialStatus,
         input.start_date ?? null,
         input.due_date ?? null,
         derived.customer_id ?? null,

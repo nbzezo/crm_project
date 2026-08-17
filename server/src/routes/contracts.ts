@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { CONTRACT_STATUSES, STAGE_PROBABILITY } from '../lib/crm.ts';
-import { assertEntityLinks } from '../lib/entityRelations.ts';
+import {
+  assertCrmCustomer,
+  assertEntityLinks,
+  assertProjectCustomerLink,
+} from '../lib/entityRelations.ts';
 import { listTasksByLink } from '../services/cardService.ts';
 
 const router = Router();
@@ -28,18 +32,40 @@ const contractSchema = z.object({
   payment_terms: z.string().nullable().optional(),
   renewal_followed: z.boolean().optional(),
   notes: z.string().optional(),
+  /**
+   * Du an trien khai ma hop dong nay tai tro (v27).
+   *
+   * Cot co tu v17 nhung chua bao gio co duong ghi — dung loai cot chet ma v23 vua
+   * go cho `deals.project_id`. Hau qua truoc do: o "Gia tri hop dong da ky" cua
+   * moi du an luon bang 0, va nguong phan loai A/B theo gia tri hop dong khong
+   * bao gio dung toi duoc.
+   */
+  project_id: z.number().int().positive().nullable().optional(),
 });
+
+function assertContractDates(value: Record<string, unknown>): void {
+  const start = value.start_date as string | null | undefined;
+  const end = value.end_date as string | null | undefined;
+  if (start && end && end < start) {
+    throw new HttpError(422, 'Ngày kết thúc hợp đồng không được trước ngày bắt đầu', {
+      code: 'INVALID_DATE_RANGE',
+      start_field: 'start_date',
+      end_field: 'end_date',
+    });
+  }
+}
 
 /** days_left < 0 la da qua han; <= 90 va con Active la thuoc danh sach gia han (BR-08). */
 const CONTRACT_SELECT = `
-  SELECT k.*, c.name AS customer_name, d.title AS deal_title,
+  SELECT k.*, c.name AS customer_name, d.title AS deal_title, pj.name AS project_name,
          CASE WHEN k.end_date IS NULL THEN NULL
               ELSE CAST(julianday(k.end_date) - julianday(date('now','localtime')) AS INTEGER)
          END AS days_left,
          (SELECT COUNT(*) FROM documents dc WHERE dc.contract_id = k.id AND dc.deleted_at IS NULL) AS document_count
     FROM contracts k
-    JOIN customers c ON c.id = k.customer_id
-    LEFT JOIN deals d ON d.id = k.deal_id`;
+    JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
+    LEFT JOIN deals d ON d.id = k.deal_id
+    LEFT JOIN projects pj ON pj.id = k.project_id`;
 
 function reload(id: number) {
   return db.prepare(`${CONTRACT_SELECT} WHERE k.id = ?`).get(id);
@@ -89,11 +115,14 @@ router.get('/expiring', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(contractSchema, req);
   assertEntityLinks(db, body);
+  assertCrmCustomer(db, body.customer_id);
+  assertProjectCustomerLink(db, body, 'Hợp đồng');
+  assertContractDates(body);
   const info = db
     .prepare(
       `INSERT INTO contracts (customer_id, deal_id, name, number, value_vnd, sign_date, start_date,
-                              end_date, status, payment_terms, notes, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                              end_date, status, payment_terms, notes, project_id, search_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.customer_id,
@@ -107,6 +136,7 @@ router.post('/', (req, res) => {
       body.status ?? 'draft',
       body.payment_terms ?? null,
       body.notes ?? '',
+      body.project_id ?? null,
       buildSearchText(body.name, body.number, body.notes)
     );
   res.status(201).json(reload(Number(info.lastInsertRowid)));
@@ -135,11 +165,22 @@ router.patch('/:id', (req, res) => {
     customer_id: merged.customer_id as number,
     deal_id: merged.deal_id as number | null,
   });
+  assertCrmCustomer(db, merged.customer_id as number);
+  assertProjectCustomerLink(
+    db,
+    {
+      project_id: merged.project_id as number | null,
+      customer_id: merged.customer_id as number,
+    },
+    'Hợp đồng'
+  );
+  assertContractDates(merged);
 
   db.prepare(
     `UPDATE contracts SET customer_id = ?, deal_id = ?, name = ?, number = ?, value_vnd = ?,
             sign_date = ?, start_date = ?, end_date = ?, status = ?, payment_terms = ?,
-            renewal_followed = ?, notes = ?, search_text = ?, updated_at = datetime('now','localtime')
+            renewal_followed = ?, notes = ?, project_id = ?, search_text = ?,
+            updated_at = datetime('now','localtime')
       WHERE id = ?`
   ).run(
     merged.customer_id,
@@ -158,6 +199,7 @@ router.patch('/:id', (req, res) => {
         : 0
       : (current.renewal_followed as number),
     merged.notes ?? '',
+    merged.project_id ?? null,
     buildSearchText(merged.name as string, merged.number as string, merged.notes as string),
     id
   );

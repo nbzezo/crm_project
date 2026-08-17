@@ -4,7 +4,7 @@ import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { CONTRACT_KINDS, CONTRACT_TERMS, REVENUE_STAGES, SERVICE_STATUSES } from '../lib/crm.ts';
-import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
 import { HttpError } from '../lib/validate.ts';
 import { mergeRevenueCell, type RevenueCell as MonthCell } from '../services/revenueService.ts';
 
@@ -36,11 +36,21 @@ const revenueSchema = z.object({
   note: z.string().optional(),
 });
 
+function assertLineDates(value: Record<string, unknown>): void {
+  const start = value.start_date as string | null | undefined;
+  const end = value.end_date as string | null | undefined;
+  if (start && end && end < start) {
+    throw new HttpError(422, 'Ngày kết thúc dịch vụ không được trước ngày bắt đầu', {
+      code: 'INVALID_DATE_RANGE',
+    });
+  }
+}
+
 const LINE_SELECT = `
   SELECT cs.*, c.name AS customer_name, c.short_name AS customer_short_name, c.status AS customer_status,
          s.name AS service_name, k.name AS contract_name, k.number AS contract_number
     FROM customer_services cs
-    JOIN customers c ON c.id = cs.customer_id
+    JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
     LEFT JOIN services s ON s.id = cs.service_id
     LEFT JOIN contracts k ON k.id = cs.contract_id`;
 
@@ -176,6 +186,8 @@ router.get('/lines', (req, res) => {
 router.post('/lines', (req, res) => {
   const body = parseBody(lineSchema, req);
   assertEntityLinks(db, body);
+  assertCrmCustomer(db, body.customer_id);
+  assertLineDates(body);
   const info = db
     .prepare(
       `INSERT INTO customer_services (customer_id, service_id, contract_id, am, contract_kind,
@@ -217,6 +229,8 @@ router.patch('/lines/:id', (req, res) => {
     service_id: merged.service_id as number | null,
     contract_id: merged.contract_id as number | null,
   });
+  assertCrmCustomer(db, merged.customer_id as number);
+  assertLineDates(merged);
 
   db.prepare(
     `UPDATE customer_services SET customer_id = ?, service_id = ?, contract_id = ?, am = ?,
@@ -354,7 +368,7 @@ router.put('/period-stage', (req, res) => {
 router.get('/summary', (req, res) => {
   const year = resolveYear(req.query.year);
   const { sql, params } = buildFilters(req.query as Record<string, unknown>);
-  const lineFilter = `SELECT cs.id FROM customer_services cs JOIN customers c ON c.id = cs.customer_id ${sql}`;
+  const lineFilter = `SELECT cs.id FROM customer_services cs JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer' ${sql}`;
 
   const months = db
     .prepare(
@@ -380,7 +394,7 @@ router.get('/summary', (req, res) => {
       `SELECT COALESCE(s.name, 'Chưa gán dịch vụ') AS name,
               COUNT(DISTINCT cs.id) AS line_count, ${TOTAL_COLUMNS}
          FROM customer_services cs
-         JOIN customers c ON c.id = cs.customer_id
+         JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
          LEFT JOIN services s ON s.id = cs.service_id
          LEFT JOIN service_revenues r ON r.line_id = cs.id AND r.period LIKE ?
         ${sql}
@@ -393,7 +407,7 @@ router.get('/summary', (req, res) => {
     .prepare(
       `SELECT c.id, c.name, ${TOTAL_COLUMNS}
          FROM customer_services cs
-         JOIN customers c ON c.id = cs.customer_id
+         JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
          LEFT JOIN service_revenues r ON r.line_id = cs.id AND r.period LIKE ?
         ${sql}
         GROUP BY c.id, c.name
@@ -405,7 +419,7 @@ router.get('/summary', (req, res) => {
   const line_count = (
     db
       .prepare(
-        `SELECT COUNT(*) AS n FROM customer_services cs JOIN customers c ON c.id = cs.customer_id ${sql}`
+        `SELECT COUNT(*) AS n FROM customer_services cs JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer' ${sql}`
       )
       .get(...params) as { n: number }
   ).n;

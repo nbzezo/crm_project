@@ -61,6 +61,135 @@ export function assertEntityLinks(db: Database, links: EntityLinks): void {
   }
 }
 
+/**
+ * Dam bao mot thuc the CRM that su tro toi mot tai khoan khach hang.
+ *
+ * Bang `customers` dong thoi la danh ba to chuc noi bo/doi tac/nha cung cap. FK
+ * chi biet ban ghi ton tai, nen moi duong ghi CRM phai them rang buoc nghiep vu
+ * nay de mot to chuc noi bo khong lot vao pipeline hay doanh thu.
+ */
+export function assertCrmCustomer(db: Database, customerId: number): void {
+  const row = required(
+    db.prepare(`SELECT id, org_kind FROM customers WHERE id = ?`).get(customerId) as
+      { id: number; org_kind: string } | undefined,
+    'Khong tim thay khach hang'
+  );
+  if (row.org_kind !== 'customer') {
+    throw new HttpError(422, 'Chỉ tổ chức loại Khách hàng mới được dùng trong CRM', {
+      code: 'ORG_NOT_CRM_CUSTOMER',
+    });
+  }
+}
+
+interface ProjectCustomerLink {
+  project_id?: number | null;
+  customer_id?: number | null;
+}
+
+/**
+ * Xac nhan thuc the gan du an khong thuoc mot khach hang khac.
+ *
+ * Du an noi bo (`customer_id IS NULL`) co the gom cong viec cho nhieu ben; khi
+ * du an da mang mot khach hang cu the thi moi lien ket ben duoi phai trung.
+ */
+export function assertProjectCustomerLink(
+  db: Database,
+  links: ProjectCustomerLink,
+  label: string
+): void {
+  if (links.project_id == null) return;
+  const project = required(
+    db.prepare(`SELECT id, customer_id FROM projects WHERE id = ?`).get(links.project_id) as
+      { id: number; customer_id: number | null } | undefined,
+    'Khong tim thay du an'
+  );
+  if (
+    project.customer_id != null &&
+    links.customer_id != null &&
+    project.customer_id !== links.customer_id
+  ) {
+    throw new HttpError(422, `${label} và dự án không thuộc cùng một khách hàng`, {
+      code: 'CROSS_CUSTOMER_LINK',
+    });
+  }
+}
+
+/** Kiem tra nhanh lien ket Project cua bang chua mot danh sach. */
+export function assertListProjectCustomer(
+  db: Database,
+  listId: number,
+  customerId: number | null | undefined,
+  label = 'Công việc'
+): void {
+  const row = required(
+    db
+      .prepare(`SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`)
+      .get(listId) as { project_id: number | null } | undefined,
+    'Khong tim thay danh sach'
+  );
+  assertProjectCustomerLink(db, { project_id: row.project_id, customer_id: customerId }, label);
+}
+
+/**
+ * Kiem tra cac quan he nguoc truoc khi doi khach hang cua du an.
+ *
+ * Board duoc dong bo trong route Project; Deal, Contract va Card la du lieu CRM
+ * co chu so huu rieng nen khong duoc am tham doi theo.
+ */
+export function assertProjectCustomerChange(
+  db: Database,
+  projectId: number,
+  customerId: number | null
+): void {
+  if (customerId == null) return;
+  const mismatch = db
+    .prepare(
+      `SELECT kind, entity_id FROM (
+         SELECT 'cơ hội' AS kind, id AS entity_id
+           FROM deals WHERE project_id = ? AND customer_id <> ?
+         UNION ALL
+         SELECT 'hợp đồng' AS kind, id AS entity_id
+           FROM contracts WHERE project_id = ? AND customer_id <> ?
+         UNION ALL
+         SELECT 'công việc' AS kind, k.id AS entity_id
+           FROM cards k
+           JOIN lists l ON l.id = k.list_id
+           JOIN boards b ON b.id = l.board_id
+          WHERE b.project_id = ? AND k.customer_id IS NOT NULL AND k.customer_id <> ?
+       ) LIMIT 1`
+    )
+    .get(projectId, customerId, projectId, customerId, projectId, customerId) as
+    { kind: string; entity_id: number } | undefined;
+  if (mismatch) {
+    throw new HttpError(
+      422,
+      `Không thể đổi khách hàng: ${mismatch.kind} #${mismatch.entity_id} đang thuộc khách hàng khác`,
+      { code: 'PROJECT_CUSTOMER_CONFLICT', entity_id: mismatch.entity_id }
+    );
+  }
+}
+
+/** Chan doi mot tai khoan CRM thanh loai to chuc khac khi con du lieu nghiep vu. */
+export function assertOrgKindChange(db: Database, customerId: number, nextKind: string): void {
+  if (nextKind === 'customer') return;
+  const counts = db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM deals WHERE customer_id = ?) AS deals,
+         (SELECT COUNT(*) FROM contracts WHERE customer_id = ?) AS contracts,
+         (SELECT COUNT(*) FROM quotations WHERE customer_id = ?) AS quotations,
+         (SELECT COUNT(*) FROM customer_services WHERE customer_id = ?) AS services`
+    )
+    .get(customerId, customerId, customerId, customerId) as Record<string, number>;
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  if (total > 0) {
+    throw new HttpError(409, 'Không thể đổi loại tổ chức khi vẫn còn dữ liệu CRM liên quan', {
+      code: 'ORG_KIND_HAS_CRM_DATA',
+      counts,
+    });
+  }
+}
+
 export interface AssigneeColumns {
   assignee_contact_id: number | null;
   assignee_org_id: number | null;

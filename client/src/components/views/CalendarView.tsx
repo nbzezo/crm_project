@@ -132,6 +132,27 @@ export function CalendarView({ boardId, projectId }: { boardId?: number; project
      sua ba "ngo cut" cu (co hoi / hop dong / nhac hen khong gan the truoc day
      bam vao khong co gi xay ra). */
   const [selected, setSelected] = useState<CalEvent | null>(null);
+  const openedFocus = useRef<string | null>(null);
+
+  /* Link tu trung tam thong bao co `focus=<source>-<id>`. Khi du lieu cua ngay
+     dich tai xong, mo thang ngan keo cua dung muc thay vi chi dua nguoi dung toi
+     mot trang lich chung chung. Xoa tham so sau khi mo de Back/F5 khong bat lai. */
+  useEffect(() => {
+    const focus = searchParams.get('focus');
+    if (!focus || openedFocus.current === focus) return;
+    const match = items.find((item) => item.key === focus);
+    if (!match) return;
+    openedFocus.current = focus;
+    setSelected(match);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('focus');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [items, searchParams, setSearchParams]);
 
   /* Bieu mau tao/sua. `editingId` null = dang tao moi. */
   const [form, setForm] = useState<{ draft: EventDraft; editingId: number | null } | null>(null);

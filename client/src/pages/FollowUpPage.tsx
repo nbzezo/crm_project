@@ -64,7 +64,7 @@ interface Group {
 }
 
 /**
- * Màn “Cần nhắc”: gom mọi việc đang cần một cú hích, nhóm theo người phụ trách.
+ * Màn “Theo dõi tiến độ”: gom mọi việc đang cần một cú hích theo người phụ trách.
  *
  * Ứng dụng không có kênh gửi ra ngoài (không SMTP, không Zalo API) nên trang này
  * KHÔNG gửi gì cả — nó soạn sẵn nội dung, mở `zalo.me`/`mailto:` hoặc copy vào

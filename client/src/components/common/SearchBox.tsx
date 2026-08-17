@@ -84,7 +84,7 @@ export function SearchBox() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex h-11 w-full max-w-lg items-center gap-2 rounded-full border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text sm:h-8 ${focusRing}`}
+        className={`tr-search-trigger flex h-11 w-full max-w-lg items-center gap-2 rounded-full border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text sm:h-8 ${focusRing}`}
       >
         <Search size={15} aria-hidden="true" />
         <span className="flex-1 truncate text-left">{t.search.placeholder}</span>
@@ -105,7 +105,7 @@ export function SearchBox() {
             role="dialog"
             aria-modal="true"
             aria-label={t.search.placeholder}
-            className="tr-anim-pop w-full max-w-xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl"
+            className="tr-search-dialog tr-anim-pop w-full max-w-xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl"
           >
             <div className="flex items-center gap-2 border-b border-tr-border px-4">
               <Search size={17} className="text-tr-muted" aria-hidden="true" />

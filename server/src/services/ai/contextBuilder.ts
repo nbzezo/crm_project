@@ -34,7 +34,7 @@ export function buildTodayContext(db: Database) {
       db,
       `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
               c.name AS customer_name
-         FROM deals d JOIN customers c ON c.id = d.customer_id
+         FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
         WHERE d.stage NOT IN ('won','lost') AND d.next_action_date < date('now','localtime')
         ORDER BY d.value_vnd DESC`,
       [],
@@ -43,7 +43,7 @@ export function buildTodayContext(db: Database) {
     deals_without_next_action: rows(
       db,
       `SELECT d.id, d.title, d.stage, d.value_vnd, c.name AS customer_name
-         FROM deals d JOIN customers c ON c.id = d.customer_id
+         FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
         WHERE d.stage NOT IN ('won','lost') AND TRIM(COALESCE(d.next_action,'')) = ''
         ORDER BY d.value_vnd DESC`,
       [],
@@ -52,7 +52,7 @@ export function buildTodayContext(db: Database) {
     expiring_contracts: rows(
       db,
       `SELECT k.id, k.name, k.number, k.end_date, k.value_vnd, c.name AS customer_name
-         FROM contracts k JOIN customers c ON c.id = k.customer_id
+         FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
         WHERE k.status = 'active' AND k.end_date BETWEEN date('now','localtime')
               AND date('now','localtime','+30 days')
         ORDER BY k.end_date`,
@@ -148,7 +148,7 @@ export function buildDealContext(db: Database, dealId: number) {
       .prepare(
         `SELECT d.*, c.name AS customer_name, s.quadrant, s.v1_no_event, s.v2_no_economic,
                 s.score_age_days
-           FROM deals d JOIN customers c ON c.id = d.customer_id
+           FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
            LEFT JOIN deal_scorecard s ON s.deal_id = d.id
           WHERE d.id = ?`
       )

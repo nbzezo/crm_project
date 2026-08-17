@@ -409,6 +409,7 @@ function BackwardPlan({ dealId }: { dealId: number }) {
         milestones: (data?.milestones ?? []).map(({ title, date }) => ({ title, date })),
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
       setExpanded(false);
     },

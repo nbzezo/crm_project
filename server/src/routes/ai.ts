@@ -454,7 +454,7 @@ function searchCrm(query: string) {
         `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
                 c.name AS customer_name,
                 (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.deal_id = d.id) AS last_interaction
-           FROM deals d JOIN customers c ON c.id = d.customer_id
+           FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
           WHERE d.search_text LIKE ? OR c.search_text LIKE ?
           ORDER BY d.updated_at DESC LIMIT 12`
       )
@@ -462,7 +462,7 @@ function searchCrm(query: string) {
     contracts: db
       .prepare(
         `SELECT k.id, k.name, k.number, k.status, k.value_vnd, k.end_date, c.name AS customer_name
-           FROM contracts k JOIN customers c ON c.id = k.customer_id
+           FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
           WHERE k.search_text LIKE ? OR c.search_text LIKE ? ORDER BY k.end_date LIMIT 8`
       )
       .all(like, like),

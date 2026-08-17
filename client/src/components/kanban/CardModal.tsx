@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlignLeft,
@@ -32,7 +31,7 @@ import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { useDialog } from '../common/useDialog';
-import { Button, focusRing, selectOptionContrast } from '../common/ui';
+import { Button, Field as FormField, focusRing, selectOptionContrast } from '../common/ui';
 import { AttachmentSection } from './AttachmentSection';
 import { ChecklistSection } from './ChecklistSection';
 import { CustomFieldsSection } from './CustomFieldsSection';
@@ -46,9 +45,9 @@ import { api } from '../../api/client';
 import { COVER_COLORS } from '../../lib/backgrounds';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk, formatDate, formatDateTime, nowLocalInput } from '../../lib/format';
-import { invalidateCardViews } from '../../lib/queryKeys';
+import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore } from '../../stores/uiStore';
-import type { Board, BoardFull, CardDetail, Customer, Deal, Priority } from '../../types';
+import type { Board, BoardFull, CardDetail, Customer, Deal, Priority, Project } from '../../types';
 
 export function CardModal() {
   const cardId = useUiStore((s) => s.openCardId);
@@ -69,6 +68,7 @@ export function CardModal() {
   const priorityPop = usePopover();
   const customerPop = usePopover();
   const assigneePop = usePopover();
+  const projectPop = usePopover();
   const statusPop = usePopover();
   const coverPop = usePopover();
   const movePop = usePopover();
@@ -399,19 +399,21 @@ export function CardModal() {
                   </button>
                 </Field>
 
-                {/* Chỉ để đọc: dự án suy từ bảng chứa thẻ (v19). Muốn đổi dự án
-                    thì chuyển thẻ sang bảng khác — menu ··· › Di chuyển. */}
-                {card.project_name && (
-                  <Field label={t.nav.projects}>
-                    <Link
-                      to={`/projects/${card.project_id}`}
-                      title={`Theo bảng “${card.board?.name}”. Đổi dự án bằng cách chuyển thẻ sang bảng khác.`}
-                      className={`inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
-                    >
-                      <FolderKanban size={13} aria-hidden="true" /> {card.project_name}
-                    </Link>
-                  </Field>
-                )}
+                <Field label={t.nav.projects}>
+                  <button
+                    type="button"
+                    onClick={projectPop.toggle}
+                    aria-label={`Dự án: ${card.project_name ?? 'Chưa chọn'}`}
+                    aria-haspopup="dialog"
+                    className={`inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                  >
+                    <FolderKanban size={13} aria-hidden="true" />
+                    <span className={card.project_name ? '' : 'text-tr-muted'}>
+                      {card.project_name ?? 'Chưa chọn'}
+                    </span>
+                    <ChevronDown size={12} className="text-tr-muted" aria-hidden="true" />
+                  </button>
+                </Field>
 
                 {card.customer_name && (
                   <Field label={t.card.customer}>
@@ -676,6 +678,13 @@ export function CardModal() {
       />
       <CustomerPopover card={card} pop={customerPop} onChange={(p) => update.mutate(p)} />
       <AssigneePopover card={card} pop={assigneePop} onChange={(p) => update.mutate(p)} />
+      <ProjectPopover
+        card={card}
+        pop={projectPop}
+        onChange={(projectId) =>
+          update.mutate({ project_id: projectId }, { onSuccess: () => projectPop.close() })
+        }
+      />
       <StatusPopover card={card} pop={statusPop} onChange={(p) => update.mutate(p)} />
       <CoverPopover
         card={card}
@@ -1032,6 +1041,7 @@ function CustomerPopover({
   pop: Pop;
   onChange: (patch: Record<string, unknown>) => void;
 }) {
+  const queryClient = useQueryClient();
   const { data: customers = [] } = useQuery({
     queryKey: ['customers', 'select'],
     queryFn: () => api.get<Customer[]>('/api/customers'),
@@ -1057,6 +1067,12 @@ function CustomerPopover({
           searchPlaceholder="Tìm khách hàng…"
           emptyText="Không tìm thấy khách hàng."
           ariaLabel={t.card.customer}
+          onQuickCreate={async (name) => {
+            const created = await api.post<Customer>('/api/customers', { name });
+            invalidateCrmViews(queryClient);
+            return { id: created.id, label: created.name };
+          }}
+          quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
         />
 
         {card.customer_id && (
@@ -1070,6 +1086,17 @@ function CustomerPopover({
               searchPlaceholder="Tìm cơ hội…"
               emptyText="Không tìm thấy cơ hội."
               ariaLabel={t.card.deal}
+              onQuickCreate={async (title) => {
+                const created = await api.post<Deal>('/api/deals', {
+                  customer_id: card.customer_id,
+                  title,
+                });
+                queryClient.invalidateQueries({
+                  queryKey: ['deals', 'byCustomer', card.customer_id],
+                });
+                return { id: created.id, label: created.title };
+              }}
+              quickCreateLabel={(q) => `+ Tạo cơ hội "${q}"`}
             />
           </label>
         )}
@@ -1220,6 +1247,50 @@ function AssigneePopover({
   );
 }
 
+/**
+ * Dự án là quan hệ suy từ bảng chứa thẻ, nên chọn dự án sẽ nhờ API chuyển thẻ
+ * sang một bảng của dự án đó (ưu tiên cột có cùng trạng thái hiện tại).
+ */
+function ProjectPopover({
+  card,
+  pop,
+  onChange,
+}: {
+  card: CardDetail;
+  pop: Pop;
+  onChange: (projectId: number | null) => void;
+}) {
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects', 'picker'],
+    queryFn: () => api.get<Project[]>('/api/projects'),
+    enabled: pop.open,
+    staleTime: 60_000,
+  });
+
+  return (
+    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.nav.projects}>
+      <FormField
+        label="Chọn dự án"
+        hint="Công việc sẽ chuyển sang bảng của dự án và giữ nguyên trạng thái nếu bảng đích có cột tương ứng."
+      >
+        <Combobox
+          value={card.project_id ?? ''}
+          onChange={(value) => onChange(value === '' ? null : value)}
+          options={projects.map((project) => ({
+            id: project.id,
+            label: project.name,
+            sublabel: project.customer_name ?? 'Dự án nội bộ',
+          }))}
+          placeholder="— Không thuộc dự án —"
+          searchPlaceholder="Tìm dự án…"
+          emptyText="Không tìm thấy dự án."
+          ariaLabel="Chọn dự án cho công việc"
+        />
+      </FormField>
+    </Popover>
+  );
+}
+
 function CoverPopover({
   card,
   pop,
@@ -1256,6 +1327,7 @@ function CoverPopover({
 }
 
 function MovePopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone: () => void }) {
+  const queryClient = useQueryClient();
   const [boardId, setBoardId] = useState<number | null>(null);
   const targetBoardId = boardId ?? card.board?.id ?? null;
 
@@ -1294,6 +1366,12 @@ function MovePopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone
             emptyText="Không tìm thấy bảng."
             ariaLabel="Bảng"
             allowClear={false}
+            onQuickCreate={async (name) => {
+              const created = await api.post<Board>('/api/boards', { name });
+              queryClient.invalidateQueries({ queryKey: ['boards'] });
+              return { id: created.id, label: created.name };
+            }}
+            quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
           />
         </label>
         <div>
@@ -1335,6 +1413,7 @@ function ReminderPopover({ card, pop }: { card: CardDetail; pop: Pop }) {
         card_id: card.id,
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
       queryClient.invalidateQueries({ queryKey: ['card', card.id] });
       pop.close();

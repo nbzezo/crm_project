@@ -21,13 +21,14 @@ import {
 } from '@dnd-kit/sortable';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { Plus } from 'lucide-react';
+import { LayoutGrid, List as ListIcon, Plus } from 'lucide-react';
 import { ApiError, api } from '../api/client';
 import { DealCardBody, SortableDealCard } from '../components/crm/DealCard';
 import { DealForm } from '../components/crm/DealForm';
 import { Modal } from '../components/common/Modal';
 import {
   Button,
+  ColorBadge,
   DateInput,
   ErrorState,
   Field,
@@ -36,6 +37,7 @@ import {
   Select,
   Skeleton,
   Textarea,
+  focusRing,
 } from '../components/common/ui';
 import { labelsOf, useLabelMap } from '../components/labels/EntityLabels';
 import {
@@ -83,6 +85,12 @@ export default function PipelinePage() {
   const [overrideReason, setOverrideReason] = useState('');
   /** FR-TAG-21/22: lọc pipeline theo nhãn, mặc định không lọc gì. */
   const [labelFilter, setLabelFilter] = useState<LabelFilterState>(EMPTY_LABEL_FILTER);
+  /** v23: chỉ hiện cơ hội đã thắng nhưng hồ sơ bàn giao chưa đủ. */
+  const [pendingHandoverOnly, setPendingHandoverOnly] = useState(false);
+  const [view, setView] = useState<'board' | 'list'>(() =>
+    window.matchMedia('(max-width: 639px)').matches ? 'list' : 'board'
+  );
+  const [stageFilter, setStageFilter] = useState<Stage | 'all'>('all');
   const labelMap = useLabelMap('deal');
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -268,63 +276,125 @@ export default function PipelinePage() {
     { sum: 0, weighted: 0, count: 0 }
   );
 
+  /* Mục §12 của đặc tả: "Won đang chờ bàn giao" là một chỉ số quản trị riêng,
+     không phải một trạng thái ẩn bên trong cột Won. */
+  const pendingHandover = (data.stages.won ?? []).filter((deal) => !deal.handover_ready);
+  const visibleDeals = (stage: Stage) =>
+    (data.stages[stage] ?? []).filter(
+      (deal) =>
+        matchLabelFilter(
+          labelsOf(labelMap, deal.id).map((label) => label.id),
+          labelFilter
+        ) &&
+        (!pendingHandoverOnly || (deal.stage === 'won' && !deal.handover_ready))
+    );
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-4 px-4 pt-4">
         <Metric label="Cơ hội đang mở" value={String(openTotal.count)} />
         <Metric label="Tổng pipeline" value={formatVND(openTotal.sum)} />
         <Metric label="Weighted pipeline" value={formatVND(Math.round(openTotal.weighted))} />
+        {(pendingHandover.length > 0 || pendingHandoverOnly) && (
+          <FilterMetric
+            label="Won chờ bàn giao"
+            value={String(pendingHandover.length)}
+            active={pendingHandoverOnly}
+            tone={pendingHandover.length > 0 ? 'warning' : 'muted'}
+            onClick={() => setPendingHandoverOnly((on) => !on)}
+          />
+        )}
         <LabelFilter scope="deal" value={labelFilter} onChange={setLabelFilter} />
+        {view === 'list' && (
+          <Select
+            aria-label="Lọc theo giai đoạn"
+            value={stageFilter}
+            onChange={(event) => setStageFilter(event.target.value as Stage | 'all')}
+            className="w-auto"
+          >
+            <option value="all">Tất cả giai đoạn</option>
+            {STAGE_ORDER.map((stage) => (
+              <option key={stage} value={stage}>
+                {t.stage[stage]}
+              </option>
+            ))}
+          </Select>
+        )}
+        <div className="inline-flex rounded-control border border-tr-border bg-tr-panel p-0.5">
+          <button
+            type="button"
+            onClick={() => setView('board')}
+            aria-label="Xem dạng pipeline"
+            aria-pressed={view === 'board'}
+            className={`flex h-8 items-center gap-1 rounded-control px-2 text-xs ${focusRing} ${
+              view === 'board' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
+            }`}
+          >
+            <LayoutGrid size={14} aria-hidden="true" /> Pipeline
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            aria-label="Xem dạng danh sách"
+            aria-pressed={view === 'list'}
+            className={`flex h-8 items-center gap-1 rounded-control px-2 text-xs ${focusRing} ${
+              view === 'list' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
+            }`}
+          >
+            <ListIcon size={14} aria-hidden="true" /> Danh sách
+          </button>
+        </div>
         <Button
           variant="primary"
-          className="ml-auto"
+          className="sm:ml-auto"
           onClick={() => setForm({ open: true, deal: null })}
         >
           <Plus size={16} /> {t.deal.newDeal}
         </Button>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => {
-          setActiveDeal(null);
-          restoreDragSnapshot();
-        }}
-      >
-        <div className="tr-scroll flex flex-1 items-start gap-3 overflow-x-auto p-4">
-          {STAGE_ORDER.map((stage) => (
-            <StageColumn
-              key={stage}
-              stage={stage}
-              deals={(data.stages[stage] ?? []).filter((deal) =>
-                matchLabelFilter(
-                  labelsOf(labelMap, deal.id).map((l) => l.id),
-                  labelFilter
-                )
-              )}
-              labelMap={labelMap}
-              onAdd={() => setForm({ open: true, deal: null, stage })}
-              // Bấm thẻ mở trang chi tiết (scorecard); sửa nhanh vẫn ở modal DealForm
-              onOpen={(deal) => navigate(`/deals/${deal.id}`)}
-            />
-          ))}
-        </div>
+      {view === 'board' ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => {
+            setActiveDeal(null);
+            restoreDragSnapshot();
+          }}
+        >
+          <div className="tr-scroll flex flex-1 items-start gap-3 overflow-x-auto p-4">
+            {STAGE_ORDER.map((stage) => (
+              <StageColumn
+                key={stage}
+                stage={stage}
+                deals={visibleDeals(stage)}
+                labelMap={labelMap}
+                onAdd={() => setForm({ open: true, deal: null, stage })}
+                onOpen={(deal) => navigate(`/deals/${deal.id}`)}
+              />
+            ))}
+          </div>
 
-        <DragOverlay>
-          {activeDeal && (
-            <DealCardBody
-              deal={activeDeal}
-              labels={labelsOf(labelMap, activeDeal.id)}
-              onClick={() => {}}
-              dragging
-            />
-          )}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeDeal && (
+              <DealCardBody
+                deal={activeDeal}
+                labels={labelsOf(labelMap, activeDeal.id)}
+                onClick={() => {}}
+                dragging
+              />
+            )}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        <PipelineList
+          deals={(stageFilter === 'all' ? STAGE_ORDER : [stageFilter]).flatMap(visibleDeals)}
+          onOpen={(deal) => navigate(`/deals/${deal.id}`)}
+        />
+      )}
 
       <DealForm
         open={form.open}
@@ -369,12 +439,138 @@ export default function PipelinePage() {
   );
 }
 
+function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) => void }) {
+  if (deals.length === 0) {
+    return (
+      <div className="m-4 rounded-panel border border-tr-border bg-tr-panel p-8 text-center text-sm text-tr-muted">
+        Không có cơ hội nào khớp bộ lọc.
+      </div>
+    );
+  }
+
+  return (
+    <div className="tr-scroll flex-1 overflow-auto p-4">
+      <ul className="space-y-2 sm:hidden" aria-label="Danh sách cơ hội">
+        {deals.map((deal) => (
+          <li key={deal.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(deal)}
+              className={`w-full rounded-panel border border-tr-border bg-tr-panel p-3 text-left shadow-sm transition hover:border-tr-primary/40 hover:bg-tr-hover ${focusRing}`}
+            >
+              <span className="flex items-start gap-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-tr-text">
+                    {deal.title}
+                  </span>
+                  <span className="block truncate text-xs text-tr-muted">{deal.customer_name}</span>
+                </span>
+                <ColorBadge color={STAGE_COLORS[deal.stage]} small>
+                  {t.stage[deal.stage]}
+                </ColorBadge>
+              </span>
+              <span className="mt-2 flex items-end justify-between gap-3 text-xs">
+                <span className="min-w-0 truncate text-tr-subtle">
+                  {deal.next_action || 'Chưa có hành động tiếp theo'}
+                </span>
+                <strong className="shrink-0 text-tr-text">{formatVNDShort(deal.value_vnd)}</strong>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm sm:block">
+        <table className="w-full min-w-[760px] text-sm">
+          <caption className="sr-only">Danh sách cơ hội bán hàng</caption>
+          <thead className="bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase">
+            <tr>
+              <th className="px-3 py-2">Cơ hội</th>
+              <th className="px-3 py-2">Khách hàng</th>
+              <th className="px-3 py-2">Giai đoạn</th>
+              <th className="px-3 py-2 text-right">Giá trị</th>
+              <th className="px-3 py-2">Hành động tiếp theo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-tr-border">
+            {deals.map((deal) => (
+              <tr key={deal.id} className="hover:bg-tr-hover">
+                <td className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpen(deal)}
+                    className={`max-w-64 truncate text-left font-semibold text-tr-text hover:text-tr-primary hover:underline ${focusRing}`}
+                  >
+                    {deal.title}
+                  </button>
+                </td>
+                <td className="max-w-48 truncate px-3 py-2 text-tr-subtle">{deal.customer_name}</td>
+                <td className="px-3 py-2">
+                  <ColorBadge color={STAGE_COLORS[deal.stage]} small>
+                    {t.stage[deal.stage]}
+                  </ColorBadge>
+                </td>
+                <td className="px-3 py-2 text-right font-medium whitespace-nowrap text-tr-text">
+                  {formatVNDShort(deal.value_vnd)}
+                </td>
+                <td className="max-w-64 truncate px-3 py-2 text-tr-subtle">
+                  {deal.next_action || 'Chưa đặt'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs text-tr-muted">{label}</div>
       <div className="text-lg font-semibold text-tr-text">{value}</div>
     </div>
+  );
+}
+
+/**
+ * Chỉ số bấm được để lọc bảng — dùng cho "Won chờ bàn giao".
+ *
+ * Là `button` thật chứ không phải `div` có onClick: nó thay đổi nội dung đang
+ * hiển thị nên phải tới được bằng bàn phím, và `aria-pressed` mới nói ra được
+ * rằng bộ lọc đang bật.
+ */
+function FilterMetric({
+  label,
+  value,
+  active,
+  tone,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+  tone: 'warning' | 'muted';
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={active ? 'Bỏ lọc, hiện lại toàn bộ pipeline' : 'Chỉ hiện cơ hội đang chờ bàn giao'}
+      className={`rounded-control px-2 py-1 text-left transition ${focusRing} ${
+        active ? 'bg-tr-warning/15 ring-1 ring-tr-warning' : 'hover:bg-tr-hover'
+      }`}
+    >
+      <div className="text-xs text-tr-muted">{label}</div>
+      <div
+        className={`text-lg font-semibold ${tone === 'warning' ? 'text-tr-warning' : 'text-tr-text'}`}
+      >
+        {value}
+      </div>
+    </button>
   );
 }
 
@@ -665,6 +861,21 @@ function WonDialog({
             Tạo hợp đồng từ cơ hội này
           </label>
         </div>
+
+        {/*
+          Cảnh báo MỀM, không chặn: đặc tả yêu cầu Won gắn với hợp đồng/PO đã ký
+          hoặc một phê duyệt ngoại lệ, nhưng chặn cứng ngay tại thao tác kéo-thả
+          sẽ làm gãy một luồng người dùng đang dùng hằng ngày. Nói rõ hệ quả rồi
+          để họ tự quyết là đủ để hồ sơ không bị bỏ quên âm thầm.
+        */}
+        {!makeContract && (deal?.contract_count ?? 0) === 0 && (
+          <div className="sm:col-span-2 rounded-control border border-tr-warning/40 bg-tr-warning/10 px-3 py-2 text-xs text-tr-text">
+            <span className="font-semibold">Chưa có hợp đồng hay PO nào gắn với cơ hội này.</span>{' '}
+            Cơ hội vẫn được ghi nhận là Thắng, nhưng sẽ nằm ở diện <b>chờ bàn giao</b> cho tới khi
+            hồ sơ đủ — đánh dấu &ldquo;Hồ sơ bàn giao đã đủ&rdquo; trong biểu mẫu cơ hội khi xong.
+          </div>
+        )}
+
         {makeContract && (
           <>
             <Field label="Số hợp đồng">

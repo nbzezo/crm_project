@@ -1,7 +1,44 @@
 import { db } from '../db/connection.ts';
 import { isClosed } from '../lib/crm.ts';
 import { checkStageGate, snapshotScores } from '../lib/scoring.ts';
-import { HttpError } from '../lib/validate.ts';
+import { HttpError, required } from '../lib/validate.ts';
+import { assertProjectCustomerLink } from '../lib/entityRelations.ts';
+
+/**
+ * Kiem tra lien ket co hoi -> du an truoc khi ghi (v23).
+ *
+ * Chi muc duy nhat trong CSDL da chan trung roi, nhung no chi nem ra
+ * "UNIQUE constraint failed: deals.project_id" — dung ve ky thuat, vo nghia voi
+ * nguoi dung. Cho nay bat truoc de noi ro CO HOI NAO dang giu du an do, kem id
+ * de giao dien dieu huong thang toi no.
+ *
+ * `dealId = 0` khi dang tao moi: chua co ban ghi nao de tu loai tru.
+ */
+export function assertProjectLink(
+  dealId: number,
+  projectId: number | null | undefined,
+  customerId: number | null | undefined
+): void {
+  if (projectId == null) return;
+
+  const project = required(
+    db.prepare(`SELECT id, name, customer_id FROM projects WHERE id = ?`).get(projectId),
+    'Khong tim thay du an'
+  ) as { id: number; name: string; customer_id: number | null };
+
+  const taken = db
+    .prepare(`SELECT id, title FROM deals WHERE project_id = ? AND id <> ?`)
+    .get(projectId, dealId) as { id: number; title: string } | undefined;
+  if (taken) {
+    throw new HttpError(409, `Dự án "${project.name}" đã gắn với cơ hội "${taken.title}"`, {
+      code: 'PROJECT_ALREADY_LINKED',
+      deal_id: taken.id,
+      deal_title: taken.title,
+    });
+  }
+
+  assertProjectCustomerLink(db, { project_id: projectId, customer_id: customerId }, 'Cơ hội');
+}
 
 export function evaluateStageGate(
   id: number,

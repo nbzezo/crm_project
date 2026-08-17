@@ -185,7 +185,7 @@ export function KpiSummary({
       <h2 id="kpi-summary-title" className="sr-only">
         Tình hình kinh doanh và cảnh báo chính
       </h2>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-12">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-12">
         {metrics.map((metric) => (
           <Metric key={metric.label} {...metric} />
         ))}
@@ -202,7 +202,7 @@ function Metric({ icon: Icon, label, value, hint, tone, featured, to, onClick }:
       : tone === 'warning'
         ? 'bg-tr-warning/10 text-tr-warning hover:bg-tr-warning/15'
         : 'bg-tr-panel text-tr-text hover:bg-tr-hover';
-  const gridClass = featured ? 'sm:col-span-2 md:col-span-8 md:row-span-2' : 'md:col-span-4';
+  const gridClass = featured ? 'col-span-2 md:col-span-8 md:row-span-2' : 'md:col-span-4';
   const className = `tr-bento-card group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border text-left ${
     featured ? 'min-h-[156px] p-4 sm:p-5' : 'min-h-[76px] p-3'
   } ${gridClass} ${toneClass} ${focusRing}`;
@@ -425,6 +425,10 @@ export function ActionWidget({
     () => (Object.keys(buckets) as TaskBucketKey[]).find((key) => buckets[key].count > 0) ?? 'today'
   );
   const selected = buckets[active];
+  const recommendedTaskIds = new Set(
+    recommendations.filter((item) => item.kind === 'task').map((item) => item.cardId)
+  );
+  const selectedTasks = selected.tasks.filter((task) => !recommendedTaskIds.has(task.id));
 
   return (
     <Panel
@@ -487,11 +491,17 @@ export function ActionWidget({
         })}
       </div>
 
-      {selected.tasks.length === 0 ? (
-        <CompactSuccess message={`Không có công việc ${selected.label.toLocaleLowerCase('vi')}.`} />
+      {selectedTasks.length === 0 ? (
+        <CompactSuccess
+          message={
+            selected.tasks.length > 0
+              ? 'Các công việc ở mốc này đã được đưa vào mục Nên ưu tiên.'
+              : `Không có công việc ${selected.label.toLocaleLowerCase('vi')}.`
+          }
+        />
       ) : (
         <ul className="divide-y divide-tr-border" aria-label={`Công việc ${selected.label}`}>
-          {selected.tasks.slice(0, 6).map((task) => (
+          {selectedTasks.slice(0, 6).map((task) => (
             <TaskItem key={task.id} task={task} onOpen={onOpenTask} />
           ))}
         </ul>
@@ -626,14 +636,19 @@ function reminderPresentation(value: string): ReminderPresentation {
 export function ReminderWidget({
   reminders,
   onOpenTask,
+  excludedIds = new Set<number>(),
 }: {
   reminders: Reminder[];
   onOpenTask: (id: number) => void;
+  excludedIds?: Set<number>;
 }) {
-  const items = reminders.slice(0, 5).map((reminder) => ({
-    reminder,
-    presentation: reminderPresentation(reminder.due_at),
-  }));
+  const items = reminders
+    .filter((reminder) => !excludedIds.has(reminder.id))
+    .slice(0, 5)
+    .map((reminder) => ({
+      reminder,
+      presentation: reminderPresentation(reminder.due_at),
+    }));
   const missed = items.filter((item) => item.presentation.missed);
   const upcoming = items.filter((item) => !item.presentation.missed);
 
@@ -857,8 +872,14 @@ function attentionItems(data: DashboardData): AttentionItem[] {
   });
 }
 
-export function AttentionWidget({ data }: { data: DashboardData }) {
-  const items = attentionItems(data);
+export function AttentionWidget({
+  data,
+  excludedDealIds = new Set<number>(),
+}: {
+  data: DashboardData;
+  excludedDealIds?: Set<number>;
+}) {
+  const items = attentionItems(data).filter((item) => !excludedDealIds.has(item.deal.id));
   const immediate = items.filter((item) => item.group === 'immediate');
   const quality = items.filter((item) => item.group === 'quality');
   const shownImmediate = immediate.slice(0, 6);

@@ -1,8 +1,19 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, Database, Download, HardDriveDownload, Tag, Target } from 'lucide-react';
+import {
+  Bot,
+  Database,
+  Download,
+  GanttChartSquare,
+  HardDriveDownload,
+  PackageOpen,
+  Send,
+  Tag,
+  Target,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
+import type { TelegramConfig } from '../types';
 import { Button, Panel } from '../components/common/ui';
 import { Tabs } from '../components/common/Tabs';
 import { PageHeader, PageShell } from '../components/common/PageShell';
@@ -13,6 +24,9 @@ import { formatBytes } from '../components/crm/DocumentUpload';
 import { formatDateTime } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import { AiSettings } from '../components/ai/AiSettings';
+import { TelegramSettings } from '../components/settings/TelegramSettings';
+import { HandoverSettings } from '../components/settings/HandoverSettings';
+import { DeliverySettings } from '../components/settings/DeliverySettings';
 
 interface BackupFile {
   name: string;
@@ -29,12 +43,15 @@ const CSV_EXPORTS: [string, string][] = [
   ['revenues', 'Doanh thu theo tháng'],
 ];
 
-type SettingsTab = 'labels' | 'scoring' | 'ai' | 'data';
+type SettingsTab = 'labels' | 'scoring' | 'handover' | 'delivery' | 'ai' | 'telegram' | 'data';
 
 const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: 'labels', label: t.settings.tabLabels, icon: Tag },
   { key: 'scoring', label: t.settings.tabScoring, icon: Target },
+  { key: 'handover', label: t.settings.tabHandover, icon: PackageOpen },
+  { key: 'delivery', label: t.settings.tabDelivery, icon: GanttChartSquare },
   { key: 'ai', label: t.settings.tabAi, icon: Bot },
+  { key: 'telegram', label: t.settings.tabTelegram, icon: Send },
   { key: 'data', label: t.settings.tabData, icon: Database },
 ];
 
@@ -47,11 +64,27 @@ function DataSettings() {
     queryFn: () => api.get<BackupFile[]>('/api/backups'),
   });
 
+  const { data: telegramConfig } = useQuery({
+    queryKey: ['telegram-config'],
+    queryFn: () => api.get<TelegramConfig>('/api/telegram/config'),
+  });
+  const telegramReady = Boolean(telegramConfig?.has_token && telegramConfig?.chat_id);
+
   const backup = useMutation({
     mutationFn: () => api.post<{ name: string; size: number }>('/api/backup'),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['backups'] });
       pushToast(`Đã tạo bản sao lưu ${result.name}`, 'success');
+      window.location.href = `/api/backups/${encodeURIComponent(result.name)}/download`;
+    },
+  });
+
+  const sendBackupToTelegram = useMutation({
+    mutationFn: () => api.post<{ name: string }>('/api/telegram/send-backup'),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['backups'] });
+      queryClient.invalidateQueries({ queryKey: ['telegram-config'] });
+      pushToast(`Đã gửi bản sao lưu ${result.name} qua Telegram`, 'success');
     },
   });
 
@@ -61,9 +94,19 @@ function DataSettings() {
         <p className="mb-3 flex items-center gap-2 text-sm text-tr-subtle">
           <Database size={15} /> {t.settings.dataLocation}
         </p>
+        <p className="mb-2 text-xs text-tr-subtle">{t.settings.backupChoiceHint}</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => backup.mutate()} disabled={backup.isPending}>
-            <HardDriveDownload size={15} /> {t.settings.backupNow}
+            <HardDriveDownload size={15} />
+            {backup.isPending ? 'Đang tạo…' : t.settings.backupDownload}
+          </Button>
+          <Button
+            onClick={() => sendBackupToTelegram.mutate()}
+            disabled={!telegramReady || sendBackupToTelegram.isPending}
+            title={telegramReady ? undefined : t.settings.backupTelegramNotReady}
+          >
+            <Send size={15} />
+            {sendBackupToTelegram.isPending ? 'Đang gửi…' : t.settings.backupSendTelegram}
           </Button>
           <a
             href="/api/export"
@@ -72,6 +115,9 @@ function DataSettings() {
             <Download size={15} /> {t.settings.exportJson}
           </a>
         </div>
+        {!telegramReady && (
+          <p className="mt-2 text-xs text-tr-muted">{t.settings.backupTelegramNotReady}</p>
+        )}
 
         {/* NFR-06: xuất CSV mở được bằng Excel */}
         <div className="mt-4">
@@ -104,6 +150,14 @@ function DataSettings() {
                   <span className="text-xs text-tr-muted">
                     {formatDateTime(file.created_at.slice(0, 16))}
                   </span>
+                  <a
+                    href={`/api/backups/${encodeURIComponent(file.name)}/download`}
+                    className="rounded-control p-1 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                    aria-label={`${t.settings.backupDownload} ${file.name}`}
+                    title={t.settings.backupDownload}
+                  >
+                    <Download size={14} />
+                  </a>
                 </li>
               ))}
             </ul>
@@ -154,7 +208,10 @@ export default function SettingsPage() {
             <ScoringSettings />
           </Panel>
         )}
+        {tab === 'handover' && <HandoverSettings />}
+        {tab === 'delivery' && <DeliverySettings />}
         {tab === 'ai' && <AiSettings />}
+        {tab === 'telegram' && <TelegramSettings />}
         {tab === 'data' && <DataSettings />}
       </Tabs>
     </PageShell>

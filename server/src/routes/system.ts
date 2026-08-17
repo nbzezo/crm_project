@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Router } from 'express';
 import { BACKUP_DIR, db } from '../db/connection.ts';
+import { createBackupFile } from '../lib/backup.ts';
 import { HttpError } from '../lib/validate.ts';
 import { fold } from '../lib/viSearch.ts';
 
@@ -88,7 +89,7 @@ router.get('/search', (req, res) => {
   const deals = db
     .prepare(
       `SELECT d.id, d.title, d.stage, d.value_vnd, c.name AS customer_name
-         FROM deals d JOIN customers c ON c.id = d.customer_id
+         FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
         WHERE d.search_text LIKE ? OR c.search_text LIKE ?
         ORDER BY d.updated_at DESC LIMIT 8`
     )
@@ -97,7 +98,7 @@ router.get('/search', (req, res) => {
   const contracts = db
     .prepare(
       `SELECT k.id, k.name, k.number, k.status, k.end_date, k.value_vnd, c.name AS customer_name
-         FROM contracts k JOIN customers c ON c.id = k.customer_id
+         FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
         WHERE k.search_text LIKE ? OR c.search_text LIKE ?
         ORDER BY k.end_date LIMIT 8`
     )
@@ -115,12 +116,6 @@ router.get('/search', (req, res) => {
   res.json({ cards, customers, contacts, deals, contracts, documents });
 });
 
-function timestamp(): string {
-  const now = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
-}
-
 router.get('/backups', (_req, res) => {
   const files = fs
     .readdirSync(BACKUP_DIR)
@@ -135,13 +130,21 @@ router.get('/backups', (_req, res) => {
 
 router.post('/backup', async (_req, res, next) => {
   try {
-    const file = path.join(BACKUP_DIR, `app-${timestamp()}.db`);
-    await db.backup(file);
-    const stat = fs.statSync(file);
-    res.json({ path: file, name: path.basename(file), size: stat.size });
+    const file = await createBackupFile(db);
+    res.json(file);
   } catch (err) {
     next(err);
   }
+});
+
+const SAFE_BACKUP_NAME = /^[\w.-]+\.db$/;
+
+router.get('/backups/:name/download', (req, res) => {
+  const name = String(req.params.name);
+  if (!SAFE_BACKUP_NAME.test(name)) throw new HttpError(400, 'Ten file khong hop le');
+  const file = path.join(BACKUP_DIR, name);
+  if (!fs.existsSync(file)) throw new HttpError(404, 'Khong tim thay ban sao luu');
+  res.download(file, name);
 });
 
 router.get('/export', (_req, res) => {
@@ -182,7 +185,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
                  CASE WHEN s.v1_no_event = 1 OR s.v2_no_economic = 1 THEN 'Có' ELSE '' END AS "Veto",
                  s.score_age_days AS "Tuổi điểm (ngày)",
                  d.notes AS "Ghi chú"
-            FROM deals d JOIN customers c ON c.id = d.customer_id
+            FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             JOIN deal_scorecard s ON s.deal_id = d.id
            ORDER BY d.updated_at DESC`,
   },
@@ -197,7 +200,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
                  sc.evidence AS "Bằng chứng", sc.challenge AS "Phản biện", sc.scored_at AS "Chấm lúc"
             FROM deal_scores sc
             JOIN deals d ON d.id = sc.deal_id
-            JOIN customers c ON c.id = d.customer_id
+            JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
            ORDER BY d.id, sc.factor`,
   },
   tasks: {
@@ -226,7 +229,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
                  k.value_vnd AS "Giá trị", k.sign_date AS "Ngày ký", k.start_date AS "Bắt đầu",
                  k.end_date AS "Kết thúc", k.status AS "Trạng thái",
                  k.payment_terms AS "Điều khoản thanh toán", k.notes AS "Ghi chú"
-            FROM contracts k JOIN customers c ON c.id = k.customer_id ORDER BY k.end_date`,
+            FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer' ORDER BY k.end_date`,
   },
   revenues: {
     label: 'doanh-thu',
@@ -244,7 +247,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
                  r.note AS "Ghi chú"
             FROM service_revenues r
             JOIN customer_services cs ON cs.id = r.line_id
-            JOIN customers c ON c.id = cs.customer_id
+            JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
             LEFT JOIN services s ON s.id = cs.service_id
            ORDER BY r.period, c.name COLLATE NOCASE`,
   },

@@ -7,9 +7,13 @@ import type {
   NudgeChannel,
   OrgKind,
   Priority,
+  DeliveryModel,
   ProjectHealth,
   ProjectStatus,
   RevenueStage,
+  RiskKind,
+  RiskSeverity,
+  RiskStatus,
   ServiceStatus,
   Stage,
 } from '@workflow/contracts';
@@ -18,6 +22,7 @@ export type {
   CardStatus,
   ContractKind,
   ContractTerm,
+  DeliveryModel,
   InteractionType,
   LabelEntity,
   NudgeChannel,
@@ -26,6 +31,9 @@ export type {
   ProjectHealth,
   ProjectStatus,
   RevenueStage,
+  RiskKind,
+  RiskSeverity,
+  RiskStatus,
   ServiceStatus,
   Stage,
 };
@@ -340,6 +348,43 @@ export interface Deal {
   next_action_date: string | null;
   is_renewal: number;
   notes: string;
+  /**
+   * Dự án triển khai sinh ra từ cơ hội này (v23) — một cơ hội tối đa một dự án,
+   * ràng buộc bằng chỉ mục duy nhất trong CSDL chứ không chỉ ở tầng giao diện.
+   */
+  project_id: number | null;
+  project_name?: string | null;
+  project_status?: ProjectStatus | null;
+  /**
+   * Hồ sơ bàn giao đã đủ để đội triển khai tiếp nhận chưa.
+   *
+   * Là một cờ chứ không phải một giai đoạn mới: "Won nhưng chưa đủ hồ sơ" vẫn là
+   * Won về mặt thương mại, chèn thêm stage sẽ phá mọi báo cáo đang đếm theo đúng
+   * bảy giai đoạn.
+   */
+  handover_ready: number;
+  /** >0: trạng thái bàn giao do checklist quản lý, không được sửa trực tiếp. */
+  handover_count?: number;
+  /* PoC — bốn trường đầu chính là điều kiện chuyển sang giai đoạn này (đặc tả S03). */
+  poc_scope: string | null;
+  poc_start_date: string | null;
+  poc_end_date: string | null;
+  poc_criteria: string | null;
+  poc_result: string | null;
+  /**
+   * Tạm dừng là một **cờ**, không phải một giai đoạn (v27).
+   *
+   * Một cơ hội tạm dừng vẫn đang nằm ở một chỗ trong pipeline — dừng giữa đàm
+   * phán khác hẳn dừng ngay sau báo giá. Biến nó thành giai đoạn sẽ xoá mất
+   * chính thông tin đó, và khi mở lại thì không ai biết phải trả về đâu.
+   */
+  on_hold: number;
+  on_hold_reason: string | null;
+  on_hold_review_date: string | null;
+  /** Mốc đổi giai đoạn gần nhất; nguồn để tính `days_in_stage`. */
+  stage_entered_at: string | null;
+  /** Thời gian lưu tại giai đoạn hiện tại — tính khi đọc (đặc tả 5.5). */
+  days_in_stage?: number;
   days_idle?: number;
   last_activity_at?: string | null;
   quotation_count?: number;
@@ -374,6 +419,9 @@ export interface Contract {
   payment_terms: string | null;
   renewal_followed: number;
   notes: string;
+  /** Dự án triển khai mà hợp đồng này tài trợ (v27). */
+  project_id: number | null;
+  project_name?: string | null;
   days_left?: number | null;
   document_count?: number;
   created_at: string;
@@ -560,6 +608,51 @@ export interface Reminder {
   deal_title?: string | null;
 }
 
+export type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system';
+export type NotificationSeverity = 'info' | 'warning' | 'critical';
+
+/** Mot muc da duoc hop nhat tu nhac hen, lich, task hoac canh bao AI/CRM. */
+export interface NotificationItem {
+  key: string;
+  kind: NotificationKind;
+  source_id: number;
+  title: string;
+  body: string;
+  due_at: string | null;
+  created_at: string;
+  link: string | null;
+  card_id: number | null;
+  customer_id: number | null;
+  deal_id: number | null;
+  severity: NotificationSeverity;
+  is_read: boolean;
+  snoozed_until: string | null;
+  can_complete: boolean;
+  can_undo: boolean;
+}
+
+export interface NotificationFeed {
+  items: NotificationItem[];
+  unread_count: number;
+  counts: Record<NotificationKind, number>;
+}
+
+export interface TelegramConfig {
+  enabled: boolean;
+  chat_id: string;
+  has_token: boolean;
+  token_hint: string | null;
+  notify_due_dates: boolean;
+  notify_reminders: boolean;
+  notify_assignee: boolean;
+  backup_enabled: boolean;
+  backup_interval_hours: number;
+  last_backup_sent_at: string | null;
+  next_backup_at: string | null;
+  last_test_at: string | null;
+  last_error: string | null;
+}
+
 export interface CustomerFull extends Customer {
   contacts: Contact[];
   deals: Deal[];
@@ -663,6 +756,12 @@ export interface Project {
   budget_vnd: number;
   notes: string;
   is_archived: number;
+  /** Mô hình triển khai đã chốt (v26); null khi chưa ai quyết. */
+  delivery_model: DeliveryModel | null;
+  model_reason: string | null;
+  acceptance_criteria: string;
+  accepted_at: string | null;
+  accepted_note: string | null;
   task_total: number;
   task_done: number;
   task_overdue: number;
@@ -711,9 +810,147 @@ export interface ProjectDetail extends Project {
     end_date: string | null;
     customer_name: string | null;
   }[];
-  deals: { id: number; title: string; stage: Stage; value_vnd: number }[];
+  /** Cơ hội nguồn — tối đa một, do ràng buộc duy nhất của v23. */
+  deals: {
+    id: number;
+    title: string;
+    stage: Stage;
+    value_vnd: number;
+    won_value_vnd: number | null;
+    handover_ready: number;
+    closed_at: string | null;
+    customer_name: string | null;
+  }[];
   people: ProjectPerson[];
   tasks: TaskRow[];
+  changes: ChangeLogEntry[];
+  /** Mỗi bảng của dự án là một giai đoạn; trạng thái mốc tính khi đọc (v26). */
+  phases: Phase[];
+  classification: Classification;
+  risks: ProjectRisk[];
+}
+
+/** Trạng thái mốc của một giai đoạn — suy ra, không bao giờ lưu. */
+export type MilestoneState = 'none' | 'done' | 'overdue' | 'due_soon' | 'on_track';
+
+export interface Phase {
+  id: number;
+  name: string;
+  is_archived: number;
+  milestone_date: string | null;
+  card_total: number;
+  card_done: number;
+  state: MilestoneState;
+  days_left: number | null;
+}
+
+export interface ClassificationSignal {
+  key: string;
+  label: string;
+  value: number;
+  threshold: number;
+  crossed: boolean;
+}
+
+/**
+ * Kết quả phân loại mô hình triển khai (đặc tả 6.3).
+ *
+ * `suggested` là đề xuất của hệ thống, `chosen` là quyết định của con người.
+ * `overridden` bật khi hai cái khác nhau — lúc đó `reason` là bắt buộc.
+ */
+export interface Classification {
+  suggested: DeliveryModel;
+  signals: ClassificationSignal[];
+  chosen: DeliveryModel | null;
+  reason: string | null;
+  overridden: boolean;
+}
+
+/** Một mục trong sổ rủi ro / vấn đề / Change Request / quyết định (v26). */
+export interface ProjectRisk {
+  id: number;
+  project_id: number;
+  kind: RiskKind;
+  title: string;
+  detail: string;
+  severity: RiskSeverity;
+  status: RiskStatus;
+  owner_contact_id: number | null;
+  owner_name: string | null;
+  owner_org_name: string | null;
+  due_date: string | null;
+  resolution: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Cấu hình lớp Delivery — ngưỡng phân loại và bộ mẫu danh sách. */
+export interface DeliverySettingsData {
+  classification: {
+    contract_value_vnd: number;
+    duration_days: number;
+    phase_count: number;
+    team_count: number;
+  };
+  boardTemplates: Record<string, { name: string; status: CardStatus | null }[]>;
+}
+
+/**
+ * Một dòng nhật ký thay đổi (v23) — dùng chung cho cơ hội, dự án và hợp đồng.
+ *
+ * `actor_*` (v24) trỏ tới một người trong sổ danh bạ, **không phải** một tài khoản
+ * đăng nhập: hệ thống vẫn không có lớp người dùng. Mặc định là người được đánh dấu
+ * `is_me`, và có thể rỗng khi sổ danh bạ chưa đánh dấu ai.
+ */
+export interface ChangeLogEntry {
+  id: number;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  note: string | null;
+  actor_contact_id: number | null;
+  actor_name: string | null;
+  changed_at: string;
+}
+
+/** Một mục trong checklist bàn giao của một cơ hội (v24). */
+export interface HandoverItem {
+  id: number;
+  deal_id: number;
+  content: string;
+  /** Chỉ mục bắt buộc mới tính vào `Deal.handover_ready`. */
+  is_required: number;
+  is_done: number;
+  done_at: string | null;
+  note: string | null;
+  position: number;
+}
+
+/** Một mục trong bộ mẫu bàn giao (cấu hình, chưa gắn với cơ hội nào). */
+export interface HandoverTemplateItem {
+  content: string;
+  required: boolean;
+}
+
+/**
+ * Cấu hình quy trình bàn giao.
+ *
+ * `templates` luôn có khoá `default` — máy chủ từ chối lưu nếu thiếu, vì đó là
+ * bộ rơi về khi cơ hội không khớp loại giải pháp nào.
+ */
+export interface HandoverSettingsData {
+  templates: Record<string, HandoverTemplateItem[]>;
+  slaDays: number;
+}
+
+/** Phản hồi của mọi endpoint checklist bàn giao. */
+export interface HandoverState {
+  items: HandoverItem[];
+  handover_ready: number;
+  sla_days: number;
+  /** Tên các bộ mẫu đang cấu hình được, luôn có khoá `default`. */
+  templates: string[];
 }
 
 /** Một lần đã nhắc người phụ trách — biến "đã nhắc chưa" thành số đo được. */

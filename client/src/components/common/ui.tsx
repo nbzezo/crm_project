@@ -44,7 +44,7 @@ export function Button({
     <button
       type={props.type ?? 'button'}
       {...props}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-control font-medium transition-[background-color,color,filter,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${SIZES[size]} ${VARIANTS[variant]} ${focusRing} ${className}`}
+      className={`tr-button tr-button-${variant} inline-flex items-center justify-center gap-1.5 rounded-control font-medium transition-[background-color,color,filter,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${SIZES[size]} ${VARIANTS[variant]} ${focusRing} ${className}`}
     />
   );
 }
@@ -74,7 +74,7 @@ export function IconButton({
       aria-label={label}
       title={title ?? label}
       {...props}
-      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 ${ICON_BUTTON_TONES[tone]} ${focusRing} ${className}`}
+      className={`tr-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 ${ICON_BUTTON_TONES[tone]} ${focusRing} ${className}`}
     />
   );
 }
@@ -127,7 +127,7 @@ export function Segmented<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-full border border-tr-border bg-tr-panel p-1 shadow-sm"
+      className="tr-segmented inline-flex rounded-full border border-tr-border bg-tr-panel p-1 shadow-sm"
     >
       {options.map((option) => (
         <button
@@ -135,7 +135,7 @@ export function Segmented<T extends string>({
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition ${focusRing} ${
+          className={`tr-segmented-option inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition ${focusRing} ${
             value === option.value
               ? 'bg-tr-primary font-medium text-tr-on-primary'
               : 'text-tr-subtle hover:bg-tr-hover'
@@ -209,7 +209,7 @@ export function Field({
 }
 
 const inputBase =
-  'w-full rounded-control border border-tr-border bg-tr-list px-3 py-2 text-sm text-tr-text outline-none transition-[border-color,box-shadow] duration-150 hover:border-tr-primary/20 focus:border-tr-primary focus:ring-2 focus:ring-tr-primary/15 disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
+  'tr-field-control w-full rounded-control border border-tr-border bg-tr-list px-3 py-2 text-sm text-tr-text outline-none transition-[border-color,box-shadow] duration-150 hover:border-tr-primary/20 focus:border-tr-primary focus:ring-2 focus:ring-tr-primary/15 disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputBase} ${className}`} />;
@@ -369,7 +369,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-modal border border-dashed border-tr-border bg-tr-panel/60 px-6 py-12 text-center">
+    <div className="tr-empty-state flex flex-col items-center justify-center gap-3 rounded-modal border border-dashed border-tr-border bg-tr-panel/60 px-6 py-12 text-center">
       <Inbox className="text-tr-muted" size={36} aria-hidden="true" />
       <div className="space-y-1">
         <p className="text-sm text-tr-subtle">{message}</p>
@@ -425,7 +425,7 @@ export function TableHead({ className = '', ...props }: HTMLAttributes<HTMLTable
   return (
     <thead
       {...props}
-      className={`bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase ${className}`}
+      className={`tr-table-head bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase ${className}`}
     />
   );
 }
@@ -435,7 +435,7 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
   return (
     <div
       role="alert"
-      className="flex flex-col items-center justify-center gap-3 rounded-modal border border-dashed border-tr-danger/60 bg-tr-panel/60 px-6 py-12 text-center"
+      className="tr-empty-state flex flex-col items-center justify-center gap-3 rounded-modal border border-dashed border-tr-danger/60 bg-tr-panel/60 px-6 py-12 text-center"
     >
       <AlertCircle className="text-tr-danger" size={32} aria-hidden="true" />
       <p className="text-sm text-tr-subtle">{message ?? t.common.loadError}</p>

@@ -40,6 +40,13 @@ import { CardStatusSelect } from './CardStatusControl';
 const columnHelper = createColumnHelper<TaskRow>();
 const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const PAGE_SIZE = 50;
+const SECONDARY_COLUMNS = new Set([
+  'label_ids',
+  'start_date',
+  'board_name',
+  'customer_name',
+  'list_name',
+]);
 
 /** Dạng bảng tính: sắp xếp theo cột, sửa trực tiếp trong ô, chọn nhiều để xử lý hàng loạt. */
 export function TaskTable({
@@ -57,6 +64,7 @@ export function TaskTable({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [deleteTask, setDeleteTask] = useState<TaskRow | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   /** Dong dang cho het gio hoan tac — an khoi bang nhung chua goi API xoa. */
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set());
 
@@ -379,22 +387,24 @@ export function TaskTable({
         </div>
       )}
 
+      <div className="mb-2 flex justify-end">
+        <Button size="sm" variant="ghost" onClick={() => setShowDetails((value) => !value)}>
+          {showDetails ? 'Ẩn cột phụ' : 'Hiện cột phụ'}
+        </Button>
+      </div>
+
       <div className="tr-scroll max-h-[70vh] overflow-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <table className="w-full min-w-[960px] text-sm lg:min-w-[1180px]">
+        <table className={`w-full text-sm ${showDetails ? 'min-w-[1180px]' : 'min-w-[760px]'}`}>
           <caption className="sr-only">Danh sách công việc</caption>
           <thead className="sticky top-0 z-10 bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
-                  const responsiveClass = [
-                    'label_ids',
-                    'start_date',
-                    'board_name',
-                    'customer_name',
-                    'list_name',
-                  ].includes(header.id)
-                    ? 'hidden lg:table-cell'
+                  const responsiveClass = SECONDARY_COLUMNS.has(header.id)
+                    ? showDetails
+                      ? 'hidden lg:table-cell'
+                      : 'hidden'
                     : '';
                   return (
                     <th
@@ -462,14 +472,10 @@ export function TaskTable({
                 }`}
               >
                 {row.getVisibleCells().map((cell) => {
-                  const responsiveClass = [
-                    'label_ids',
-                    'start_date',
-                    'board_name',
-                    'customer_name',
-                    'list_name',
-                  ].includes(cell.column.id)
-                    ? 'hidden lg:table-cell'
+                  const responsiveClass = SECONDARY_COLUMNS.has(cell.column.id)
+                    ? showDetails
+                      ? 'hidden lg:table-cell'
+                      : 'hidden'
                     : '';
                   const actionClass =
                     cell.column.id === 'actions'

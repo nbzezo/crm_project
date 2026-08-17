@@ -10,11 +10,25 @@ function localDate(offsetDays: number): string {
   return `${year}-${month}-${day}`;
 }
 
+function localDateTime(offsetMinutes: number): string {
+  const date = new Date(Date.now() + offsetMinutes * 60_000);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 test.beforeEach(async ({ page }) => {
+  // E2E khong phu thuoc mang ngoai: font da co fallback he thong trong CSS.
+  await page.route('https://fonts.googleapis.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/css', body: '' })
+  );
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
@@ -23,6 +37,92 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tổng quan');
   expect(errors).toEqual([]);
+});
+
+test('chon va luu ba giao dien tuy bien', async ({ page }) => {
+  const themes = [
+    { label: 'Neo ấm', value: 'neo-tactile' },
+    { label: 'Neat Slate', value: 'neat-slate' },
+    { label: 'Kem ngọc', value: 'cream-teal' },
+  ] as const;
+
+  for (const theme of themes) {
+    await page.getByRole('button', { name: /^Giao diện:/ }).click();
+    const picker = page.getByRole('dialog', { name: 'Giao diện' });
+    await expect(picker).toBeVisible();
+    await picker.getByRole('button', { name: new RegExp(`^${theme.label}`) }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme.value);
+    await expect(page.getByRole('button', { name: `Giao diện: ${theme.label}` })).toBeVisible();
+    const scan = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    expect(
+      scan.violations.map(({ id, impact, nodes }) => ({
+        id,
+        impact,
+        nodes: nodes.map(({ target, html, failureSummary }) => ({ target, html, failureSummary })),
+      }))
+    ).toEqual([]);
+  }
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'cream-teal');
+  await expect(page.getByRole('button', { name: 'Giao diện: Kem ngọc' })).toBeVisible();
+});
+
+test('notification center xu ly, hoan tac va mo dung ngu canh lich', async ({
+  page,
+  request,
+}, testInfo) => {
+  const title = `E2E Nhắc lịch ${testInfo.project.name} ${Date.now()}`;
+  const created = await request.post('/api/reminders', {
+    data: {
+      title,
+      note: 'Nội dung kiểm thử notification center',
+      due_at: localDateTime(60),
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  await page.reload();
+
+  const bell = page.getByRole('button', { name: /Thông báo —/ });
+  await bell.click();
+  const center = page.getByRole('dialog', { name: 'Trung tâm thông báo' });
+  await expect(center).toBeVisible();
+  await expect(center.getByRole('tab', { name: /Chưa đọc/ })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  await expect(center.getByText(title, { exact: true })).toBeVisible();
+
+  await center.getByRole('button', { name: `Nhắc lại sau: ${title}` }).click();
+  await expect(center.getByRole('button', { name: '30 phút' })).toBeVisible();
+  await expect(center.getByRole('button', { name: 'Mai 09:00' })).toBeVisible();
+
+  const scan = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(
+    scan.violations.map(({ id, impact, nodes }) => ({
+      id,
+      impact,
+      nodes: nodes.map(({ target, html, failureSummary }) => ({ target, html, failureSummary })),
+    }))
+  ).toEqual([]);
+
+  await center.getByRole('button', { name: `Hoàn thành: ${title}` }).click();
+  await expect(page.getByText(`Đã hoàn thành “${title}”`)).toBeVisible();
+  await expect(center.getByText(title, { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Hoàn tác' }).click();
+  // Toast nam ngoai popover nen click Hoan tac dong popover theo dung quy tac
+  // click-outside. Mo lai de kiem tra du lieu da duoc khoi phuc.
+  await bell.click();
+  await expect(center).toBeVisible();
+  await expect(center.getByText(title, { exact: true })).toBeVisible();
+
+  await center.getByRole('button', { name: new RegExp(`^${escapeRegex(title)}`) }).click();
+  await expect(page).toHaveURL(/\/calendar\?cv=list&cd=/);
+  await expect(page.getByRole('dialog', { name: title })).toBeVisible();
 });
 
 test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
@@ -58,7 +158,16 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
 
   await page.goto('/settings');
   const tabs = page.getByRole('tab');
-  await expect(tabs).toHaveCount(4);
+  /*
+   * Điều đang được bảo vệ là ĐIỀU HƯỚNG BÀN PHÍM của tablist, không phải số tab —
+   * nên `End` bám theo tab cuối cùng thay vì một chỉ số cứng. Đếm cứng khiến mỗi
+   * lần thêm một mục Cài đặt lại làm hỏng một bài test không liên quan gì.
+   */
+  /* `count()` đọc một lần, không tự thử lại như `toHaveCount` — gọi thẳng sẽ đếm
+     phải trang chưa render xong của route lazy và luôn ra 0. */
+  await expect(tabs.first()).toBeVisible();
+  const tabCount = await tabs.count();
+  expect(tabCount).toBeGreaterThanOrEqual(4);
 
   await tabs.nth(0).focus();
   await page.keyboard.press('ArrowRight');
@@ -66,8 +175,8 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
 
   await page.keyboard.press('End');
-  await expect(tabs.nth(3)).toBeFocused();
-  await expect(tabs.nth(3)).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs.nth(tabCount - 1)).toBeFocused();
+  await expect(tabs.nth(tabCount - 1)).toHaveAttribute('aria-selected', 'true');
 
   await page.keyboard.press('Home');
   await expect(tabs.nth(0)).toBeFocused();
@@ -274,7 +383,7 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
   await page.getByRole('combobox', { name: 'Người phụ trách' }).first().selectOption('none');
   await expect(taskRow).toHaveCount(0);
 
-  /* Man "Cần nhắc": viec qua han cua nguoi do phai hien ra, va ghi mot lan nhac
+  /* Man "Theo doi tien do": viec qua han cua nguoi do phai hien ra, va ghi mot lan nhac
      phai lam bo dem tren the tang len. */
   const overdueTitle = `E2E Viec qua han ${suffix}`;
   const overdue = await request.post('/api/cards', {
@@ -289,7 +398,7 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
   const overdueCard = (await overdue.json()) as { id: number };
 
   await page.goto('/follow-up');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cần nhắc');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Theo dõi tiến độ');
   await expect(page.getByText(overdueTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(`trễ 2 ngày`).first()).toBeVisible();
 
@@ -310,10 +419,38 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
   const projectName = `E2E Du an ${suffix}`;
 
   const project = await request.post('/api/projects', {
-    data: { name: projectName, code: 'E2E-01', plan_end: localDate(30), status: 'active' },
+    data: {
+      name: projectName,
+      code: 'E2E-01',
+      plan_start: localDate(0),
+      plan_end: localDate(30),
+      status: 'active',
+    },
   });
   expect(project.ok()).toBeTruthy();
   const projectId = ((await project.json()) as { id: number }).id;
+
+  const targetProjectName = `E2E Du an dich ${suffix}`;
+  const targetProject = await request.post('/api/projects', {
+    data: { name: targetProjectName, status: 'active' },
+  });
+  expect(targetProject.ok()).toBeTruthy();
+  const targetProjectId = ((await targetProject.json()) as { id: number }).id;
+  const targetBoard = await request.post('/api/boards', {
+    data: { name: `E2E Bang dich ${suffix}`, project_id: targetProjectId },
+  });
+  expect(targetBoard.ok()).toBeTruthy();
+
+  const org = await request.post('/api/customers', {
+    data: { name: `E2E To chuc du an ${suffix}`, org_kind: 'own' },
+  });
+  expect(org.ok()).toBeTruthy();
+  const orgId = ((await org.json()) as { id: number }).id;
+  const assigneeName = `E2E Phu trach du an ${suffix}`;
+  const assignee = await request.post(`/api/customers/${orgId}/contacts`, {
+    data: { full_name: assigneeName },
+  });
+  expect(assignee.ok()).toBeTruthy();
 
   const board = await request.post('/api/boards', {
     data: { name: `E2E Bang du an ${suffix}`, project_id: projectId },
@@ -324,14 +461,16 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
   const listId = ((await full.json()) as { lists: { id: number }[] }).lists[0].id;
 
   // Có ngày thì mới lên được trục thời gian — Gantt chỉ vẽ việc đã xếp lịch.
-  await request.post('/api/cards', {
+  const taskTitle = `E2E Viec du an ${suffix}`;
+  const task = await request.post('/api/cards', {
     data: {
       list_id: listId,
-      title: `E2E Viec du an ${suffix}`,
+      title: taskTitle,
       start_date: localDate(1),
       due_date: localDate(5),
     },
   });
+  expect(task.ok()).toBeTruthy();
 
   await page.goto('/projects');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dự án');
@@ -345,7 +484,46 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
 
   // Tab Công việc phải thấy việc tạo trong bảng của dự án (project_id suy ra từ bảng).
   await page.getByRole('tab', { name: 'Công việc' }).click();
-  await expect(page.getByText(`E2E Viec du an ${suffix}`).first()).toBeVisible();
+  await expect(page.getByText(taskTitle).first()).toBeVisible();
+
+  /* Sửa trực tiếp trong tab dự án phải làm mới chính query chi tiết dự án. Trước
+     đây API đã lưu nhưng ô Người phụ trách vẫn hiện "Chưa giao" cho tới khi tải lại. */
+  await page.getByRole('button', { name: 'Bảng', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Dạng xem' })
+    .getByRole('button', { name: /Bảng tính/ })
+    .click();
+  const assigneePicker = page.getByRole('button', {
+    name: `Người phụ trách: ${taskTitle}`,
+  });
+  await assigneePicker.click();
+  await page
+    .getByRole('dialog', { name: `Người phụ trách: ${taskTitle}` })
+    .getByRole('button', { name: new RegExp(escapeRegex(assigneeName)) })
+    .click();
+  await expect(assigneePicker).toContainText(assigneeName);
+
+  /* Chip Dự án trong drawer là một bộ chọn thật. Combobox này nằm trong một
+     popover khác, nên ca này đồng thời chặn hồi quy popover cha đóng trước click. */
+  await page.getByRole('button', { name: taskTitle, exact: true }).click();
+  const drawer = page.getByRole('dialog', { name: taskTitle });
+  await drawer.getByRole('button', { name: `Dự án: ${projectName}` }).click();
+  await page.getByRole('button', { name: 'Chọn dự án cho công việc' }).click();
+  await page
+    .getByRole('dialog', { name: 'Chọn dự án cho công việc' })
+    .getByRole('button', { name: new RegExp(escapeRegex(targetProjectName)) })
+    .click();
+  await expect(drawer.getByRole('button', { name: `Dự án: ${targetProjectName}` })).toBeVisible();
+
+  // Tra lai du an goc de phan con lai cua ca kiem thu tiep tuc tren cung ngu canh.
+  await drawer.getByRole('button', { name: `Dự án: ${targetProjectName}` }).click();
+  await page.getByRole('button', { name: 'Chọn dự án cho công việc' }).click();
+  await page
+    .getByRole('dialog', { name: 'Chọn dự án cho công việc' })
+    .getByRole('button', { name: new RegExp(escapeRegex(projectName)) })
+    .click();
+  await expect(drawer.getByRole('button', { name: `Dự án: ${projectName}` })).toBeVisible();
+  await drawer.getByRole('button', { name: 'Đóng', exact: true }).click();
 
   /* Một việc bị chặn kéo sức khỏe xuống đỏ ngay — chỉ số tính khi đọc, không có
      cột lưu nào để lệch. */

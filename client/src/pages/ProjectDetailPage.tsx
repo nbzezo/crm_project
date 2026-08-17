@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, ArrowLeft, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Tabs } from '../components/common/Tabs';
+import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
 import { PageShell } from '../components/common/PageShell';
 import {
   Button,
+  DateInput,
   EmptyState,
   ErrorState,
+  Field,
+  Input,
   Panel,
   Skeleton,
+  Textarea,
   focusRing,
 } from '../components/common/ui';
 import { AssigneeChip } from '../components/tasks/AssigneePicker';
@@ -25,13 +30,18 @@ import { HealthBadge, ProjectForm } from './ProjectsPage';
 import { t } from '../i18n/vi';
 import { formatDateShort, formatVND, formatVNDShort } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
-import type { ProjectDetail } from '../types';
+import { ChangeLogPanel } from '../components/crm/ChangeLogPanel';
+import { ClassificationPanel } from '../components/crm/ClassificationPanel';
+import { RiskRegister } from '../components/crm/RiskRegister';
+import type { MilestoneState, ProjectDetail } from '../types';
 
-type Tab = 'overview' | 'tasks' | 'people' | 'commercial' | 'documents';
+type Tab = 'overview' | 'tasks' | 'phases' | 'risks' | 'people' | 'commercial' | 'documents';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Tổng quan' },
   { id: 'tasks', label: 'Công việc' },
+  { id: 'phases', label: 'Giai đoạn' },
+  { id: 'risks', label: 'Rủi ro & nghiệm thu' },
   { id: 'people', label: 'Nhân sự' },
   { id: 'commercial', label: 'Hợp đồng & cơ hội' },
   { id: 'documents', label: 'Tài liệu' },
@@ -44,6 +54,7 @@ export default function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const projectMenu = usePopover();
 
   const {
     data: project,
@@ -114,13 +125,36 @@ export default function ProjectDetailPage() {
         <Button onClick={() => setEditing(true)}>
           <Pencil size={15} aria-hidden="true" /> {t.common.edit}
         </Button>
-        <Button onClick={() => archive.mutate()}>
-          <Archive size={15} aria-hidden="true" />
-          {project.is_archived ? 'Bỏ lưu trữ' : 'Lưu trữ'}
+        <Button onClick={projectMenu.toggle} aria-label="Thêm thao tác với dự án">
+          <MoreHorizontal size={17} aria-hidden="true" />
         </Button>
-        <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-          <Trash2 size={15} aria-hidden="true" /> {t.common.delete}
-        </Button>
+        <Popover
+          open={projectMenu.open}
+          onClose={projectMenu.close}
+          anchor={projectMenu.anchor}
+          title="Thao tác dự án"
+          width={240}
+        >
+          <PopoverItem
+            icon={<Archive size={15} aria-hidden="true" />}
+            onClick={() => {
+              projectMenu.close();
+              archive.mutate();
+            }}
+          >
+            {project.is_archived ? 'Bỏ lưu trữ' : 'Lưu trữ'}
+          </PopoverItem>
+          <PopoverItem
+            danger
+            icon={<Trash2 size={15} aria-hidden="true" />}
+            onClick={() => {
+              projectMenu.close();
+              setConfirmDelete(true);
+            }}
+          >
+            {t.common.delete}
+          </PopoverItem>
+        </Popover>
       </div>
 
       <Tabs
@@ -134,6 +168,13 @@ export default function ProjectDetailPage() {
 
         {tab === 'tasks' && <TasksTab project={project} />}
 
+        {tab === 'phases' && <Phases project={project} />}
+        {tab === 'risks' && (
+          <div className="space-y-3">
+            <RiskRegister projectId={project.id} risks={project.risks ?? []} />
+            <Acceptance project={project} />
+          </div>
+        )}
         {tab === 'people' && <People project={project} />}
         {tab === 'commercial' && <Commercial project={project} />}
         {tab === 'documents' && (
@@ -285,7 +326,7 @@ function Overview({ project }: { project: ProjectDetail }) {
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-tr-hover-strong">
             <div
-              className={`h-full rounded-full ${project.health === 'red' ? 'bg-tr-danger' : project.health === 'amber' ? 'bg-tr-warning' : 'bg-tr-success'}`}
+              className={`h-full rounded-full ${project.health === 'red' ? 'bg-tr-danger' : project.health === 'amber' ? 'bg-tr-warning' : project.health === 'unknown' ? 'bg-tr-muted' : 'bg-tr-success'}`}
               style={{ width: `${project.progress_pct}%` }}
             />
           </div>
@@ -316,6 +357,12 @@ function Overview({ project }: { project: ProjectDetail }) {
           ))}
         </dl>
       </Panel>
+
+      {project.classification && (
+        <div className="lg:col-span-2">
+          <ClassificationPanel projectId={project.id} classification={project.classification} />
+        </div>
+      )}
 
       <Panel title={`Bảng công việc (${project.boards.length})`} className="lg:col-span-2">
         {project.boards.length === 0 ? (
@@ -367,6 +414,139 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
  * Nhân sự dự án suy ra từ người phụ trách các công việc, không phải danh sách
  * thành viên khai báo tay — danh sách khai báo luôn lệch với thực tế.
  */
+/** Màu của trạng thái mốc — cùng quy ước đỏ/vàng/xanh với sức khỏe dự án. */
+const MILESTONE_TONE: Record<MilestoneState, string> = {
+  overdue: 'bg-tr-danger/15 text-tr-danger',
+  due_soon: 'bg-tr-warning/15 text-tr-warning',
+  on_track: 'bg-tr-success/15 text-tr-success',
+  done: 'bg-tr-success/15 text-tr-success',
+  none: 'bg-tr-hover text-tr-subtle',
+};
+
+/**
+ * Giai đoạn của dự án — mỗi Bảng là một giai đoạn (đặc tả 3.2, 6.2).
+ *
+ * Không có thực thể "Phase" riêng: quan hệ Dự án → Bảng đã tồn tại từ v17, và
+ * một giai đoạn chính là một bảng có hạn. Đặt hạn ngay tại đây thay vì bắt người
+ * dùng đi sang từng bảng.
+ */
+function Phases({ project }: { project: ProjectDetail }) {
+  const queryClient = useQueryClient();
+  const setMilestone = useMutation({
+    mutationFn: ({ boardId, date }: { boardId: number; date: string | null }) =>
+      api.patch(`/api/boards/${boardId}`, { milestone_date: date }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['project', project.id] }),
+  });
+
+  const phases = project.phases ?? [];
+
+  return (
+    <Panel title={`Giai đoạn & mốc bàn giao (${phases.length})`}>
+      {phases.length === 0 ? (
+        <EmptyState
+          message="Chưa có bảng nào thuộc dự án này."
+          hint="Mỗi bảng của dự án là một giai đoạn. Gắn bảng vào dự án rồi đặt hạn cho nó."
+        />
+      ) : (
+        <ul className="space-y-1.5">
+          {phases.map((phase) => (
+            <li
+              key={phase.id}
+              className="flex flex-wrap items-center gap-2 rounded-control border border-tr-border px-3 py-2.5"
+            >
+              <Link
+                to={`/boards/${phase.id}`}
+                className={`min-w-0 flex-1 truncate text-sm font-medium text-tr-text hover:underline ${focusRing}`}
+              >
+                {phase.name}
+              </Link>
+
+              <span className="shrink-0 text-xs text-tr-muted tabular-nums">
+                {phase.card_done}/{phase.card_total} việc
+              </span>
+
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${MILESTONE_TONE[phase.state]}`}
+              >
+                {t.milestoneState[phase.state]}
+                {phase.state === 'overdue' && phase.days_left !== null
+                  ? ` ${Math.abs(phase.days_left)} ngày`
+                  : ''}
+              </span>
+
+              <div className="w-36 shrink-0">
+                <DateInput
+                  value={phase.milestone_date}
+                  onChange={(date) => setMilestone.mutate({ boardId: phase.id, date })}
+                  aria-label={`Hạn của giai đoạn ${phase.name}`}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/** Tiêu chí và hồ sơ nghiệm thu (đặc tả 6.6) — điểm kết của cả chuỗi triển khai. */
+function Acceptance({ project }: { project: ProjectDetail }) {
+  const queryClient = useQueryClient();
+  const [criteria, setCriteria] = useState(project.acceptance_criteria ?? '');
+  const [acceptedAt, setAcceptedAt] = useState<string | null>(project.accepted_at);
+  const [note, setNote] = useState(project.accepted_note ?? '');
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch(`/api/projects/${project.id}`, {
+        acceptance_criteria: criteria,
+        accepted_at: acceptedAt,
+        accepted_note: note || null,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['project', project.id] }),
+  });
+
+  const dirty =
+    criteria !== (project.acceptance_criteria ?? '') ||
+    acceptedAt !== project.accepted_at ||
+    note !== (project.accepted_note ?? '');
+
+  return (
+    <Panel title="Nghiệm thu">
+      <div className="space-y-3">
+        <Field
+          label="Tiêu chí nghiệm thu"
+          hint="Chốt từ lúc bàn giao, không phải lúc sắp nghiệm thu — đây là thứ hai bên đối chiếu."
+        >
+          <Textarea
+            rows={3}
+            value={criteria}
+            onChange={(event) => setCriteria(event.target.value)}
+            placeholder="UAT đạt 100% ca kiểm thử bắt buộc, không còn lỗi mức cao…"
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Ngày nghiệm thu">
+            <DateInput value={acceptedAt} onChange={setAcceptedAt} />
+          </Field>
+          <Field label="Hồ sơ nghiệm thu">
+            <Input
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Số biên bản, đường dẫn hồ sơ…"
+            />
+          </Field>
+        </div>
+
+        <Button variant="primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? t.common.saving : t.common.save}
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
 function People({ project }: { project: ProjectDetail }) {
   if (project.people.length === 0) {
     return (
@@ -462,9 +642,16 @@ function Commercial({ project }: { project: ProjectDetail }) {
           </ul>
         )}
       </Panel>
-      <Panel title={`Cơ hội (${project.deals.length})`}>
+      {/*
+        Cơ hội nguồn — đường truy ngược Delivery → Sales mà đặc tả 3.1 đòi hỏi.
+        Ràng buộc duy nhất của v23 đảm bảo danh sách này có tối đa một dòng.
+      */}
+      <Panel title="Cơ hội nguồn">
         {project.deals.length === 0 ? (
-          <EmptyState message="Chưa có cơ hội nào gắn với dự án này." />
+          <EmptyState
+            message="Chưa có cơ hội nào gắn với dự án này."
+            hint="Gắn dự án vào cơ hội trong biểu mẫu sửa cơ hội để truy ngược được nguồn gốc thương mại."
+          />
         ) : (
           <ul className="space-y-1">
             {project.deals.map((deal) => (
@@ -473,10 +660,20 @@ function Commercial({ project }: { project: ProjectDetail }) {
                   to={`/deals/${deal.id}`}
                   className={`flex items-center gap-2 rounded-control px-1.5 py-2 text-sm transition hover:bg-tr-hover ${focusRing}`}
                 >
-                  <span className="min-w-0 flex-1 truncate text-tr-text">{deal.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-tr-text">
+                    {deal.title}
+                    {deal.customer_name && (
+                      <span className="text-tr-muted"> · {deal.customer_name}</span>
+                    )}
+                  </span>
+                  {deal.stage === 'won' && !deal.handover_ready && (
+                    <span className="shrink-0 rounded-full bg-tr-warning/15 px-1.5 py-0.5 text-2xs font-semibold text-tr-warning">
+                      Chờ bàn giao
+                    </span>
+                  )}
                   <span className="shrink-0 text-xs text-tr-muted">{t.stage[deal.stage]}</span>
                   <span className="shrink-0 tabular-nums text-tr-subtle">
-                    {formatVNDShort(deal.value_vnd)}
+                    {formatVNDShort(deal.won_value_vnd ?? deal.value_vnd)}
                   </span>
                 </Link>
               </li>
@@ -484,6 +681,10 @@ function Commercial({ project }: { project: ProjectDetail }) {
           </ul>
         )}
       </Panel>
+
+      <div className="lg:col-span-2">
+        <ChangeLogPanel entries={project.changes ?? []} title="Nhật ký thay đổi dự án" />
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
 import { AssigneePicker, useAssignees } from './AssigneePicker';
-import type { Card, Customer, Priority } from '../../types';
+import type { Board, BoardFull, Card, Contact, Customer, Deal, Priority } from '../../types';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
 const LINK_KEYS = ['customer_id', 'contact_id', 'deal_id', 'contract_id', 'quotation_id'] as const;
@@ -418,22 +418,41 @@ export function TaskFormDialog() {
         </div>
 
         <Field label="Bảng">
-          <Select
+          <Combobox
             value={boardId}
-            onChange={(e) => {
-              const nextBoard = Number(e.target.value);
-              const first = context?.lists.find((l) => l.board_id === nextBoard);
+            onChange={async (v) => {
+              const nextBoard = v === '' ? '' : Number(v);
               setListTouched(true);
+              let first = context?.lists.find((l) => l.board_id === nextBoard);
+              // Bang vua tao nhanh chua kip vao `context` — doc truc tiep danh sach mac dinh cua no.
+              if (!first && nextBoard !== '') {
+                try {
+                  const full = await api.get<BoardFull>(`/api/boards/${nextBoard}/full`);
+                  const firstList = full.lists[0];
+                  if (firstList)
+                    first = { id: firstList.id, name: firstList.name, board_id: nextBoard };
+                } catch {
+                  /* giu list rong, nguoi dung tu chon */
+                }
+              }
               setListId(first?.id ?? '');
             }}
-          >
-            <option value="">{t.common.selectPlaceholder}</option>
-            {context?.boards.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </Select>
+            options={(context?.boards ?? []).map((b) => ({ id: b.id, label: b.name }))}
+            placeholder={t.common.selectPlaceholder}
+            searchPlaceholder="Tìm bảng…"
+            emptyText="Không tìm thấy bảng."
+            ariaLabel="Bảng"
+            allowClear={false}
+            onQuickCreate={async (name) => {
+              const created = await api.post<Board>('/api/boards', {
+                name,
+                project_id: projectId ?? undefined,
+              });
+              queryClient.invalidateQueries({ queryKey: ['card-context'] });
+              return { id: created.id, label: created.name };
+            }}
+            quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
+          />
         </Field>
         <Field
           label="Danh sách"
@@ -511,6 +530,12 @@ export function TaskFormDialog() {
               .find((k) => valueOf(k) !== '')}
             onChange={(v) => changeLink('customer_id', v)}
             options={customers.map((c) => ({ id: c.id, label: c.name }))}
+            onQuickCreate={async (name) => {
+              const created = await api.post<Customer>('/api/customers', { name });
+              queryClient.invalidateQueries({ queryKey: ['customers'] });
+              return { id: created.id, label: created.name };
+            }}
+            quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
           />
 
           <LinkSelect
@@ -522,6 +547,19 @@ export function TaskFormDialog() {
               id: c.id,
               label: c.full_name + (c.title ? ` — ${c.title}` : ''),
             }))}
+            onQuickCreate={
+              valueOf('customer_id') === ''
+                ? undefined
+                : async (full_name) => {
+                    const created = await api.post<Contact>(
+                      `/api/customers/${valueOf('customer_id')}/contacts`,
+                      { full_name }
+                    );
+                    queryClient.invalidateQueries({ queryKey: ['card-context'] });
+                    return { id: created.id, label: created.full_name };
+                  }
+            }
+            quickCreateLabel={(q) => `+ Tạo người liên hệ "${q}"`}
           />
 
           <LinkSelect
@@ -531,6 +569,20 @@ export function TaskFormDialog() {
             disabledBy={(['contract_id', 'quotation_id'] as const).find((k) => valueOf(k) !== '')}
             onChange={(v) => changeLink('deal_id', v)}
             options={(context?.deals ?? []).map((d) => ({ id: d.id, label: d.title }))}
+            onQuickCreate={
+              valueOf('customer_id') === ''
+                ? undefined
+                : async (title) => {
+                    const created = await api.post<Deal>('/api/deals', {
+                      customer_id: valueOf('customer_id'),
+                      title,
+                    });
+                    queryClient.invalidateQueries({ queryKey: ['card-context'] });
+                    queryClient.invalidateQueries({ queryKey: ['deals'] });
+                    return { id: created.id, label: created.title };
+                  }
+            }
+            quickCreateLabel={(q) => `+ Tạo cơ hội "${q}"`}
           />
 
           <LinkSelect
@@ -579,6 +631,8 @@ function LinkSelect({
   disabledBy,
   onChange,
   options,
+  onQuickCreate,
+  quickCreateLabel,
 }: {
   linkKey: LinkKey;
   value: number | '';
@@ -586,6 +640,8 @@ function LinkSelect({
   disabledBy?: LinkKey;
   onChange: (value: number | null) => void;
   options: ComboboxOption[];
+  onQuickCreate?: (query: string) => Promise<ComboboxOption>;
+  quickCreateLabel?: (query: string) => string;
 }) {
   const disabled = locked || disabledBy !== undefined;
   const hint = locked
@@ -605,6 +661,8 @@ function LinkSelect({
         searchPlaceholder="Tìm kiếm…"
         emptyText="Không tìm thấy kết quả."
         ariaLabel={LINK_LABELS[linkKey]}
+        onQuickCreate={onQuickCreate}
+        quickCreateLabel={quickCreateLabel}
       />
     </Field>
   );

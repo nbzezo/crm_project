@@ -69,16 +69,18 @@ export interface ProjectRow {
  * chua xong 60% cong viec. Nguong thu hai la thu bat duoc du an truot dan — kieu
  * that bai am tham nhat, vi tung tuan deu "van con thoi gian".
  *
- * Du an da dong ('done'/'cancelled') luon XANH: cham diem suc khoe mot thu da ket
- * thuc chi tao bao dong gia.
+ * Du an huy va du an chua co baseline/khong co viec la CHUA DU DU LIEU, khong
+ * duoc danh xanh chi vi khong co bang chung xau.
  */
 export function projectHealth(project: ProjectRow, today = new Date()): ProjectHealth {
-  if (project.status === 'done' || project.status === 'cancelled') return 'green';
+  if (project.status === 'cancelled') return 'unknown';
+  if (project.status === 'done') return 'green';
 
   const overdueByPlan =
     project.plan_end !== null && project.days_left !== null && project.days_left < 0;
   if (overdueByPlan || project.task_waiting > 0) return 'red';
   if (project.task_overdue > 0) return 'amber';
+  if (!project.plan_start || !project.plan_end || project.task_total === 0) return 'unknown';
 
   if (project.plan_start && project.plan_end && project.task_total > 0) {
     const start = Date.parse(`${project.plan_start}T00:00:00`);

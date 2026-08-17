@@ -654,19 +654,24 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="w-44">
-        <Select
-          value={boardId}
-          onChange={(e) => {
-            setBoardId(e.target.value);
+        <Combobox
+          value={boardId === '' ? '' : Number(boardId)}
+          onChange={(v) => {
+            setBoardId(v === '' ? '' : String(v));
             setListId('');
           }}
-        >
-          {boards.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </Select>
+          options={boards.map((b) => ({ id: b.id, label: b.name }))}
+          searchPlaceholder="Tìm bảng…"
+          emptyText="Không tìm thấy bảng."
+          ariaLabel="Bảng"
+          allowClear={false}
+          onQuickCreate={async (name) => {
+            const created = await api.post<Board>('/api/boards', { name });
+            queryClient.invalidateQueries({ queryKey: ['boards'] });
+            return { id: created.id, label: created.name };
+          }}
+          quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
+        />
       </div>
       <div className="w-36">
         <Select value={listId} onChange={(e) => setListId(e.target.value)}>
@@ -698,6 +703,12 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
           searchPlaceholder="Tìm khách hàng…"
           emptyText="Không tìm thấy khách hàng."
           ariaLabel="Khách hàng"
+          onQuickCreate={async (name) => {
+            const created = await api.post<Customer>('/api/customers', { name });
+            queryClient.invalidateQueries({ queryKey: ['customers'] });
+            return { id: created.id, label: created.name };
+          }}
+          quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
         />
       </div>
       <Button variant="primary" disabled={!title.trim() || !listId} onClick={submit}>

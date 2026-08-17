@@ -23,8 +23,11 @@ import projects from './routes/projects.ts';
 import calendarEvents from './routes/calendarEvents.ts';
 import views from './routes/views.ts';
 import scoring from './routes/scoring.ts';
+import settings from './routes/settings.ts';
 import system from './routes/system.ts';
 import ai from './routes/ai.ts';
+import notifications from './routes/notifications.ts';
+import telegram from './routes/telegram.ts';
 
 export function createApp(): Express {
   const app = express();
@@ -52,10 +55,13 @@ export function createApp(): Express {
   app.use('/api/revenues', revenues);
   app.use('/api/interactions', interactions);
   app.use('/api/reminders', reminders);
+  app.use('/api/notifications', notifications);
+  app.use('/api/telegram', telegram);
   app.use('/api/nudges', nudges);
   app.use('/api/projects', projects);
   app.use('/api/calendar', calendarEvents);
   app.use('/api/views', views);
+  app.use('/api/settings', settings);
   app.use('/api', scoring);
   app.use('/api', system);
   app.use('/api/ai', ai);

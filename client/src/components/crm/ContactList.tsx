@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Linkedin,
@@ -29,6 +29,11 @@ import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import type { Contact } from '../../types';
 
+/** Handle điều khiển từ bên ngoài — dùng khi CTA "+ Thành viên" nằm ở header của khối cha (company card). */
+export interface ContactListHandle {
+  openAdd: () => void;
+}
+
 const EMPTY = {
   full_name: '',
   title: '',
@@ -45,7 +50,7 @@ const EMPTY = {
   notes: '',
 };
 
-/** Màu theo mức độ quan hệ (FR-CON-03). */
+/** Màu chữ theo mức độ quan hệ (FR-CON-03) — dùng trong card chi tiết. */
 const RELATION_COLORS: Record<string, string> = {
   excellent: 'text-tr-success',
   good: 'text-tr-relation-good',
@@ -54,13 +59,36 @@ const RELATION_COLORS: Record<string, string> = {
   difficult: 'text-tr-danger',
 };
 
-export function ContactList({ customerId, contacts }: { customerId: number; contacts: Contact[] }) {
+/**
+ * Badge nen mo (translucent) theo muc do quan he — dung chung cho hang nhan su gon
+ * va cot "Quan he" cua bang to chuc. Tai su dung token badge da co (done/overdue)
+ * thay vi bia mau moi, giu dung dark mode chuyen nghiep (khong neon).
+ */
+export const RELATIONSHIP_BADGE_CLASS: Record<string, string> = {
+  excellent: 'tr-badge-done',
+  good: 'tr-badge-done',
+  normal: 'bg-tr-hover text-tr-subtle',
+  new: 'bg-tr-hover text-tr-muted',
+  difficult: 'tr-badge-overdue',
+};
+
+export const ContactList = forwardRef<
+  ContactListHandle,
+  { customerId: number; contacts: Contact[]; compact?: boolean }
+>(function ContactList({ customerId, contacts, compact = false }, ref) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Contact | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
+
+  useImperativeHandle(ref, () => ({
+    openAdd: () => {
+      setEditing(null);
+      setOpen(true);
+    },
+  }));
 
   useEffect(() => {
     if (!open) return;
@@ -116,20 +144,37 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
 
   return (
     <div>
-      <div className="mb-3 flex justify-end">
-        <Button
-          variant="primary"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus size={15} /> {t.contact.addContact}
-        </Button>
-      </div>
+      {!compact && (
+        <div className="mb-3 flex justify-end">
+          <Button
+            variant="primary"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus size={15} /> {t.contact.addContact}
+          </Button>
+        </div>
+      )}
 
       {contacts.length === 0 ? (
         <EmptyState message="Chưa có người liên hệ nào." />
+      ) : compact ? (
+        <div className="divide-y divide-tr-border">
+          {contacts.map((c) => (
+            <CompactMemberRow
+              key={c.id}
+              contact={c}
+              onEdit={() => {
+                setEditing(c);
+                setOpen(true);
+              }}
+              onCreateTask={() => openTaskComposer({ context: { contact_id: c.id } })}
+              onDelete={() => setDeleteId(c.id)}
+            />
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {contacts.map((c) => (
@@ -358,6 +403,83 @@ export function ContactList({ customerId, contacts }: { customerId: number; cont
           setDeleteId(null);
         }}
       />
+    </div>
+  );
+});
+
+/** Hàng nhân sự gọn — thay cho card lớn khi hiển thị trong company card / hàng mở rộng của tổ chức. */
+function CompactMemberRow({
+  contact: c,
+  onEdit,
+  onCreateTask,
+  onDelete,
+}: {
+  contact: Contact;
+  onEdit: () => void;
+  onCreateTask: () => void;
+  onDelete: () => void;
+}) {
+  const initials =
+    c.full_name
+      .trim()
+      .split(/\s+/)
+      .slice(-2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || '?';
+
+  return (
+    <div className="group flex items-center gap-3 px-1 py-2 transition hover:bg-tr-hover">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tr-hover-strong text-xs font-semibold text-tr-subtle">
+        {initials}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="truncate text-sm font-medium text-tr-text">{c.full_name}</span>
+          {!!c.is_me && (
+            <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-primary">
+              Tôi
+            </span>
+          )}
+          {!!c.is_primary && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-tr-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-warning">
+              <Star size={10} /> {t.contact.primary}
+            </span>
+          )}
+          {c.is_active === 0 && (
+            <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-muted">
+              Ngừng hoạt động
+            </span>
+          )}
+        </div>
+        <div className="truncate text-xs text-tr-muted">
+          {[c.title, c.department].filter(Boolean).join(' · ') || '—'}
+        </div>
+      </div>
+      {c.relationship && (
+        <span
+          className={`hidden shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap sm:inline-block ${
+            RELATIONSHIP_BADGE_CLASS[c.relationship] ?? 'bg-tr-hover text-tr-subtle'
+          }`}
+        >
+          ● {t.relationship[c.relationship] ?? c.relationship}
+        </span>
+      )}
+      <div className="flex shrink-0 gap-0.5 opacity-100 transition group-hover:opacity-100 sm:opacity-0 sm:focus-within:opacity-100">
+        <IconButton onClick={onEdit} label={`${t.common.edit}: ${c.full_name}`}>
+          <Pencil size={13} aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          onClick={onCreateTask}
+          label={`Tạo công việc cho ${c.full_name}`}
+          title="Tạo công việc"
+        >
+          <ListPlus size={13} aria-hidden="true" />
+        </IconButton>
+        <IconButton onClick={onDelete} label={`${t.common.delete}: ${c.full_name}`} tone="danger">
+          <Trash2 size={13} aria-hidden="true" />
+        </IconButton>
+      </div>
     </div>
   );
 }

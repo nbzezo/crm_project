@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownUp,
   BriefcaseBusiness,
@@ -11,12 +11,14 @@ import {
   Phone,
   Plus,
   Search,
+  Trash2,
   Users,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { CustomerDrawer } from '../components/crm/CustomerDrawer';
+import { Modal } from '../components/common/Modal';
 import { PageHeader, PageShell } from '../components/common/PageShell';
 import { CustomerForm } from '../components/crm/CustomerForm';
 import { DealForm } from '../components/crm/DealForm';
@@ -35,6 +37,7 @@ import {
   ColorBadge,
   EmptyState,
   ErrorState,
+  IconButton,
   Input,
   Select,
   Skeleton,
@@ -64,6 +67,7 @@ const SMART_VIEWS: { value: CustomerSmartView; label: string }[] = [
 ];
 
 export default function CustomersPage() {
+  const queryClient = useQueryClient();
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState<'' | Customer['status']>('');
@@ -75,6 +79,7 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [dealCustomerId, setDealCustomerId] = useState<number | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(term), 180);
@@ -92,6 +97,20 @@ export default function CustomersPage() {
   });
 
   const labelMap = useLabelMap('customer');
+
+  const { data: deleteImpact } = useQuery({
+    queryKey: ['customer', deleteTarget?.id, 'impact'],
+    queryFn: () => api.get<Record<string, number>>(`/api/customers/${deleteTarget!.id}/impact`),
+    enabled: deleteTarget !== null,
+  });
+
+  const removeCustomer = useMutation({
+    mutationFn: (id: number) => api.del(`/api/customers/${id}`),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setSelectedCustomer((current) => (current?.id === id ? null : current));
+    },
+  });
 
   const industries = useMemo(
     () =>
@@ -182,7 +201,7 @@ export default function CustomersPage() {
     <PageShell width="wide" spacing="none">
       <PageHeader
         title="Khách hàng"
-        description="Quản lý khách hàng, cơ hội và hoạt động chăm sóc"
+        description="Các tổ chức loại Khách hàng đang tham gia CRM, cơ hội và hoạt động chăm sóc"
         className="mb-5"
         actions={
           <Button variant="primary" className="shrink-0" onClick={() => setCreating(true)}>
@@ -412,11 +431,13 @@ export default function CustomersPage() {
                 customers={customers}
                 labelMap={labelMap}
                 onSelect={setSelectedCustomer}
+                onDelete={setDeleteTarget}
               />
               <CustomerMobileList
                 customers={customers}
                 labelMap={labelMap}
                 onSelect={setSelectedCustomer}
+                onDelete={setDeleteTarget}
               />
             </>
           )}
@@ -439,6 +460,59 @@ export default function CustomersPage() {
         onClose={() => setDealCustomerId(null)}
         defaultCustomerId={dealCustomerId ?? undefined}
       />
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={deleteTarget ? `Xóa khách hàng` : ''}
+        width="max-w-md"
+        footer={
+          <>
+            <Button onClick={() => setDeleteTarget(null)}>{t.common.cancel}</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (deleteTarget) removeCustomer.mutate(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              {t.common.delete}
+            </Button>
+          </>
+        }
+      >
+        {deleteTarget && (
+          <>
+            <p className="text-sm text-tr-subtle">
+              Xóa <strong className="text-tr-text">{deleteTarget.name}</strong> sẽ xóa theo:
+            </p>
+            {deleteImpact && (
+              <ul className="mt-2 space-y-0.5 text-sm text-tr-subtle">
+                {(
+                  [
+                    ['contacts', 'người liên hệ'],
+                    ['deals', 'cơ hội'],
+                    ['contracts', 'hợp đồng'],
+                    ['quotations', 'báo giá'],
+                    ['documents', 'tài liệu'],
+                    ['services', 'dòng dịch vụ & doanh thu'],
+                    ['interactions', 'tương tác'],
+                  ] as const
+                ).map(([key, label]) =>
+                  deleteImpact[key] ? (
+                    <li key={key}>
+                      • {deleteImpact[key]} {label}
+                    </li>
+                  ) : null
+                )}
+                {deleteImpact.tasks ? (
+                  <li>• {deleteImpact.tasks} công việc sẽ bị gỡ liên kết</li>
+                ) : null}
+              </ul>
+            )}
+          </>
+        )}
+      </Modal>
     </PageShell>
   );
 }
@@ -447,10 +521,12 @@ function CustomerTable({
   customers,
   labelMap,
   onSelect,
+  onDelete,
 }: {
   customers: Customer[];
   labelMap: ReturnType<typeof useLabelMap>;
   onSelect: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
 }) {
   return (
     <div className="tr-scroll hidden overflow-x-auto rounded-modal border border-tr-border bg-tr-panel shadow-sm lg:block">
@@ -616,6 +692,15 @@ function CustomerTable({
                     >
                       <Eye size={15} aria-hidden="true" />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(customer)}
+                      aria-label={`Xóa ${customer.name}`}
+                      title="Xóa khách hàng"
+                      className={`flex h-8 w-8 items-center justify-center rounded-control text-tr-muted hover:bg-tr-danger/10 hover:text-tr-danger ${focusRing}`}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -631,10 +716,12 @@ function CustomerMobileList({
   customers,
   labelMap,
   onSelect,
+  onDelete,
 }: {
   customers: Customer[];
   labelMap: ReturnType<typeof useLabelMap>;
   onSelect: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
 }) {
   return (
     <div className="space-y-2 lg:hidden">
@@ -720,9 +807,19 @@ function CustomerMobileList({
               >
                 {formatRelativePast(customer.last_activity_at)}
               </span>
-              <Button size="sm" variant="ghost" onClick={() => onSelect(customer)}>
-                Xem nhanh <ChevronRight size={14} aria-hidden="true" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <IconButton
+                  label={`Xóa ${customer.name}`}
+                  title="Xóa khách hàng"
+                  tone="danger"
+                  onClick={() => onDelete(customer)}
+                >
+                  <Trash2 size={15} aria-hidden="true" />
+                </IconButton>
+                <Button size="sm" variant="ghost" onClick={() => onSelect(customer)}>
+                  Xem nhanh <ChevronRight size={14} aria-hidden="true" />
+                </Button>
+              </div>
             </div>
           </article>
         );

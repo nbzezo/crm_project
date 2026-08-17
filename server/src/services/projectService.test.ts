@@ -47,19 +47,22 @@ test('tieu qua 80% thoi gian ma chua xong 60% cong viec la vang', () => {
   assert.equal(projectHealth(project({ task_done: 7 }), late), 'green');
 });
 
-test('du an chua co viec nao khong bi cham diem truot tien do', () => {
+test('du an chua co viec nao duoc danh dau chua du du lieu', () => {
   const late = new Date('2026-11-01T00:00:00');
-  assert.equal(projectHealth(project({ task_total: 0, task_done: 0 }), late), 'green');
+  assert.equal(projectHealth(project({ task_total: 0, task_done: 0 }), late), 'unknown');
 });
 
-/** Cham diem suc khoe mot du an da ket thuc chi tao bao dong gia. */
-test('du an da dong hoac da huy luon xanh', () => {
+/** Du an hoan tat co ket qua; du an huy la trang thai trung tinh. */
+test('du an da dong la xanh, du an da huy la trung tinh', () => {
   assert.equal(projectHealth(project({ status: 'done', days_left: -50 }), MIDPOINT), 'green');
-  assert.equal(projectHealth(project({ status: 'cancelled', task_waiting: 3 }), MIDPOINT), 'green');
+  assert.equal(
+    projectHealth(project({ status: 'cancelled', task_waiting: 3 }), MIDPOINT),
+    'unknown'
+  );
 });
 
-test('du an khong dat ngay ke hoach thi chi xet viec qua han va bi chan', () => {
+test('du an khong dat ngay ke hoach la chua du du lieu, nhung canh bao that van uu tien', () => {
   const noDates = project({ plan_start: null, plan_end: null, days_left: null });
-  assert.equal(projectHealth(noDates, MIDPOINT), 'green');
+  assert.equal(projectHealth(noDates, MIDPOINT), 'unknown');
   assert.equal(projectHealth({ ...noDates, task_overdue: 1 }, MIDPOINT), 'amber');
 });

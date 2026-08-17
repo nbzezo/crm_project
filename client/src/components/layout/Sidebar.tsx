@@ -85,8 +85,9 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   },
   {
     id: 'sales',
-    label: 'Bán hàng',
+    label: 'CRM & tổ chức',
     items: [
+      { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
       { to: '/customers', label: t.nav.customers, icon: Users },
       { to: '/pipeline', label: t.nav.pipeline, icon: Target },
       { to: '/pipeline-health', label: t.nav.pipelineHealth, icon: Activity },
@@ -99,7 +100,6 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     label: 'Phân tích & công cụ',
     items: [
       { to: '/reports', label: t.nav.reports, icon: BarChart3 },
-      { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
       { to: '/ai', label: t.nav.ai, icon: Sparkles },
     ],
   },
@@ -210,7 +210,7 @@ function SortableNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: () 
         {...listeners}
         aria-label={`Sắp xếp ${item.label}`}
         title="Kéo để đổi vị trí · Nhấn Space để sắp xếp bằng bàn phím"
-        className={`absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-control text-tr-muted opacity-45 transition hover:bg-[var(--tr-nav-hover)] hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing sm:right-1 sm:h-7 sm:w-7 ${focusRing}`}
+        className={`absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-control text-tr-muted opacity-40 transition hover:bg-[var(--tr-nav-hover)] hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing sm:right-1 sm:h-7 sm:w-7 sm:opacity-0 sm:group-hover:opacity-70 ${focusRing}`}
       >
         <GripVertical size={14} aria-hidden="true" />
       </button>

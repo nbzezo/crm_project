@@ -26,6 +26,7 @@ import type { Customer, Project, ProjectHealth, ProjectStatus } from '../types';
 
 /** Màu sức khỏe — đỏ/vàng/xanh, đọc được trong một cái liếc mắt qua danh sách. */
 export const HEALTH_TONE: Record<ProjectHealth, string> = {
+  unknown: 'bg-tr-hover-strong text-tr-muted',
   green: 'bg-tr-success/15 text-tr-success',
   amber: 'bg-tr-warning/15 text-tr-warning',
   red: 'bg-tr-danger/15 text-tr-danger',
@@ -133,7 +134,7 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-tr-hover-strong">
           <div
-            className={`h-full rounded-full ${project.health === 'red' ? 'bg-tr-danger' : project.health === 'amber' ? 'bg-tr-warning' : 'bg-tr-success'}`}
+            className={`h-full rounded-full ${project.health === 'red' ? 'bg-tr-danger' : project.health === 'amber' ? 'bg-tr-warning' : project.health === 'unknown' ? 'bg-tr-muted' : 'bg-tr-success'}`}
             style={{ width: `${project.progress_pct}%` }}
           />
         </div>

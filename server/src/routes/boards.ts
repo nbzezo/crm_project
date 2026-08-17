@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
-import { assertEntityLinks } from '../lib/entityRelations.ts';
+import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
+import { applyBoardTemplate } from '../services/deliveryService.ts';
 import type { CardStatus } from '@workflow/contracts';
 
 const router = Router();
@@ -22,6 +23,12 @@ const boardUpdate = z.object({
   project_id: z.number().int().nullable().optional(),
   is_archived: z.boolean().optional(),
   is_starred: z.boolean().optional(),
+  /* R-03: han cua giai doan ma bang nay dai dien. null = bang khong phai mot moc. */
+  milestone_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngay phai dang YYYY-MM-DD')
+    .nullable()
+    .optional(),
 });
 
 /**
@@ -38,6 +45,36 @@ const DEFAULT_LISTS: [string, CardStatus][] = [
   ['Chờ duyệt', 'review'],
   ['Hoàn thành', 'done'],
 ];
+
+function boardCustomerForProject(
+  projectId: number | null | undefined,
+  customerId: number | null | undefined,
+  boardId?: number
+): number | null {
+  if (projectId == null) return customerId ?? null;
+  const project = required(
+    db.prepare(`SELECT id, customer_id FROM projects WHERE id = ?`).get(projectId),
+    'Khong tim thay du an'
+  ) as { id: number; customer_id: number | null };
+  assertProjectCustomerLink(db, { project_id: projectId, customer_id: customerId }, 'Bảng');
+
+  if (boardId && project.customer_id != null) {
+    const mismatch = db
+      .prepare(
+        `SELECT k.id FROM cards k JOIN lists l ON l.id = k.list_id
+          WHERE l.board_id = ? AND k.customer_id IS NOT NULL AND k.customer_id <> ? LIMIT 1`
+      )
+      .get(boardId, project.customer_id) as { id: number } | undefined;
+    if (mismatch) {
+      throw new HttpError(
+        422,
+        `Không thể gắn bảng: công việc #${mismatch.id} đang thuộc khách hàng khác`,
+        { code: 'PROJECT_CUSTOMER_CONFLICT', entity_id: mismatch.id }
+      );
+    }
+  }
+  return project.customer_id ?? customerId ?? null;
+}
 
 router.get('/', (req, res) => {
   const includeArchived = req.query.archived === '1';
@@ -59,6 +96,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(boardCreate, req);
   assertEntityLinks(db, { customer_id: body.customer_id });
+  const customerId = boardCustomerForProject(body.project_id, body.customer_id);
   const background = body.background ?? '#0079bf';
   const result = db.transaction(() => {
     const info = db
@@ -66,7 +104,7 @@ router.post('/', (req, res) => {
         `INSERT INTO boards (name, color, background, customer_id, project_id)
          VALUES (?, ?, ?, ?, ?)`
       )
-      .run(body.name, background, background, body.customer_id ?? null, body.project_id ?? null);
+      .run(body.name, background, background, customerId, body.project_id ?? null);
     const boardId = Number(info.lastInsertRowid);
     const insertList = db.prepare(
       `INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`
@@ -168,8 +206,17 @@ router.get('/:id/full', (req, res) => {
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(boardUpdate, req);
-  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(id), 'Khong tim thay bang');
+  const current = required(
+    db.prepare(`SELECT * FROM boards WHERE id = ?`).get(id),
+    'Khong tim thay bang'
+  ) as Record<string, unknown>;
   if (body.customer_id !== undefined) assertEntityLinks(db, { customer_id: body.customer_id });
+  const mergedProjectId = (body.project_id !== undefined ? body.project_id : current.project_id) as
+    number | null;
+  const requestedCustomerId = (
+    body.customer_id !== undefined ? body.customer_id : current.customer_id
+  ) as number | null;
+  const effectiveCustomerId = boardCustomerForProject(mergedProjectId, requestedCustomerId, id);
 
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -181,9 +228,9 @@ router.patch('/:id', (req, res) => {
     fields.push('background = ?', 'color = ?');
     values.push(body.background, body.background);
   }
-  if (body.customer_id !== undefined) {
+  if (body.customer_id !== undefined || effectiveCustomerId !== current.customer_id) {
     fields.push('customer_id = ?');
-    values.push(body.customer_id);
+    values.push(effectiveCustomerId);
   }
   /*
    * Gan bang vao du an tu dong keo theo moi cong viec trong bang — khong con cau
@@ -192,12 +239,6 @@ router.patch('/:id', (req, res) => {
    * hai ben lech nhau.
    */
   if (body.project_id !== undefined) {
-    if (body.project_id !== null) {
-      required(
-        db.prepare(`SELECT id FROM projects WHERE id = ?`).get(body.project_id),
-        'Khong tim thay du an'
-      );
-    }
     fields.push('project_id = ?');
     values.push(body.project_id);
   }
@@ -208,6 +249,10 @@ router.patch('/:id', (req, res) => {
   if (body.is_starred !== undefined) {
     fields.push('is_starred = ?');
     values.push(body.is_starred ? 1 : 0);
+  }
+  if (body.milestone_date !== undefined) {
+    fields.push('milestone_date = ?');
+    values.push(body.milestone_date);
   }
 
   if (fields.length > 0) {
@@ -221,6 +266,17 @@ router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
   db.prepare(`DELETE FROM boards WHERE id = ?`).run(id);
   res.json({ ok: true });
+});
+
+/**
+ * Do bo List mau vao bang (R-12).
+ *
+ * Chi thay duoc khi bang chua co cong viec nao — xem `applyBoardTemplate`.
+ */
+router.post('/:id/template', (req, res) => {
+  const boardId = intParam(req.params.id);
+  const body = parseBody(z.object({ key: z.string().trim().min(1).max(50) }), req);
+  res.json(applyBoardTemplate(db, boardId, body.key));
 });
 
 /** Them list moi vao bang (tien cho UI "Them danh sach"). */

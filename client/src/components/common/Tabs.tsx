@@ -56,7 +56,7 @@ export function Tabs<T extends string>({
         ref={listRef}
         role="tablist"
         aria-label={ariaLabel}
-        className={`flex flex-wrap gap-1 border-b border-tr-border ${className}`}
+        className={`tr-tabs tr-scroll flex flex-nowrap gap-1 overflow-x-auto border-b border-tr-border ${className}`}
       >
         {items.map((item, index) => {
           const selected = value === item.value;
@@ -71,7 +71,7 @@ export function Tabs<T extends string>({
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(item.value)}
               onKeyDown={(event) => onKeyDown(event, index)}
-              className={`-mb-px inline-flex min-h-[44px] items-center gap-1.5 border-b-2 px-3 text-sm font-medium transition sm:min-h-0 sm:py-2 ${focusRing} ${
+              className={`tr-tab -mb-px inline-flex min-h-[44px] shrink-0 items-center gap-1.5 border-b-2 px-3 text-sm font-medium transition sm:min-h-0 sm:py-2 ${focusRing} ${
                 selected
                   ? 'border-tr-primary text-tr-primary'
                   : 'border-transparent text-tr-subtle hover:text-tr-text'

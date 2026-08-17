@@ -42,8 +42,10 @@ const ALL_COLUMNS: Required<TaskColumns> = {
 };
 
 /** Header va row bat buoc dung chung template nay de khong lech cot khi doi breakpoint. */
-const TASK_TREE_GRID =
+const TASK_TREE_DETAIL_GRID =
   'grid-cols-[auto_auto_minmax(180px,1fr)_100px_110px_132px_140px_130px_140px_80px] lg:grid-cols-[auto_auto_minmax(200px,1fr)_100px_110px_132px_140px_150px_150px_130px_180px_80px]';
+const TASK_TREE_COMPACT_GRID =
+  'grid-cols-[auto_auto_minmax(220px,1fr)_100px_132px_140px_130px_80px]';
 
 /** Gom danh sách phẳng thành cây cha – con (tối đa 1 cấp). */
 export function buildTree(tasks: TaskRow[]): { task: TaskRow; children: TaskRow[] }[] {
@@ -87,10 +89,19 @@ export function TaskTree({
   const [addingUnder, setAddingUnder] = useState<number | null>(null);
   const [subtaskDraft, setSubtaskDraft] = useState('');
   const [deleteTask, setDeleteTask] = useState<TaskRow | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   /** Dong dang cho het gio hoan tac — an khoi cay nhung chua goi API xoa. */
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set());
 
   const cols = { ...ALL_COLUMNS, ...columns };
+  const visibleCols = {
+    ...cols,
+    startDate: cols.startDate && showDetails,
+    customer: cols.customer && showDetails,
+    board: cols.board && showDetails,
+    labels: cols.labels && showDetails,
+  };
+  const gridTemplate = showDetails ? TASK_TREE_DETAIL_GRID : TASK_TREE_COMPACT_GRID;
   const visibleTasks = useMemo(
     () => (pendingDelete.size === 0 ? tasks : tasks.filter((task) => !pendingDelete.has(task.id))),
     [tasks, pendingDelete]
@@ -102,13 +113,13 @@ export function TaskTree({
     queryKey: ['customers', 'select'],
     queryFn: () => api.get<Customer[]>('/api/customers'),
     staleTime: 60_000,
-    enabled: cols.customer,
+    enabled: visibleCols.customer,
   });
   const { data: labels = [] } = useQuery({
     queryKey: ['labels'],
     queryFn: () => api.get<Label[]>('/api/labels'),
     staleTime: 5 * 60_000,
-    enabled: cols.labels,
+    enabled: visibleCols.labels,
   });
 
   const refresh = () => {
@@ -172,7 +183,7 @@ export function TaskTree({
     return (
       <div
         key={task.id}
-        className={`group grid min-h-12 ${TASK_TREE_GRID} items-center gap-2 px-3 py-1.5 transition hover:bg-tr-hover ${
+        className={`group grid min-h-12 ${gridTemplate} items-center gap-2 px-3 py-1.5 transition hover:bg-tr-hover ${
           isChild ? 'bg-tr-hover/40' : ''
         }`}
       >
@@ -243,7 +254,7 @@ export function TaskTree({
           </span>
         </div>
 
-        {cols.priority && (
+        {visibleCols.priority && (
           <PrioritySelect
             value={task.priority}
             taskTitle={task.title}
@@ -251,7 +262,7 @@ export function TaskTree({
           />
         )}
 
-        {cols.startDate && (
+        {visibleCols.startDate && (
           <div className="w-24 shrink-0">
             <InlineDate
               value={task.start_date}
@@ -260,7 +271,7 @@ export function TaskTree({
           </div>
         )}
 
-        {cols.dueDate && (
+        {visibleCols.dueDate && (
           <div>
             <SmartDeadline
               value={task.due_date}
@@ -271,7 +282,7 @@ export function TaskTree({
           </div>
         )}
 
-        {cols.assignee && (
+        {visibleCols.assignee && (
           <AssigneeSelect
             value={task.assignee_contact_id ?? null}
             taskTitle={task.title}
@@ -281,29 +292,31 @@ export function TaskTree({
           />
         )}
 
-        {cols.customer && (
+        {showDetails && (
           <div className="hidden w-36 lg:block">
-            <Combobox
-              value={task.customer_id ?? ''}
-              onChange={(v) =>
-                update.mutate({
-                  id: task.id,
-                  patch: { customer_id: v === '' ? null : v },
-                })
-              }
-              options={customers.map((c) => ({ id: c.id, label: c.name }))}
-              placeholder="— khách hàng —"
-              searchPlaceholder="Tìm khách hàng…"
-              emptyText="Không tìm thấy khách hàng."
-              ariaLabel={`Khách hàng: ${task.title}`}
-              triggerClassName="flex w-full items-center justify-between gap-1 truncate rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle outline-none transition hover:border-tr-border focus-visible:border-tr-primary"
-            />
+            {cols.customer && (
+              <Combobox
+                value={task.customer_id ?? ''}
+                onChange={(v) =>
+                  update.mutate({
+                    id: task.id,
+                    patch: { customer_id: v === '' ? null : v },
+                  })
+                }
+                options={customers.map((c) => ({ id: c.id, label: c.name }))}
+                placeholder="— khách hàng —"
+                searchPlaceholder="Tìm khách hàng…"
+                emptyText="Không tìm thấy khách hàng."
+                ariaLabel={`Khách hàng: ${task.title}`}
+                triggerClassName="flex w-full items-center justify-between gap-1 truncate rounded-control border border-transparent bg-transparent px-1 py-0.5 text-xs text-tr-subtle outline-none transition hover:border-tr-border focus-visible:border-tr-primary"
+              />
+            )}
           </div>
         )}
 
-        {cols.board && (
+        {showDetails && (
           <span className="hidden truncate text-xs text-tr-muted lg:block" title={task.board_name}>
-            {task.board_name}
+            {cols.board ? task.board_name : ''}
           </span>
         )}
 
@@ -313,23 +326,25 @@ export function TaskTree({
           onChange={(status) => update.mutate({ id: task.id, patch: { status } })}
         />
 
-        <span className="flex min-w-0 items-center gap-1.5">
-          <StatusSelect
-            task={task}
-            lists={listsByBoard.get(task.board_id) ?? []}
-            onChange={(listId) => update.mutate({ id: task.id, patch: { list_id: listId } })}
-          />
-          {cols.labels && (
-            <span className="hidden min-w-0 lg:block">
-              <LabelTags
-                labels={(task.label_ids ?? [])
-                  .map((labelId) => labels.find((label) => label.id === labelId))
-                  .filter((label): label is Label => Boolean(label))}
-                limit={1}
-              />
-            </span>
-          )}
-        </span>
+        {showDetails && (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <StatusSelect
+              task={task}
+              lists={listsByBoard.get(task.board_id) ?? []}
+              onChange={(listId) => update.mutate({ id: task.id, patch: { list_id: listId } })}
+            />
+            {visibleCols.labels && (
+              <span className="hidden min-w-0 lg:block">
+                <LabelTags
+                  labels={(task.label_ids ?? [])
+                    .map((labelId) => labels.find((label) => label.id === labelId))
+                    .filter((label): label is Label => Boolean(label))}
+                  limit={1}
+                />
+              </span>
+            )}
+          </span>
+        )}
 
         <div className="opacity-50 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <TaskRowActions
@@ -347,24 +362,35 @@ export function TaskTree({
 
   return (
     <>
+      <div className="mb-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowDetails((value) => !value)}
+          className="rounded-control px-2.5 py-1.5 text-xs font-medium text-tr-muted transition hover:bg-tr-hover hover:text-tr-text focus-visible:outline-2 focus-visible:outline-tr-primary"
+        >
+          {showDetails ? 'Ẩn cột phụ' : 'Hiện cột phụ'}
+        </button>
+      </div>
       <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <div className="min-w-[1000px] lg:min-w-[1390px]">
+        <div className={showDetails ? 'min-w-[1000px] lg:min-w-[1390px]' : 'min-w-[900px]'}>
           <div
-            className={`sticky top-0 z-10 grid ${TASK_TREE_GRID} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase`}
+            className={`sticky top-0 z-10 grid ${gridTemplate} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase`}
           >
             <span className="w-5" />
             {/* Khong dat `sr-only` truc tiep tren grid item: class nay dung position:absolute,
                 lam mat cot checkbox va day toan bo header sang trai. */}
             <span className="block w-4" aria-hidden="true" />
             <span>Công việc</span>
-            <span>Ưu tiên</span>
-            <span>Bắt đầu</span>
-            <span>Hạn hoàn thành</span>
-            <span>Người phụ trách</span>
-            <span className="hidden lg:block">Khách hàng</span>
-            <span className="hidden lg:block">Bảng</span>
+            {visibleCols.priority && <span>Ưu tiên</span>}
+            {visibleCols.startDate && <span>Bắt đầu</span>}
+            {visibleCols.dueDate && <span>Hạn hoàn thành</span>}
+            {visibleCols.assignee && <span>Người phụ trách</span>}
+            {showDetails && (
+              <span className="hidden lg:block">{cols.customer ? 'Khách hàng' : ''}</span>
+            )}
+            {showDetails && <span className="hidden lg:block">{cols.board ? 'Bảng' : ''}</span>}
             <span>Trạng thái</span>
-            <span>Danh sách / Nhãn</span>
+            {showDetails && <span>Danh sách / Nhãn</span>}
             <span className="text-right">Thao tác</span>
           </div>
           <div className="divide-y divide-tr-border">

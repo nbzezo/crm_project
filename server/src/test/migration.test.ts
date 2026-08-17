@@ -82,6 +82,16 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
       const indexes = db.prepare(`PRAGMA index_list(cards)`).all() as { name: string }[];
       assert.ok(!indexes.some((i) => i.name === 'idx_cards_project'));
 
+      /* v20: trang thai doc/snooze nam o lop tong hop, khong chen cot vao bon
+         bang nghiep vu nguon. */
+      const notificationColumns = db.prepare(`PRAGMA table_info(notification_states)`).all() as {
+        name: string;
+      }[];
+      assert.deepEqual(
+        notificationColumns.map((column) => column.name),
+        ['notification_key', 'is_read', 'read_at', 'snoozed_until', 'updated_at']
+      );
+
       assert.deepEqual(db.pragma('foreign_key_check'), []);
       assert.equal((db.pragma('integrity_check', { simple: true }) as string).toLowerCase(), 'ok');
     } finally {

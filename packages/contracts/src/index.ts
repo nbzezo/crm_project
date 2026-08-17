@@ -1,10 +1,23 @@
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
+/**
+ * Giai doan cua mot co hoi.
+ *
+ * 'poc' (v27) nam giua 'discussing' va 'quoted' theo dung S03 cua dac ta: khach
+ * hang dang thu nghiem giai phap thi da qua giai doan lam ro nhu cau, nhung chua
+ * the bao gia chac.
+ *
+ * KHONG co 'on_hold' o day du dac ta xep no ngang hang. Tam dung la mot CO rieng
+ * (`deals.on_hold`) vi mot co hoi dung lai VAN dang nam o mot cho trong pipeline
+ * — dung giua dam phan khac han dung ngay sau bao gia, va bien no thanh mot giai
+ * doan se xoa mat chinh thong tin do.
+ */
 export const STAGES = [
   'lead',
   'approaching',
   'discussing',
+  'poc',
   'quoted',
   'negotiating',
   'won',
@@ -17,6 +30,9 @@ export const STAGE_PROBABILITY: Record<Stage, number> = {
   lead: 10,
   approaching: 20,
   discussing: 40,
+  /* PoC dat giua 'discussing' (40) va 'quoted' (60): khach da bo cong thu nghiem
+     nen kha nang that hon, nhung chua co bao gia nao duoc chap nhan. */
+  poc: 50,
   quoted: 60,
   negotiating: 80,
   won: 100,
@@ -126,5 +142,24 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
  * ngay qua `plan_end`, khong co ai sua gi ca. Khong co su kien nao de kich hoat
  * viec cap nhat, nen gia tri luu se sai am tham.
  */
-export const PROJECT_HEALTHS = ['green', 'amber', 'red'] as const;
+export const PROJECT_HEALTHS = ['unknown', 'green', 'amber', 'red'] as const;
 export type ProjectHealth = (typeof PROJECT_HEALTHS)[number];
+
+/**
+ * So rui ro cua du an (v26) — mot bang cho bon loai.
+ *
+ * Chung co cung vong doi, cung nguoi chiu trach nhiem, cung han xu ly va nguoi
+ * dung luon xem chung tren cung mot man hinh "co gi dang can tro du an nay".
+ * 'change' la Change Request cua dac ta 7.4: doi pham vi sau baseline phai co
+ * ban ghi, khong sua am tham.
+ */
+export const RISK_KINDS = ['risk', 'issue', 'change', 'decision'] as const;
+export type RiskKind = (typeof RISK_KINDS)[number];
+export const RISK_SEVERITIES = ['low', 'medium', 'high'] as const;
+export type RiskSeverity = (typeof RISK_SEVERITIES)[number];
+export const RISK_STATUSES = ['open', 'mitigating', 'closed'] as const;
+export type RiskStatus = (typeof RISK_STATUSES)[number];
+
+/** Hai mo hinh quan ly trien khai cua dac ta 6.2. */
+export const DELIVERY_MODELS = ['A', 'B'] as const;
+export type DeliveryModel = (typeof DELIVERY_MODELS)[number];

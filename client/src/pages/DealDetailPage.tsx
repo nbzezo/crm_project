@@ -7,9 +7,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, Pencil, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, FolderKanban, PackageOpen, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { DealForm } from '../components/crm/DealForm';
+import { HandoverPanel } from '../components/crm/HandoverPanel';
+import { ChangeLogPanel } from '../components/crm/ChangeLogPanel';
+import { HealthBadge } from './ProjectsPage';
 import { Scorecard } from '../components/crm/Scorecard';
 import { CommitteePanel } from '../components/crm/CommitteePanel';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
@@ -29,13 +32,23 @@ import { STAGE_COLORS, t } from '../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
-import type { CustomerFull, Deal, Factor, Scorecard as ScorecardData } from '../types';
+import type {
+  ChangeLogEntry,
+  CustomerFull,
+  Deal,
+  Factor,
+  Project,
+  Scorecard as ScorecardData,
+} from '../types';
 
-type Tab = 'info' | 'score' | 'committee' | 'activities';
+type Tab = 'info' | 'score' | 'committee' | 'activities' | 'handover';
 
 interface DealFull extends Deal {
   activities: unknown[];
   documents: unknown[];
+  /** Tổng quan dự án triển khai — chỉ có khi cơ hội đã gắn dự án (v23). */
+  project: Project | null;
+  changes: ChangeLogEntry[];
 }
 
 export default function DealDetailPage() {
@@ -96,8 +109,11 @@ export default function DealDetailPage() {
     { key: 'score', label: 'Chấm điểm' },
     { key: 'committee', label: 'Nhóm quyết định' },
     { key: 'info', label: 'Thông tin' },
+    { key: 'handover', label: 'Bàn giao' },
     { key: 'activities', label: 'Hoạt động' },
   ];
+
+  const pendingHandover = deal.stage === 'won' && !deal.handover_ready;
 
   return (
     <div className="p-6">
@@ -111,11 +127,21 @@ export default function DealDetailPage() {
             <ColorBadge color={STAGE_COLORS[deal.stage]}>{t.stage[deal.stage]}</ColorBadge>
             {card && (
               <ColorBadge color={QUADRANT_COLORS[card.quadrant]}>
-                {QUADRANT_LABELS[card.quadrant]}
+                Scoring: {QUADRANT_LABELS[card.quadrant]}
               </ColorBadge>
             )}
             {card?.veto.some((v) => v.blocking) && (
               <ColorBadge color="#e04b3a">Ngoài forecast</ColorBadge>
+            )}
+            {/* Won mà hồ sơ chưa đủ — bấm vào đi thẳng tới checklist còn thiếu. */}
+            {pendingHandover && (
+              <button
+                type="button"
+                onClick={() => setTab('handover')}
+                className={`inline-flex items-center gap-1 rounded-full bg-tr-warning/15 px-2.5 py-0.5 text-xs font-semibold text-tr-warning transition hover:bg-tr-warning/25 ${focusRing}`}
+              >
+                <PackageOpen size={13} aria-hidden="true" /> Chờ bàn giao
+              </button>
             )}
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">
@@ -134,7 +160,7 @@ export default function DealDetailPage() {
               Giá trị: <strong className="text-tr-success">{formatVND(deal.value_vnd)}</strong>
             </span>
             <span>
-              Xác suất theo giai đoạn: <strong>{deal.probability}%</strong>
+              Xác suất: <strong>{deal.probability}%</strong>
             </span>
             {deal.expected_close_date && (
               <span>Dự kiến chốt: {formatDate(deal.expected_close_date)}</span>
@@ -208,6 +234,51 @@ export default function DealDetailPage() {
               </p>
             </Panel>
             <DocumentPanel links={{ deal_id: id }} title="Tài liệu của cơ hội" />
+          </div>
+        )}
+
+        {tab === 'handover' && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <HandoverPanel dealId={id} />
+            <div className="space-y-4">
+              <Panel title="Dự án triển khai">
+                {deal.project ? (
+                  <div className="space-y-2 text-sm">
+                    <Link
+                      to={`/projects/${deal.project.id}`}
+                      className={`inline-flex items-center gap-1.5 font-medium text-tr-primary hover:underline ${focusRing}`}
+                    >
+                      <FolderKanban size={15} aria-hidden="true" />
+                      {deal.project.name}
+                    </Link>
+                    {/*
+                      Chỉ thông tin TỔNG QUAN (đặc tả 7.4). Mọi con số ở đây đều
+                      do máy chủ tính khi đọc từ chính dự án, không phải bản sao
+                      lưu trên cơ hội — nên không có gì để lệch.
+                    */}
+                    <dl className="space-y-2">
+                      <Row label="Trạng thái" value={t.projectStatus[deal.project.status]} />
+                      <Row
+                        label="Tiến độ"
+                        value={`${deal.project.progress_pct}% · ${deal.project.task_done}/${deal.project.task_total} việc`}
+                      />
+                      <Row
+                        label="Hạn kế hoạch"
+                        value={deal.project.plan_end ? formatDate(deal.project.plan_end) : null}
+                      />
+                      <Row label="Người phụ trách" value={deal.project.owner_name} />
+                    </dl>
+                    <HealthBadge health={deal.project.health} />
+                  </div>
+                ) : (
+                  <p className="text-sm text-tr-muted">
+                    Cơ hội này chưa gắn dự án triển khai nào. Chọn dự án trong biểu mẫu sửa cơ hội —
+                    mỗi cơ hội gắn được tối đa một dự án.
+                  </p>
+                )}
+              </Panel>
+              <ChangeLogPanel entries={deal.changes ?? []} />
+            </div>
           </div>
         )}
 

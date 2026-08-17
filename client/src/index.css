@@ -249,6 +249,582 @@
   --cal-type-other: #9fadbc;
 }
 
+/* ---------- Neo am: hoc tu neo-tactile kem + dong ---------- */
+[data-theme='neo-tactile'] {
+  color-scheme: light;
+  --font-sans:
+    'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius-compact: 7px;
+  --radius-control: 12px;
+  --radius-panel: 17px;
+  --radius-modal: 22px;
+  --shadow-sm: -2px -2px 5px rgba(255, 255, 255, 0.7), 3px 3px 7px rgba(98, 73, 55, 0.18);
+
+  --tr-page-bg: #cfc5b8;
+  --tr-shell-gradient: linear-gradient(135deg, #eee7de 0%, #e8dfd4 58%, #dfd1c2 100%);
+  --tr-shell-border: rgba(102, 74, 54, 0.15);
+  --tr-shell-shadow: 0 28px 70px rgba(70, 53, 42, 0.27);
+  --tr-yellow: #c98a5c;
+  --tr-yellow-soft: #ead5c2;
+  --tr-on-yellow: #653c28;
+
+  --tr-nav: #7b4933;
+  --tr-surface: #e7ddd1;
+  --tr-panel: #f1e9df;
+  --tr-list: #e1d5c7;
+  --tr-card: #f4ede4;
+  --tr-text: #332922;
+  --tr-subtle: #62554b;
+  --tr-muted: #66584f;
+  --tr-border: rgba(112, 80, 58, 0.2);
+  --tr-primary: #925033;
+  --tr-primary-hover: #7f432a;
+  --tr-on-primary: #fffaf4;
+  --tr-danger: #a5453f;
+  --tr-on-danger: #fffaf4;
+  --tr-success: #397153;
+  --tr-on-success: #ffffff;
+  --tr-warning: #8a5a24;
+  --tr-hover: rgba(116, 78, 53, 0.08);
+  --tr-hover-strong: rgba(116, 78, 53, 0.15);
+  --tr-overlay: rgba(53, 39, 31, 0.48);
+  --tr-card-shadow: -5px -5px 12px rgba(255, 255, 255, 0.68), 6px 6px 14px rgba(100, 74, 55, 0.18);
+  --tr-popover-shadow:
+    -8px -8px 18px rgba(255, 255, 255, 0.62), 12px 14px 28px rgba(82, 59, 44, 0.25);
+  --tr-scroll-thumb: rgba(112, 80, 58, 0.24);
+  --tr-scroll-thumb-hover: rgba(112, 80, 58, 0.4);
+  --tr-badge-done-bg: #d5e4d8;
+  --tr-badge-done-fg: #315d43;
+  --tr-badge-overdue-bg: #ead1ca;
+  --tr-badge-overdue-fg: #923b35;
+  --tr-badge-soon-bg: #ead8bc;
+  --tr-badge-soon-fg: #76501f;
+
+  --tr-navfg: #fff7ee;
+  --tr-navfg-muted: #dfcbbd;
+  --tr-navfg-border: rgba(255, 247, 238, 0.18);
+  --tr-nav-panel: rgba(239, 229, 218, 0.7);
+  --tr-nav-text: #66574c;
+  --tr-nav-border: rgba(105, 76, 56, 0.14);
+  --tr-nav-hover: rgba(126, 77, 48, 0.1);
+  --tr-nav-active-bg: #925033;
+  --tr-nav-active-text: #fffaf4;
+
+  --interaction-call-bg: #dce6e9;
+  --interaction-call-fg: #345d69;
+  --interaction-email-bg: #e1dbeb;
+  --interaction-email-fg: #5c4b74;
+  --interaction-meeting-bg: #d8e8df;
+  --interaction-meeting-fg: #35654c;
+  --interaction-demo-bg: #eadcbd;
+  --interaction-demo-fg: #76501f;
+  --interaction-proposal-bg: #ead1ca;
+  --interaction-proposal-fg: #873b35;
+  --interaction-followup-bg: #d7e7e5;
+  --interaction-followup-fg: #315e5b;
+  --interaction-zalo-bg: #d9e3ed;
+  --interaction-zalo-fg: #385a78;
+  --tr-relation-good: #6d8e58;
+
+  --cal-reminder-bg: #d6a358;
+  --cal-reminder-fg: #332922;
+  --cal-next-action-bg: #b46d42;
+  --cal-next-action-fg: #ffffff;
+  --cal-deal-close-bg: #806494;
+  --cal-deal-close-fg: #ffffff;
+  --cal-contract-end-bg: #75a7ad;
+  --cal-contract-end-fg: #24383a;
+}
+
+/* ---------- Neat Slate: hoc tu bo control ghi + xanh than ---------- */
+[data-theme='neat-slate'] {
+  color-scheme: light;
+  --font-sans: 'Trebuchet MS', 'Segoe UI', Arial, sans-serif;
+  --radius-compact: 4px;
+  --radius-control: 8px;
+  --radius-panel: 11px;
+  --radius-modal: 14px;
+  --shadow-sm: 0 1px 1px rgba(255, 255, 255, 0.75), 0 2px 5px rgba(25, 39, 47, 0.2);
+
+  --tr-page-bg: #aaa8a2;
+  --tr-shell-gradient:
+    radial-gradient(circle at 1px 1px, rgba(37, 53, 62, 0.08) 1px, transparent 0) 0 0 / 4px 4px,
+    linear-gradient(135deg, #cfcdc7 0%, #bcbab4 100%);
+  --tr-shell-border: rgba(27, 44, 54, 0.3);
+  --tr-shell-shadow: 0 24px 56px rgba(25, 34, 39, 0.36);
+  --tr-yellow: #bf8a45;
+  --tr-yellow-soft: #ded3bd;
+  --tr-on-yellow: #514024;
+
+  --tr-nav: #263b48;
+  --tr-surface: #cbc9c3;
+  --tr-panel: #ecece8;
+  --tr-list: #d2d0ca;
+  --tr-card: #f2f2ee;
+  --tr-text: #26343c;
+  --tr-subtle: #4c5a61;
+  --tr-muted: #4d5b62;
+  --tr-border: rgba(38, 57, 68, 0.24);
+  --tr-primary: #263d4b;
+  --tr-primary-hover: #172d39;
+  --tr-on-primary: #f7f7f3;
+  --tr-danger: #9f403d;
+  --tr-on-danger: #ffffff;
+  --tr-success: #39705c;
+  --tr-on-success: #ffffff;
+  --tr-warning: #8a6329;
+  --tr-hover: rgba(35, 55, 66, 0.08);
+  --tr-hover-strong: rgba(35, 55, 66, 0.16);
+  --tr-overlay: rgba(20, 31, 37, 0.52);
+  --tr-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 8px rgba(30, 43, 50, 0.18);
+  --tr-popover-shadow: 0 2px 0 rgba(255, 255, 255, 0.5), 0 13px 28px rgba(25, 38, 46, 0.28);
+  --tr-scroll-thumb: rgba(34, 53, 64, 0.25);
+  --tr-scroll-thumb-hover: rgba(34, 53, 64, 0.43);
+  --tr-badge-done-bg: #d3e3dc;
+  --tr-badge-done-fg: #315f4c;
+  --tr-badge-overdue-bg: #e6ceca;
+  --tr-badge-overdue-fg: #873936;
+  --tr-badge-soon-bg: #e3d8bf;
+  --tr-badge-soon-fg: #715222;
+
+  --tr-navfg: #f2f3ef;
+  --tr-navfg-muted: #c2cbd0;
+  --tr-navfg-border: rgba(240, 244, 246, 0.16);
+  --tr-nav-panel: #263b48;
+  --tr-nav-text: #d7dfe2;
+  --tr-nav-border: rgba(239, 244, 246, 0.17);
+  --tr-nav-hover: rgba(255, 255, 255, 0.1);
+  --tr-nav-active-bg: #f0efeb;
+  --tr-nav-active-text: #263d4b;
+
+  --interaction-call-bg: #d7e1e8;
+  --interaction-call-fg: #2f566b;
+  --interaction-email-bg: #dfdbea;
+  --interaction-email-fg: #554c70;
+  --interaction-meeting-bg: #d3e5dd;
+  --interaction-meeting-fg: #315f4c;
+  --interaction-demo-bg: #e4dac2;
+  --interaction-demo-fg: #6f5428;
+  --interaction-proposal-bg: #e6ceca;
+  --interaction-proposal-fg: #873936;
+  --interaction-followup-bg: #d3e4e5;
+  --interaction-followup-fg: #355e61;
+  --interaction-zalo-bg: #d6e1eb;
+  --interaction-zalo-fg: #315876;
+  --tr-relation-good: #658659;
+
+  --cal-reminder-bg: #d5a54d;
+  --cal-reminder-fg: #26343c;
+  --cal-next-action-bg: #a7663e;
+  --cal-next-action-fg: #ffffff;
+  --cal-deal-close-bg: #78638c;
+  --cal-deal-close-fg: #ffffff;
+  --cal-contract-end-bg: #74a2aa;
+  --cal-contract-end-fg: #1e3438;
+}
+
+/* ---------- Kem ngoc: hoc tu neumorphism kem + teal ---------- */
+[data-theme='cream-teal'] {
+  color-scheme: light;
+  /* Token goc cua visual system Warm Ivory + Deep Teal. Cac token `--tr-*`
+     ben duoi chi la lop tuong thich de toan bo CRM hien tai tai su dung skin moi. */
+  --crm-bg-main: #eee7d8;
+  --crm-bg-secondary: #f4eee2;
+  --crm-surface: #f1ebdd;
+  --crm-surface-light: #f7f2e8;
+  --crm-primary: #006b69;
+  --crm-primary-hover: #005c5a;
+  --crm-primary-active: #004e4d;
+  --crm-primary-soft: rgba(0, 107, 105, 0.1);
+  --crm-text-primary: #252824;
+  --crm-text-secondary: #5f615a;
+  /* `#96968d` cua reference chi phu hop decoration/disabled; CRM dung chu nho
+     nen mau muted can dam hon de dat WCAG AA tren ca surface inset toi nhat. */
+  --crm-text-muted: #62645d;
+  --crm-text-disabled: #85867e;
+  --crm-border-soft: rgba(80, 80, 70, 0.11);
+  --crm-shadow-raised:
+    6px 6px 14px rgba(166, 156, 136, 0.25), -6px -6px 14px rgba(255, 255, 255, 0.62);
+  --crm-shadow-raised-sm:
+    3px 3px 8px rgba(166, 156, 136, 0.2), -3px -3px 8px rgba(255, 255, 255, 0.58);
+  --crm-shadow-inset:
+    inset 3px 3px 7px rgba(166, 156, 136, 0.18), inset -3px -3px 7px rgba(255, 255, 255, 0.66);
+  --crm-shadow-pressed:
+    inset 3px 3px 7px rgba(88, 83, 69, 0.24), inset -2px -2px 5px rgba(255, 255, 255, 0.32);
+
+  --font-sans:
+    'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius-compact: 4px;
+  --radius-control: 9px;
+  --radius-panel: 14px;
+  --radius-modal: 18px;
+  --shadow-sm: var(--crm-shadow-raised-sm);
+
+  --tr-page-bg: var(--crm-bg-main);
+  --tr-shell-gradient: linear-gradient(
+    140deg,
+    var(--crm-surface-light) 0%,
+    var(--crm-bg-secondary) 54%,
+    var(--crm-bg-main) 100%
+  );
+  --tr-shell-border: var(--crm-border-soft);
+  --tr-shell-shadow: 0 22px 55px rgba(86, 80, 66, 0.2);
+  --tr-yellow: #c3a45e;
+  --tr-yellow-soft: #e6d9b8;
+  --tr-on-yellow: #604f22;
+
+  --tr-nav: var(--crm-primary);
+  --tr-surface: var(--crm-surface);
+  --tr-panel: var(--crm-bg-secondary);
+  --tr-list: #ebe3d3;
+  --tr-card: var(--crm-surface-light);
+  --tr-text: var(--crm-text-primary);
+  --tr-subtle: var(--crm-text-secondary);
+  --tr-muted: var(--crm-text-muted);
+  --tr-border: var(--crm-border-soft);
+  --tr-primary: var(--crm-primary);
+  --tr-primary-hover: var(--crm-primary-hover);
+  --tr-on-primary: #f8fffc;
+  --tr-danger: #a34943;
+  --tr-on-danger: #ffffff;
+  --tr-success: #32745a;
+  --tr-on-success: #ffffff;
+  --tr-warning: #846021;
+  --tr-hover: rgba(0, 107, 105, 0.065);
+  --tr-hover-strong: var(--crm-primary-soft);
+  --tr-overlay: rgba(37, 50, 46, 0.47);
+  --tr-card-shadow: var(--crm-shadow-raised);
+  --tr-popover-shadow:
+    8px 10px 24px rgba(91, 82, 64, 0.23), -5px -5px 14px rgba(255, 255, 255, 0.52);
+  --tr-scroll-thumb: rgba(0, 107, 105, 0.22);
+  --tr-scroll-thumb-hover: rgba(0, 107, 105, 0.38);
+  --tr-badge-done-bg: #d2e5da;
+  --tr-badge-done-fg: #286047;
+  --tr-badge-overdue-bg: #ead1ca;
+  --tr-badge-overdue-fg: #903b36;
+  --tr-badge-soon-bg: #e8dbb9;
+  --tr-badge-soon-fg: #6d531f;
+
+  --tr-navfg: var(--crm-text-primary);
+  --tr-navfg-muted: var(--crm-text-muted);
+  --tr-navfg-border: var(--crm-border-soft);
+  --tr-nav-panel: rgba(244, 238, 226, 0.74);
+  --tr-nav-text: #525851;
+  --tr-nav-border: var(--crm-border-soft);
+  --tr-nav-hover: rgba(0, 107, 105, 0.075);
+  --tr-nav-active-bg: var(--crm-primary);
+  --tr-nav-active-text: #f8fffc;
+
+  --interaction-call-bg: #d7e5e4;
+  --interaction-call-fg: #2d605f;
+  --interaction-email-bg: #dfdbe9;
+  --interaction-email-fg: #585071;
+  --interaction-meeting-bg: #d2e5da;
+  --interaction-meeting-fg: #2f634b;
+  --interaction-demo-bg: #e8dcbd;
+  --interaction-demo-fg: #705722;
+  --interaction-proposal-bg: #ead1ca;
+  --interaction-proposal-fg: #873b36;
+  --interaction-followup-bg: #d2e7e4;
+  --interaction-followup-fg: #2c6260;
+  --interaction-zalo-bg: #d7e2eb;
+  --interaction-zalo-fg: #345a72;
+  --tr-relation-good: #668b57;
+
+  --cal-reminder-bg: #d1a451;
+  --cal-reminder-fg: #293936;
+  --cal-next-action-bg: #a9653f;
+  --cal-next-action-fg: #ffffff;
+  --cal-deal-close-bg: #78638b;
+  --cal-deal-close-fg: #ffffff;
+  --cal-contract-end-bg: #68a4a3;
+  --cal-contract-end-fg: #163f3e;
+}
+
+/* Chieu sau rieng cho ba bo UI: raised control, inset field, va thanh dieu huong. */
+[data-theme='neo-tactile']
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    textarea,
+    select
+  ) {
+  box-shadow:
+    inset 2px 2px 5px rgba(91, 76, 57, 0.13),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.58);
+}
+
+[data-theme='neo-tactile']
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    textarea,
+    select
+  ):focus {
+  box-shadow:
+    inset 1px 1px 3px rgba(64, 57, 45, 0.12),
+    0 0 0 3px color-mix(in srgb, var(--tr-primary) 17%, transparent);
+}
+
+[data-theme='cream-teal']
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    textarea,
+    select
+  ) {
+  box-shadow: var(--crm-shadow-inset);
+}
+
+[data-theme='cream-teal']
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    textarea,
+    select
+  ):focus {
+  box-shadow:
+    inset 1px 1px 3px rgba(88, 83, 69, 0.13),
+    0 0 0 3px color-mix(in srgb, var(--tr-primary) 17%, transparent);
+}
+
+[data-theme='neat-slate'] .tr-app-shell > header {
+  border-bottom-color: rgba(239, 244, 246, 0.18);
+  background: linear-gradient(180deg, #304854 0%, #20343f 100%);
+  --tr-panel: #334b58;
+  --tr-text: #f0f3f3;
+  --tr-subtle: #d5dfe2;
+  --tr-muted: #bdc9ce;
+  --tr-border: rgba(239, 244, 246, 0.18);
+  --tr-hover: rgba(255, 255, 255, 0.09);
+  --tr-hover-strong: rgba(255, 255, 255, 0.15);
+  --tr-primary: #f0efeb;
+  --tr-primary-hover: #ffffff;
+  --tr-on-primary: #263d4b;
+}
+
+[data-theme='neat-slate'] .tr-app-shell > header > a > span:last-child {
+  color: #f0f3f3;
+}
+
+[data-theme='neat-slate'] .tr-app-shell > header > button:not(.bg-tr-panel) {
+  color: #bdc9ce;
+}
+
+[data-theme='neat-slate'] .tr-app-shell aside .text-tr-muted {
+  color: #aebdc4;
+}
+
+/* Hai theme co neo toi lay chinh mau nhan cua bo giao dien thay cho charcoal mac dinh. */
+[data-theme='neat-slate'] .tr-bento-dark {
+  --tr-panel: #263b48;
+  --tr-text: #f1f3f1;
+  --tr-subtle: #d5dfe2;
+  --tr-muted: #aebdc4;
+  --tr-border: rgba(239, 244, 246, 0.14);
+  --tr-hover: rgba(255, 255, 255, 0.08);
+  --tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --tr-primary: #f0efeb;
+  --tr-primary-hover: #ffffff;
+  --tr-on-primary: #263b48;
+  --color-tr-panel: #263b48;
+  --color-tr-text: #f1f3f1;
+  --color-tr-subtle: #d5dfe2;
+  --color-tr-muted: #aebdc4;
+  --color-tr-border: rgba(239, 244, 246, 0.14);
+  --color-tr-hover: rgba(255, 255, 255, 0.08);
+  --color-tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --color-tr-primary: #f0efeb;
+  --color-tr-primary-hover: #ffffff;
+  --color-tr-on-primary: #263b48;
+  background-color: #263b48;
+}
+
+[data-theme='cream-teal'] .tr-bento-dark {
+  --tr-panel: #075e60;
+  --tr-text: #f3fffa;
+  --tr-subtle: #d5ece7;
+  --tr-muted: #acd0ca;
+  --tr-border: rgba(236, 255, 250, 0.15);
+  --tr-hover: rgba(255, 255, 255, 0.08);
+  --tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --tr-primary: #f0d38c;
+  --tr-primary-hover: #f8dda0;
+  --tr-on-primary: #24403b;
+  --tr-danger: #ffaaa3;
+  --tr-success: #9ed8b9;
+  --tr-warning: #f0d38c;
+  --color-tr-panel: #075e60;
+  --color-tr-text: #f3fffa;
+  --color-tr-subtle: #d5ece7;
+  --color-tr-muted: #acd0ca;
+  --color-tr-border: rgba(236, 255, 250, 0.15);
+  --color-tr-hover: rgba(255, 255, 255, 0.08);
+  --color-tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --color-tr-primary: #f0d38c;
+  --color-tr-primary-hover: #f8dda0;
+  --color-tr-on-primary: #24403b;
+  --color-tr-danger: #ffaaa3;
+  --color-tr-success: #9ed8b9;
+  --color-tr-warning: #f0d38c;
+  background-color: #075e60;
+}
+
+[data-theme='neat-slate'] :where(.bg-tr-primary) {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.09));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 2px 4px rgba(20, 35, 43, 0.24);
+}
+
+[data-theme='neo-tactile'] :where(.bg-tr-primary) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 4px 9px color-mix(in srgb, var(--tr-primary) 27%, transparent);
+}
+
+/* ---------- Kem ngoc: lop skin cho shared components ---------- */
+[data-theme='cream-teal'] .tr-topbar {
+  background: color-mix(in srgb, var(--crm-bg-secondary) 78%, transparent);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px);
+}
+
+[data-theme='cream-teal'] .tr-topbar > button,
+[data-theme='cream-teal'] .tr-icon-button {
+  border: 1px solid var(--crm-border-soft);
+  background-color: var(--crm-bg-secondary);
+  box-shadow: var(--crm-shadow-raised-sm);
+}
+
+[data-theme='cream-teal'] .tr-bento-dark .tr-icon-button {
+  border-color: var(--tr-border);
+  background-color: var(--tr-hover);
+  box-shadow: none;
+}
+
+[data-theme='cream-teal'] .tr-search-trigger {
+  background-color: var(--crm-surface);
+  box-shadow: var(--crm-shadow-inset);
+}
+
+[data-theme='cream-teal']
+  :where(.tr-topbar > button, .tr-icon-button, .tr-search-trigger):active:not(:disabled) {
+  box-shadow: var(--crm-shadow-pressed);
+  transform: translateY(1px);
+}
+
+[data-theme='cream-teal'] :where(.bg-tr-primary, .tr-button-primary) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 9px color-mix(in srgb, var(--tr-primary) 24%, transparent);
+}
+
+[data-theme='cream-teal'] :where(.tr-button-primary, button.bg-tr-primary):active:not(:disabled) {
+  background-color: var(--crm-primary-active);
+  box-shadow: var(--crm-shadow-pressed);
+  transform: translateY(1px);
+}
+
+[data-theme='cream-teal'] .tr-button-danger:active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--tr-danger) 88%, black);
+  box-shadow: var(--crm-shadow-pressed);
+  transform: translateY(1px);
+}
+
+[data-theme='cream-teal'] .tr-button-secondary {
+  border-color: var(--crm-border-soft);
+  background-color: var(--crm-bg-secondary);
+  box-shadow: var(--crm-shadow-raised-sm);
+}
+
+[data-theme='cream-teal'] .tr-button-secondary:active:not(:disabled) {
+  background-color: var(--crm-surface);
+  box-shadow: var(--crm-shadow-pressed);
+  transform: translateY(1px);
+}
+
+[data-theme='cream-teal'] .tr-button:disabled {
+  background-color: #d9d3c7;
+  color: var(--crm-text-disabled);
+  box-shadow: none;
+  opacity: 1;
+}
+
+[data-theme='cream-teal'] .tr-segmented {
+  background-color: var(--crm-surface);
+  box-shadow: var(--crm-shadow-inset);
+}
+
+[data-theme='cream-teal'] .tr-segmented-option[aria-pressed='true'] {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    2px 2px 5px rgba(115, 105, 87, 0.18);
+}
+
+[data-theme='cream-teal'] .tr-tabs {
+  border-bottom-color: var(--crm-border-soft);
+}
+
+[data-theme='cream-teal'] .tr-tab[aria-selected='true'] {
+  border-color: var(--crm-primary);
+  background-color: var(--crm-primary-soft);
+  box-shadow: var(--crm-shadow-pressed);
+}
+
+[data-theme='cream-teal'] :where(.tr-popover, .tr-modal, .tr-search-dialog) {
+  border: 1px solid var(--crm-border-soft);
+  background-color: var(--crm-surface-light);
+  box-shadow: var(--tr-popover-shadow);
+}
+
+[data-theme='cream-teal'] .tr-toast {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: var(--crm-shadow-raised-sm);
+}
+
+[data-theme='cream-teal'] .tr-empty-state {
+  background-color: color-mix(in srgb, var(--crm-surface) 78%, transparent);
+  box-shadow: var(--crm-shadow-inset);
+}
+
+[data-theme='cream-teal'] :where(input[type='checkbox'], input[type='radio']) {
+  accent-color: var(--crm-primary);
+}
+
+[data-theme='cream-teal'] table > thead,
+[data-theme='cream-teal'] .tr-table-head {
+  background-color: var(--crm-surface);
+  box-shadow: 0 1px 0 var(--crm-border-soft);
+}
+
+[data-theme='cream-teal'] .shadow-sm:has(> table) {
+  box-shadow: var(--crm-shadow-raised-sm);
+}
+
+[data-theme='cream-teal'] table > tbody > tr {
+  box-shadow: none;
+}
+
+[data-theme='cream-teal'] .tr-app-shell aside [aria-current='page'] {
+  box-shadow:
+    inset 2px 2px 5px rgba(0, 54, 53, 0.3),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.12);
+}
+
+[data-theme='cream-teal'] .tr-bento-card:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    7px 7px 16px rgba(146, 136, 116, 0.25),
+    -6px -6px 14px rgba(255, 255, 255, 0.58);
+}
+
+[data-theme='cream-teal'] .tr-skeleton {
+  background-color: #d7d0c2;
+}
+
+[data-theme='neo-tactile'] ::selection,
+[data-theme='neat-slate'] ::selection,
+[data-theme='cream-teal'] ::selection {
+  background: color-mix(in srgb, var(--tr-primary) 25%, transparent);
+}
+
 html,
 body,
 #root {
@@ -407,6 +983,11 @@ body {
 .tr-badge-soon {
   background-color: var(--tr-badge-soon-bg);
   color: var(--tr-badge-soon-fg);
+}
+/* Muc canh bao dam hon "soon" nhung khong dung do (chi danh cho da qua han) */
+.tr-badge-warn {
+  background-color: color-mix(in srgb, var(--tr-warning) 20%, transparent);
+  color: var(--tr-warning);
 }
 
 .tr-header-btn {

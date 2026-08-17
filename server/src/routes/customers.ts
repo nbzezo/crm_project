@@ -1,21 +1,22 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { ORG_KINDS } from '@workflow/contracts';
+import { assertOrgKindChange } from '../lib/entityRelations.ts';
 
 const router = Router();
 
 const customerSchema = z.object({
   name: z.string().trim().min(1, 'Ten khach hang khong duoc de trong'),
   short_name: z.string().nullable().optional(),
-  tax_code: z.string().nullable().optional(),
+  tax_code: z.string().trim().nullable().optional(),
   industry: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
-  website: z.string().nullable().optional(),
+  website: z.string().trim().nullable().optional(),
   phone: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
+  email: z.string().trim().nullable().optional(),
   size: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
   status: z.enum(['prospect', 'customer', 'inactive']).optional(),
@@ -23,6 +24,32 @@ const customerSchema = z.object({
   org_kind: z.enum(ORG_KINDS).optional(),
   notes: z.string().optional(),
 });
+
+function clean(value: string | null | undefined): string | null {
+  const next = value?.trim() ?? '';
+  return next.length > 0 ? next : null;
+}
+
+function normalizedTaxCode(value: string | null | undefined): string | null {
+  return clean(value)?.toLocaleUpperCase('vi') ?? null;
+}
+
+function normalizedEmail(value: string | null | undefined): string | null {
+  return clean(value)?.toLocaleLowerCase('vi') ?? null;
+}
+
+function assertTaxCodeAvailable(taxCode: string | null, excludeId = 0): void {
+  if (!taxCode) return;
+  const duplicate = db
+    .prepare(`SELECT id, name FROM customers WHERE id <> ? AND upper(trim(tax_code)) = ? LIMIT 1`)
+    .get(excludeId, taxCode.toUpperCase()) as { id: number; name: string } | undefined;
+  if (duplicate) {
+    throw new HttpError(409, `Mã số thuế đã được dùng bởi “${duplicate.name}”`, {
+      code: 'DUPLICATE_TAX_CODE',
+      customer_id: duplicate.id,
+    });
+  }
+}
 
 /**
  * Loc theo loai to chuc cho MOI truy van liet ke khach hang.
@@ -107,7 +134,7 @@ router.get('/', (req, res) => {
 
 /**
  * FR-ACC-04: canh bao trung khi tao moi — doi chieu ten (bo dau), ma so thue va ten mien.
- * Chi canh bao, khong chan tao moi.
+ * Ten/website chi canh bao; ma so thue trung chinh xac duoc chan o duong ghi.
  */
 router.get('/duplicates', (req, res) => {
   const name = fold(String(req.query.name ?? '').trim());
@@ -128,7 +155,7 @@ router.get('/duplicates', (req, res) => {
       `SELECT id, name, tax_code, website, status FROM customers
         WHERE org_kind = 'customer'
           AND ((? <> '' AND search_text LIKE '%' || ? || '%')
-            OR (? <> '' AND tax_code = ?)
+            OR (? <> '' AND upper(trim(tax_code)) = upper(?))
             OR (? <> '' AND lower(replace(replace(COALESCE(website,''), 'https://', ''), 'www.', '')) LIKE ? || '%'))
         LIMIT 5`
     )
@@ -138,6 +165,12 @@ router.get('/duplicates', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(customerSchema, req);
+  const taxCode = normalizedTaxCode(body.tax_code);
+  const email = normalizedEmail(body.email);
+  const website = clean(body.website);
+  const orgKind = body.org_kind ?? 'customer';
+  const status = orgKind === 'customer' ? (body.status ?? 'prospect') : 'inactive';
+  assertTaxCodeAvailable(taxCode);
   const info = db
     .prepare(
       `INSERT INTO customers (name, short_name, tax_code, industry, address, website, phone, email,
@@ -147,16 +180,16 @@ router.post('/', (req, res) => {
     .run(
       body.name,
       body.short_name ?? null,
-      body.tax_code ?? null,
+      taxCode,
       body.industry ?? null,
       body.address ?? null,
-      body.website ?? null,
+      website,
       body.phone ?? null,
-      body.email ?? null,
+      email,
       body.size ?? null,
       body.source ?? null,
-      body.status ?? 'prospect',
-      body.org_kind ?? 'customer',
+      status,
+      orgKind,
       body.notes ?? '',
       buildSearchText(
         body.name,
@@ -164,8 +197,8 @@ router.post('/', (req, res) => {
         body.industry,
         body.notes,
         body.phone,
-        body.email,
-        body.tax_code
+        email,
+        taxCode
       )
     );
   res
@@ -281,6 +314,15 @@ router.patch('/:id', (req, res) => {
   ) as Record<string, string | null>;
 
   const merged = { ...current, ...body };
+  const orgKind = merged.org_kind ?? 'customer';
+  if (body.org_kind !== undefined && body.org_kind !== current.org_kind) {
+    assertOrgKindChange(db, id, body.org_kind);
+  }
+  const taxCode = normalizedTaxCode(merged.tax_code);
+  const email = normalizedEmail(merged.email);
+  const website = clean(merged.website);
+  const status = orgKind === 'customer' ? (merged.status ?? 'prospect') : 'inactive';
+  assertTaxCodeAvailable(taxCode, id);
   db.prepare(
     `UPDATE customers SET name = ?, short_name = ?, tax_code = ?, industry = ?, address = ?,
             website = ?, phone = ?, email = ?, size = ?, source = ?, status = ?, org_kind = ?,
@@ -289,16 +331,16 @@ router.patch('/:id', (req, res) => {
   ).run(
     merged.name,
     merged.short_name ?? null,
-    merged.tax_code ?? null,
+    taxCode,
     merged.industry ?? null,
     merged.address ?? null,
-    merged.website ?? null,
+    website,
     merged.phone ?? null,
-    merged.email ?? null,
+    email,
     merged.size ?? null,
     merged.source ?? null,
-    merged.status ?? 'prospect',
-    merged.org_kind ?? 'customer',
+    status,
+    orgKind,
     merged.notes ?? '',
     buildSearchText(
       merged.name,
@@ -306,8 +348,8 @@ router.patch('/:id', (req, res) => {
       merged.industry,
       merged.notes,
       merged.phone,
-      merged.email,
-      merged.tax_code
+      email,
+      taxCode
     ),
     id
   );

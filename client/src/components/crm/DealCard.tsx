@@ -1,6 +1,16 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertTriangle, ArrowRight, Building2, CalendarClock, RefreshCw, User } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Building2,
+  CalendarClock,
+  FolderKanban,
+  PackageOpen,
+  PauseCircle,
+  RefreshCw,
+  User,
+} from 'lucide-react';
 import { LabelChips } from '../labels/LabelChips';
 import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
@@ -9,6 +19,14 @@ import type { Deal, Label } from '../../types';
 
 /** 14 ngày không có tương tác thì coi là nguội (FR-PIP-04). */
 const STALE_DAYS = 14;
+
+/**
+ * Dưới ngưỡng này thì tuổi giai đoạn chưa nói lên điều gì.
+ *
+ * Hiện "ở giai đoạn này 2 ngày" trên mọi thẻ chỉ làm loãng thẻ; con số chỉ đáng
+ * đọc khi nó bắt đầu bất thường.
+ */
+const STAGE_AGE_DAYS = 21;
 
 export function SortableDealCard({
   deal,
@@ -160,9 +178,42 @@ export function DealCardBody({
         )
       )}
 
-      {stale && (
+      {/* Tạm dừng đứng trên các cảnh báo khác: một cơ hội đang dừng có chủ ý thì
+          "chưa có hành động tiếp theo" không còn là vấn đề cần nhắc. */}
+      {!!deal.on_hold && (
+        <div className="mt-1.5 flex items-center gap-1 rounded bg-tr-hover px-1.5 py-0.5 text-2xs text-tr-subtle">
+          <PauseCircle size={12} aria-hidden="true" />
+          Tạm dừng
+          {deal.on_hold_review_date && ` · xem lại ${formatDateShort(deal.on_hold_review_date)}`}
+        </div>
+      )}
+
+      {stale && !deal.on_hold && (
         <div className="mt-1 text-2xs text-tr-warning">
           Không có tương tác {deal.days_idle} ngày
+        </div>
+      )}
+
+      {/* R-08: thời gian lưu tại giai đoạn — chỉ nói khi con số đã đáng chú ý. */}
+      {!closed && (deal.days_in_stage ?? 0) >= STAGE_AGE_DAYS && (
+        <div className="mt-1 text-2xs text-tr-muted">Ở giai đoạn này {deal.days_in_stage} ngày</div>
+      )}
+
+      {/*
+        Won mà hồ sơ bàn giao chưa đủ (v23/v24). Chỉ hiện ở đúng giai đoạn `won`:
+        một cơ hội đang đàm phán thì chưa đến lượt nói chuyện bàn giao, và dán
+        nhãn cảnh báo lên đó chỉ làm loãng tín hiệu ở cột thực sự cần nhìn.
+      */}
+      {deal.stage === 'won' && !deal.handover_ready && (
+        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-tr-warning/15 px-1.5 py-0.5 text-2xs font-semibold text-tr-warning">
+          <PackageOpen size={12} aria-hidden="true" /> Chờ bàn giao
+        </div>
+      )}
+
+      {deal.project_name && (
+        <div className="mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-2xs text-tr-muted">
+          <FolderKanban size={12} aria-hidden="true" className="shrink-0" />
+          <span className="truncate">{deal.project_name}</span>
         </div>
       )}
 

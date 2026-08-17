@@ -177,7 +177,7 @@ export function CustomerForm({
           <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} />
         </Field>
         <Field label={t.customer.email}>
-          <Input value={form.email} onChange={(e) => set('email', e.target.value)} />
+          <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
         </Field>
         <Field label={t.customer.website}>
           <Input value={form.website} onChange={(e) => set('website', e.target.value)} />
@@ -188,15 +188,6 @@ export function CustomerForm({
             {ACCOUNT_SOURCES.map((s) => (
               <option key={s} value={s}>
                 {s}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t.customer.status}>
-          <Select value={form.status} onChange={(e) => set('status', e.target.value)}>
-            {Object.entries(t.accountStatus).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
               </option>
             ))}
           </Select>
@@ -214,6 +205,21 @@ export function CustomerForm({
               ))}
             </Select>
           </Field>
+        )}
+        {form.org_kind === 'customer' ? (
+          <Field label={t.customer.status}>
+            <Select value={form.status} onChange={(e) => set('status', e.target.value)}>
+              {Object.entries(t.accountStatus).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : (
+          <div className="flex items-end pb-2 text-xs text-tr-muted">
+            Trạng thái CRM không áp dụng cho {t.orgKind[form.org_kind].toLocaleLowerCase('vi')}.
+          </div>
         )}
         <div className="sm:col-span-2">
           <Field label={t.customer.address}>
