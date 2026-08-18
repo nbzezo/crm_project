@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
+  Columns3,
   CornerDownRight,
   Trash2,
 } from 'lucide-react';
@@ -112,42 +113,56 @@ export function TaskTable({
         id: 'select',
         header: () => null,
         cell: (info) => (
-          <input
-            type="checkbox"
-            checked={selected.has(info.row.original.id)}
-            onChange={(e) =>
-              setSelected((prev) => {
-                const next = new Set(prev);
-                if (e.target.checked) next.add(info.row.original.id);
-                else next.delete(info.row.original.id);
-                return next;
-              })
-            }
-            aria-label={`Chọn: ${info.row.original.title}`}
-            className="h-4 w-4 rounded-control border-tr-border accent-tr-primary"
-          />
+          <label
+            className="-m-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-control transition hover:bg-tr-hover-strong"
+            title={`Chọn: ${info.row.original.title}`}
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(info.row.original.id)}
+              onChange={(e) =>
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  if (e.target.checked) next.add(info.row.original.id);
+                  else next.delete(info.row.original.id);
+                  return next;
+                })
+              }
+              aria-label={`Chọn: ${info.row.original.title}`}
+              className={`h-4 w-4 cursor-pointer rounded-control border-tr-border accent-tr-primary ${focusRing}`}
+            />
+          </label>
         ),
       }),
       columnHelper.accessor('is_done', {
         header: 'Xong',
         enableSorting: false,
         cell: (info) => (
-          <input
-            type="checkbox"
-            checked={!!info.getValue()}
-            onChange={(e) =>
-              mutate({ id: info.row.original.id, patch: { is_done: e.target.checked } })
-            }
-            aria-label={`${t.card.markDone}: ${info.row.original.title}`}
-            className="h-4 w-4 rounded-control border-tr-border accent-tr-primary"
-          />
+          <label
+            className="-m-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-control transition hover:bg-tr-hover-strong"
+            title={`${info.getValue() ? t.card.markUndone : t.card.markDone}: ${info.row.original.title}`}
+          >
+            <input
+              type="checkbox"
+              checked={!!info.getValue()}
+              onChange={(e) =>
+                mutate({ id: info.row.original.id, patch: { is_done: e.target.checked } })
+              }
+              aria-label={`${info.getValue() ? t.card.markUndone : t.card.markDone}: ${info.row.original.title}`}
+              className={`h-4 w-4 cursor-pointer rounded-control border-tr-border accent-tr-primary ${focusRing}`}
+            />
+          </label>
         ),
       }),
       columnHelper.accessor('title', {
         header: 'Công việc',
         cell: (info) => {
           const task = info.row.original;
-          const metadata = [task.customer_name, task.board_name, task.deal_title]
+          const metadata = [
+            task.customer_name ? `Khách hàng: ${task.customer_name}` : null,
+            task.board_name ? `Bảng: ${task.board_name}` : null,
+            task.deal_title ? `Cơ hội: ${task.deal_title}` : null,
+          ]
             .filter(Boolean)
             .join(' · ');
           return (
@@ -176,7 +191,7 @@ export function TaskTable({
               </button>
               {metadata && (
                 <span
-                  className="mt-0.5 block max-w-full truncate text-2xs text-tr-muted"
+                  className="mt-0.5 block max-w-full truncate text-2xs text-tr-subtle"
                   title={metadata}
                 >
                   {metadata}
@@ -388,8 +403,13 @@ export function TaskTable({
       )}
 
       <div className="mb-2 flex justify-end">
-        <Button size="sm" variant="ghost" onClick={() => setShowDetails((value) => !value)}>
-          {showDetails ? 'Ẩn cột phụ' : 'Hiện cột phụ'}
+        <Button
+          size="sm"
+          aria-pressed={showDetails}
+          onClick={() => setShowDetails((value) => !value)}
+        >
+          <Columns3 size={14} aria-hidden="true" />
+          {showDetails ? 'Ẩn cột chi tiết' : 'Cột chi tiết'}
         </Button>
       </div>
 
@@ -437,7 +457,8 @@ export function TaskTable({
                             })
                           }
                           aria-label={t.common.selectAll}
-                          className="h-4 w-4 rounded-control border-tr-border accent-tr-primary"
+                          title={t.common.selectAll}
+                          className={`h-4 w-4 cursor-pointer rounded-control border-tr-border accent-tr-primary ${focusRing}`}
                         />
                       ) : header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
@@ -479,7 +500,7 @@ export function TaskTable({
                     : '';
                   const actionClass =
                     cell.column.id === 'actions'
-                      ? 'opacity-50 transition-opacity group-hover:opacity-100 focus-within:opacity-100'
+                      ? 'opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100'
                       : '';
                   return (
                     <td

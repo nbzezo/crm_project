@@ -288,7 +288,7 @@ export function TaskRowActions({
           onClick={onToggleDone}
           title={task.is_done ? t.card.markUndone : t.card.markDone}
           aria-label={`${task.is_done ? t.card.markUndone : t.card.markDone}: ${task.title}`}
-          className={`rounded-control p-1.5 text-tr-muted transition hover:bg-tr-hover-strong hover:text-tr-success ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-success sm:h-8 sm:w-8 ${focusRing}`}
         >
           {task.is_done ? (
             <Circle size={15} aria-hidden="true" />
@@ -301,7 +301,7 @@ export function TaskRowActions({
           onClick={onOpen}
           title="Mở chi tiết"
           aria-label={`Mở chi tiết: ${task.title}`}
-          className={`rounded-control p-1.5 text-tr-muted transition hover:bg-tr-hover-strong hover:text-tr-text ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-text sm:h-8 sm:w-8 ${focusRing}`}
         >
           <PanelRightOpen size={15} aria-hidden="true" />
         </button>
@@ -311,7 +311,7 @@ export function TaskRowActions({
           title="Thao tác khác"
           aria-label={`Thao tác khác: ${task.title}`}
           aria-haspopup="dialog"
-          className={`rounded-control p-1.5 text-tr-muted transition hover:bg-tr-hover-strong hover:text-tr-text ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-text sm:h-8 sm:w-8 ${focusRing}`}
         >
           <Ellipsis size={16} aria-hidden="true" />
         </button>

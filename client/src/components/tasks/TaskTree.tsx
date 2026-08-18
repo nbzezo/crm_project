@@ -1,10 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, CornerDownRight, Plus, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Columns3,
+  CornerDownRight,
+  Plus,
+  X,
+} from 'lucide-react';
 import { api } from '../../api/client';
 import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { EmptyState, InlineDate } from '../common/ui';
+import { EmptyState, InlineDate, focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { undoableDelete } from '../../lib/undo';
@@ -208,12 +216,18 @@ export function TaskTree({
           )}
         </span>
 
-        <input
-          type="checkbox"
-          checked={!!task.is_done}
-          onChange={(e) => update.mutate({ id: task.id, patch: { is_done: e.target.checked } })}
-          className="h-4 w-4 shrink-0 rounded border-tr-border text-tr-primary"
-        />
+        <label
+          className="-mx-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-control transition hover:bg-tr-hover-strong"
+          title={task.is_done ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
+        >
+          <input
+            type="checkbox"
+            checked={!!task.is_done}
+            onChange={(e) => update.mutate({ id: task.id, patch: { is_done: e.target.checked } })}
+            aria-label={`${task.is_done ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}: ${task.title}`}
+            className={`h-4 w-4 shrink-0 cursor-pointer rounded border-tr-border accent-tr-primary ${focusRing}`}
+          />
+        </label>
 
         {/* Tiêu đề — bấm để sửa tại chỗ */}
         <div className="min-w-0">
@@ -247,10 +261,10 @@ export function TaskTree({
             </button>
           )}
           <span
-            className="block truncate px-1.5 text-2xs text-tr-muted"
-            title={`${task.board_name} · ${task.list_name}`}
+            className="block truncate px-1.5 text-2xs text-tr-subtle"
+            title={`Khách hàng: ${task.customer_name ?? 'Chưa gắn'} · Bảng: ${task.board_name} · Danh sách: ${task.list_name}`}
           >
-            {task.customer_name ?? 'Chưa gắn khách hàng'} · {task.board_name}
+            Khách hàng: {task.customer_name ?? 'Chưa gắn'} · Bảng: {task.board_name}
           </span>
         </div>
 
@@ -346,7 +360,7 @@ export function TaskTree({
           </span>
         )}
 
-        <div className="opacity-50 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <TaskRowActions
             task={task}
             onOpen={() => openCard(task.id, 'drawer')}
@@ -362,13 +376,20 @@ export function TaskTree({
 
   return (
     <>
-      <div className="mb-2 flex justify-end">
+      <div className="mb-2 flex min-h-9 flex-wrap items-center justify-between gap-2">
+        {tree.some((item) => item.children.length > 0) ? (
+          <span className="text-xs text-tr-muted">Dùng mũi tên để mở hoặc thu gọn việc con.</span>
+        ) : (
+          <span />
+        )}
         <button
           type="button"
           onClick={() => setShowDetails((value) => !value)}
-          className="rounded-control px-2.5 py-1.5 text-xs font-medium text-tr-muted transition hover:bg-tr-hover hover:text-tr-text focus-visible:outline-2 focus-visible:outline-tr-primary"
+          aria-pressed={showDetails}
+          className={`inline-flex min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-2.5 py-1.5 text-xs font-medium text-tr-subtle shadow-sm transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
         >
-          {showDetails ? 'Ẩn cột phụ' : 'Hiện cột phụ'}
+          <Columns3 size={14} aria-hidden="true" />
+          {showDetails ? 'Ẩn cột chi tiết' : 'Cột chi tiết'}
         </button>
       </div>
       <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
@@ -379,7 +400,13 @@ export function TaskTree({
             <span className="w-5" />
             {/* Khong dat `sr-only` truc tiep tren grid item: class nay dung position:absolute,
                 lam mat cot checkbox va day toan bo header sang trai. */}
-            <span className="block w-4" aria-hidden="true" />
+            <span
+              className="flex w-4 items-center justify-center text-tr-muted"
+              title="Đánh dấu hoàn thành"
+            >
+              <CheckCircle2 size={13} aria-hidden="true" />
+              <span className="sr-only">Hoàn thành</span>
+            </span>
             <span>Công việc</span>
             {visibleCols.priority && <span>Ưu tiên</span>}
             {visibleCols.startDate && <span>Bắt đầu</span>}

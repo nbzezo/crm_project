@@ -77,7 +77,11 @@ const router = createBrowserRouter([
       // Bảng tính đã gộp vào trang Công việc — giữ đường dẫn cũ để link cũ không hỏng
       { path: 'table', element: <Navigate to="/tasks" replace /> },
       { path: 'reports', element: <ReportsPage />, handle: { title: 'Báo cáo' } },
-      { path: 'tasks', element: <TasksPage />, handle: { title: 'Công việc' } },
+      {
+        path: 'tasks',
+        element: <TasksPage />,
+        handle: { title: 'Công việc', visibleHeading: true },
+      },
       {
         path: 'projects',
         element: <ProjectsPage />,

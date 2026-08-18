@@ -16,7 +16,7 @@ import {
 import { api, qs } from '../api/client';
 import { Combobox } from '../components/common/Combobox';
 import { Popover, usePopover } from '../components/common/Popover';
-import { PageShell } from '../components/common/PageShell';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { TaskTree, buildTree } from '../components/tasks/TaskTree';
 import { TaskTable } from '../components/tasks/TaskTable';
 import { daysFromToday } from '../components/tasks/TaskPresentation';
@@ -153,10 +153,24 @@ export function TaskFilterBar() {
       : null,
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
+  const advancedFilterCount = [
+    filters.priority,
+    filters.assignee,
+    filters.customerId,
+    filters.boardId,
+    filters.projectId,
+  ].filter((value) => value !== '').length;
+
+  const clearAdvancedFilters = () =>
+    setFilters({ priority: '', assignee: '', customerId: '', boardId: '', projectId: '' });
+
   return (
-    <div className="min-w-0 space-y-2">
+    <section
+      aria-label="Bộ lọc công việc"
+      className="min-w-0 rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm"
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <label className="relative min-w-52 flex-1 sm:max-w-72">
+        <label className="relative w-full min-w-52 flex-1 md:max-w-80">
           <span className="sr-only">Tìm công việc</span>
           <Search
             size={15}
@@ -170,7 +184,7 @@ export function TaskFilterBar() {
             className={`h-9 w-full rounded-control border border-tr-border bg-tr-panel pr-3 pl-8 text-sm text-tr-text outline-none transition placeholder:text-tr-muted hover:border-tr-muted focus:border-tr-primary ${focusRing}`}
           />
         </label>
-        <div className="w-36">
+        <div className="w-[calc(50%-0.25rem)] sm:w-40">
           <Select
             value={filters.status}
             aria-label="Trạng thái"
@@ -187,27 +201,13 @@ export function TaskFilterBar() {
             <option value="done">Hoàn thành</option>
           </Select>
         </div>
-        <div className="w-40">
-          <Select
-            value={filters.priority}
-            aria-label="Ưu tiên"
-            onChange={(event) => setFilters({ priority: event.target.value as Priority | '' })}
-          >
-            <option value="">Mọi ưu tiên</option>
-            {PRIORITY_ORDER.map((priority) => (
-              <option key={priority} value={priority}>
-                {t.priority[priority]}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="w-40">
+        <div className="w-[calc(50%-0.25rem)] sm:w-44">
           <Select
             value={filters.due}
-            aria-label="Deadline"
+            aria-label="Hạn hoàn thành"
             onChange={(event) => setFilters({ due: event.target.value as TaskFilters['due'] })}
           >
-            <option value="">Mọi deadline</option>
+            <option value="">Mọi hạn hoàn thành</option>
             <option value="overdue">Quá hạn</option>
             <option value="today">Hôm nay</option>
             <option value="tomorrow">Ngày mai</option>
@@ -215,51 +215,18 @@ export function TaskFilterBar() {
             <option value="none">Chưa có deadline</option>
           </Select>
         </div>
-        <div className="w-48">
-          <Select
-            value={filters.assignee}
-            aria-label={t.card.assignee}
-            onChange={(event) => setFilters({ assignee: parseAssigneeFilter(event.target.value) })}
-          >
-            <option value="">Mọi người phụ trách</option>
-            <option value="mine">{t.card.mine}</option>
-            <option value="none">{t.card.unassigned}</option>
-            {assignees.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.full_name} · {person.org_name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="w-48">
-          <Select
-            value={filters.customerId}
-            aria-label="Khách hàng"
-            onChange={(event) =>
-              setFilters({
-                customerId: event.target.value === '' ? '' : Number(event.target.value),
-              })
-            }
-          >
-            <option value="">Mọi khách hàng</option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name}
-              </option>
-            ))}
-          </Select>
-        </div>
         <button
           type="button"
           onClick={moreFilters.toggle}
           aria-haspopup="dialog"
-          className={`inline-flex h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-sm text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
+          aria-expanded={moreFilters.open}
+          className={`inline-flex h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-surface px-3 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
         >
           <Filter size={14} aria-hidden="true" />
-          Bộ lọc
-          {(filters.boardId !== '' || filters.projectId !== '') && (
+          Bộ lọc nâng cao
+          {advancedFilterCount > 0 && (
             <span className="rounded-full bg-tr-primary px-1.5 text-2xs font-semibold text-tr-on-primary">
-              {(filters.boardId !== '' ? 1 : 0) + (filters.projectId !== '' ? 1 : 0)}
+              {advancedFilterCount}
             </span>
           )}
         </button>
@@ -267,10 +234,81 @@ export function TaskFilterBar() {
           open={moreFilters.open}
           anchor={moreFilters.anchor}
           onClose={moreFilters.close}
-          title="Bộ lọc bổ sung"
-          width={320}
+          title="Bộ lọc nâng cao"
+          width={360}
         >
-          <label className="block text-xs font-semibold text-tr-subtle" htmlFor="task-board-filter">
+          <label
+            className="block text-xs font-semibold text-tr-subtle"
+            htmlFor="task-priority-filter"
+          >
+            {t.card.priority}
+          </label>
+          <div className="mt-1.5">
+            <Select
+              id="task-priority-filter"
+              value={filters.priority}
+              onChange={(event) => setFilters({ priority: event.target.value as Priority | '' })}
+            >
+              <option value="">Mọi ưu tiên</option>
+              {PRIORITY_ORDER.map((priority) => (
+                <option key={priority} value={priority}>
+                  {t.priority[priority]}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <label
+            className="mt-3 block text-xs font-semibold text-tr-subtle"
+            htmlFor="task-assignee-filter"
+          >
+            {t.card.assignee}
+          </label>
+          <div className="mt-1.5">
+            <Select
+              id="task-assignee-filter"
+              value={filters.assignee}
+              onChange={(event) =>
+                setFilters({ assignee: parseAssigneeFilter(event.target.value) })
+              }
+            >
+              <option value="">Mọi người phụ trách</option>
+              <option value="mine">{t.card.mine}</option>
+              <option value="none">{t.card.unassigned}</option>
+              {assignees.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.full_name} · {person.org_name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <label
+            className="mt-3 block text-xs font-semibold text-tr-subtle"
+            htmlFor="task-customer-filter"
+          >
+            {t.card.customer}
+          </label>
+          <div className="mt-1.5">
+            <Select
+              id="task-customer-filter"
+              value={filters.customerId}
+              onChange={(event) =>
+                setFilters({
+                  customerId: event.target.value === '' ? '' : Number(event.target.value),
+                })
+              }
+            >
+              <option value="">Mọi khách hàng</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <label
+            className="mt-3 block text-xs font-semibold text-tr-subtle"
+            htmlFor="task-board-filter"
+          >
             Bảng
           </label>
           <div className="mt-1.5">
@@ -313,19 +351,25 @@ export function TaskFilterBar() {
               ))}
             </Select>
           </div>
-          <button
-            type="button"
-            onClick={() => setFilters({ boardId: '' })}
-            disabled={filters.boardId === ''}
-            className={`mt-3 text-xs font-medium text-tr-primary hover:underline disabled:cursor-not-allowed disabled:text-tr-muted disabled:no-underline ${focusRing}`}
-          >
-            Xóa bộ lọc bảng
-          </button>
+          <div className="mt-4 border-t border-tr-border pt-3">
+            <button
+              type="button"
+              onClick={clearAdvancedFilters}
+              disabled={advancedFilterCount === 0}
+              className={`text-xs font-medium text-tr-primary transition hover:underline disabled:cursor-not-allowed disabled:text-tr-muted disabled:no-underline ${focusRing}`}
+            >
+              Xóa bộ lọc nâng cao
+            </button>
+          </div>
         </Popover>
       </div>
 
       {activeFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Bộ lọc đang áp dụng">
+        <div
+          className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-tr-border/70 pt-2"
+          aria-label="Bộ lọc đang áp dụng"
+        >
+          <span className="mr-0.5 text-xs text-tr-muted">Đang lọc:</span>
           {activeFilters.map((filter) => (
             <span
               key={filter.key}
@@ -351,7 +395,7 @@ export function TaskFilterBar() {
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -450,10 +494,10 @@ function TaskSummaryBar() {
   return (
     <section
       aria-label="Tổng quan công việc"
-      className="flex flex-wrap items-center gap-1.5 rounded-panel border border-tr-border bg-tr-panel p-1.5 shadow-sm"
+      className="flex flex-wrap items-center gap-1 rounded-panel border border-tr-border bg-tr-panel p-2 shadow-sm"
     >
-      <span className="px-2 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
-        Ưu tiên xử lý
+      <span className="px-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase">
+        Cần chú ý
       </span>
       {summary.map((item) => (
         <button
@@ -461,11 +505,12 @@ function TaskSummaryBar() {
           type="button"
           onClick={() => setFilters({ ...emptyTaskFilters, ...item.patch })}
           aria-pressed={item.active}
+          aria-label={`${item.label}: ${isLoading ? 'đang tải' : item.count}`}
           className={`inline-flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-xs transition ${focusRing} ${
             item.active
               ? 'border-tr-primary/40 bg-tr-primary/15 text-tr-primary'
-              : 'border-transparent text-tr-subtle hover:border-tr-border hover:bg-tr-hover'
-          }`}
+              : 'border-transparent text-tr-subtle hover:border-tr-border hover:bg-tr-hover hover:text-tr-text'
+          } ${!item.active && !isLoading && item.count === 0 ? 'opacity-55' : ''}`}
         >
           <span className={item.tone}>{item.icon}</span>
           <span className="font-semibold tabular-nums text-tr-text">
@@ -490,65 +535,87 @@ export default function TasksPage() {
   const groups = groupTasks(tasks, groupBy);
 
   return (
-    <PageShell spacing="sm">
+    <PageShell width="wide" spacing="none">
+      <PageHeader
+        title="Công việc"
+        description="Theo dõi, ưu tiên và cập nhật công việc trên mọi bảng, dự án và khách hàng."
+        className="mb-4 flex-col sm:flex-row sm:items-center"
+        actions={
+          <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
+            <div
+              role="group"
+              aria-label="Kiểu hiển thị"
+              className="inline-flex rounded-panel border border-tr-border bg-tr-panel p-0.5 shadow-sm"
+            >
+              {(
+                [
+                  ['tree', 'Phân cấp', <ListTree key="tree" size={15} aria-hidden="true" />],
+                  ['table', 'Bảng', <List key="table" size={15} aria-hidden="true" />],
+                ] as const
+              ).map(([value, label, icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setMode(value)}
+                  aria-pressed={mode === value}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs font-medium transition ${focusRing} ${
+                    mode === value
+                      ? 'bg-tr-hover-strong text-tr-text shadow-sm'
+                      : 'text-tr-muted hover:bg-tr-hover hover:text-tr-text'
+                  }`}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="primary"
+              aria-expanded={adding}
+              onClick={() => setAdding((value) => !value)}
+            >
+              <Plus size={16} aria-hidden="true" /> Thêm công việc
+            </Button>
+          </div>
+        }
+      />
+
       <TaskSummaryBar />
 
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
-        <div className="min-w-0 flex-1">
-          <TaskFilterBar />
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
-          {mode === 'tree' && (
-            <label className="flex items-center gap-1.5 text-xs text-tr-muted">
-              <span className="whitespace-nowrap">Nhóm theo</span>
-              <span className="w-40">
-                <Select
-                  value={groupBy}
-                  onChange={(event) => setGroupBy(event.target.value as GroupBy)}
-                >
-                  <option value="none">Không nhóm</option>
-                  <option value="priority">Ưu tiên</option>
-                  <option value="customer">Khách hàng</option>
-                  <option value="assignee">{t.card.assignee}</option>
-                  <option value="board">Bảng</option>
-                </Select>
-              </span>
-            </label>
-          )}
-          <div
-            role="group"
-            aria-label="Kiểu hiển thị"
-            className="inline-flex rounded-panel border border-tr-border bg-tr-panel p-0.5"
-          >
-            {(
-              [
-                ['tree', 'Cây công việc', <ListTree key="tree" size={14} aria-hidden="true" />],
-                ['table', 'Danh sách', <List key="table" size={14} aria-hidden="true" />],
-              ] as const
-            ).map(([value, label, icon]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setMode(value)}
-                aria-pressed={mode === value}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs transition ${focusRing} ${
-                  mode === value
-                    ? 'bg-tr-primary font-medium text-tr-on-primary'
-                    : 'text-tr-subtle hover:bg-tr-hover'
-                }`}
-              >
-                {icon}
-                {label}
-              </button>
-            ))}
-          </div>
-          <Button variant="primary" onClick={() => setAdding((v) => !v)}>
-            <Plus size={16} /> Thêm công việc
-          </Button>
-        </div>
+      <div className="mt-3">
+        <TaskFilterBar />
       </div>
 
-      {adding && <QuickAddRow onClose={() => setAdding(false)} />}
+      {adding && (
+        <div className="mt-3">
+          <QuickAddRow onClose={() => setAdding(false)} />
+        </div>
+      )}
+
+      <div className="mt-3 mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-tr-muted" aria-live="polite">
+          {isLoading ? 'Đang tải công việc…' : `Hiển thị ${tasks.length} công việc`}
+          {mode === 'tree' && ' theo cấu trúc cha – con'}
+        </p>
+        {mode === 'tree' && (
+          <label className="flex items-center gap-2 text-xs font-medium text-tr-subtle">
+            <span className="whitespace-nowrap">Nhóm theo</span>
+            <span className="w-44">
+              <Select
+                value={groupBy}
+                aria-label="Nhóm công việc theo"
+                onChange={(event) => setGroupBy(event.target.value as GroupBy)}
+              >
+                <option value="none">Không nhóm</option>
+                <option value="priority">Ưu tiên</option>
+                <option value="customer">Khách hàng</option>
+                <option value="assignee">{t.card.assignee}</option>
+                <option value="board">Bảng</option>
+              </Select>
+            </span>
+          </label>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="rounded-panel border border-tr-border bg-tr-panel">
