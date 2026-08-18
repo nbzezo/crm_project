@@ -184,6 +184,68 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
   await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'settingstab-labels');
 });
 
+test('tro ly AI viet lai noi dung tho va chuyen day du sang form tao cong viec', async ({
+  page,
+}) => {
+  const roughTask =
+    'Thứ sáu gọi lại khách hàng thử nghiệm về báo giá, ưu tiên cao, chuẩn bị câu hỏi KYC';
+  let assistPayload: Record<string, unknown> | undefined;
+
+  // Khong goi model ngoai trong E2E; response gia lap bao ve hop dong UI -> form chung.
+  await page.route('**/api/ai/assist/task', async (route) => {
+    assistPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        title: 'Gọi lại khách hàng về báo giá KYC',
+        description: 'Trao đổi các điểm còn vướng trong báo giá và xác nhận yêu cầu KYC.',
+        priority: 'high',
+        start_date: '2026-08-19',
+        due_date: '2026-08-21',
+        checklist: ['Chuẩn bị câu hỏi KYC', 'Xác nhận bước tiếp theo'],
+        links: {
+          customer_id: null,
+          contact_id: null,
+          deal_id: null,
+          contract_id: null,
+          quotation_id: null,
+        },
+        confidence: 0.93,
+        rationale: 'Đã tách thời hạn, ưu tiên và các bước chuẩn bị.',
+        warnings: [],
+        meta: { requestId: 'e2e-ai-task', provider: 'deepseek', model: 'mock-model' },
+      }),
+    });
+  });
+
+  await page.goto('/ai');
+  await page.getByLabel('Dán hoặc gõ nhanh nội dung task').fill(roughTask);
+  await page.getByRole('button', { name: 'Viết lại thành task' }).click();
+
+  await expect(page.getByText('AI đã viết lại')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Gọi lại khách hàng về báo giá KYC' })
+  ).toBeVisible();
+  await expect(page.getByText('Chuẩn bị câu hỏi KYC', { exact: true })).toBeVisible();
+  expect(assistPayload).toMatchObject({ draft: roughTask, mode: 'balanced' });
+
+  await page.getByRole('button', { name: 'Kiểm tra & tạo công việc' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tạo công việc' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Tiêu đề')).toHaveValue('Gọi lại khách hàng về báo giá KYC');
+  await expect(dialog.getByLabel('Mô tả')).toHaveValue(
+    'Trao đổi các điểm còn vướng trong báo giá và xác nhận yêu cầu KYC.'
+  );
+  await expect(dialog.getByLabel('Mức độ ưu tiên')).toHaveValue('high');
+  await expect(dialog.getByLabel('Ngày bắt đầu')).toHaveValue('2026-08-19');
+  await expect(dialog.getByLabel('Hạn hoàn thành')).toHaveValue('2026-08-21');
+  await expect(dialog.getByLabel('Việc cần làm')).toHaveValue(
+    'Chuẩn bị câu hỏi KYC\nXác nhận bước tiếp theo'
+  );
+  await expect(dialog.getByText(/AI đã điền:/)).toContainText('checklist');
+});
+
 test('dashboard va board khong tran ngang viewport', async ({ page, request }, testInfo) => {
   const boardResponse = await request.post('/api/boards', {
     data: { name: 'E2E Responsive Board' },
@@ -369,10 +431,12 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
 
   await page.goto('/tasks');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Công việc');
+  await expect(page.getByRole('button', { name: 'Thêm công việc' })).toBeVisible();
   const taskRow = page.getByRole('button', { name: cardTitle, exact: true });
   await expect(taskRow).toBeVisible();
 
   // Loc theo dung nguoi do — viec phai con lai.
+  await page.getByRole('button', { name: 'Bộ lọc nâng cao' }).click();
   await page
     .getByRole('combobox', { name: 'Người phụ trách' })
     .first()

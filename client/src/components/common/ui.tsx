@@ -243,13 +243,14 @@ export function DateInput({
   value,
   onChange,
   className = '',
-}: {
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
   value: string | null;
   onChange: (value: string | null) => void;
-  className?: string;
 }) {
   return (
     <Input
+      {...props}
       type="date"
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}

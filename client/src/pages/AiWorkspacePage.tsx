@@ -14,7 +14,13 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../api/client';
-import type { AiActionProposal, AiAskResult, AiMode } from '../ai/types';
+import {
+  TASK_LINK_KEYS,
+  type AiActionProposal,
+  type AiAskResult,
+  type AiMode,
+  type TaskAssistResult,
+} from '../ai/types';
 import {
   Button,
   EmptyState,
@@ -26,8 +32,9 @@ import {
   Textarea,
 } from '../components/common/ui';
 import { PageShell } from '../components/common/PageShell';
-import { formatDateTime } from '../lib/format';
-import { useUiStore } from '../stores/uiStore';
+import { t } from '../i18n/vi';
+import { formatDate, formatDateTime } from '../lib/format';
+import { useUiStore, type TaskContext } from '../stores/uiStore';
 
 type Tab = 'assistant' | 'operations' | 'usage';
 
@@ -134,11 +141,20 @@ export default function AiWorkspacePage() {
 function AssistantTab() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
+  const openTaskComposer = useUiStore((state) => state.openTaskComposer);
+  const [quickTaskText, setQuickTaskText] = useState('');
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<'crm' | 'documents' | 'all'>('all');
   const [mode, setMode] = useState<AiMode>('balanced');
   const ask = useMutation({
     mutationFn: () => api.post<AiAskResult>('/api/ai/ask', { question, scope, mode }),
+  });
+  const quickTask = useMutation({
+    mutationFn: () =>
+      api.post<TaskAssistResult>('/api/ai/assist/task', {
+        draft: quickTaskText.trim(),
+        mode,
+      }),
   });
   const decide = useMutation({
     mutationFn: ({ id, decision }: { id: number; decision: 'approve' | 'reject' }) =>
@@ -154,8 +170,161 @@ function AssistantTab() {
     },
   });
 
+  const reviewQuickTask = () => {
+    const result = quickTask.data;
+    if (!result) return;
+    const links = Object.fromEntries(
+      TASK_LINK_KEYS.flatMap((key) => (result.links[key] == null ? [] : [[key, result.links[key]]]))
+    ) as TaskContext;
+    openTaskComposer({
+      context: {},
+      draft: {
+        title: result.title,
+        description: result.description,
+        priority: result.priority,
+        startDate: result.start_date,
+        dueDate: result.due_date,
+        checklist: result.checklist,
+        links,
+        aiRequestId: result.meta.requestId,
+        aiWarnings: result.warnings,
+      },
+    });
+  };
+
   return (
     <div className="grid gap-4 lg:grid-cols-12">
+      <Panel
+        title={
+          <span className="flex items-center gap-2">
+            <Sparkles size={16} className="text-tr-primary" /> Tạo task nhanh bằng AI
+          </span>
+        }
+        className="lg:col-span-12"
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <Field label="Dán hoặc gõ nhanh nội dung task">
+              <Textarea
+                rows={6}
+                value={quickTaskText}
+                onChange={(event) => {
+                  setQuickTaskText(event.target.value);
+                  if (quickTask.data || quickTask.error) quickTask.reset();
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    (event.ctrlKey || event.metaKey) &&
+                    quickTaskText.trim().length >= 3 &&
+                    !quickTask.isPending
+                  ) {
+                    event.preventDefault();
+                    quickTask.mutate();
+                  }
+                }}
+                placeholder="Ví dụ: Thứ sáu gọi lại chị Lan về báo giá VPBank, ưu tiên cao, chuẩn bị trước các câu hỏi về KYC…"
+              />
+            </Field>
+            <p className="mt-1 text-2xs text-tr-muted">
+              AI sẽ viết lại tiêu đề, mô tả, ưu tiên, thời hạn và checklist. Nhấn Ctrl + Enter để
+              phân tích nhanh.
+            </p>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+              <Field label="Chế độ model">
+                <Select value={mode} onChange={(event) => setMode(event.target.value as AiMode)}>
+                  <option value="fast">Nhanh</option>
+                  <option value="balanced">Cân bằng</option>
+                  <option value="reasoning">Suy luận</option>
+                </Select>
+              </Field>
+              <Button
+                variant="primary"
+                disabled={quickTaskText.trim().length < 3 || quickTask.isPending}
+                onClick={() => quickTask.mutate()}
+              >
+                <Sparkles size={15} />
+                {quickTask.isPending ? 'Đang viết lại…' : 'Viết lại thành task'}
+              </Button>
+            </div>
+            <FormError error={quickTask.error} />
+          </div>
+
+          {quickTask.data ? (
+            <div
+              aria-live="polite"
+              className="rounded-panel border border-tr-primary/30 bg-tr-primary/5 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-tr-primary">
+                  <Check size={14} /> AI đã viết lại
+                </span>
+                <span className="text-2xs text-tr-muted">
+                  {quickTask.data.meta.provider} · {quickTask.data.meta.model}
+                </span>
+              </div>
+              <h3 className="mt-3 text-base font-semibold text-tr-text">{quickTask.data.title}</h3>
+              {quickTask.data.description && (
+                <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-tr-subtle">
+                  {quickTask.data.description}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
+                  Ưu tiên: {t.priority[quickTask.data.priority]}
+                </span>
+                {quickTask.data.start_date && (
+                  <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
+                    Bắt đầu: {formatDate(quickTask.data.start_date)}
+                  </span>
+                )}
+                {quickTask.data.due_date && (
+                  <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
+                    Hạn: {formatDate(quickTask.data.due_date)}
+                  </span>
+                )}
+              </div>
+              {quickTask.data.checklist.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-tr-subtle">Việc cần làm</p>
+                  <ul className="mt-1 space-y-1 text-xs text-tr-muted">
+                    {quickTask.data.checklist.map((item) => (
+                      <li key={item} className="flex gap-2">
+                        <span aria-hidden="true">□</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {quickTask.data.warnings.map((warning) => (
+                <p key={warning} className="mt-2 text-xs text-tr-danger">
+                  {warning}
+                </p>
+              ))}
+              <p className="mt-3 text-2xs leading-relaxed text-tr-muted">
+                Đây mới là bản nháp. Bạn vẫn có thể sửa và chọn bảng, dự án, người phụ trách trước
+                khi lưu.
+              </p>
+              <Button className="mt-3" variant="primary" onClick={reviewQuickTask}>
+                <Check size={15} /> Kiểm tra & tạo công việc
+              </Button>
+            </div>
+          ) : (
+            <div className="flex min-h-52 items-center justify-center rounded-panel border border-dashed border-tr-border bg-tr-hover/40 p-6 text-center">
+              <div>
+                <Sparkles size={24} className="mx-auto text-tr-primary" />
+                <p className="mt-2 text-sm font-medium text-tr-text">Bản task sẽ xuất hiện ở đây</p>
+                <p className="mt-1 max-w-sm text-xs leading-relaxed text-tr-muted">
+                  Bạn có thể dán ghi chú rời rạc, nội dung chat hoặc gõ tắt. AI chỉ tạo bản nháp và
+                  không tự lưu thay đổi.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Panel>
+
       <Panel title="Hỏi dữ liệu CRM" className="lg:col-span-8">
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_160px] sm:items-end">
           <Field label="Câu hỏi">

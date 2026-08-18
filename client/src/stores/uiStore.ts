@@ -97,6 +97,20 @@ export interface TaskContext {
   quotation_id?: number;
 }
 
+/** Dữ liệu đã được chuẩn hóa để điền vào form tạo công việc dùng chung. */
+export interface TaskComposerDraft {
+  title: string;
+  description?: string;
+  priority?: Priority;
+  startDate?: string | null;
+  dueDate?: string | null;
+  checklist?: string[];
+  links?: TaskContext;
+  /** Có request id nghĩa là bản nháp đến từ AI và cần gửi phản hồi khi lưu. */
+  aiRequestId?: string;
+  aiWarnings?: string[];
+}
+
 export interface TaskComposerState {
   context: TaskContext;
   listId?: number;
@@ -109,6 +123,8 @@ export interface TaskComposerState {
   projectId?: number | null;
   /** Tieu de go san — vi du khi nguoi dung dang go o o them nhanh roi mo form day du. */
   draftTitle?: string;
+  /** Bản nháp đầy đủ — dùng cho luồng dán/gõ nhanh rồi nhờ AI chuẩn hóa. */
+  draft?: TaskComposerDraft;
 }
 
 interface UiState {

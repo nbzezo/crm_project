@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Lock, Sparkles } from 'lucide-react';
 import { api, qs } from '../../api/client';
+import { TASK_LINK_KEYS, type TaskAssistResult, type TaskLinkKey } from '../../ai/types';
 import { Combobox, type ComboboxOption } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '../common/ui';
@@ -12,8 +13,8 @@ import { AssigneePicker, useAssignees } from './AssigneePicker';
 import type { Board, BoardFull, Card, Contact, Customer, Deal, Priority } from '../../types';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
-const LINK_KEYS = ['customer_id', 'contact_id', 'deal_id', 'contract_id', 'quotation_id'] as const;
-type LinkKey = (typeof LINK_KEYS)[number];
+const LINK_KEYS = TASK_LINK_KEYS;
+type LinkKey = TaskLinkKey;
 
 const LINK_LABELS: Record<LinkKey, string> = {
   customer_id: t.card.customer,
@@ -39,20 +40,6 @@ interface TaskContextResponse {
   deals: { id: number; title: string; stage: string }[];
   contracts: { id: number; name: string; number: string | null; status: string }[];
   quotations: { id: number; code: string | null; version: number; status: string }[];
-}
-
-interface TaskAssistResult {
-  title: string;
-  description: string;
-  priority: Priority;
-  start_date: string | null;
-  due_date: string | null;
-  checklist: string[];
-  links: Record<LinkKey, number | null>;
-  confidence: number;
-  rationale: string;
-  warnings: string[];
-  meta: { requestId: string; provider: string; model: string };
 }
 
 /** Bo cac khoa rong de goi y cua AI khong xoa mat lien ket dang co. */
@@ -134,23 +121,38 @@ export function TaskFormDialog() {
    */
   const [loaded, setLoaded] = useState<TaskComposerState | null>(null);
   if (composer !== loaded) {
+    const draft = composer?.draft;
+    const aiFilledFromDraft = draft?.aiRequestId
+      ? [
+          draft.title.trim() ? 'title' : '',
+          draft.description?.trim() ? 'description' : '',
+          draft.priority ? 'priority' : '',
+          draft.startDate ? 'start_date' : '',
+          draft.dueDate ? 'due_date' : '',
+          draft.checklist?.length ? 'checklist' : '',
+          draft.links && Object.keys(draft.links).length > 0 ? 'liên kết' : '',
+        ].filter(Boolean)
+      : [];
     setLoaded(composer);
-    setTitle(composer?.draftTitle ?? '');
-    setDescription('');
-    setPriority('medium');
-    setStartDate(null);
-    setDueDate(null);
-    setChecklistText('');
+    setTitle(draft?.title ?? composer?.draftTitle ?? '');
+    setDescription(draft?.description ?? '');
+    setPriority(draft?.priority ?? 'medium');
+    setStartDate(draft?.startDate ?? null);
+    setDueDate(draft?.dueDate ?? null);
+    setChecklistText(draft?.checklist?.join('\n') ?? '');
     setListId(composer?.listId ?? '');
     setListTouched(composer?.listId !== undefined);
-    setLinks(composer?.context ?? {});
+    // Ngu canh noi mo form la neo co dinh, nen duoc uu tien hon lien ket AI doan.
+    setLinks({ ...(draft?.links ?? {}), ...(composer?.context ?? {}) });
     setAssigneeId(composer?.assigneeContactId ?? null);
     setAssigneeTouched(false);
     setProjectId(composer?.projectId ?? null);
     setAnchors(composer ? LINK_KEYS.filter((key) => composer.context[key] != null) : []);
     setSubmitted(false);
-    setAiFilled([]);
-    setAiMeta(null);
+    setAiFilled(aiFilledFromDraft);
+    setAiMeta(
+      draft?.aiRequestId ? { requestId: draft.aiRequestId, warnings: draft.aiWarnings ?? [] } : null
+    );
     setAiEdited(false);
   }
 

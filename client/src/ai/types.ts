@@ -1,5 +1,16 @@
+import type { Priority } from '../types';
+
 export type AiProviderName = 'gemini' | 'anthropic' | 'deepseek';
 export type AiMode = 'fast' | 'balanced' | 'reasoning';
+
+export const TASK_LINK_KEYS = [
+  'customer_id',
+  'contact_id',
+  'deal_id',
+  'contract_id',
+  'quotation_id',
+] as const;
+export type TaskLinkKey = (typeof TASK_LINK_KEYS)[number];
 
 export interface AiModel {
   model_id: string;
@@ -75,4 +86,19 @@ export interface AiAskResult {
   follow_up_questions: string[];
   proposal: AiActionProposal | null;
   meta: AiMeta;
+}
+
+/** Bản nháp công việc có cấu trúc do AI chuẩn hóa từ câu nhập tự nhiên. */
+export interface TaskAssistResult {
+  title: string;
+  description: string;
+  priority: Priority;
+  start_date: string | null;
+  due_date: string | null;
+  checklist: string[];
+  links: Record<TaskLinkKey, number | null>;
+  confidence: number;
+  rationale: string;
+  warnings: string[];
+  meta: Pick<AiMeta, 'requestId' | 'provider' | 'model'>;
 }
