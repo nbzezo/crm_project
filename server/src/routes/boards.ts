@@ -5,6 +5,7 @@ import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
 import { applyBoardTemplate } from '../services/deliveryService.ts';
+import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import type { CardStatus } from '@workflow/contracts';
 
 const router = Router();
@@ -264,7 +265,15 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  db.prepare(`DELETE FROM boards WHERE id = ?`).run(id);
+  db.transaction(() => {
+    const cardIds = (
+      db
+        .prepare(`SELECT k.id FROM cards k JOIN lists l ON l.id = k.list_id WHERE l.board_id = ?`)
+        .all(id) as { id: number }[]
+    ).map((row) => row.id);
+    softDeleteDocumentsForCards(cardIds);
+    db.prepare(`DELETE FROM boards WHERE id = ?`).run(id);
+  })();
   res.json({ ok: true });
 });
 

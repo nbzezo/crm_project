@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Outlet, useMatches } from 'react-router';
 import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
+import { QuickCreateFab } from './components/layout/QuickCreateFab';
 import { Toasts } from './components/common/Toasts';
 
 const CardModal = lazy(() =>
@@ -33,10 +34,13 @@ export default function App() {
         <Topbar />
         <div className="flex min-h-0 flex-1">
           <Sidebar />
+          {/* `relative`: lam main thanh containing block cho con `position:absolute`
+              (vd sr-only), neu khong chung se lay viewport lam containing block va
+              lam <html> phinh ra qua chieu cao thuc, gay khoang trong khi cuon trang. */}
           <main
             id="main-content"
             tabIndex={-1}
-            className="min-w-0 flex-1 overflow-auto bg-transparent outline-none"
+            className="relative min-w-0 flex-1 overflow-auto bg-transparent outline-none"
           >
             {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}
             <Suspense
@@ -55,6 +59,7 @@ export default function App() {
         <CardModal />
         <TaskFormDialog />
       </Suspense>
+      <QuickCreateFab />
       <Toasts />
     </div>
   );

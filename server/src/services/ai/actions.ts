@@ -2,6 +2,7 @@ import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
 import { createTaskInputSchema } from '@workflow/contracts/schemas';
 import { HttpError, required } from '../../lib/validate.ts';
+import { assertEntityLinks } from '../../lib/entityRelations.ts';
 import { createCard } from '../cardService.ts';
 
 const dateOnly = z
@@ -124,6 +125,12 @@ function execute(db: Database, type: string, rawPayload: unknown) {
   }
   if (type === 'create_reminder') {
     const payload = createReminderSchema.parse(rawPayload);
+    // De xuat AI da duyet phai chiu cung rang buoc "cung mot khach hang" voi POST /api/reminders.
+    assertEntityLinks(db, {
+      card_id: payload.card_id ?? null,
+      customer_id: payload.customer_id ?? null,
+      deal_id: payload.deal_id ?? null,
+    });
     const info = db
       .prepare(
         `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id)
@@ -152,6 +159,12 @@ function execute(db: Database, type: string, rawPayload: unknown) {
   }
   if (type === 'create_interaction') {
     const payload = createInteractionSchema.parse(rawPayload);
+    // De xuat AI da duyet phai chiu cung rang buoc "cung mot khach hang" voi POST /api/interactions.
+    assertEntityLinks(db, {
+      customer_id: payload.customer_id,
+      contact_id: payload.contact_id ?? null,
+      deal_id: payload.deal_id ?? null,
+    });
     const info = db
       .prepare(
         `INSERT INTO interactions

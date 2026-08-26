@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { STEP } from '../lib/position.ts';
+import { isValidFieldValue, parseFieldOptions } from '../lib/cardFieldValues.ts';
 
 const router = Router();
 
@@ -18,14 +19,7 @@ const fieldSchema = z.object({
 
 /** Doi hang trong DB thanh dang tra ve client: options luon la mang. */
 function toField(row: Record<string, unknown>): Record<string, unknown> {
-  let options: string[] = [];
-  try {
-    const parsed = JSON.parse(String(row.options ?? '[]')) as unknown;
-    if (Array.isArray(parsed)) options = parsed.map(String);
-  } catch {
-    /* du lieu hong thi coi nhu khong co lua chon */
-  }
-  return { ...row, options };
+  return { ...row, options: parseFieldOptions(row.options) };
 }
 
 function getField(id: number): Record<string, unknown> {
@@ -81,18 +75,42 @@ router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(fieldSchema.partial(), req);
   const current = getField(id);
+  const nextFieldType = (body.field_type ?? current.field_type) as string;
+  const nextOptions = body.options ? JSON.stringify(body.options) : current.options;
 
   db.prepare(
     `UPDATE card_fields SET name = ?, field_type = ?, options = ?, show_on_card = ? WHERE id = ?`
   ).run(
     body.name ?? current.name,
-    body.field_type ?? current.field_type,
-    body.options ? JSON.stringify(body.options) : current.options,
+    nextFieldType,
+    nextOptions,
     body.show_on_card === undefined ? current.show_on_card : body.show_on_card ? 1 : 0,
     id
   );
 
-  res.json(toField(getField(id)));
+  /*
+   * Doi kieu hoac thu hep lua chon co the lam cac gia tri DA LUU khong con hop le
+   * (vd field_type 'select' mat option dang duoc mot the dung). Quet va don ngay,
+   * thay vi de gia tri mo coi khien client hien trong du DB van con du lieu.
+   */
+  let clearedValues = 0;
+  if (body.field_type !== undefined || body.options !== undefined) {
+    const values = db
+      .prepare(`SELECT card_id, value FROM card_field_values WHERE field_id = ?`)
+      .all(id) as { card_id: number; value: string }[];
+    const invalidCardIds = values
+      .filter((row) => !isValidFieldValue(nextFieldType, nextOptions, row.value))
+      .map((row) => row.card_id);
+    if (invalidCardIds.length > 0) {
+      const placeholders = invalidCardIds.map(() => '?').join(',');
+      db.prepare(
+        `DELETE FROM card_field_values WHERE field_id = ? AND card_id IN (${placeholders})`
+      ).run(id, ...invalidCardIds);
+      clearedValues = invalidCardIds.length;
+    }
+  }
+
+  res.json({ ...toField(getField(id)), cleared_values: clearedValues });
 });
 
 router.delete('/:id', (req, res) => {

@@ -5,6 +5,7 @@
  * Kích thước điểm theo giá trị deal, viền đỏ khi có veto chặn forecast — bất kể nằm ở ô nào.
  */
 import { useNavigate } from 'react-router';
+import { QUADRANT_CUTOFF } from '@workflow/contracts';
 import {
   CartesianGrid,
   Cell,
@@ -35,8 +36,6 @@ export interface MatrixDeal {
   v2_no_economic: number;
 }
 
-const CUTOFF = 7;
-
 export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
   const navigate = useNavigate();
 
@@ -62,33 +61,33 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
           {/* Bốn ô nền theo đúng quy ước màu của toàn hệ thống */}
           <ReferenceArea
             x1={-0.5}
-            x2={CUTOFF}
-            y1={CUTOFF}
+            x2={QUADRANT_CUTOFF}
+            y1={QUADRANT_CUTOFF}
             y2={12.5}
             fill={QUADRANT_COLORS.reshape}
             fillOpacity={0.1}
           />
           <ReferenceArea
-            x1={CUTOFF}
+            x1={QUADRANT_CUTOFF}
             x2={12.5}
-            y1={CUTOFF}
+            y1={QUADRANT_CUTOFF}
             y2={12.5}
             fill={QUADRANT_COLORS.pursue}
             fillOpacity={0.1}
           />
           <ReferenceArea
             x1={-0.5}
-            x2={CUTOFF}
+            x2={QUADRANT_CUTOFF}
             y1={-0.5}
-            y2={CUTOFF}
+            y2={QUADRANT_CUTOFF}
             fill={QUADRANT_COLORS.disqualify}
             fillOpacity={0.1}
           />
           <ReferenceArea
-            x1={CUTOFF}
+            x1={QUADRANT_CUTOFF}
             x2={12.5}
             y1={-0.5}
-            y2={CUTOFF}
+            y2={QUADRANT_CUTOFF}
             fill={QUADRANT_COLORS.nurture}
             fillOpacity={0.1}
           />

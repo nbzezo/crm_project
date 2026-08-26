@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 28;
+export const LATEST_VERSION = 31;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -518,5 +518,44 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v28 (toan ven du lieu CRM va du an)');
     current = 28;
+  }
+
+  if (current === 28 && targetVersion >= 29) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v29.sql'));
+      db.pragma('user_version = 29');
+    })();
+    console.log(
+      '[db] Da nang cap schema len v29 (don nhat ky thay doi khi xoa deal/project/contract)'
+    );
+    current = 29;
+  }
+
+  if (current === 29 && targetVersion >= 30) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v30.sql'));
+      db.pragma('user_version = 30');
+    })();
+    console.log('[db] Da nang cap schema len v30 (Ghi chu hop cho Co hoi va Du an)');
+    current = 30;
+  }
+
+  if (current === 30 && targetVersion >= 31) {
+    /* v31 dung lai bang meeting_notes (bo rang buoc CHECK bat buoc Co hoi/Du an)
+       nen phai tam tat khoa ngoai — meeting_note_attendees tro toi no. Cung
+       cach v25/v4 lam; PRAGMA nay khong co tac dung neu dat ben trong transaction. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v31.sql'));
+        db.pragma('user_version = 31');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v31:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v31 (ghi chu hop doc lap, khong bat buoc Co hoi/Du an)');
+    current = 31;
   }
 }

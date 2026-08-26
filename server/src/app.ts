@@ -17,6 +17,7 @@ import documents from './routes/documents.ts';
 import services from './routes/services.ts';
 import revenues from './routes/revenues.ts';
 import interactions from './routes/interactions.ts';
+import meetingNotes from './routes/meetingNotes.ts';
 import reminders from './routes/reminders.ts';
 import nudges from './routes/nudges.ts';
 import projects from './routes/projects.ts';
@@ -54,6 +55,7 @@ export function createApp(): Express {
   app.use('/api/services', services);
   app.use('/api/revenues', revenues);
   app.use('/api/interactions', interactions);
+  app.use('/api/meeting-notes', meetingNotes);
   app.use('/api/reminders', reminders);
   app.use('/api/notifications', notifications);
   app.use('/api/telegram', telegram);

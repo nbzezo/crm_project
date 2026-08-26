@@ -5,6 +5,7 @@ import { parseBody } from '../lib/validate.ts';
 import { sendBackupToTelegram } from '../services/telegram/telegramBackup.ts';
 import {
   getTelegramConfig,
+  setTelegramLastError,
   testTelegramConnection,
   updateTelegramConfig,
 } from '../services/telegram/telegramService.ts';
@@ -56,8 +57,12 @@ router.post('/test', async (_req, res, next) => {
 router.post('/send-backup', async (_req, res, next) => {
   try {
     const result = await sendBackupToTelegram(db);
+    // Cung dong bo last_error voi 2 luong con lai (kiem tra ket noi, sao luu dinh
+    // ky) — banner canh bao tren trang Cai dat chi doc mot cot nay.
+    setTelegramLastError(db, null);
     res.json({ ok: true, ...result });
   } catch (error) {
+    setTelegramLastError(db, error instanceof Error ? error.message : 'Loi khong xac dinh');
     next(error);
   }
 });

@@ -33,7 +33,7 @@ import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore } from '../../stores/uiStore';
 import type { Contact, Deal, Interaction, InteractionType } from '../../types';
 
-const ICONS: Record<InteractionType, typeof Phone> = {
+export const ICONS: Record<InteractionType, typeof Phone> = {
   call: Phone,
   email: Mail,
   meeting: CalendarCheck,
@@ -45,7 +45,7 @@ const ICONS: Record<InteractionType, typeof Phone> = {
   other: MoreHorizontal,
 };
 
-const COLORS: Record<InteractionType, string> = {
+export const COLORS: Record<InteractionType, string> = {
   call: 'bg-interaction-call-bg text-interaction-call-fg',
   email: 'bg-interaction-email-bg text-interaction-email-fg',
   meeting: 'bg-interaction-meeting-bg text-interaction-meeting-fg',

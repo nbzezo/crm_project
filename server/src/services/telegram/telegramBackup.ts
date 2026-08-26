@@ -1,7 +1,11 @@
 import type { Database } from 'better-sqlite3';
 import { createBackupFile } from '../../lib/backup.ts';
 import { HttpError } from '../../lib/validate.ts';
-import { getTelegramConfig, sendTelegramDocument } from './telegramService.ts';
+import {
+  getTelegramConfig,
+  sendTelegramDocument,
+  setTelegramLastError,
+} from './telegramService.ts';
 
 export async function sendBackupToTelegram(db: Database): Promise<{ name: string; size: number }> {
   const config = getTelegramConfig(db);
@@ -34,15 +38,10 @@ export async function runDueBackupCheck(db: Database): Promise<void> {
 
   try {
     await sendBackupToTelegram(db);
-    db.prepare(
-      `UPDATE telegram_settings SET last_error = NULL, updated_at = datetime('now','localtime') WHERE id = 1`
-    ).run();
+    setTelegramLastError(db, null);
   } catch (error) {
     console.error('[telegram] Gui sao luu dinh ky that bai:', error);
-    const message = error instanceof Error ? error.message : 'Loi khong xac dinh';
-    db.prepare(
-      `UPDATE telegram_settings SET last_error = ?, updated_at = datetime('now','localtime') WHERE id = 1`
-    ).run(message.slice(0, 500));
+    setTelegramLastError(db, error instanceof Error ? error.message : 'Loi khong xac dinh');
   } finally {
     db.prepare(
       `UPDATE telegram_settings

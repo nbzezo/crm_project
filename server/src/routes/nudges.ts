@@ -51,7 +51,8 @@ router.post('/', (req, res) => {
   const info = db
     .prepare(
       `INSERT INTO task_nudges (card_id, contact_id, channel, message, response, responded_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?,
+               CASE WHEN ? IS NOT NULL THEN datetime('now','localtime') ELSE NULL END)`
     )
     .run(
       card.id,
@@ -59,7 +60,7 @@ router.post('/', (req, res) => {
       body.channel,
       body.message ?? '',
       body.response ?? null,
-      body.response ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null
+      body.response ?? null
     );
 
   res

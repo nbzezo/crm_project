@@ -5,6 +5,7 @@ import { intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { CARD_STATUSES } from '@workflow/contracts';
 import { setCardStatus } from '../services/cardService.ts';
+import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 
 const router = Router();
 
@@ -209,7 +210,13 @@ router.patch('/:id/move', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  db.prepare(`DELETE FROM lists WHERE id = ?`).run(id);
+  db.transaction(() => {
+    const cardIds = (
+      db.prepare(`SELECT id FROM cards WHERE list_id = ?`).all(id) as { id: number }[]
+    ).map((row) => row.id);
+    softDeleteDocumentsForCards(cardIds);
+    db.prepare(`DELETE FROM lists WHERE id = ?`).run(id);
+  })();
   res.json({ ok: true });
 });
 

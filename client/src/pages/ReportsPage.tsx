@@ -599,24 +599,33 @@ function ChartSrData({
   caption: string;
   rows: { name: string; value: string }[];
 }) {
+  /*
+   * sr-only tren the <table> khong dang tin cay: bang co kich thuoc noi tai
+   * theo cot (table-layout: auto) nen trinh duyet van danh cho no phan khong
+   * gian day du de tinh scrollHeight du da bi cat khi ve — day la nguyen nhan
+   * gay khoang trong o cuoi trang khi cuon. Boc trong <div sr-only> de clip
+   * dung theo kich thuoc 1x1px cua div, khong bi anh huong boi kich thuoc bang.
+   */
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Mục</th>
-          <th scope="col">Giá trị</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.name}>
-            <th scope="row">{row.name}</th>
-            <td>{row.value}</td>
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Mục</th>
+            <th scope="col">Giá trị</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name}>
+              <th scope="row">{row.name}</th>
+              <td>{row.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

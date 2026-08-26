@@ -25,6 +25,9 @@ const ROLLBACKS: Record<number, string> = {
   26: 'migrate-v26-rollback.sql',
   27: 'migrate-v27-rollback.sql',
   28: 'migrate-v28-rollback.sql',
+  29: 'migrate-v29-rollback.sql',
+  30: 'migrate-v30-rollback.sql',
+  31: 'migrate-v31-rollback.sql',
 };
 
 function resolveDbPath(): string {

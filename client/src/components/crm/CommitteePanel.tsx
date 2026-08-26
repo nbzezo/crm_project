@@ -27,18 +27,16 @@ import {
 } from '../common/ui';
 import { t } from '../../i18n/vi';
 import {
+  BLOCKED_REASONS,
   EVENT_TYPE_LABELS,
   PRICE_POSITION_LABELS,
   STANCE_COLORS,
   STANCE_LABELS,
 } from '../../i18n/scoring';
 import { formatDate } from '../../lib/format';
-import type { CommitteeResponse, DealCompetitor, DealEvent, Deal } from '../../types';
+import type { CommitteeResponse, DealCompetitor, DealEvent, Deal, Scorecard } from '../../types';
 
-const ECONOMIC_ROLES = ['economic_buyer', 'decision_maker'];
-const RECENT_DAYS = 30;
-
-export function CommitteePanel({ deal }: { deal: Deal }) {
+export function CommitteePanel({ deal, scorecard }: { deal: Deal; scorecard?: Scorecard }) {
   const dealId = deal.id;
   const queryClient = useQueryClient();
   const refresh = () => {
@@ -48,7 +46,7 @@ export function CommitteePanel({ deal }: { deal: Deal }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <MembersBlock dealId={dealId} onChange={refresh} />
+      <MembersBlock deal={deal} scorecard={scorecard} onChange={refresh} />
       <div className="space-y-4">
         <EventsBlock deal={deal} onChange={refresh} />
         <CompetitorsBlock dealId={dealId} onChange={refresh} />
@@ -59,7 +57,16 @@ export function CommitteePanel({ deal }: { deal: Deal }) {
 
 /* ---------- Nhóm ra quyết định ---------- */
 
-function MembersBlock({ dealId, onChange }: { dealId: number; onChange: () => void }) {
+function MembersBlock({
+  deal,
+  scorecard,
+  onChange,
+}: {
+  deal: Deal;
+  scorecard?: Scorecard;
+  onChange: () => void;
+}) {
+  const dealId = deal.id;
   const [adding, setAdding] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: ['deal', dealId, 'committee'],
@@ -84,10 +91,24 @@ function MembersBlock({ dealId, onChange }: { dealId: number; onChange: () => vo
   if (isLoading || !data) return <Skeleton className="h-64 rounded-panel" />;
 
   const { members, candidates } = data;
-  const recentCutoff = new Date(Date.now() - RECENT_DAYS * 86_400_000).toISOString().slice(0, 10);
-  const recent = members.filter((m) => (m.last_contact_at ?? '') >= recentCutoff);
-  const hasEconomic = members.some((m) => m.role && ECONOMIC_ROLES.includes(m.role));
   const hasChampion = members.some((m) => m.is_champion === 1 && m.stance === 'supporter');
+  /*
+   * Doc THANG tu ket qua server thay vi tu tinh lai — hai truong hop tung lech
+   * server that su:
+   *  - "da co economic buyer": server (veto V2 + tran diem Quyen han) doi CA vai
+   *    tro DUNG LAN da co tuong tac; truoc day client chi xet vai tro nen co the
+   *    hien sai la da du dieu kien du server van dang chan forecast.
+   *  - nhan "Single-threaded": server chi dung nhan nay khi committee < 2 nguoi;
+   *    "it nguoi tuong tac gan day du committee dong" la mot dieu kien KHAC —
+   *    coverage_thin — voi khuyen nghi khac han.
+   */
+  const relationshipBlockedBy = scorecard?.items.find(
+    (item) => item.factor === 'relationship'
+  )?.blocked_by;
+  const relationshipWarning =
+    relationshipBlockedBy === 'single_threaded' || relationshipBlockedBy === 'coverage_thin'
+      ? BLOCKED_REASONS[relationshipBlockedBy].text
+      : null;
 
   return (
     <Panel
@@ -95,13 +116,9 @@ function MembersBlock({ dealId, onChange }: { dealId: number; onChange: () => vo
       action={<span className="text-xs text-tr-muted">{members.length} người</span>}
     >
       <div className="mb-3 space-y-1.5">
-        {recent.length <= 1 && members.length > 0 && (
-          <Warning
-            text={`Single-threaded — chỉ ${recent.length} người có tương tác trong ${RECENT_DAYS} ngày.`}
-          />
-        )}
+        {relationshipWarning && <Warning text={relationshipWarning} />}
         {!hasChampion && <Warning text="Chưa có champion nào ở trạng thái ủng hộ." />}
-        {!hasEconomic && (
+        {Boolean(deal.v2_no_economic) && (
           <Warning text="Chưa xác định người duyệt ngân sách (economic buyer) — đây là điều kiện chặn forecast." />
         )}
       </div>

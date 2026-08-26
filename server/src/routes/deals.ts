@@ -154,10 +154,10 @@ router.post('/', (req, res) => {
   const info = db
     .prepare(
       `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
-                          position, expected_close_date, source, need, competitor,
+                          won_value_vnd, position, expected_close_date, source, need, competitor,
                           next_action, next_action_date, lost_reason, lost_note, is_renewal, notes,
                           project_id, handover_ready, search_text, closed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                ${isClosed(stage) ? `datetime('now','localtime')` : 'NULL'})`
     )
     .run(
@@ -168,6 +168,7 @@ router.post('/', (req, res) => {
       stage,
       probability,
       body.value_vnd ?? 0,
+      body.won_value_vnd ?? null,
       position,
       body.expected_close_date ?? null,
       body.source ?? null,

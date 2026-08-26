@@ -217,6 +217,20 @@ export async function sendTelegramDocument(
   }
 }
 
+/**
+ * Ghi (hoac xoa) `telegram_settings.last_error` — nguon hien thi banner canh bao
+ * DUY NHAT tren trang Cai dat Telegram.
+ *
+ * Dung chung cho moi duong co the thanh cong/that bai khi noi voi Telegram (kiem
+ * tra ket noi, sao luu dinh ky, sao luu thu cong...) de tranh lap lai cau UPDATE
+ * o tung noi — thieu mot cho la banner co the hien sai trang thai that su.
+ */
+export function setTelegramLastError(db: Database, message: string | null): void {
+  db.prepare(
+    `UPDATE telegram_settings SET last_error = ?, updated_at = datetime('now','localtime') WHERE id = 1`
+  ).run(message ? message.slice(0, 500) : null);
+}
+
 export async function testTelegramConnection(db: Database): Promise<void> {
   try {
     await sendTelegramMessage(db, 'WorkFlow: kết nối Telegram thành công.');

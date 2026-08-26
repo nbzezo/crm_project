@@ -77,6 +77,40 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
   }
 }
 
+/** Id cac the trong danh sach, cong them the con truc tiep cua chung (toi da 1 cap). */
+function withChildCardIds(cardIds: number[]): number[] {
+  if (cardIds.length === 0) return [];
+  const placeholders = cardIds.map(() => '?').join(',');
+  const children = db
+    .prepare(`SELECT id FROM cards WHERE parent_id IN (${placeholders})`)
+    .all(...cardIds) as { id: number }[];
+  return [...new Set([...cardIds, ...children.map((row) => row.id)])];
+}
+
+/**
+ * Soft-delete tai lieu dinh kem cua cac the SAP bi xoa qua FK CASCADE (xoa the,
+ * danh sach hoac bang chua the).
+ *
+ * `documents.card_id` khai bao `ON DELETE CASCADE` nen neu goi thang DELETE tren
+ * cards/lists/boards, SQLite se hard-delete dong tai lieu tuong ung — bo qua Thung
+ * rac va `unverifyBySource` ma duong xoa "chinh thong" (`DELETE /api/documents/:id`)
+ * luon di qua. Goi ham nay TRUOC cau DELETE de tai lieu di dung duong do.
+ */
+export function softDeleteDocumentsForCards(cardIds: number[]): void {
+  const ids = withChildCardIds(cardIds);
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = db
+    .prepare(`SELECT id FROM documents WHERE card_id IN (${placeholders}) AND deleted_at IS NULL`)
+    .all(...ids) as { id: number }[];
+  if (rows.length === 0) return;
+  db.prepare(
+    `UPDATE documents SET deleted_at = datetime('now','localtime'), updated_at = datetime('now','localtime')
+      WHERE card_id IN (${placeholders}) AND deleted_at IS NULL`
+  ).run(...ids);
+  for (const row of rows) unverifyBySource(db, 'document', row.id);
+}
+
 /** Xoa theo kieu hai pha: dua file vao kho tam, commit DB, sau do huy file. */
 export function permanentlyDeleteDocument(id: number): void {
   const document = required(

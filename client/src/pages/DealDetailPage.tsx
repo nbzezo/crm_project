@@ -7,16 +7,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, FolderKanban, PackageOpen, Pencil, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { DealForm } from '../components/crm/DealForm';
+import { DealStageStepper } from '../components/crm/DealStageStepper';
+import { DealSmartButtons } from '../components/crm/DealSmartButtons';
+import { DealActivitySidebar } from '../components/crm/DealActivitySidebar';
 import { HandoverPanel } from '../components/crm/HandoverPanel';
 import { ChangeLogPanel } from '../components/crm/ChangeLogPanel';
 import { HealthBadge } from './ProjectsPage';
 import { Scorecard } from '../components/crm/Scorecard';
 import { CommitteePanel } from '../components/crm/CommitteePanel';
-import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
+import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPanel';
 import { AiBrief } from '../components/ai/AiBrief';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import { Tabs } from '../components/common/Tabs';
@@ -28,23 +31,25 @@ import {
   Skeleton,
   focusRing,
 } from '../components/common/ui';
-import { STAGE_COLORS, t } from '../i18n/vi';
+import { t } from '../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type {
   ChangeLogEntry,
-  CustomerFull,
+  CommitteeResponse,
   Deal,
   Factor,
+  HandoverState,
+  Interaction,
   Project,
   Scorecard as ScorecardData,
 } from '../types';
 
-type Tab = 'info' | 'score' | 'committee' | 'activities' | 'handover';
+type Tab = 'info' | 'score' | 'committee' | 'notes' | 'handover';
 
 interface DealFull extends Deal {
-  activities: unknown[];
+  activities: Interaction[];
   documents: unknown[];
   /** Tổng quan dự án triển khai — chỉ có khi cơ hội đã gắn dự án (v23). */
   project: Project | null;
@@ -84,11 +89,19 @@ export default function DealDetailPage() {
     enabled: Number.isFinite(id),
   });
 
-  // Chỉ tải hồ sơ khách hàng khi vào tab Hoạt động — timeline cần danh sách liên hệ
-  const { data: customer } = useQuery({
-    queryKey: ['customer', deal?.customer_id],
-    queryFn: () => api.get<CustomerFull>(`/api/customers/${deal!.customer_id}/full`),
-    enabled: Boolean(deal?.customer_id) && tab === 'activities',
+  /* Trùng đúng query key mà CommitteePanel/HandoverPanel đang dùng cho tab của
+     chúng — TanStack Query dùng chung cache, chỉ để lấy số cho smart buttons
+     chứ không fetch thêm lần nào. */
+  const { data: committee } = useQuery({
+    queryKey: ['deal', id, 'committee'],
+    queryFn: () => api.get<CommitteeResponse>(`/api/deals/${id}/committee`),
+    enabled: Number.isFinite(id),
+  });
+
+  const { data: handover } = useQuery({
+    queryKey: ['deal', id, 'handover'],
+    queryFn: () => api.get<HandoverState>(`/api/deals/${id}/handover`),
+    enabled: Number.isFinite(id),
   });
 
   if (error)
@@ -109,8 +122,8 @@ export default function DealDetailPage() {
     { key: 'score', label: 'Chấm điểm' },
     { key: 'committee', label: 'Nhóm quyết định' },
     { key: 'info', label: 'Thông tin' },
+    { key: 'notes', label: 'Ghi chú họp' },
     { key: 'handover', label: 'Bàn giao' },
-    { key: 'activities', label: 'Hoạt động' },
   ];
 
   const pendingHandover = deal.stage === 'won' && !deal.handover_ready;
@@ -124,7 +137,6 @@ export default function DealDetailPage() {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold text-tr-text">{deal.title}</h2>
-            <ColorBadge color={STAGE_COLORS[deal.stage]}>{t.stage[deal.stage]}</ColorBadge>
             {card && (
               <ColorBadge color={QUADRANT_COLORS[card.quadrant]}>
                 Scoring: {QUADRANT_LABELS[card.quadrant]}
@@ -132,16 +144,6 @@ export default function DealDetailPage() {
             )}
             {card?.veto.some((v) => v.blocking) && (
               <ColorBadge color="#e04b3a">Ngoài forecast</ColorBadge>
-            )}
-            {/* Won mà hồ sơ chưa đủ — bấm vào đi thẳng tới checklist còn thiếu. */}
-            {pendingHandover && (
-              <button
-                type="button"
-                onClick={() => setTab('handover')}
-                className={`inline-flex items-center gap-1 rounded-full bg-tr-warning/15 px-2.5 py-0.5 text-xs font-semibold text-tr-warning transition hover:bg-tr-warning/25 ${focusRing}`}
-              >
-                <PackageOpen size={13} aria-hidden="true" /> Chờ bàn giao
-              </button>
             )}
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">
@@ -165,18 +167,13 @@ export default function DealDetailPage() {
             {deal.expected_close_date && (
               <span>Dự kiến chốt: {formatDate(deal.expected_close_date)}</span>
             )}
-            {card && (
-              <span>
-                BANT <strong className="text-tr-text">{card.bant_total}</strong>/12 · 4P{' '}
-                <strong className="text-tr-text">{card.p4_total}</strong>/12
-              </span>
-            )}
           </div>
           <div className="mt-1.5">
             <EntityLabels entityType="deal" entityId={id} />
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
+          <AiBrief contextType="deal" contextId={id} />
           {/* Cong viec tao tu day tu mang theo khach hang va nguoi lien he cua co hoi. */}
           <Button onClick={() => openTaskComposer({ context: { deal_id: id } })}>
             <Plus size={15} /> Tạo công việc
@@ -188,113 +185,129 @@ export default function DealDetailPage() {
       </div>
 
       <div className="mb-4">
-        <AiBrief contextType="deal" contextId={id} compact />
+        <DealStageStepper deal={deal} />
       </div>
 
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        items={TABS.map((item) => ({ value: item.key, label: item.label }))}
-        ariaLabel="Nội dung cơ hội"
-        idPrefix="dealtab"
-        className="mb-4"
+      <div className="mb-4">
+        <DealSmartButtons
+          documentCount={deal.documents.length}
+          scorecard={card}
+          committee={committee}
+          handover={handover}
+          pendingHandover={pendingHandover}
+          onNavigate={setTab}
+        />
+      </div>
+
+      <div
+        className={`grid grid-cols-1 gap-4 ${tab === 'notes' ? '' : 'lg:grid-cols-[minmax(0,1fr)_320px]'}`}
       >
-        {tab === 'score' && (
-          <Scorecard
+        <div className="min-w-0">
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            items={TABS.map((item) => ({ value: item.key, label: item.label }))}
+            ariaLabel="Nội dung cơ hội"
+            idPrefix="dealtab"
+            className="mb-4"
+          >
+            {tab === 'score' && (
+              <Scorecard
+                dealId={id}
+                focusFactor={focusFactor}
+                onGoToCommittee={() => setTab('committee')}
+              />
+            )}
+
+            {tab === 'committee' && <CommitteePanel deal={deal} scorecard={card} />}
+
+            {tab === 'info' && (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <Panel title="Thông tin cơ hội">
+                  <dl className="space-y-2 text-sm">
+                    <Row label="Sản phẩm / dịch vụ" value={deal.product} />
+                    <Row label="Nguồn" value={deal.source} />
+                    <Row label="Người liên hệ chính" value={deal.contact_name ?? null} />
+                    <Row label="Nhu cầu khách hàng" value={deal.need} />
+                    <Row label="Hành động tiếp theo" value={deal.next_action} />
+                    <Row
+                      label="Ngày thực hiện"
+                      value={deal.next_action_date ? formatDate(deal.next_action_date) : null}
+                    />
+                    {deal.lost_reason && (
+                      <Row
+                        label={t.deal.lostReason}
+                        value={t.lostReason[deal.lost_reason] ?? deal.lost_reason}
+                      />
+                    )}
+                  </dl>
+                  <p className="mt-3 border-t border-tr-border pt-3 text-sm whitespace-pre-wrap text-tr-text">
+                    {deal.notes || '—'}
+                  </p>
+                </Panel>
+                <DocumentPanel links={{ deal_id: id }} title="Tài liệu của cơ hội" />
+              </div>
+            )}
+
+            {tab === 'notes' && (
+              <MeetingNotesPanel links={{ deal_id: id }} customerId={deal.customer_id} />
+            )}
+
+            {tab === 'handover' && (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <HandoverPanel dealId={id} />
+                <div className="space-y-4">
+                  <Panel title="Dự án triển khai">
+                    {deal.project ? (
+                      <div className="space-y-2 text-sm">
+                        <Link
+                          to={`/projects/${deal.project.id}`}
+                          className={`inline-flex items-center gap-1.5 font-medium text-tr-primary hover:underline ${focusRing}`}
+                        >
+                          <FolderKanban size={15} aria-hidden="true" />
+                          {deal.project.name}
+                        </Link>
+                        {/*
+                        Chỉ thông tin TỔNG QUAN (đặc tả 7.4). Mọi con số ở đây đều
+                        do máy chủ tính khi đọc từ chính dự án, không phải bản sao
+                        lưu trên cơ hội — nên không có gì để lệch.
+                      */}
+                        <dl className="space-y-2">
+                          <Row label="Trạng thái" value={t.projectStatus[deal.project.status]} />
+                          <Row
+                            label="Tiến độ"
+                            value={`${deal.project.progress_pct}% · ${deal.project.task_done}/${deal.project.task_total} việc`}
+                          />
+                          <Row
+                            label="Hạn kế hoạch"
+                            value={deal.project.plan_end ? formatDate(deal.project.plan_end) : null}
+                          />
+                          <Row label="Người phụ trách" value={deal.project.owner_name} />
+                        </dl>
+                        <HealthBadge health={deal.project.health} />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-tr-muted">
+                        Cơ hội này chưa gắn dự án triển khai nào. Chọn dự án trong biểu mẫu sửa cơ
+                        hội — mỗi cơ hội gắn được tối đa một dự án.
+                      </p>
+                    )}
+                  </Panel>
+                  <ChangeLogPanel entries={deal.changes ?? []} />
+                </div>
+              </div>
+            )}
+          </Tabs>
+        </div>
+
+        {tab !== 'notes' && (
+          <DealActivitySidebar
             dealId={id}
-            focusFactor={focusFactor}
-            onGoToCommittee={() => setTab('committee')}
+            customerId={deal.customer_id}
+            activities={deal.activities}
           />
         )}
-
-        {tab === 'committee' && <CommitteePanel deal={deal} />}
-
-        {tab === 'info' && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Panel title="Thông tin cơ hội">
-              <dl className="space-y-2 text-sm">
-                <Row label="Sản phẩm / dịch vụ" value={deal.product} />
-                <Row label="Nguồn" value={deal.source} />
-                <Row label="Người liên hệ chính" value={deal.contact_name ?? null} />
-                <Row label="Nhu cầu khách hàng" value={deal.need} />
-                <Row label="Hành động tiếp theo" value={deal.next_action} />
-                <Row
-                  label="Ngày thực hiện"
-                  value={deal.next_action_date ? formatDate(deal.next_action_date) : null}
-                />
-                {deal.lost_reason && (
-                  <Row
-                    label={t.deal.lostReason}
-                    value={t.lostReason[deal.lost_reason] ?? deal.lost_reason}
-                  />
-                )}
-              </dl>
-              <p className="mt-3 border-t border-tr-border pt-3 text-sm whitespace-pre-wrap text-tr-text">
-                {deal.notes || '—'}
-              </p>
-            </Panel>
-            <DocumentPanel links={{ deal_id: id }} title="Tài liệu của cơ hội" />
-          </div>
-        )}
-
-        {tab === 'handover' && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <HandoverPanel dealId={id} />
-            <div className="space-y-4">
-              <Panel title="Dự án triển khai">
-                {deal.project ? (
-                  <div className="space-y-2 text-sm">
-                    <Link
-                      to={`/projects/${deal.project.id}`}
-                      className={`inline-flex items-center gap-1.5 font-medium text-tr-primary hover:underline ${focusRing}`}
-                    >
-                      <FolderKanban size={15} aria-hidden="true" />
-                      {deal.project.name}
-                    </Link>
-                    {/*
-                      Chỉ thông tin TỔNG QUAN (đặc tả 7.4). Mọi con số ở đây đều
-                      do máy chủ tính khi đọc từ chính dự án, không phải bản sao
-                      lưu trên cơ hội — nên không có gì để lệch.
-                    */}
-                    <dl className="space-y-2">
-                      <Row label="Trạng thái" value={t.projectStatus[deal.project.status]} />
-                      <Row
-                        label="Tiến độ"
-                        value={`${deal.project.progress_pct}% · ${deal.project.task_done}/${deal.project.task_total} việc`}
-                      />
-                      <Row
-                        label="Hạn kế hoạch"
-                        value={deal.project.plan_end ? formatDate(deal.project.plan_end) : null}
-                      />
-                      <Row label="Người phụ trách" value={deal.project.owner_name} />
-                    </dl>
-                    <HealthBadge health={deal.project.health} />
-                  </div>
-                ) : (
-                  <p className="text-sm text-tr-muted">
-                    Cơ hội này chưa gắn dự án triển khai nào. Chọn dự án trong biểu mẫu sửa cơ hội —
-                    mỗi cơ hội gắn được tối đa một dự án.
-                  </p>
-                )}
-              </Panel>
-              <ChangeLogPanel entries={deal.changes ?? []} />
-            </div>
-          </div>
-        )}
-
-        {tab === 'activities' &&
-          (customer ? (
-            <InteractionTimeline
-              customerId={deal.customer_id}
-              interactions={customer.interactions ?? []}
-              contacts={customer.contacts}
-              deals={customer.deals}
-              defaultDealId={id}
-            />
-          ) : (
-            <Skeleton className="h-48 rounded-panel" />
-          ))}
-      </Tabs>
+      </div>
 
       <DealForm
         open={editing}

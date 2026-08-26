@@ -165,6 +165,25 @@ router.patch('/:id', (req, res) => {
     customer_id: merged.customer_id as number,
     deal_id: merged.deal_id as number | null,
   });
+  /*
+   * assertEntityLinks chi doi chieu cac lien ket TREN hop dong (deal/du an). Chieu
+   * nguoc lai — cac dong doanh thu (customer_services) dang tro contract_id ve day
+   * — khong duoc PATCH /api/revenues/lines/:id doi chieu (no chi kiem luc SUA dong
+   * doanh thu). Thieu ve nay thi doi khach hang hop dong se lam dong doanh thu va
+   * hop dong no tro toi lech khach hang ma khong loi nao bao.
+   */
+  if (merged.customer_id !== current.customer_id) {
+    const mismatch = db
+      .prepare(`SELECT id FROM customer_services WHERE contract_id = ? AND customer_id <> ?`)
+      .get(id, merged.customer_id) as { id: number } | undefined;
+    if (mismatch) {
+      throw new HttpError(
+        422,
+        'Không thể đổi khách hàng: đang có dòng doanh thu gắn hợp đồng này thuộc khách hàng khác',
+        { code: 'CROSS_CUSTOMER_LINK' }
+      );
+    }
+  }
   assertCrmCustomer(db, merged.customer_id as number);
   assertProjectCustomerLink(
     db,
@@ -249,8 +268,19 @@ router.post('/:id/renew', (req, res) => {
   res.status(201).json(db.prepare(`SELECT * FROM deals WHERE id = ?`).get(dealId));
 });
 
+/** Khong xoa hop dong con dong doanh thu gan vao, giong guard cua DELETE /api/services/:id. */
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  const used = db
+    .prepare(`SELECT COUNT(*) AS n FROM customer_services WHERE contract_id = ?`)
+    .get(id) as { n: number };
+  if (used.n > 0) {
+    throw new HttpError(
+      400,
+      `Hợp đồng đang được ${used.n} dòng doanh thu tham chiếu — hãy gỡ liên kết doanh thu trước khi xóa`,
+      { code: 'CONTRACT_IN_USE' }
+    );
+  }
   db.prepare(`DELETE FROM contracts WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

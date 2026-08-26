@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -24,6 +24,7 @@ import {
   Button,
   DateInput,
   ErrorState,
+  FormError,
   Input,
   Select,
   SkeletonRows,
@@ -35,7 +36,16 @@ import { emptyTaskFilters, useUiStore, type TaskFilters } from '../stores/uiStor
 import { useAssignees } from '../components/tasks/AssigneePicker';
 import { isWaitingStatus } from '../components/tasks/CardStatusControl';
 import { parseAssigneeFilter } from '../components/kanban/BoardFilter';
-import type { Assignee, Board, BoardFull, Customer, Priority, Project, TaskRow } from '../types';
+import type {
+  Assignee,
+  Board,
+  BoardFull,
+  Card,
+  Customer,
+  Priority,
+  Project,
+  TaskRow,
+} from '../types';
 
 export function useTaskQuery() {
   const filters = useUiStore((s) => s.taskFilters);
@@ -656,13 +666,22 @@ export default function TasksPage() {
 /** Hàng thêm nhanh: tiêu đề + bảng/danh sách + ưu tiên + hạn, nhớ lựa chọn gần nhất. */
 function QuickAddRow({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
+  const titleRef = useRef<HTMLInputElement>(null);
+  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
+  const pushToast = useUiStore((s) => s.pushToast);
+  const openCard = useUiStore((s) => s.openCard);
+  // Bang/khach hang dang loc o trang: dung lam mac dinh de the moi khong "roi" khoi view.
+  const activeFilters = useUiStore((s) => s.taskFilters);
+
   const [title, setTitle] = useState('');
   const [boardId, setBoardId] = useState<string>('');
   const [listId, setListId] = useState<string>('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [dueDate, setDueDate] = useState<string | null>(null);
-  const [customerId, setCustomerId] = useState('');
-  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
+  // Khoi tao mot lan tu bo loc dang mo — sau do nguoi dung tu do doi, khong bi ghi de.
+  const [customerId, setCustomerId] = useState(() =>
+    activeFilters.customerId === '' ? '' : String(activeFilters.customerId)
+  );
 
   const { data: boards = [] } = useQuery({
     queryKey: ['boards', false],
@@ -679,124 +698,147 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
     staleTime: 60_000,
   });
 
-  // Mặc định chọn bảng đầu tiên và danh sách đầu tiên của bảng đó
+  // Uu tien bang dang loc tren trang; khong co thi moi roi ve bang dau tien.
   useEffect(() => {
-    if (boardId === '' && boards.length > 0) setBoardId(String(boards[0].id));
-  }, [boards, boardId]);
+    if (boardId !== '' || boards.length === 0) return;
+    const filtered =
+      activeFilters.boardId !== '' && boards.some((b) => b.id === activeFilters.boardId)
+        ? activeFilters.boardId
+        : boards[0].id;
+    setBoardId(String(filtered));
+  }, [boards, boardId, activeFilters.boardId]);
   useEffect(() => {
     if (board && board.lists.length > 0) setListId(String(board.lists[0].id));
   }, [board?.id]);
 
   const create = useMutation({
     mutationFn: () =>
-      api.post('/api/cards', {
+      api.post<Card>('/api/cards', {
         list_id: Number(listId),
         title: title.trim(),
         priority,
         due_date: dueDate,
         customer_id: customerId === '' ? null : Number(customerId),
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       invalidateCardViews(queryClient);
       setTitle('');
+      pushToast('Đã tạo công việc', 'success', {
+        label: 'Mở công việc',
+        run: () => openCard(created.id),
+      });
+      // Cho phep go lien tuc them viec ke tiep ma khong can bam lai vao o tieu de.
+      requestAnimationFrame(() => titleRef.current?.focus());
     },
   });
 
   const submit = () => {
-    if (title.trim() && listId) create.mutate();
+    if (title.trim() && listId && !create.isPending) create.mutate();
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-2 rounded-lg border border-tr-border bg-tr-panel p-3">
-      <div className="min-w-56 flex-1">
-        <Input
-          autoFocus
-          value={title}
-          placeholder="Tên công việc mới…"
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
-            if (e.key === 'Escape') onClose();
+    <div className="rounded-lg border border-tr-border bg-tr-panel p-3">
+      <FormError error={create.error} />
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-56 flex-1">
+          <Input
+            ref={titleRef}
+            autoFocus
+            value={title}
+            placeholder="Tên công việc mới…"
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+              if (e.key === 'Escape') onClose();
+            }}
+          />
+        </div>
+        <div className="w-44">
+          <Combobox
+            value={boardId === '' ? '' : Number(boardId)}
+            onChange={(v) => {
+              setBoardId(v === '' ? '' : String(v));
+              setListId('');
+            }}
+            options={boards.map((b) => ({ id: b.id, label: b.name }))}
+            searchPlaceholder="Tìm bảng…"
+            emptyText="Không tìm thấy bảng."
+            ariaLabel="Bảng"
+            allowClear={false}
+            onQuickCreate={async (name) => {
+              const created = await api.post<Board>('/api/boards', { name });
+              queryClient.invalidateQueries({ queryKey: ['boards'] });
+              return { id: created.id, label: created.name };
+            }}
+            quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
+          />
+        </div>
+        <div className="w-36">
+          <Select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Danh sách">
+            {board?.lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-36">
+          <Select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as Priority)}
+            aria-label="Ưu tiên"
+          >
+            {PRIORITY_ORDER.map((p) => (
+              <option key={p} value={p}>
+                {t.priority[p]}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-36">
+          <DateInput value={dueDate} onChange={setDueDate} aria-label="Hạn hoàn thành" />
+        </div>
+        <div className="w-48">
+          <Combobox
+            value={customerId === '' ? '' : Number(customerId)}
+            onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
+            options={customers.map((c) => ({ id: c.id, label: c.name }))}
+            placeholder="— khách hàng —"
+            searchPlaceholder="Tìm khách hàng…"
+            emptyText="Không tìm thấy khách hàng."
+            ariaLabel="Khách hàng"
+            onQuickCreate={async (name) => {
+              const created = await api.post<Customer>('/api/customers', { name });
+              queryClient.invalidateQueries({ queryKey: ['customers'] });
+              return { id: created.id, label: created.name };
+            }}
+            quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
+          />
+        </div>
+        <Button
+          variant="primary"
+          disabled={!title.trim() || !listId || create.isPending}
+          onClick={submit}
+        >
+          {create.isPending ? 'Đang thêm…' : t.common.add}
+        </Button>
+        {/* Can gan them co hoi / hop dong / viec can lam thi mo form day du, giu nguyen lua chon. */}
+        <Button
+          onClick={() => {
+            openTaskComposer({
+              context: customerId === '' ? {} : { customer_id: Number(customerId) },
+              listId: listId === '' ? undefined : Number(listId),
+              draft: { title: title.trim(), priority, dueDate },
+            });
+            onClose();
           }}
-        />
+        >
+          Chi tiết…
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          <X size={16} />
+        </Button>
       </div>
-      <div className="w-44">
-        <Combobox
-          value={boardId === '' ? '' : Number(boardId)}
-          onChange={(v) => {
-            setBoardId(v === '' ? '' : String(v));
-            setListId('');
-          }}
-          options={boards.map((b) => ({ id: b.id, label: b.name }))}
-          searchPlaceholder="Tìm bảng…"
-          emptyText="Không tìm thấy bảng."
-          ariaLabel="Bảng"
-          allowClear={false}
-          onQuickCreate={async (name) => {
-            const created = await api.post<Board>('/api/boards', { name });
-            queryClient.invalidateQueries({ queryKey: ['boards'] });
-            return { id: created.id, label: created.name };
-          }}
-          quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
-        />
-      </div>
-      <div className="w-36">
-        <Select value={listId} onChange={(e) => setListId(e.target.value)}>
-          {board?.lists.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="w-36">
-        <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-          {PRIORITY_ORDER.map((p) => (
-            <option key={p} value={p}>
-              {t.priority[p]}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="w-36">
-        <DateInput value={dueDate} onChange={setDueDate} />
-      </div>
-      <div className="w-48">
-        <Combobox
-          value={customerId === '' ? '' : Number(customerId)}
-          onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
-          options={customers.map((c) => ({ id: c.id, label: c.name }))}
-          placeholder="— khách hàng —"
-          searchPlaceholder="Tìm khách hàng…"
-          emptyText="Không tìm thấy khách hàng."
-          ariaLabel="Khách hàng"
-          onQuickCreate={async (name) => {
-            const created = await api.post<Customer>('/api/customers', { name });
-            queryClient.invalidateQueries({ queryKey: ['customers'] });
-            return { id: created.id, label: created.name };
-          }}
-          quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
-        />
-      </div>
-      <Button variant="primary" disabled={!title.trim() || !listId} onClick={submit}>
-        {t.common.add}
-      </Button>
-      {/* Can gan them co hoi / hop dong / viec can lam thi mo form day du, giu nguyen lua chon. */}
-      <Button
-        onClick={() => {
-          openTaskComposer({
-            context: customerId === '' ? {} : { customer_id: Number(customerId) },
-            listId: listId === '' ? undefined : Number(listId),
-            draftTitle: title.trim() || undefined,
-          });
-          onClose();
-        }}
-      >
-        Chi tiết…
-      </Button>
-      <Button variant="ghost" onClick={onClose}>
-        <X size={16} />
-      </Button>
     </div>
   );
 }

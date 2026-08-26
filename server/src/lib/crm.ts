@@ -5,11 +5,13 @@ import {
   CONTRACT_TERMS,
   DOC_TYPES,
   LOST_REASONS,
+  QUADRANT_CUTOFF,
   QUOTATION_STATUSES,
   REVENUE_STAGES,
   SERVICE_STATUSES,
   STAGE_PROBABILITY,
   STAGES,
+  STALE_DAYS,
   type RevenueStage,
   type Stage,
 } from '@workflow/contracts';
@@ -20,11 +22,13 @@ export {
   CONTRACT_TERMS,
   DOC_TYPES,
   LOST_REASONS,
+  QUADRANT_CUTOFF,
   QUOTATION_STATUSES,
   REVENUE_STAGES,
   SERVICE_STATUSES,
   STAGE_PROBABILITY,
   STAGES,
+  STALE_DAYS,
 };
 export type { RevenueStage, Stage };
 
@@ -48,9 +52,6 @@ export const STAGE_RANK: Record<RevenueStage, number> = {
   invoiced: 2,
   paid: 3,
 };
-
-/** So ngay khong co hoat dong thi coi la "nguoi lanh" (FR-PIP-04). */
-export const STALE_DAYS = 14;
 
 /* ---------- Cham diem co hoi BANT + 4P (v10) ---------- */
 
@@ -80,9 +81,6 @@ export function axisOf(factor: Factor): 'bant' | 'p4' {
 
 export const QUADRANTS = ['pursue', 'reshape', 'nurture', 'disqualify'] as const;
 export type Quadrant = (typeof QUADRANTS)[number];
-
-/** Nguong lat o ma tran. Moi truc toi da 12 diem. */
-export const QUADRANT_CUTOFF = 7;
 
 /** Do dai toi thieu cua o bang chung khi cham diem >= 1 (Muc 2.2 cua spec). */
 export const EVIDENCE_MIN_LENGTH = 20;

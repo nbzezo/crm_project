@@ -1,5 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { STALE_DAYS } from '@workflow/contracts';
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,9 +17,6 @@ import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
 import { formatDateShort, formatVND, isOverdue, todayStr } from '../../lib/format';
 import type { Deal, Label } from '../../types';
-
-/** 14 ngày không có tương tác thì coi là nguội (FR-PIP-04). */
-const STALE_DAYS = 14;
 
 /**
  * Dưới ngưỡng này thì tuổi giai đoạn chưa nói lên điều gì.

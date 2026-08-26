@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation, useParams } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   DndContext,
@@ -35,6 +35,7 @@ import {
   GripVertical,
   LayoutDashboard,
   ListChecks,
+  NotebookText,
   RotateCcw,
   Settings,
   Sparkles,
@@ -46,8 +47,9 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { backgroundStyle } from '../../lib/backgrounds';
+import { selectNeedsNudge } from '../../lib/followUp';
 import { t } from '../../i18n/vi';
-import type { Board } from '../../types';
+import type { Board, NotificationFeed, TaskRow } from '../../types';
 import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from '../common/useDialog';
 import { focusRing } from '../common/ui';
@@ -72,7 +74,7 @@ const SETTINGS_NAV: NavItem = { to: '/settings', label: t.nav.settings, icon: Se
 const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   {
     id: 'work',
-    label: 'Công việc',
+    label: t.nav.groupWork,
     items: [
       { to: '/projects', label: t.nav.projects, icon: FolderKanban },
       { to: '/boards', label: t.nav.boards, icon: Trello },
@@ -85,7 +87,7 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   },
   {
     id: 'sales',
-    label: 'CRM & tổ chức',
+    label: t.nav.groupSales,
     items: [
       { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
       { to: '/customers', label: t.nav.customers, icon: Users },
@@ -97,10 +99,11 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   },
   {
     id: 'insights',
-    label: 'Phân tích & công cụ',
+    label: t.nav.groupInsights,
     items: [
       { to: '/reports', label: t.nav.reports, icon: BarChart3 },
       { to: '/ai', label: t.nav.ai, icon: Sparkles },
+      { to: '/notes', label: t.nav.notes, icon: NotebookText },
     ],
   },
 ];
@@ -139,13 +142,46 @@ function loadNavOrder(): NavOrder {
   }
 }
 
-function isDefaultNavOrder(order: NavOrder): boolean {
-  return NAV_GROUPS.every(({ id }) => order[id].join('|') === DEFAULT_NAV_ORDER[id].join('|'));
+function isGroupDefaultOrder(groupId: NavGroupId, order: NavOrder): boolean {
+  return order[groupId].join('|') === DEFAULT_NAV_ORDER[groupId].join('|');
+}
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'workflow-sidebar-collapsed-v1';
+
+function loadCollapsed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 /* Muc dieu huong cao 44px tren cam ung, thu gon con 32px tu breakpoint sm. */
 const ITEM_BASE =
   'flex min-h-[44px] items-center gap-2.5 rounded-full px-3 text-sm transition sm:min-h-0 sm:py-1.5';
+
+function navItemClass(isActive: boolean, extra = ''): string {
+  return `${ITEM_BASE} ${focusRing} min-w-0 ${extra} ${
+    isActive
+      ? 'bg-[var(--tr-nav-active-bg)] font-semibold text-[var(--tr-nav-active-text)]'
+      : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
+  }`;
+}
+
+function NavBadge({ count, tone = 'primary' }: { count: number; tone?: 'primary' | 'danger' }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={`ml-auto flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-tr-on-primary ${
+        tone === 'danger' ? 'bg-tr-danger' : 'bg-tr-primary'
+      }`}
+      aria-hidden="true"
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+}
 
 function useBoards() {
   return useQuery({
@@ -155,7 +191,36 @@ function useBoards() {
   });
 }
 
-function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+/* Dung chung queryKey voi ReminderBell ('notifications') va FollowUpPage
+   ('tasks','follow-up') de React Query gop request, khong goi API rieng. */
+function useNavBadges() {
+  const { data: feed } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<NotificationFeed>('/api/notifications'),
+    refetchInterval: 60_000,
+  });
+  const { data: tasks } = useQuery({
+    queryKey: ['tasks', 'follow-up'],
+    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
+  });
+
+  return {
+    '/tasks': feed?.counts.task ?? 0,
+    '/follow-up': tasks ? selectNeedsNudge(tasks).length : 0,
+  } as Record<string, number>;
+}
+
+interface NavBadgeProps {
+  badge?: number;
+  badgeTone?: 'primary' | 'danger';
+}
+
+function NavItemLink({
+  item,
+  onNavigate,
+  badge = 0,
+  badgeTone,
+}: { item: NavItem; onNavigate?: () => void } & NavBadgeProps) {
   const Icon = item.icon;
 
   return (
@@ -163,21 +228,21 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
       to={item.to}
       end={item.end}
       onClick={onNavigate}
-      className={({ isActive }) =>
-        `${ITEM_BASE} ${focusRing} min-w-0 ${
-          isActive
-            ? 'bg-[var(--tr-nav-active-bg)] font-semibold text-[var(--tr-nav-active-text)]'
-            : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
-        }`
-      }
+      className={({ isActive }) => navItemClass(isActive)}
     >
       <Icon size={16} className="shrink-0" aria-hidden="true" />
       <span className="truncate">{item.label}</span>
+      <NavBadge count={badge} tone={badgeTone} />
     </NavLink>
   );
 }
 
-function SortableNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+function SortableNavItem({
+  item,
+  onNavigate,
+  badge = 0,
+  badgeTone,
+}: { item: NavItem; onNavigate?: () => void } & NavBadgeProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.to,
   });
@@ -194,15 +259,12 @@ function SortableNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: () 
         end={item.end}
         onClick={onNavigate}
         className={({ isActive }) =>
-          `${ITEM_BASE} ${focusRing} min-w-0 pr-12 sm:pr-9 ${
-            isActive
-              ? 'bg-[var(--tr-nav-active-bg)] font-semibold text-[var(--tr-nav-active-text)]'
-              : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
-          } ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`
+          navItemClass(isActive, `pr-12 sm:pr-9 ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`)
         }
       >
         <Icon size={16} className="shrink-0" aria-hidden="true" />
         <span className="truncate">{item.label}</span>
+        <NavBadge count={badge} tone={badgeTone} />
       </NavLink>
       <button
         type="button"
@@ -219,7 +281,6 @@ function SortableNavItem({ item, onNavigate }: { item: NavItem; onNavigate?: () 
 }
 
 function StarredBoards({ boards, onNavigate }: { boards: Board[]; onNavigate?: () => void }) {
-  const { boardId } = useParams();
   if (boards.length === 0) return null;
 
   return (
@@ -232,11 +293,7 @@ function StarredBoards({ boards, onNavigate }: { boards: Board[]; onNavigate?: (
           key={board.id}
           to={`/boards/${board.id}`}
           onClick={onNavigate}
-          className={`${ITEM_BASE} ${focusRing} gap-2 ${
-            Number(boardId) === board.id
-              ? 'bg-[var(--tr-nav-active-bg)] text-[var(--tr-nav-active-text)]'
-              : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
-          }`}
+          className={({ isActive }) => navItemClass(isActive, 'gap-2')}
         >
           <span
             className="h-5 w-6 shrink-0 rounded-control"
@@ -260,6 +317,7 @@ interface SidebarNavProps {
 function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
   const { data: boards = [] } = useBoards();
   const starred = boards.filter((board) => board.is_starred);
+  const badges = useNavBadges();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
@@ -293,10 +351,12 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
                 <h3 className="text-2xs font-semibold tracking-[0.08em] text-tr-muted uppercase">
                   {group.label}
                 </h3>
-                {group.id === 'work' && !isDefaultNavOrder(order) && (
+                {!isGroupDefaultOrder(group.id, order) && (
                   <button
                     type="button"
-                    onClick={() => onOrderChange(normalizeNavOrder(null))}
+                    onClick={() =>
+                      onOrderChange({ ...order, [group.id]: DEFAULT_NAV_ORDER[group.id] })
+                    }
                     aria-label="Khôi phục thứ tự mặc định"
                     title="Khôi phục thứ tự mặc định"
                     className={`ml-auto -mr-2 flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] sm:-mr-1 sm:h-7 sm:w-7 ${focusRing}`}
@@ -313,7 +373,13 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
                 <SortableContext items={order[group.id]} strategy={verticalListSortingStrategy}>
                   <div className="space-y-0.5">
                     {items.map((item) => (
-                      <SortableNavItem key={item.to} item={item} onNavigate={onNavigate} />
+                      <SortableNavItem
+                        key={item.to}
+                        item={item}
+                        onNavigate={onNavigate}
+                        badge={badges[item.to]}
+                        badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+                      />
                     ))}
                   </div>
                 </SortableContext>
@@ -329,6 +395,65 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
         <div className="mt-2 hidden px-3 text-2xs text-tr-muted sm:block">{t.search.hint}</div>
       </div>
     </>
+  );
+}
+
+function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & NavBadgeProps) {
+  const Icon = item.icon;
+
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      title={item.label}
+      aria-label={item.label}
+      className={({ isActive }) =>
+        `relative flex h-11 w-11 items-center justify-center rounded-control transition sm:h-9 sm:w-9 ${focusRing} ${
+          isActive
+            ? 'bg-[var(--tr-nav-active-bg)] text-[var(--tr-nav-active-text)]'
+            : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
+        }`
+      }
+    >
+      <Icon size={18} aria-hidden="true" />
+      {badge > 0 && (
+        <span
+          className={`absolute top-1 right-1 h-2 w-2 rounded-full ${
+            badgeTone === 'danger' ? 'bg-tr-danger' : 'bg-tr-primary'
+          }`}
+          aria-hidden="true"
+        />
+      )}
+    </NavLink>
+  );
+}
+
+/** Dai thu gon: chi hien icon, bo qua bang gan sao va keo-tha de giu don gian. */
+function CollapsedNav({ order }: { order: NavOrder }) {
+  const badges = useNavBadges();
+  const items = NAV_GROUPS.flatMap((group) => {
+    const itemMap = new Map(group.items.map((item) => [item.to, item]));
+    return order[group.id]
+      .map((to) => itemMap.get(to))
+      .filter((item): item is NavItem => item !== undefined);
+  });
+
+  return (
+    <nav aria-label={t.app.name} className="flex flex-1 flex-col items-center gap-1 py-3">
+      <CollapsedNavLink item={HOME_NAV} />
+      <div className="my-1.5 h-px w-6 bg-[var(--tr-nav-border)]" aria-hidden="true" />
+      {items.map((item) => (
+        <CollapsedNavLink
+          key={item.to}
+          item={item}
+          badge={badges[item.to]}
+          badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+        />
+      ))}
+      <div className="mt-auto pt-2">
+        <CollapsedNavLink item={SETTINGS_NAV} />
+      </div>
+    </nav>
   );
 }
 
@@ -380,7 +505,7 @@ function NavDrawer({ order, onOrderChange }: Omit<SidebarNavProps, 'onNavigate'>
 }
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(loadCollapsed);
   const [navOrder, setNavOrder] = useState<NavOrder>(loadNavOrder);
 
   const updateNavOrder = (next: NavOrder) => {
@@ -392,27 +517,37 @@ export function Sidebar() {
     }
   };
 
+  const updateCollapsed = (next: boolean) => {
+    setCollapsed(next);
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? '1' : '0');
+    } catch {
+      // Trinh duyet chan storage van khong duoc lam hong thao tac thu gon trong phien.
+    }
+  };
+
   return (
     <>
       <NavDrawer order={navOrder} onOrderChange={updateNavOrder} />
 
       {collapsed ? (
-        <aside className="hidden w-4 shrink-0 items-start justify-center border-r border-[var(--tr-nav-border)] bg-transparent pt-4 md:flex">
+        <aside className="tr-scroll hidden w-14 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
           <button
             type="button"
-            onClick={() => setCollapsed(false)}
-            className={`-mr-3 rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
+            onClick={() => updateCollapsed(false)}
+            className={`mx-auto mt-3 flex h-9 w-9 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${focusRing}`}
             aria-label="Mở rộng thanh điều hướng"
             aria-expanded={false}
           >
             <ChevronRight size={14} aria-hidden="true" />
           </button>
+          <CollapsedNav order={navOrder} />
         </aside>
       ) : (
         <aside className="tr-scroll relative z-30 hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
           <button
             type="button"
-            onClick={() => setCollapsed(true)}
+            onClick={() => updateCollapsed(true)}
             className={`absolute -right-3 top-3 z-30 rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
             aria-label="Thu gọn thanh điều hướng"
             aria-expanded

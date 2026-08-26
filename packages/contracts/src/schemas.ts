@@ -71,6 +71,37 @@ export const createTaskInputSchema = taskLinksSchema.extend({
 });
 export type CreateTaskInput = z.infer<typeof createTaskInputSchema>;
 
+/**
+ * Ghi chu hop cua Co hoi / Du an.
+ *
+ * `deal_id`/`project_id` deu tuy chon o tang schema — phai co it nhat mot cai, kiem
+ * bang `.refine` vi mot Co hoi da gan Du an trien khai co the mang ca hai. `project_id`
+ * KHONG nam trong `entityLinksSchema` (assertEntityLinks khong biet cot nay) nen route
+ * phai tu goi them assertProjectCustomerLink.
+ *
+ * `content_json` la chuoi JSON block cua trinh soan thao phia client (BlockNote) —
+ * server luu nguyen van, khong parse. `content_text` la ban chu thuan client tu suy
+ * ra tu content_json, dung de tim kiem va lam ngu canh AI.
+ */
+/** Truong tho — dung rieng de route con goi duoc `.partial()` cho PATCH (autosave). */
+export const meetingNoteFieldsSchema = z.object({
+  customer_id: z.number().int().positive().nullable().optional(),
+  deal_id: z.number().int().positive().nullable().optional(),
+  project_id: z.number().int().positive().nullable().optional(),
+  title: z.string().trim().min(1, 'Tieu de khong duoc de trong').max(300),
+  meeting_at: z.string().min(10).max(30).nullable().optional(),
+  content_json: z.string().max(2_000_000).optional(),
+  content_text: z.string().max(500_000).optional(),
+  attendee_contact_ids: z.array(z.number().int().positive()).max(100).optional(),
+});
+/**
+ * Truoc day bat buoc `deal_id` hoac `project_id` (xem lich su git) — tu v31 mot
+ * ghi chu co the doc lap (tao nhanh tu trang "Ghi chu", chua gan Co hoi/Du an
+ * nao). Alias truc tiep sang `meetingNoteFieldsSchema`, khong `.refine()` nua.
+ */
+export const meetingNoteInputSchema = meetingNoteFieldsSchema;
+export type MeetingNoteInput = z.infer<typeof meetingNoteInputSchema>;
+
 export const apiErrorSchema = z
   .object({ error: z.string(), code: z.string().optional() })
   .catchall(z.unknown());

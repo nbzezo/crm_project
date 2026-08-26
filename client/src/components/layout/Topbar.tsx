@@ -1,4 +1,4 @@
-import { Diamond, Menu, Plus } from 'lucide-react';
+import { Diamond, Menu } from 'lucide-react';
 import { Link } from 'react-router';
 import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
@@ -9,7 +9,6 @@ import { focusRing } from '../common/ui';
 
 export function Topbar() {
   const setNavOpen = useUiStore((s) => s.setNavOpen);
-  const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   return (
     <header className="tr-topbar flex h-14 shrink-0 items-center gap-1 border-b border-tr-border/70 bg-transparent px-2.5 sm:gap-2 sm:px-5">
@@ -38,17 +37,6 @@ export function Topbar() {
       <div className="ml-1 min-w-0 flex-1">
         <SearchBox />
       </div>
-
-      {/* Tao cong viec khong can ngu canh — form tu chon bang/danh sach mac dinh. */}
-      <button
-        type="button"
-        onClick={() => openTaskComposer()}
-        aria-label="Tạo công việc"
-        title="Tạo công việc"
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-text sm:h-9 sm:w-9 ${focusRing}`}
-      >
-        <Plus size={20} aria-hidden="true" />
-      </button>
 
       <ThemeToggle />
       <ReminderBell />

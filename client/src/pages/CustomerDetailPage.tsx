@@ -179,6 +179,7 @@ export default function CustomerDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <AiBrief contextType="customer" contextId={id} />
           <Button onClick={() => setEditing(true)}>
             <Pencil size={15} /> {t.common.edit}
           </Button>
@@ -186,10 +187,6 @@ export default function CustomerDetailPage() {
             <Trash2 size={15} />
           </Button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <AiBrief contextType="customer" contextId={id} compact />
       </div>
 
       <Tabs

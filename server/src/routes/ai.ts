@@ -14,6 +14,7 @@ import {
   rejectActionProposal,
   saveActionProposal,
 } from '../services/ai/actions.ts';
+import { getMeetingNote, saveAiSummary } from '../services/meetingNoteService.ts';
 import { runAutomation } from '../services/ai/automations.ts';
 import {
   listProviderConfigs,
@@ -438,6 +439,130 @@ router.post('/assist/document/:id', async (req, res) => {
   }
 });
 
+const meetingNoteSummarySchema = z.object({
+  summary: z.string().min(1),
+  action_items: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(300),
+        due_date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .default(null),
+      })
+    )
+    .max(20)
+    .default([]),
+});
+
+/**
+ * Tom tat ghi chu hop + de xuat viec can lam.
+ *
+ * De xuat KHONG tao Task truc tiep — di qua ai_action_proposals (saveActionProposal,
+ * da co san o ai/actions.ts) dung y het luong /ask, de nguoi dung duyet qua
+ * /api/ai/actions/:id/approve thay vi mot duong tao task rieng chi cho man hinh nay.
+ */
+router.post('/assist/meeting-note/:id/summarize', async (req, res) => {
+  try {
+    const id = intParam(req.params.id);
+    const note = getMeetingNote(db, id) as {
+      title: string;
+      content_text: string;
+      customer_id: number | null;
+      deal_id: number | null;
+      project_id: number | null;
+    };
+    if (!note.content_text.trim()) {
+      throw new HttpError(400, 'Ghi chú chưa có nội dung để tóm tắt');
+    }
+    const { data, meta } = await runStructured(
+      db,
+      {
+        task: 'meeting_note_summarize',
+        mode: 'fast',
+        contextType: note.deal_id ? 'deal' : 'project',
+        contextId: note.deal_id ?? note.project_id ?? undefined,
+        maxOutputTokens: 1200,
+        system:
+          'Bạn tóm tắt ghi chú cuộc họp CRM tiếng Việt. Chỉ dùng nội dung đã cho, không bịa thêm sự kiện hay số liệu. Ngày phải đúng YYYY-MM-DD hoặc null.',
+        prompt:
+          'Trả JSON {"summary":"tóm tắt 2-4 câu","action_items":[{"title":"việc cần làm, bắt đầu bằng động từ","due_date":null}]}.\n' +
+          `Tiêu đề ghi chú: ${note.title}\nNội dung:\n${note.content_text.slice(0, 20_000)}`,
+      },
+      meetingNoteSummarySchema
+    );
+
+    saveAiSummary(db, id, data);
+    const proposals = data.action_items.map((item) =>
+      saveActionProposal(db, meta.requestId, {
+        type: 'create_task',
+        title: item.title,
+        payload: {
+          title: item.title,
+          due_date: item.due_date,
+          customer_id: note.customer_id ?? undefined,
+          deal_id: note.deal_id ?? undefined,
+          project_id: note.project_id ?? undefined,
+        },
+      })
+    );
+    res.json({ summary: data.summary, action_items: data.action_items, proposals, meta });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+const meetingNoteInlineSchema = z.object({
+  instruction: z.enum(['continue', 'fix_grammar', 'rewrite', 'shorten']),
+  selection_text: z.string().max(20_000).default(''),
+  surrounding_text: z.string().max(20_000).default(''),
+});
+const meetingNoteInlineResponse = z.object({ text: z.string() });
+
+const INLINE_INSTRUCTION: Record<string, string> = {
+  continue:
+    'Viết tiếp đoạn văn bản, giữ nguyên văn phong. Chỉ trả về phần viết tiếp, không lặp lại đoạn đã có.',
+  fix_grammar:
+    'Sửa lỗi chính tả và ngữ pháp tiếng Việt của đoạn đã chọn, giữ nguyên ý. Chỉ trả về đoạn đã sửa.',
+  rewrite:
+    'Viết lại đoạn đã chọn cho rõ ràng, chuyên nghiệp hơn, giữ nguyên ý chính. Chỉ trả về đoạn đã viết lại.',
+  shorten: 'Rút gọn đoạn đã chọn, giữ ý chính. Chỉ trả về đoạn đã rút gọn.',
+};
+
+/**
+ * Ho tro viet trong luc soan ghi chu hop.
+ *
+ * KHONG streaming — ai/gateway.ts la request/response. Client hien trang thai dang
+ * xu ly roi chen/thay ket qua mot lan, khac Notion AI go chu dan.
+ */
+router.post('/assist/meeting-note/:id/inline', async (req, res) => {
+  try {
+    const id = intParam(req.params.id);
+    const note = getMeetingNote(db, id) as { deal_id: number | null; project_id: number | null };
+    const body = parseBody(meetingNoteInlineSchema, req);
+
+    const result = await runAi(db, {
+      task: 'meeting_note_inline',
+      mode: 'fast',
+      contextType: note.deal_id ? 'deal' : 'project',
+      contextId: note.deal_id ?? note.project_id ?? undefined,
+      maxOutputTokens: 600,
+      system:
+        'Bạn hỗ trợ soạn ghi chú cuộc họp CRM tiếng Việt. Chỉ trả về đúng đoạn văn bản được yêu cầu, không giải thích, không markdown thừa.',
+      prompt:
+        `${INLINE_INSTRUCTION[body.instruction]}\n` +
+        (body.surrounding_text
+          ? `Ngữ cảnh xung quanh:\n${body.surrounding_text.slice(0, 4000)}\n`
+          : '') +
+        `Đoạn văn bản:\n${body.selection_text}`,
+    });
+    res.json(meetingNoteInlineResponse.parse({ text: result.text.trim() }));
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
 function searchCrm(query: string) {
   const q = fold(query);
   const like = `%${q}%`;
@@ -473,6 +598,17 @@ function searchCrm(query: string) {
            FROM cards k LEFT JOIN customers c ON c.id = k.customer_id
            LEFT JOIN deals d ON d.id = k.deal_id
           WHERE k.search_text LIKE ? AND k.is_archived = 0 ORDER BY k.updated_at DESC LIMIT 12`
+      )
+      .all(like),
+    meeting_notes: db
+      .prepare(
+        `SELECT n.id, n.title, n.meeting_at, n.deal_id, n.project_id,
+                d.title AS deal_title, p.name AS project_name
+           FROM meeting_notes n
+           LEFT JOIN deals d ON d.id = n.deal_id
+           LEFT JOIN projects p ON p.id = n.project_id
+          WHERE n.deleted_at IS NULL AND n.search_text LIKE ?
+          ORDER BY n.updated_at DESC LIMIT 8`
       )
       .all(like),
   };

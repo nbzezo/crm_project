@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { Database } from 'better-sqlite3';
 import { FILES_DIR } from '../../db/connection.ts';
 import { buildSearchText, fold } from '../../lib/viSearch.ts';
-import { required } from '../../lib/validate.ts';
+import { HttpError, required } from '../../lib/validate.ts';
 import { extractText, type ExtractMethod } from './textExtract.ts';
 
 interface DocumentRow {
@@ -69,6 +69,17 @@ export async function readDocumentText(
       .get(documentId) as DocumentRow | undefined,
     'Không tìm thấy tài liệu'
   );
+  /*
+   * Cung mot chinh sach ma searchDocumentChunks va buildCustomerContext/buildDealContext
+   * da ap dung: khong dua noi dung tai lieu 'confidential' ra ngoai qua AI provider.
+   * Ham nay la nguon doc noi dung DUY NHAT cho luong /assist/document — chan ngay tai
+   * day de moi noi goi no (hien tai va sau nay) deu duoc bao ve, khong phai tung route.
+   */
+  if (document.confidentiality === 'confidential') {
+    throw new HttpError(422, 'Tài liệu được đánh dấu bảo mật, không thể gửi cho AI bên ngoài', {
+      code: 'DOCUMENT_CONFIDENTIAL',
+    });
+  }
   const extracted = await extractText(
     safeFilePath(document.stored_name),
     document.mime,

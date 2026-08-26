@@ -587,6 +587,37 @@ export interface Interaction {
   result?: string | null;
 }
 
+export interface MeetingNoteAttendee {
+  contact_id: number;
+  full_name: string;
+}
+
+export interface MeetingNoteSummary {
+  summary: string;
+  action_items: { title: string; due_date: string | null }[];
+}
+
+/** Ghi chu hop cua mot Co hoi va/hoac Du an — xem MeetingNotesPanel.tsx. */
+export interface MeetingNote {
+  id: number;
+  customer_id: number | null;
+  deal_id: number | null;
+  project_id: number | null;
+  title: string;
+  meeting_at: string | null;
+  content_json: string;
+  content_text: string;
+  ai_summary: MeetingNoteSummary | null;
+  ai_summary_at: string | null;
+  created_at: string;
+  updated_at: string;
+  attendees: MeetingNoteAttendee[];
+  /** Chi de hien thi (vd. trang "Ghi chu" liet ke tat ca) — khong dung de loc/ghi. */
+  customer_name: string | null;
+  deal_title: string | null;
+  project_name: string | null;
+}
+
 export interface Reminder {
   id: number;
   title: string;

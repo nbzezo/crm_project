@@ -54,6 +54,7 @@ function DashboardHeader({
           <CalendarDays size={14} className="text-tr-muted" aria-hidden="true" />
           {currentDateLabel()}
         </span>
+        <AiBrief contextType="today" />
         <button
           type="button"
           onClick={onRefresh}
@@ -139,8 +140,6 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
       <DashboardHeader refreshing={isFetching} onRefresh={() => void refetch()} />
-
-      <AiBrief contextType="today" compact />
 
       <KpiSummary data={data} onOpenOverdueTasks={() => openTaskBucket('overdue')} />
 

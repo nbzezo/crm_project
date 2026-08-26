@@ -541,6 +541,94 @@
   --cal-contract-end-fg: #163f3e;
 }
 
+/* ---------- Zoho CRM: hoc tu NextGen UI phang, dac diem chinh la ngoc lam + cam
+   (mau icon app CRM) tren nen trang gon, mat do thong tin cao, bo goc nho, do bong
+   toi thieu — nguoc voi phong cach neumorphism cua cream-teal o tren. */
+[data-theme='zoho'] {
+  color-scheme: light;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --radius-compact: 4px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-modal: 16px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 22, 0.1);
+
+  --tr-page-bg: #b7c4c1;
+  --tr-shell-gradient: linear-gradient(130deg, #f4f7f6 0%, #eaf1f0 55%, #dceae6 100%);
+  --tr-shell-border: rgba(14, 66, 62, 0.12);
+  --tr-shell-shadow: 0 24px 58px rgba(10, 40, 38, 0.22);
+  --tr-yellow: #f9b21d;
+  --tr-yellow-soft: #fbe3b0;
+  --tr-on-yellow: #6b4a0a;
+
+  --tr-nav: #0e5c56;
+  --tr-surface: #eaf1f0;
+  --tr-panel: #ffffff;
+  --tr-list: #edf2f1;
+  --tr-card: #ffffff;
+  --tr-text: #1e2624;
+  --tr-subtle: #4b5a57;
+  --tr-muted: #5b6a67;
+  --tr-border: rgba(20, 43, 41, 0.13);
+  --tr-primary: #1b6fae;
+  --tr-primary-hover: #15578c;
+  --tr-on-primary: #ffffff;
+  --tr-danger: #e42527;
+  --tr-on-danger: #ffffff;
+  --tr-success: #0b7a3e;
+  --tr-on-success: #ffffff;
+  --tr-warning: #8a5a12;
+  --tr-hover: rgba(14, 92, 86, 0.06);
+  --tr-hover-strong: rgba(14, 92, 86, 0.12);
+  --tr-overlay: rgba(14, 30, 28, 0.5);
+  --tr-card-shadow: 0 1px 2px rgba(15, 23, 22, 0.06), 0 4px 10px rgba(15, 23, 22, 0.06);
+  --tr-popover-shadow: 0 12px 32px rgba(12, 30, 28, 0.16);
+  --tr-scroll-thumb: rgba(14, 92, 86, 0.22);
+  --tr-scroll-thumb-hover: rgba(14, 92, 86, 0.38);
+  --tr-badge-done-bg: #dcf2e3;
+  --tr-badge-done-fg: #0b5c31;
+  --tr-badge-overdue-bg: #fbdbd6;
+  --tr-badge-overdue-fg: #9e241f;
+  --tr-badge-soon-bg: #fbe3b0;
+  --tr-badge-soon-fg: #7a4a06;
+
+  --tr-navfg: #1e2624;
+  --tr-navfg-muted: #647471;
+  --tr-navfg-border: rgba(20, 43, 41, 0.14);
+  --tr-nav-panel: rgba(255, 255, 255, 0.55);
+  --tr-nav-text: #4b5a57;
+  --tr-nav-border: rgba(20, 43, 41, 0.1);
+  --tr-nav-hover: rgba(14, 92, 86, 0.08);
+  --tr-nav-active-bg: #0e5c56;
+  --tr-nav-active-text: #ffffff;
+
+  --interaction-call-bg: #e3eef6;
+  --interaction-call-fg: #155a8a;
+  --interaction-email-bg: #ede9f7;
+  --interaction-email-fg: #5b4c93;
+  --interaction-meeting-bg: #dcf2e6;
+  --interaction-meeting-fg: #1f6e45;
+  --interaction-demo-bg: #fbe4d3;
+  --interaction-demo-fg: #8a4712;
+  --interaction-proposal-bg: #fbdbd6;
+  --interaction-proposal-fg: #9e241f;
+  --interaction-followup-bg: #dff3f2;
+  --interaction-followup-fg: #135f58;
+  --interaction-zalo-bg: #e3eef6;
+  --interaction-zalo-fg: #0e4e86;
+  --tr-relation-good: #4e9b4a;
+
+  --cal-reminder-bg: #f9b21d;
+  --cal-reminder-fg: #1e2624;
+  --cal-next-action-bg: #c1500f;
+  --cal-next-action-fg: #ffffff;
+  --cal-deal-close-bg: #6e5ca8;
+  --cal-deal-close-fg: #ffffff;
+  --cal-contract-end-bg: #4fa8ae;
+  --cal-contract-end-fg: #103634;
+}
+
 /* Chieu sau rieng cho ba bo UI: raised control, inset field, va thanh dieu huong. */
 [data-theme='neo-tactile']
   :where(
@@ -666,6 +754,36 @@
   background-color: #075e60;
 }
 
+[data-theme='zoho'] .tr-bento-dark {
+  --tr-panel: #0b4f4a;
+  --tr-text: #f3fbf9;
+  --tr-subtle: #c9e2de;
+  --tr-muted: #9fc4bf;
+  --tr-border: rgba(243, 251, 249, 0.14);
+  --tr-hover: rgba(255, 255, 255, 0.08);
+  --tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --tr-primary: #f2793a;
+  --tr-primary-hover: #ff8f52;
+  --tr-on-primary: #2a1608;
+  --tr-danger: #ff9a8f;
+  --tr-success: #7ee2b8;
+  --tr-warning: #f9b21d;
+  --color-tr-panel: #0b4f4a;
+  --color-tr-text: #f3fbf9;
+  --color-tr-subtle: #c9e2de;
+  --color-tr-muted: #9fc4bf;
+  --color-tr-border: rgba(243, 251, 249, 0.14);
+  --color-tr-hover: rgba(255, 255, 255, 0.08);
+  --color-tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --color-tr-primary: #f2793a;
+  --color-tr-primary-hover: #ff8f52;
+  --color-tr-on-primary: #2a1608;
+  --color-tr-danger: #ff9a8f;
+  --color-tr-success: #7ee2b8;
+  --color-tr-warning: #f9b21d;
+  background-color: #0b4f4a;
+}
+
 [data-theme='neat-slate'] :where(.bg-tr-primary) {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.09));
   box-shadow:
@@ -677,6 +795,76 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 4px 9px color-mix(in srgb, var(--tr-primary) 27%, transparent);
+}
+
+[data-theme='zoho'] :where(.bg-tr-primary) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 6px color-mix(in srgb, var(--tr-primary) 22%, transparent);
+}
+
+/* ---------- Zoho CRM: lop skin nhe cho danh sach/checkbox dang doanh nghiep ---------- */
+[data-theme='zoho'] :where(input[type='checkbox'], input[type='radio']) {
+  accent-color: var(--tr-primary);
+}
+
+[data-theme='zoho'] table > thead,
+[data-theme='zoho'] .tr-table-head {
+  background-color: var(--tr-surface);
+  box-shadow: 0 1px 0 var(--tr-border);
+}
+
+/* Ngon ngu icon Zoho: net mong hon (1.75 thay vi 2) — gon va "doanh nghiep"
+   hon, khong doi bo icon dang dung (lucide-react) hay component nao. */
+[data-theme='zoho'] svg {
+  stroke-width: 1.75;
+}
+
+/* Bo cuc khoi cho thanh dieu huong: khoi vuong bo goc nho thay vi vien tron
+   kieu Trello, cong them vach mau ben trai cho muc dang chon — dac trung cua
+   sidebar module trong cac app Zoho. Chi doi hinh dang/vien, khong doi cau
+   truc DOM cua Sidebar.tsx. */
+[data-theme='zoho'] aside nav a {
+  border-radius: var(--radius-control);
+}
+[data-theme='zoho'] aside nav a[aria-current='page'] {
+  box-shadow: inset 3px 0 0 var(--tr-primary);
+}
+
+/* Khoi the/panel phang, khong nhun khi hover — dung phong cach flat cua theme. */
+[data-theme='zoho'] .tr-bento-card:hover {
+  transform: none;
+  box-shadow: var(--tr-card-shadow);
+}
+
+/* Quy trinh giai doan co hoi kieu "path": moi buoc la mot khoi vien ro, noi
+   voi nhau bang dau chevron nho — hoc tu statusbar/blueprint cua Zoho CRM.
+   Chi doi hinh thuc hien thi (CSS), khong dong den logic chuyen giai doan
+   trong DealStageStepper.tsx. */
+[data-theme='zoho'] [aria-label='Giai đoạn cơ hội'] {
+  gap: 14px;
+}
+[data-theme='zoho'] [aria-label='Giai đoạn cơ hội'] > button {
+  position: relative;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--tr-border);
+}
+[data-theme='zoho'] [aria-label='Giai đoạn cơ hội'] > button:disabled {
+  border-color: transparent;
+}
+[data-theme='zoho'] [aria-label='Giai đoạn cơ hội'] > button:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  width: 6px;
+  height: 6px;
+  margin-top: -4px;
+  border-top: 2px solid var(--tr-muted);
+  border-right: 2px solid var(--tr-muted);
+  transform: rotate(45deg);
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* ---------- Kem ngoc: lop skin cho shared components ---------- */
@@ -821,7 +1009,8 @@
 
 [data-theme='neo-tactile'] ::selection,
 [data-theme='neat-slate'] ::selection,
-[data-theme='cream-teal'] ::selection {
+[data-theme='cream-teal'] ::selection,
+[data-theme='zoho'] ::selection {
   background: color-mix(in srgb, var(--tr-primary) 25%, transparent);
 }
 
@@ -839,22 +1028,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* ---------- Bento app shell ---------- */
+/* ---------- App shell: phu kin cua so, khong con kieu "the noi" bo goc ---------- */
 .tr-app-stage {
   height: 100%;
-  padding: 20px;
   background: var(--tr-page-bg);
 }
 
 .tr-app-shell {
   height: 100%;
-  width: min(1760px, 100%);
-  margin-inline: auto;
+  width: 100%;
   overflow: hidden;
-  border: 1px solid var(--tr-shell-border);
-  border-radius: 30px;
   background: var(--tr-shell-gradient);
-  box-shadow: var(--tr-shell-shadow);
 }
 
 .tr-bento-hero {
@@ -907,19 +1091,6 @@ body {
   --color-tr-success: #7ee2b8;
   --color-tr-warning: #f8d65c;
   background-color: var(--tr-panel);
-}
-
-@media (max-width: 760px) {
-  .tr-app-stage {
-    padding: 0;
-  }
-
-  .tr-app-shell {
-    width: 100%;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
 }
 
 /* ---------- Thanh cuon ---------- */
@@ -1182,6 +1353,42 @@ body {
 .fc .fc-timegrid-now-indicator-arrow {
   border-color: var(--tr-danger);
   color: var(--tr-danger);
+}
+
+/* ---------- BlockNote (ghi chu hop) ----------
+   Hoc theo bo cuc trang note cua Notion: noi dung gioi han be rong doc (nhu
+   mot "trang giay" giua panel rong) va tieu de it tang nhay vot hon mac dinh
+   cua BlockNote (H1 mac dinh 3em ~ 48px, qua kho so voi phan con lai cua giao
+   dien von dung co chu nho gon — xem --text-sm o dau file). Chi thu nho ty le,
+   khong tat tinh nang dinh dang nao. */
+.meeting-note-canvas .bn-default-styles {
+  font-size: 14px;
+}
+.meeting-note-canvas .bn-editor {
+  max-width: 760px;
+  margin-inline: auto;
+  /* BlockNote tu dat nen trang rieng (--bn-colors-editor-background) khac mau
+     voi bg-tr-list cua khung ngoai — bo di de ca khung la MOT be mat lien
+     mach, khong con "mieng trang nho" noi giua vung trong. */
+  background-color: transparent;
+}
+.meeting-note-canvas [data-content-type='heading'] {
+  padding-top: 12px;
+}
+.meeting-note-canvas [data-content-type='heading'][data-level='1'],
+.meeting-note-canvas [data-prev-level='1'] {
+  --level: 1.7em;
+  --prev-level: 1.7em;
+}
+.meeting-note-canvas [data-content-type='heading'][data-level='2'],
+.meeting-note-canvas [data-prev-level='2'] {
+  --level: 1.4em;
+  --prev-level: 1.4em;
+}
+.meeting-note-canvas [data-content-type='heading'][data-level='3'],
+.meeting-note-canvas [data-prev-level='3'] {
+  --level: 1.2em;
+  --prev-level: 1.2em;
 }
 
 /* ---------- Input trong che do toi ---------- */

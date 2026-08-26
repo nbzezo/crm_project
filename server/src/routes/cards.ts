@@ -13,6 +13,7 @@ import {
   resolveAssignee,
   type EntityLinks,
 } from '../lib/entityRelations.ts';
+import { assertValidFieldValue, parseFieldOptions } from '../lib/cardFieldValues.ts';
 import {
   addDependency,
   createCard,
@@ -22,6 +23,7 @@ import {
   resolveDefaultList,
   setCardStatus,
 } from '../services/cardService.ts';
+import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import { notifyAssigneeChangeTelegram } from '../services/telegram/telegramNotifier.ts';
 
 const router = Router();
@@ -200,7 +202,7 @@ router.get('/:id', (req, res) => {
           ORDER BY f.board_id IS NULL DESC, f.position, f.id`
       )
       .all(id, boardId, boardId) as Record<string, unknown>[]
-  ).map((row) => ({ ...row, options: parseOptions(row.options) }));
+  ).map((row) => ({ ...row, options: parseFieldOptions(row.options) }));
 
   const dueChanges = db
     .prepare(
@@ -242,31 +244,38 @@ router.delete('/:id/dependencies/:predecessorId', (req, res) => {
   res.json(listDependencies(successorId));
 });
 
-/** options luu duoi dang chuoi JSON — luon tra ve mang cho client. */
-function parseOptions(raw: unknown): string[] {
-  try {
-    const parsed = JSON.parse(String(raw ?? '[]')) as unknown;
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
 /** Dat (hoac xoa) gia tri mot truong thong tin cho the. */
 router.put('/:id/fields/:fieldId', (req, res) => {
   const id = intParam(req.params.id);
   const fieldId = intParam(req.params.fieldId, 'fieldId');
   const body = parseBody(z.object({ value: z.string() }), req);
 
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(id), 'Khong tim thay the');
-  required(
-    db.prepare(`SELECT id FROM card_fields WHERE id = ?`).get(fieldId),
+  const card = required(
+    db.prepare(`SELECT list_id FROM cards WHERE id = ?`).get(id),
+    'Khong tim thay the'
+  ) as { list_id: number };
+  const field = required(
+    db.prepare(`SELECT board_id, field_type, options FROM card_fields WHERE id = ?`).get(fieldId),
     'Khong tim thay truong thong tin'
-  );
+  ) as { board_id: number | null; field_type: string; options: string };
+
+  /* Truong rieng cua mot bang thi chi duoc ghi cho the THUOC dung bang do — cung
+     dieu kien loc ma GET /:id da ap dung khi doc, gio ap cho ca duong ghi. */
+  if (field.board_id != null) {
+    const board = db
+      .prepare(`SELECT b.id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`)
+      .get(card.list_id) as { id: number } | undefined;
+    if (board?.id !== field.board_id) {
+      throw new HttpError(422, 'Truong thong tin nay khong thuoc bang cua the', {
+        code: 'FIELD_BOARD_MISMATCH',
+      });
+    }
+  }
 
   if (body.value === '') {
     db.prepare(`DELETE FROM card_field_values WHERE card_id = ? AND field_id = ?`).run(id, fieldId);
   } else {
+    assertValidFieldValue(field.field_type, field.options, body.value);
     db.prepare(
       `INSERT INTO card_field_values (card_id, field_id, value) VALUES (?, ?, ?)
        ON CONFLICT(card_id, field_id) DO UPDATE SET value = excluded.value`
@@ -553,7 +562,12 @@ router.patch('/:id/move', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  db.prepare(`DELETE FROM cards WHERE id = ?`).run(id);
+  db.transaction(() => {
+    /* documents.card_id la ON DELETE CASCADE — soft-delete truoc de tai lieu di
+       qua Thung rac (va unverifyBySource) thay vi bi SQLite hard-delete am tham. */
+    softDeleteDocumentsForCards([id]);
+    db.prepare(`DELETE FROM cards WHERE id = ?`).run(id);
+  })();
   res.json({ ok: true });
 });
 

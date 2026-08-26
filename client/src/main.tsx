@@ -28,6 +28,7 @@ const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
 const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
+const NotesPage = lazy(() => import('./pages/NotesPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -103,6 +104,7 @@ const router = createBrowserRouter([
         handle: { title: 'Tổ chức & nhân sự' },
       },
       { path: 'ai', element: <AiWorkspacePage />, handle: { title: 'Trợ lý AI' } },
+      { path: 'notes', element: <NotesPage />, handle: { title: 'Ghi chú', visibleHeading: true } },
       { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },
     ],
   },

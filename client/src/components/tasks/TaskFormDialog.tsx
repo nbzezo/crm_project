@@ -307,6 +307,7 @@ export function TaskFormDialog() {
         label: 'Mở công việc',
         run: () => openCard(created.id),
       });
+      composer?.onCreated?.(created);
       close();
     },
   });

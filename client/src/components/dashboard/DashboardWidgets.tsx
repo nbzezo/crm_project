@@ -567,7 +567,7 @@ function TaskItem({ task, onOpen }: { task: TaskRow; onOpen: (id: number) => voi
       <button
         type="button"
         onClick={() => onOpen(task.id)}
-        className={`group flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control px-1 py-2 text-left transition hover:bg-tr-hover ${focusRing}`}
+        className={`group flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control px-1 py-2 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
         aria-label={`Mở công việc ${task.title}`}
       >
         <PriorityBadge priority={task.priority} small />
@@ -708,7 +708,7 @@ function ReminderItem({
   presentation: ReminderPresentation;
   onOpenTask: (id: number) => void;
 }) {
-  const className = `group flex min-h-10 w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition hover:bg-tr-hover ${focusRing}`;
+  const className = `group flex min-h-10 w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1 ${focusRing}`;
   const content = (
     <>
       <Bell
@@ -1046,7 +1046,7 @@ export function WorkloadWidget({
                 type="button"
                 onClick={() => onSelectAssignee(row.assignee_contact_id ?? 'none')}
                 aria-label={`${row.assignee_name ?? t.card.unassigned}: ${row.open_count} việc đang mở, ${row.overdue_count} quá hạn`}
-                className={`group flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover ${focusRing}`}
+                className={`group flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
               >
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {row.assignee_name ? (
@@ -1112,7 +1112,7 @@ export function ContractsWidget({ data }: { data: DashboardData }) {
               <li key={contract.id}>
                 <Link
                   to="/contracts"
-                  className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover ${focusRing}`}
+                  className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
                   aria-label={`${contract.name}, ${contractCountdown(contract.days_left)}`}
                 >
                   <span
@@ -1177,7 +1177,7 @@ export function RecentActivityWidget({ interactions }: { interactions: Interacti
             <li key={item.id}>
               <Link
                 to={`/customers/${item.customer_id}`}
-                className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover ${focusRing}`}
+                className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
               >
                 <Activity
                   size={14}
@@ -1235,7 +1235,7 @@ export function BoardSummaryWidget({ boards }: { boards: DashboardData['recent_b
             <li key={board.id}>
               <Link
                 to={`/boards/${board.id}`}
-                className={`group flex min-h-11 min-w-0 items-center gap-2.5 rounded-control px-1.5 py-2 transition hover:bg-tr-hover ${focusRing}`}
+                className={`group flex min-h-11 min-w-0 items-center gap-2.5 rounded-control px-1.5 py-2 transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
               >
                 <span
                   className="h-8 w-1.5 shrink-0 rounded-full"

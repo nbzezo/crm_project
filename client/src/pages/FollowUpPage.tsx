@@ -31,17 +31,10 @@ import { daysFromToday } from '../components/tasks/TaskPresentation';
 import { NUDGE_CHANNELS } from '@workflow/contracts';
 import { t } from '../i18n/vi';
 import { formatDateShort } from '../lib/format';
+import { NUDGE_HORIZON_DAYS, selectNeedsNudge } from '../lib/followUp';
 import { invalidateCardViews } from '../lib/queryKeys';
 import { useUiStore } from '../stores/uiStore';
 import type { NudgeChannel, TaskRow } from '../types';
-
-/**
- * Trong bao lâu nữa thì một việc đáng nhắc.
- *
- * 3 ngày, không phải "đến hạn hôm nay": nhắc vào đúng ngày hết hạn thì đã muộn —
- * người phụ trách không còn thời gian để làm.
- */
-const NUDGE_HORIZON_DAYS = 3;
 
 interface DraftResult {
   subject: string;
@@ -85,13 +78,7 @@ export default function FollowUpPage() {
     queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
   });
 
-  const needsNudge = tasks.filter((task) => {
-    if (task.parent_id) return false; // việc con đi theo việc cha, nhắc hai lần là thừa
-    const days = daysFromToday(task.due_date);
-    const dueSoon = days !== null && days <= NUDGE_HORIZON_DAYS;
-    const waiting = task.status === 'blocked' || task.status === 'waiting_customer';
-    return dueSoon || waiting;
-  });
+  const needsNudge = selectNeedsNudge(tasks);
 
   const groups = groupByAssignee(needsNudge);
 
@@ -157,7 +144,7 @@ export default function FollowUpPage() {
                     <button
                       type="button"
                       onClick={() => openCard(task.id, 'drawer')}
-                      className={`flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover ${focusRing}`}
+                      className={`flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
                     >
                       <span className="min-w-0 flex-1 truncate text-sm text-tr-text">
                         {task.title}

@@ -39,11 +39,12 @@ test.beforeEach(async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('chon va luu ba giao dien tuy bien', async ({ page }) => {
+test('chon va luu bon giao dien tuy bien', async ({ page }) => {
   const themes = [
     { label: 'Neo ấm', value: 'neo-tactile' },
     { label: 'Neat Slate', value: 'neat-slate' },
     { label: 'Kem ngọc', value: 'cream-teal' },
+    { label: 'Zoho CRM', value: 'zoho' },
   ] as const;
 
   for (const theme of themes) {
@@ -66,8 +67,8 @@ test('chon va luu ba giao dien tuy bien', async ({ page }) => {
   }
 
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'cream-teal');
-  await expect(page.getByRole('button', { name: 'Giao diện: Kem ngọc' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'zoho');
+  await expect(page.getByRole('button', { name: 'Giao diện: Zoho CRM' })).toBeVisible();
 });
 
 test('notification center xu ly, hoan tac va mo dung ngu canh lich', async ({

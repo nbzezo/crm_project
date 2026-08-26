@@ -318,4 +318,23 @@ export function assertParentListCompatible(
       code: 'PARENT_BOARD_MISMATCH',
     });
   }
+
+  /*
+   * Chieu nguoc lai: `cardId` la CHA — cac viec con cua no phai VAN cung bang sau
+   * khi di chuyen. Thieu ve nay thi doi du an/bang cua viec cha se tach cap
+   * cha-con ra hai bang khac nhau, dung dieu kien tren duoc viet de chan.
+   */
+  const mismatchedChild = db
+    .prepare(
+      `SELECT k.id FROM cards k
+         JOIN lists l ON l.id = k.list_id
+        WHERE k.parent_id = ? AND l.board_id <> ?
+        LIMIT 1`
+    )
+    .get(cardId, checked.target_board_id) as { id: number } | undefined;
+  if (mismatchedChild) {
+    throw new HttpError(422, 'Viec cha phai nam cung bang voi viec con', {
+      code: 'PARENT_BOARD_MISMATCH',
+    });
+  }
 }

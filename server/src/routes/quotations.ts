@@ -126,6 +126,23 @@ router.patch('/:id', (req, res) => {
   assertCrmCustomer(db, merged.customer_id as number);
   assertQuotationDates(merged);
 
+  /*
+   * FR-QUO-04 (xem POST /): version tu tang THEO CO HOI. Doi deal_id ma khong tinh
+   * lai thi bao gia se mang nguyen version cua co hoi CU sang co hoi MOI, co the
+   * trung voi mot bao gia da co san o do. Chi tinh lai khi deal_id thuc su doi va
+   * client khong tu gui version tuong minh — dung logic voi POST.
+   */
+  if (
+    body.deal_id !== undefined &&
+    body.deal_id !== current.deal_id &&
+    body.version === undefined
+  ) {
+    const max = db
+      .prepare(`SELECT MAX(version) AS v FROM quotations WHERE deal_id = ?`)
+      .get(body.deal_id) as { v: number | null };
+    merged.version = (max.v ?? 0) + 1;
+  }
+
   db.prepare(
     `UPDATE quotations SET customer_id = ?, deal_id = ?, code = ?, version = ?, quote_date = ?, value_vnd = ?,
             valid_until = ?, status = ?, notes = ?, updated_at = datetime('now','localtime')

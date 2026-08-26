@@ -26,6 +26,7 @@ import { BoardViewChip, BOARD_VIEWS, type BoardViewMode } from '../components/ka
 import { TimelineBoard } from '../components/views/TimelineBoard';
 import { LazyCalendarView } from '../components/calendar/LazyCalendarView';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
+import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPanel';
 import { HealthBadge, ProjectForm } from './ProjectsPage';
 import { t } from '../i18n/vi';
 import { formatDateShort, formatVND, formatVNDShort } from '../lib/format';
@@ -35,7 +36,8 @@ import { ClassificationPanel } from '../components/crm/ClassificationPanel';
 import { RiskRegister } from '../components/crm/RiskRegister';
 import type { MilestoneState, ProjectDetail } from '../types';
 
-type Tab = 'overview' | 'tasks' | 'phases' | 'risks' | 'people' | 'commercial' | 'documents';
+type Tab =
+  'overview' | 'tasks' | 'phases' | 'risks' | 'people' | 'commercial' | 'documents' | 'notes';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Tổng quan' },
@@ -45,6 +47,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'people', label: 'Nhân sự' },
   { id: 'commercial', label: 'Hợp đồng & cơ hội' },
   { id: 'documents', label: 'Tài liệu' },
+  { id: 'notes', label: 'Ghi chú họp' },
 ];
 
 export default function ProjectDetailPage() {
@@ -182,6 +185,9 @@ export default function ProjectDetailPage() {
             links={project.customer_id ? { customer_id: project.customer_id } : {}}
             title="Tài liệu của khách hàng thuộc dự án"
           />
+        )}
+        {tab === 'notes' && (
+          <MeetingNotesPanel links={{ project_id: id }} customerId={project.customer_id} />
         )}
       </Tabs>
 

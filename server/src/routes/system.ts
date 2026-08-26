@@ -8,7 +8,16 @@ import { fold } from '../lib/viSearch.ts';
 
 const router = Router();
 
-const TABLES = [
+/*
+ * Danh sach bang duoc xuat qua GET /export.
+ *
+ * Day tung la mang viet tay dung o schema v10/v11 roi khong duoc cap nhat theo 18
+ * phien ban migration sau do — am tham bo sot 21 bang (toan bo AI, Du an, Delivery,
+ * Bàn giao...) khoi ban xuat/sao luu JSON ma khong canh bao gi. server/src/test/
+ * exportTables.test.ts doi chieu danh sach nay voi moi CREATE TABLE that o schema
+ * moi nhat — quen them bang moi vao day se lam test do fail, khong con am tham nua.
+ */
+export const EXPORT_TABLES = [
   'customers',
   'contacts',
   'deals',
@@ -38,6 +47,40 @@ const TABLES = [
   'deal_competitors',
   'deal_score_history',
   'app_settings',
+  // v6 — truong thong tin tuy chinh theo bang
+  'card_fields',
+  'card_field_values',
+  // v13 — AI Copilot da nha cung cap
+  'ai_provider_configs',
+  'ai_models',
+  'ai_usage_logs',
+  'ai_feedback',
+  'ai_action_proposals',
+  'ai_document_chunks',
+  'ai_automations',
+  'ai_automation_runs',
+  'ai_notifications',
+  // v16 — nhat ky nhac viec
+  'task_nudges',
+  // v17 — lop du an
+  'projects',
+  // v18 — truot han, phu thuoc
+  'card_due_changes',
+  'card_dependencies',
+  // v20 — trung tam thong bao
+  'notification_states',
+  // v21 — thong bao qua Telegram
+  'telegram_settings',
+  'telegram_sent_log',
+  // v23 — nhat ky thay doi CRM/du an
+  'entity_change_log',
+  // v24 — checklist ban giao
+  'deal_handover_items',
+  // v26 — rui ro du an
+  'project_risks',
+  // v30 — ghi chu hop cho Co hoi va Du an
+  'meeting_notes',
+  'meeting_note_attendees',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
@@ -149,7 +192,7 @@ router.get('/backups/:name/download', (req, res) => {
 
 router.get('/export', (_req, res) => {
   const dump: Record<string, unknown[]> = {};
-  for (const table of TABLES) dump[table] = db.prepare(`SELECT * FROM ${table}`).all();
+  for (const table of EXPORT_TABLES) dump[table] = db.prepare(`SELECT * FROM ${table}`).all();
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename=workflow-export-${date}.json`);

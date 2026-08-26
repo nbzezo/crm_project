@@ -39,6 +39,24 @@ export const STAGE_PROBABILITY: Record<Stage, number> = {
   lost: 0,
 };
 
+/**
+ * So ngay khong co hoat dong thi coi mot co hoi la "nguoi lanh" (FR-PIP-04).
+ *
+ * Dung chung server (routes/views.ts, danh sach "Can chu y") va client
+ * (DealCard.tsx, vien canh bao tren the Kanban) — hai noi TUNG hard-code rieng
+ * gia tri nay va co the troi khoi nhau khi mot ben doi ma ben kia quen sua.
+ */
+export const STALE_DAYS = 14;
+
+/**
+ * Nguong lat o cua ma tran co hoi (BANT/4P). Moi truc toi da 12 diem.
+ *
+ * Dung chung server (lib/scoring.ts, tinh quadrant that su cua tung co hoi) va
+ * client (OpportunityMatrix.tsx, ve 4 vung nen cua bieu do) — cung ly do voi
+ * STALE_DAYS o tren.
+ */
+export const QUADRANT_CUTOFF = 7;
+
 export const LOST_REASONS = [
   'price',
   'competitor',

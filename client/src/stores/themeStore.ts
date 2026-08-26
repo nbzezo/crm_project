@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 
-export type ThemeMode = 'light' | 'dark' | 'neo-tactile' | 'neat-slate' | 'cream-teal' | 'system';
+export type ThemeMode =
+  | 'light'
+  | 'dark'
+  | 'neo-tactile'
+  | 'neat-slate'
+  | 'cream-teal'
+  | 'zoho'
+  | 'system';
 
 const STORAGE_KEY = 'workflow-theme';
 const THEME_MODES: readonly ThemeMode[] = [
@@ -9,6 +16,7 @@ const THEME_MODES: readonly ThemeMode[] = [
   'neo-tactile',
   'neat-slate',
   'cream-teal',
+  'zoho',
   'system',
 ];
 

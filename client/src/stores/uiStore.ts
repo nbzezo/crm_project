@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CardStatus, Priority } from '../types';
+import type { Card, CardStatus, Priority } from '../types';
 
 export interface TaskFilters {
   q: string;
@@ -125,6 +125,12 @@ export interface TaskComposerState {
   draftTitle?: string;
   /** Bản nháp đầy đủ — dùng cho luồng dán/gõ nhanh rồi nhờ AI chuẩn hóa. */
   draft?: TaskComposerDraft;
+  /**
+   * Goi sau khi luu thanh cong — noi mo form co the nhung mot tham chieu
+   * nguoc lai (vd. ghi chu hop chen mot the tham chieu vao ngay cho vua go
+   * "/công việc"). Khong bat buoc — cac noi mo form khac khong can quan tam.
+   */
+  onCreated?: (card: Card) => void;
 }
 
 interface UiState {

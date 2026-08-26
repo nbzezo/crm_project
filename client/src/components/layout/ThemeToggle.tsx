@@ -1,4 +1,5 @@
 import {
+  Building2,
   Check,
   CircleDot,
   LayoutPanelTop,
@@ -54,6 +55,13 @@ const OPTIONS: ThemeOption[] = [
     description: 'Neumorphic kem & xanh teal',
     icon: CircleDot,
     colors: ['#e8e0cf', '#f4eddd', '#087274'],
+  },
+  {
+    mode: 'zoho',
+    label: 'Zoho CRM',
+    description: 'Phẳng gọn kiểu doanh nghiệp — ngọc lam & cam',
+    icon: Building2,
+    colors: ['#eaf1f0', '#ffffff', '#0e5c56'],
   },
   {
     mode: 'system',
