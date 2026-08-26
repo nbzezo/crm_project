@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { ListTodo, NotebookText, X } from 'lucide-react';
+import { ListTodo, NotebookPen, NotebookText, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
 import { useUiStore } from '../../stores/uiStore';
@@ -31,16 +31,19 @@ function CheckBadgeIcon({ className }: { className?: string }) {
 }
 
 /**
- * Nut hanh dong noi (FAB) — luon noi tren moi trang, bam vao xoe ra hai lua
+ * Nut hanh dong noi (FAB) — luon noi tren moi trang, bam vao xoe ra ba lua
  * chon "tao nhanh": Cong viec (dung lai openTaskComposer, giong nut "+" cu o
- * Topbar — nut do da bo vi trung lap) va Ghi chu (tao mot ghi chu DOC LAP —
- * xem migrate-v31.sql — roi dieu huong sang trang "Ghi chu" va mo san ghi chu
- * do). Mount mot lan o App.tsx, khong phu thuoc trang dang xem.
+ * Topbar — nut do da bo vi trung lap), Ghi chu nhanh (mo Bang Ghi chu nhanh —
+ * overlay kieu Sticky Notes, xem QuickNotesBoard.tsx — VOI mot ghi chu rong
+ * dang mo san) va Ghi chu (Ghi chu hop CRM, tao mot ghi chu DOC LAP — xem
+ * migrate-v31.sql — roi dieu huong sang trang "Ghi chu"). Mount mot lan o
+ * App.tsx, khong phu thuoc trang dang xem.
  */
 export function QuickCreateFab() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const pushToast = useUiStore((s) => s.pushToast);
 
   const createNote = useMutation({
@@ -52,6 +55,24 @@ export function QuickCreateFab() {
     onError: (error) =>
       pushToast(error instanceof Error ? error.message : 'Không tạo được ghi chú'),
   });
+
+  /**
+   * FR22: mo thang Bang Ghi chu nhanh voi mot ghi chu rong tu bat ky dau,
+   * khong phai qua hai lan bam (mo FAB roi bam Ghi chu nhanh) — khop muc tieu
+   * UX < 1 giay cua BRD muc 37. Khong dung Ctrl/Cmd+K vi phim do da danh cho
+   * Tim kiem (SearchBox.tsx).
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setOpen(false);
+        openQuickNotesBoard({ createNew: true });
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [openQuickNotesBoard]);
 
   return (
     <>
@@ -71,6 +92,17 @@ export function QuickCreateFab() {
             >
               <ListTodo size={16} className="text-tr-primary" aria-hidden="true" />
               Công việc
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                openQuickNotesBoard({ createNew: true });
+              }}
+              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
+            >
+              <NotebookPen size={16} className="text-tr-primary" aria-hidden="true" />
+              Ghi chú nhanh
             </button>
             <button
               type="button"

@@ -35,12 +35,14 @@ interface SearchResults {
     end_date: string | null;
   }[];
   documents: { id: number; name: string; doc_type: string; customer_name: string | null }[];
+  quickNotes: { id: number; title: string; updated_at: string }[];
 }
 
 export function SearchBox() {
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const openCard = useUiStore((s) => s.openCard);
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -223,6 +225,21 @@ export function SearchBox() {
                       secondary={[t.docType[d.doc_type], d.customer_name]
                         .filter(Boolean)
                         .join(' · ')}
+                    />
+                  ))}
+                </Group>
+              )}
+
+              {data && data.quickNotes?.length > 0 && (
+                <Group title="Ghi chú nhanh">
+                  {data.quickNotes.map((n) => (
+                    <Row
+                      key={n.id}
+                      onClick={() => {
+                        openQuickNotesBoard({ focusId: n.id });
+                        close();
+                      }}
+                      primary={n.title || 'Ghi chú không tiêu đề'}
                     />
                   ))}
                 </Group>

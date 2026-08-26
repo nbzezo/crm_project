@@ -13,6 +13,11 @@ const TaskFormDialog = lazy(() =>
     default: module.TaskFormDialog,
   }))
 );
+const QuickNotesBoard = lazy(() =>
+  import('./components/quickNotes/QuickNotesBoard').then((module) => ({
+    default: module.QuickNotesBoard,
+  }))
+);
 
 export default function App() {
   const matches = useMatches();
@@ -58,6 +63,7 @@ export default function App() {
       <Suspense fallback={null}>
         <CardModal />
         <TaskFormDialog />
+        <QuickNotesBoard />
       </Suspense>
       <QuickCreateFab />
       <Toasts />

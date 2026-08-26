@@ -128,7 +128,7 @@ export function Segmented<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="tr-segmented inline-flex rounded-full border border-tr-border bg-tr-panel p-1 shadow-sm"
+      className="tr-segmented inline-flex flex-wrap rounded-full border border-tr-border bg-tr-panel p-1 shadow-sm"
     >
       {options.map((option) => (
         <button
@@ -136,7 +136,7 @@ export function Segmented<T extends string>({
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`tr-segmented-option inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition ${focusRing} ${
+          className={`tr-segmented-option inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm whitespace-nowrap transition ${focusRing} ${
             value === option.value
               ? 'bg-tr-primary font-medium text-tr-on-primary'
               : 'text-tr-subtle hover:bg-tr-hover'

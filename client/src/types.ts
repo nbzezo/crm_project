@@ -618,6 +618,43 @@ export interface MeetingNote {
   project_name: string | null;
 }
 
+export type QuickNoteRelationType = 'customer' | 'contact' | 'deal' | 'project';
+export type QuickNoteReminderStatus = 'pending' | 'triggered' | 'completed' | 'cancelled';
+export type QuickNoteConvertTarget = 'task' | 'crm_note';
+export type QuickNoteColorKey = 'yellow' | 'green' | 'pink' | 'purple' | 'blue' | 'peach';
+
+export interface QuickNoteRelation {
+  id: number;
+  object_type: QuickNoteRelationType;
+  object_id: number;
+  object_label: string | null;
+}
+
+/**
+ * Ghi chu nhanh (Quick Notes, v32) — module doc lap voi MeetingNote (Ghi chu hop
+ * CRM) o tren. Xem QuickNotesBoard.tsx / QuickNoteCard.tsx.
+ */
+export interface QuickNote {
+  id: number;
+  title: string;
+  content_json: string;
+  content_text: string;
+  tags: string[];
+  is_pinned: number;
+  position: number;
+  color: QuickNoteColorKey | null;
+  reminder_at: string | null;
+  reminder_status: QuickNoteReminderStatus | null;
+  converted_to_type: QuickNoteConvertTarget | null;
+  converted_to_id: number | null;
+  archived_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+  relations: QuickNoteRelation[];
+  attachment_count: number;
+}
+
 export interface Reminder {
   id: number;
   title: string;

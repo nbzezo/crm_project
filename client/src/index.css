@@ -1391,6 +1391,38 @@ body {
   --prev-level: 1.2em;
 }
 
+/* ---------- BlockNote (Ghi chu nhanh) ----------
+   Mot the Sticky Note nho hon nhieu so voi trang Ghi chu hop o tren — chu va
+   khoang cach phai thu nho tiep de mot the vuong con doc duoc nhieu dong. */
+.quick-note-canvas .bn-default-styles {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.quick-note-canvas .bn-editor {
+  padding: 0;
+  /* Nen rieng cua BlockNote se de mot "mieng trang trang" giua the mau —
+     bo di de mau giay ghi chu (dat o the ngoai) xuyen qua duoc. */
+  background-color: transparent;
+}
+.quick-note-canvas [data-content-type='heading'] {
+  padding-top: 4px;
+}
+.quick-note-canvas [data-content-type='heading'][data-level='1'],
+.quick-note-canvas [data-prev-level='1'] {
+  --level: 1.3em;
+  --prev-level: 1.3em;
+}
+.quick-note-canvas [data-content-type='heading'][data-level='2'],
+.quick-note-canvas [data-prev-level='2'] {
+  --level: 1.15em;
+  --prev-level: 1.15em;
+}
+.quick-note-canvas [data-content-type='heading'][data-level='3'],
+.quick-note-canvas [data-prev-level='3'] {
+  --level: 1.05em;
+  --prev-level: 1.05em;
+}
+
 /* ---------- Input trong che do toi ---------- */
 [data-theme='dark'] input[type='date'],
 [data-theme='dark'] input[type='datetime-local'] {

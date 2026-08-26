@@ -35,6 +35,7 @@ import {
   GripVertical,
   LayoutDashboard,
   ListChecks,
+  NotebookPen,
   NotebookText,
   RotateCcw,
   Settings,
@@ -59,6 +60,12 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   end?: boolean;
+  /**
+   * Item nay khong dieu huong sang trang — bam de mo mot overlay toan cuc (vd.
+   * Bang Ghi chu nhanh, xem QuickNotesBoard.tsx). `to` van dung lam id on dinh
+   * cho sap xep/badge, chi khong duoc dung lam duong dan thuc su.
+   */
+  isAction?: boolean;
 }
 
 type NavGroupId = 'work' | 'sales' | 'insights';
@@ -104,6 +111,7 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
       { to: '/reports', label: t.nav.reports, icon: BarChart3 },
       { to: '/ai', label: t.nav.ai, icon: Sparkles },
       { to: '/notes', label: t.nav.notes, icon: NotebookText },
+      { to: '/quick-notes', label: t.nav.quickNotes, icon: NotebookPen, isAction: true },
     ],
   },
 ];
@@ -222,6 +230,24 @@ function NavItemLink({
   badgeTone,
 }: { item: NavItem; onNavigate?: () => void } & NavBadgeProps) {
   const Icon = item.icon;
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+
+  if (item.isAction) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          openQuickNotesBoard();
+          onNavigate?.();
+        }}
+        className={navItemClass(false)}
+      >
+        <Icon size={16} className="shrink-0" aria-hidden="true" />
+        <span className="truncate">{item.label}</span>
+        <NavBadge count={badge} tone={badgeTone} />
+      </button>
+    );
+  }
 
   return (
     <NavLink
@@ -247,6 +273,8 @@ function SortableNavItem({
     id: item.to,
   });
   const Icon = item.icon;
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+  const itemExtra = `pr-12 sm:pr-9 ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`;
 
   return (
     <div
@@ -254,18 +282,31 @@ function SortableNavItem({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group relative ${isDragging ? 'z-10 opacity-80' : ''}`}
     >
-      <NavLink
-        to={item.to}
-        end={item.end}
-        onClick={onNavigate}
-        className={({ isActive }) =>
-          navItemClass(isActive, `pr-12 sm:pr-9 ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`)
-        }
-      >
-        <Icon size={16} className="shrink-0" aria-hidden="true" />
-        <span className="truncate">{item.label}</span>
-        <NavBadge count={badge} tone={badgeTone} />
-      </NavLink>
+      {item.isAction ? (
+        <button
+          type="button"
+          onClick={() => {
+            openQuickNotesBoard();
+            onNavigate?.();
+          }}
+          className={navItemClass(false, itemExtra)}
+        >
+          <Icon size={16} className="shrink-0" aria-hidden="true" />
+          <span className="truncate">{item.label}</span>
+          <NavBadge count={badge} tone={badgeTone} />
+        </button>
+      ) : (
+        <NavLink
+          to={item.to}
+          end={item.end}
+          onClick={onNavigate}
+          className={({ isActive }) => navItemClass(isActive, itemExtra)}
+        >
+          <Icon size={16} className="shrink-0" aria-hidden="true" />
+          <span className="truncate">{item.label}</span>
+          <NavBadge count={badge} tone={badgeTone} />
+        </NavLink>
+      )}
       <button
         type="button"
         {...attributes}
@@ -400,6 +441,30 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
 
 function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & NavBadgeProps) {
   const Icon = item.icon;
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+  const badgeDot = badge > 0 && (
+    <span
+      className={`absolute top-1 right-1 h-2 w-2 rounded-full ${
+        badgeTone === 'danger' ? 'bg-tr-danger' : 'bg-tr-primary'
+      }`}
+      aria-hidden="true"
+    />
+  );
+
+  if (item.isAction) {
+    return (
+      <button
+        type="button"
+        onClick={() => openQuickNotesBoard()}
+        title={item.label}
+        aria-label={item.label}
+        className={`relative flex h-11 w-11 items-center justify-center rounded-control text-[var(--tr-nav-text)] transition hover:bg-[var(--tr-nav-hover)] sm:h-9 sm:w-9 ${focusRing}`}
+      >
+        <Icon size={18} aria-hidden="true" />
+        {badgeDot}
+      </button>
+    );
+  }
 
   return (
     <NavLink
@@ -416,14 +481,7 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
       }
     >
       <Icon size={18} aria-hidden="true" />
-      {badge > 0 && (
-        <span
-          className={`absolute top-1 right-1 h-2 w-2 rounded-full ${
-            badgeTone === 'danger' ? 'bg-tr-danger' : 'bg-tr-primary'
-          }`}
-          aria-hidden="true"
-        />
-      )}
+      {badgeDot}
     </NavLink>
   );
 }

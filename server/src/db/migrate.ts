@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 31;
+export const LATEST_VERSION = 33;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -146,6 +146,27 @@ function guessStatus(name: string): CardStatus | null {
     if (patterns.some((pattern) => normalized.includes(pattern))) return status;
   }
   return null;
+}
+
+/**
+ * v33: dien `position` ban dau cho Ghi chu nhanh theo dung thu tu dang hien
+ * (da ghim truoc, roi moi ghim gan day nhat truoc) — nguoi dung khong thay
+ * danh sach xao tron ngay sau khi nang cap, cung khuon fillListStatusMapping.
+ */
+function fillQuickNotePositions(db: Database): void {
+  // 1024 = STEP cua server/src/lib/position.ts — khong import truc tiep vi
+  // module do lai import nguoc ve connection.ts (tao vong lap voi migrate.ts).
+  const STEP = 1024;
+  const rows = db
+    .prepare(`SELECT id, is_pinned FROM quick_notes ORDER BY is_pinned DESC, updated_at DESC, id`)
+    .all() as { id: number; is_pinned: number }[];
+  const counters = new Map<number, number>();
+  const update = db.prepare(`UPDATE quick_notes SET position = ? WHERE id = ?`);
+  for (const row of rows) {
+    const next = (counters.get(row.is_pinned) ?? 0) + STEP;
+    counters.set(row.is_pinned, next);
+    update.run(next, row.id);
+  }
 }
 
 function fillListStatusMapping(db: Database): void {
@@ -555,7 +576,28 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     }
     const broken = db.pragma('foreign_key_check') as unknown[];
     if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v31:', broken.length, 'dong');
-    console.log('[db] Da nang cap schema len v31 (ghi chu hop doc lap, khong bat buoc Co hoi/Du an)');
+    console.log(
+      '[db] Da nang cap schema len v31 (ghi chu hop doc lap, khong bat buoc Co hoi/Du an)'
+    );
     current = 31;
+  }
+
+  if (current === 31 && targetVersion >= 32) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v32.sql'));
+      db.pragma('user_version = 32');
+    })();
+    console.log('[db] Da nang cap schema len v32 (Ghi chu nhanh — Quick Notes)');
+    current = 32;
+  }
+
+  if (current === 32 && targetVersion >= 33) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v33.sql'));
+      fillQuickNotePositions(db);
+      db.pragma('user_version = 33');
+    })();
+    console.log('[db] Da nang cap schema len v33 (keo tha sap xep + chon mau Ghi chu nhanh)');
+    current = 33;
   }
 }

@@ -35,6 +35,7 @@ export const t = {
     orgDirectory: 'Tổ chức & nhân sự',
     ai: 'Trợ lý AI',
     notes: 'Ghi chú',
+    quickNotes: 'Ghi chú nhanh',
     settings: 'Cài đặt',
     groupWork: 'Công việc',
     groupSales: 'CRM & tổ chức',

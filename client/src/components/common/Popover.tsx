@@ -19,9 +19,19 @@ interface Props {
  */
 export function Popover({ open, onClose, anchor, title, children, width = 304, onBack }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({
+    left: 0,
+    top: 0,
+    bottom: null as number | null,
+    maxHeight: 220,
+  });
   useDialog({ open, onClose, containerRef: ref, trapFocus: false, focusOnOpen: true });
 
+  /**
+   * Neo mac dinh o DUOI nut bam, nhung lat len TREN khi khong du cho — vd. nut
+   * "..." nam trong QuickNoteEditorModal co the o gan day man hinh, neu luon co
+   * dinh phia duoi popover se bi cat mat (khong co overflow-x-auto de cuu).
+   */
   useLayoutEffect(() => {
     if (!open || !anchor) return;
     const rect = anchor.getBoundingClientRect();
@@ -29,7 +39,21 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
     let left = rect.left;
     if (left + width + margin > window.innerWidth) left = window.innerWidth - width - margin;
     if (left < margin) left = margin;
-    setPos({ top: rect.bottom + 6, left });
+
+    const spaceBelow = window.innerHeight - rect.bottom - margin - 6;
+    const spaceAbove = rect.top - margin - 6;
+    const placeAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
+
+    if (placeAbove) {
+      setPos({
+        left,
+        top: 0,
+        bottom: window.innerHeight - rect.top + 6,
+        maxHeight: Math.max(160, spaceAbove),
+      });
+    } else {
+      setPos({ left, top: rect.bottom + 6, bottom: null, maxHeight: Math.max(160, spaceBelow) });
+    }
   }, [open, anchor, width]);
 
   useEffect(() => {
@@ -52,8 +76,6 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
 
   if (!open) return null;
 
-  const maxHeight = Math.max(220, window.innerHeight - pos.top - 16);
-
   /* Portal ra <body>: mo tu ben trong vung `overflow-auto`/`tr-app-shell` (overflow:
      hidden) se cat/lech phan tu `fixed` neu khong portal — cung van de nhu Drawer.tsx. */
   return createPortal(
@@ -66,10 +88,16 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
          body. Chan mousedown noi bo noi bot len document de popover cha khong
          dong va unmount lua chon con truoc khi su kien click kip chay. */
       onMouseDown={(event) => event.stopPropagation()}
-      className="tr-popover tr-popover-shadow tr-anim-pop fixed z-[70] overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
-      style={{ top: pos.top, left: pos.left, width: Math.min(width, window.innerWidth - 16) }}
+      className="tr-popover tr-popover-shadow tr-anim-pop fixed z-[70] flex flex-col overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
+      style={{
+        left: pos.left,
+        top: pos.bottom == null ? pos.top : undefined,
+        bottom: pos.bottom ?? undefined,
+        width: Math.min(width, window.innerWidth - 16),
+        maxHeight: pos.maxHeight,
+      }}
     >
-      <div className="relative flex h-10 items-center justify-center border-b border-tr-border px-9">
+      <div className="relative flex h-10 shrink-0 items-center justify-center border-b border-tr-border px-9">
         {onBack && (
           <button
             onClick={onBack}
@@ -88,9 +116,7 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
           <X size={16} />
         </button>
       </div>
-      <div className="tr-scroll overflow-y-auto p-3" style={{ maxHeight }}>
-        {children}
-      </div>
+      <div className="tr-scroll min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
     </div>,
     document.body
   );

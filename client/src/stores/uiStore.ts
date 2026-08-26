@@ -144,6 +144,29 @@ interface UiState {
   openTaskComposer: (state?: TaskComposerState) => void;
   closeTaskComposer: () => void;
 
+  /**
+   * Bang Ghi chu nhanh — mot overlay toan cuc mount mot lan o App.tsx (giong
+   * CardModal/TaskFormDialog), KHONG phai mot trang dieu huong toi. Nguoi dung
+   * muon no hoat dong nhu Sticky Notes cua Microsoft: bam la mo ngay tai cho,
+   * khong roi khoi man hinh dang xem.
+   */
+  quickNotesBoardOpen: boolean;
+  /** Mo san dung mot ghi chu cu the (vd. tu SearchBox) — tu xoa sau khi Bang da doc. */
+  quickNotesFocusId: number | null;
+  /** Tao san mot ghi chu rong va mo ngay o che do sua (vd. tu FAB/phim tat) — tu xoa sau khi Bang da doc. */
+  quickNotesAutoCreate: boolean;
+  /**
+   * Tang moi lan `openQuickNotesBoard` duoc goi — Bang dung gia tri nay (khong
+   * phai `quickNotesBoardOpen`) lam dependency de tieu thu y dinh, vi Bang co
+   * the DA dang mo luc mot y dinh moi toi (vd. bam mot ket qua Quick Note khac
+   * tu SearchBox trong khi Bang van mo) — `quickNotesBoardOpen` luc do khong
+   * doi tu false->true nen mot effect chi phu thuoc no se bo lo y dinh moi.
+   */
+  quickNotesRequestId: number;
+  openQuickNotesBoard: (opts?: { focusId?: number; createNew?: boolean }) => void;
+  closeQuickNotesBoard: () => void;
+  clearQuickNotesIntent: () => void;
+
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
 
@@ -179,6 +202,20 @@ export const useUiStore = create<UiState>((set) => ({
   taskComposer: null,
   openTaskComposer: (state) => set({ taskComposer: state ?? { context: {} } }),
   closeTaskComposer: () => set({ taskComposer: null }),
+
+  quickNotesBoardOpen: false,
+  quickNotesFocusId: null,
+  quickNotesAutoCreate: false,
+  quickNotesRequestId: 0,
+  openQuickNotesBoard: (opts) =>
+    set((s) => ({
+      quickNotesBoardOpen: true,
+      quickNotesFocusId: opts?.focusId ?? null,
+      quickNotesAutoCreate: Boolean(opts?.createNew),
+      quickNotesRequestId: s.quickNotesRequestId + 1,
+    })),
+  closeQuickNotesBoard: () => set({ quickNotesBoardOpen: false }),
+  clearQuickNotesIntent: () => set({ quickNotesFocusId: null, quickNotesAutoCreate: false }),
 
   searchOpen: false,
   setSearchOpen: (open) => set({ searchOpen: open }),

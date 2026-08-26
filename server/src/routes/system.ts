@@ -81,13 +81,24 @@ export const EXPORT_TABLES = [
   // v30 — ghi chu hop cho Co hoi va Du an
   'meeting_notes',
   'meeting_note_attendees',
+  // v32 — Ghi chu nhanh (Quick Notes)
+  'quick_notes',
+  'quick_note_relations',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
 router.get('/search', (req, res) => {
   const q = fold(String(req.query.q ?? '').trim());
   if (!q) {
-    res.json({ cards: [], customers: [], contacts: [], deals: [], contracts: [], documents: [] });
+    res.json({
+      cards: [],
+      customers: [],
+      contacts: [],
+      deals: [],
+      contracts: [],
+      documents: [],
+      quickNotes: [],
+    });
     return;
   }
   const like = `%${q}%`;
@@ -156,7 +167,15 @@ router.get('/search', (req, res) => {
     )
     .all(like);
 
-  res.json({ cards, customers, contacts, deals, contracts, documents });
+  const quickNotes = db
+    .prepare(
+      `SELECT id, title, updated_at FROM quick_notes
+        WHERE deleted_at IS NULL AND search_text LIKE ?
+        ORDER BY updated_at DESC LIMIT 8`
+    )
+    .all(like);
+
+  res.json({ cards, customers, contacts, deals, contracts, documents, quickNotes });
 });
 
 router.get('/backups', (_req, res) => {

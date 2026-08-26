@@ -92,6 +92,16 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
         ['notification_key', 'is_read', 'read_at', 'snoozed_until', 'updated_at']
       );
 
+      // v32: Ghi chu nhanh la bang moc doc lap, khong dung lai bang nao cu.
+      const quickNoteColumns = db.prepare(`PRAGMA table_info(quick_notes)`).all() as {
+        name: string;
+      }[];
+      assert.ok(quickNoteColumns.some((c) => c.name === 'is_pinned'));
+      const documentColumns = db.prepare(`PRAGMA table_info(documents)`).all() as {
+        name: string;
+      }[];
+      assert.ok(documentColumns.some((c) => c.name === 'quick_note_id'));
+
       assert.deepEqual(db.pragma('foreign_key_check'), []);
       assert.equal((db.pragma('integrity_check', { simple: true }) as string).toLowerCase(), 'ok');
     } finally {

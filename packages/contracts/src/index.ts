@@ -181,3 +181,34 @@ export type RiskStatus = (typeof RISK_STATUSES)[number];
 /** Hai mo hinh quan ly trien khai cua dac ta 6.2. */
 export const DELIVERY_MODELS = ['A', 'B'] as const;
 export type DeliveryModel = (typeof DELIVERY_MODELS)[number];
+
+/**
+ * Ghi chu nhanh (Quick Notes, v32) — module doc lap voi Ghi chu hop (meeting_notes).
+ *
+ * `QUICK_NOTE_RELATION_TYPES` la tap CRM Object gan duoc SAU khi tao (FR15), co y
+ * KHONG co 'card' — BRD chi liet ke Customer/Contact/Lead/Deal/Project o man "More
+ * Options" ("Lead" o day chinh la `customers.status = 'prospect'`, khong phai bang
+ * rieng). Muon lien ket toi mot cong viec cu the thi dung "Convert thanh Task".
+ */
+export const QUICK_NOTE_RELATION_TYPES = ['customer', 'contact', 'deal', 'project'] as const;
+export type QuickNoteRelationType = (typeof QUICK_NOTE_RELATION_TYPES)[number];
+
+export const QUICK_NOTE_REMINDER_STATUSES = [
+  'pending',
+  'triggered',
+  'completed',
+  'cancelled',
+] as const;
+export type QuickNoteReminderStatus = (typeof QUICK_NOTE_REMINDER_STATUSES)[number];
+
+export const QUICK_NOTE_CONVERT_TARGETS = ['task', 'crm_note'] as const;
+export type QuickNoteConvertTarget = (typeof QUICK_NOTE_CONVERT_TARGETS)[number];
+
+/**
+ * Mau "giay ghi chu" nguoi dung chon rieng cho mot Quick Note (v33) — de trong
+ * (`null`) thi client tu suy mau theo id (xem palette.ts), dat gia tri o day
+ * la ghi de. Khoa on dinh, KHONG phai chi so mang — doi thu tu mau trong
+ * palette.ts sau nay khong lam sai lech du lieu da luu.
+ */
+export const QUICK_NOTE_COLORS = ['yellow', 'green', 'pink', 'purple', 'blue', 'peach'] as const;
+export type QuickNoteColorKey = (typeof QUICK_NOTE_COLORS)[number];

@@ -35,3 +35,14 @@ export function useDealsByCustomer(customerId: string, enabled = true) {
     enabled: enabled && customerId !== '',
   });
 }
+
+/** Toan bo co hoi, khong loc theo khach hang — dung cho o chon gan Quick Note (FR15). */
+export function useDealOptions(enabled = true) {
+  return useQuery({
+    queryKey: ['deals', 'select'],
+    queryFn: () => api.get<DealsResponse>('/api/deals'),
+    select: (data): Deal[] => Object.values(data.stages).flat(),
+    staleTime: 60_000,
+    enabled,
+  });
+}

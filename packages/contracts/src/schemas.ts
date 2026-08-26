@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PRIORITIES } from './index.js';
+import { PRIORITIES, QUICK_NOTE_COLORS, QUICK_NOTE_RELATION_TYPES } from './index.js';
 
 /** Runtime schemas song o subpath rieng de client chi dung type/constant khong phai tai Zod. */
 export const entityLinksSchema = z.object({
@@ -101,6 +101,51 @@ export const meetingNoteFieldsSchema = z.object({
  */
 export const meetingNoteInputSchema = meetingNoteFieldsSchema;
 export type MeetingNoteInput = z.infer<typeof meetingNoteInputSchema>;
+
+/**
+ * Ghi chu nhanh — hoan toan doc lap voi `meetingNoteFieldsSchema` o tren (xem
+ * migrate-v32.sql: khong bang nao tham chieu bang kia).
+ *
+ * Khong truong nao bat buoc: Content la chinh nhung luu qua `content_json`
+ * (block BlockNote)/`content_text`, giong Ghi chu hop — BlockNote luon tra ve it
+ * nhat mot block rong nen khong ep non-empty o day. Truong tho de route con
+ * `.partial()` cho PATCH (autosave).
+ */
+export const quickNoteFieldsSchema = z.object({
+  title: z.string().trim().max(300).optional(),
+  content_json: z.string().max(2_000_000).optional(),
+  content_text: z.string().max(500_000).optional(),
+  /** Tag tu do — khong qua he Label (xem ghi chu trong migrate-v32.sql). */
+  tags: z.array(z.string().trim().min(1).max(30)).max(20).optional(),
+  reminder_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm')
+    .nullable()
+    .optional(),
+  /** De trong (null) thi client tu suy mau theo id — xem QUICK_NOTE_COLORS. */
+  color: z.enum(QUICK_NOTE_COLORS).nullable().optional(),
+});
+export const quickNoteInputSchema = quickNoteFieldsSchema;
+export type QuickNoteInput = z.infer<typeof quickNoteInputSchema>;
+
+/** FR15: gan mot Quick Note vao mot CRM Object co san, sau khi da tao ghi chu. */
+export const quickNoteRelationSchema = z.object({
+  object_type: z.enum(QUICK_NOTE_RELATION_TYPES),
+  object_id: z.number().int().positive(),
+});
+export type QuickNoteRelationInput = z.infer<typeof quickNoteRelationSchema>;
+
+/**
+ * Keo tha sap xep (v33) — `beforeId`/`afterId` la hang xom MOI ngay tren/duoi
+ * sau khi tha, cung khuon `MoveCardInput` (cardService.ts). Ca hai phai thuoc
+ * cung nhom da ghim/chua ghim voi ghi chu dang keo — server tu choi neu khac
+ * nhom (xem computeMovePosition, position.ts).
+ */
+export const quickNoteMoveSchema = z.object({
+  beforeId: z.number().int().positive().nullable().optional(),
+  afterId: z.number().int().positive().nullable().optional(),
+});
+export type QuickNoteMoveInput = z.infer<typeof quickNoteMoveSchema>;
 
 export const apiErrorSchema = z
   .object({ error: z.string(), code: z.string().optional() })

@@ -10,7 +10,10 @@ export type PositionScope =
   | { table: 'cards'; scopeCol: 'list_id'; scopeVal: number }
   | { table: 'deals'; scopeCol: 'stage'; scopeVal: string }
   | { table: 'checklist_items'; scopeCol: 'card_id'; scopeVal: number }
-  | { table: 'deal_handover_items'; scopeCol: 'deal_id'; scopeVal: number };
+  | { table: 'deal_handover_items'; scopeCol: 'deal_id'; scopeVal: number }
+  /* Da ghim va chua ghim la hai chuoi thu tu doc lap — ghim luon noi len dau
+     bat ke da keo toi dau (xem quickNoteService.ts). */
+  | { table: 'quick_notes'; scopeCol: 'is_pinned'; scopeVal: 0 | 1 };
 
 /** Vi tri cho item them vao cuoi danh sach. */
 export function nextPosition(scope: PositionScope): number {

@@ -10,6 +10,7 @@ import { DOC_TYPES } from '../lib/crm.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import {
+  assertQuickNoteExists,
   createDocument,
   permanentlyDeleteDocument,
   DOCUMENT_TEMP_DIR,
@@ -71,6 +72,7 @@ const LINK_COLUMNS = [
   'contract_id',
   'quotation_id',
   'card_id',
+  'quick_note_id',
 ] as const;
 
 const emptyDateToNull = z.preprocess(
@@ -97,6 +99,7 @@ const metadataSchema = z.object({
   contract_id: z.coerce.number().int().nullable().optional(),
   quotation_id: z.coerce.number().int().nullable().optional(),
   card_id: z.coerce.number().int().nullable().optional(),
+  quick_note_id: z.coerce.number().int().nullable().optional(),
 });
 
 const idsSchema = z.object({ ids: z.array(z.number().int().positive()).min(1).max(200) });
@@ -182,9 +185,10 @@ router.patch('/bulk', (req, res) => {
         quotation_id: merged.quotation_id as number | null,
         card_id: merged.card_id as number | null,
       });
+      assertQuickNoteExists(merged.quick_note_id as number | null);
       db.prepare(
         `UPDATE documents SET name = ?, doc_type = ?, customer_id = ?, contact_id = ?, deal_id = ?,
-                contract_id = ?, quotation_id = ?, card_id = ?, description = ?, tags = ?, owner = ?,
+                contract_id = ?, quotation_id = ?, card_id = ?, quick_note_id = ?, description = ?, tags = ?, owner = ?,
                 effective_date = ?, expires_at = ?, confidentiality = ?, search_text = ?,
                 updated_at = datetime('now','localtime') WHERE id = ?`
       ).run(
@@ -196,6 +200,7 @@ router.patch('/bulk', (req, res) => {
         merged.contract_id ?? null,
         merged.quotation_id ?? null,
         merged.card_id ?? null,
+        merged.quick_note_id ?? null,
         merged.description ?? '',
         merged.tags ?? '',
         merged.owner ?? null,
@@ -267,9 +272,10 @@ router.patch('/:id', (req, res) => {
     quotation_id: merged.quotation_id as number | null,
     card_id: merged.card_id as number | null,
   });
+  assertQuickNoteExists(merged.quick_note_id as number | null);
   db.prepare(
     `UPDATE documents SET name = ?, doc_type = ?, customer_id = ?, contact_id = ?, deal_id = ?,
-            contract_id = ?, quotation_id = ?, card_id = ?, description = ?, tags = ?, owner = ?,
+            contract_id = ?, quotation_id = ?, card_id = ?, quick_note_id = ?, description = ?, tags = ?, owner = ?,
             effective_date = ?, expires_at = ?, confidentiality = ?, search_text = ?,
             updated_at = datetime('now','localtime') WHERE id = ?`
   ).run(
@@ -281,6 +287,7 @@ router.patch('/:id', (req, res) => {
     merged.contract_id ?? null,
     merged.quotation_id ?? null,
     merged.card_id ?? null,
+    merged.quick_note_id ?? null,
     merged.description ?? '',
     merged.tags ?? '',
     merged.owner ?? null,

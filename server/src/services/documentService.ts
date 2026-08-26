@@ -10,7 +10,22 @@ import { indexDocument } from './ai/documentIndex.ts';
 export const DOCUMENT_TEMP_DIR = path.join(FILES_DIR, '.tmp');
 fs.mkdirSync(DOCUMENT_TEMP_DIR, { recursive: true });
 
+/**
+ * `quick_note_id` nam ngoai `EntityLinks`/`assertEntityLinks` (xem entityRelations.ts)
+ * nen phai tu kiem tra ton tai o day — thieu buoc nay thi mot id sai se roi thang
+ * xuong INSERT/UPDATE va vo ra loi khoa ngoai tho (500) thay vi 404 gon gang.
+ */
+export function assertQuickNoteExists(quickNoteId: number | null | undefined): void {
+  if (quickNoteId == null) return;
+  required(
+    db.prepare(`SELECT id FROM quick_notes WHERE id = ? AND deleted_at IS NULL`).get(quickNoteId),
+    'Khong tim thay ghi chu nhanh'
+  );
+}
+
 export interface DocumentInput extends EntityLinks {
+  /** Rieng Ghi chu nhanh — ngoai nhom EntityLinks dung chung (khong thuoc chuoi "cung khach hang"). */
+  quick_note_id?: number | null;
   name?: string;
   doc_type?: string;
   description?: string;
@@ -27,6 +42,7 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
   let committed = false;
   try {
     assertEntityLinks(db, body);
+    assertQuickNoteExists(body.quick_note_id);
     const name = body.name?.trim() || file.originalname;
     fs.renameSync(file.path, finalPath);
     const id = db.transaction(() => {
@@ -34,9 +50,10 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
         .prepare(
           `INSERT INTO documents (name, doc_type, file_name, stored_name, mime, size,
                                   customer_id, contact_id, deal_id, contract_id, quotation_id, card_id,
+                                  quick_note_id,
                                   description, tags, owner, effective_date, expires_at, confidentiality,
                                   search_text, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
         )
         .run(
           name,
@@ -51,6 +68,7 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
           body.contract_id ?? null,
           body.quotation_id ?? null,
           body.card_id ?? null,
+          body.quick_note_id ?? null,
           body.description ?? '',
           body.tags ?? '',
           body.owner ?? null,
@@ -109,6 +127,24 @@ export function softDeleteDocumentsForCards(cardIds: number[]): void {
       WHERE card_id IN (${placeholders}) AND deleted_at IS NULL`
   ).run(...ids);
   for (const row of rows) unverifyBySource(db, 'document', row.id);
+}
+
+/**
+ * Xoa vinh vien (ca file tren dia) toan bo tai lieu dinh kem cua MOT Ghi chu
+ * nhanh SAP bi xoa hang — cung bay `documents.quick_note_id ON DELETE CASCADE`
+ * nhu `softDeleteDocumentsForCards` o tren: neu de SQLite tu cascade, no se
+ * hard-delete thang dong `documents` ma KHONG qua `permanentlyDeleteDocument`
+ * (ham xoa file that su tren dia theo kieu hai pha an toan), de lai file rac
+ * vinh vien tren dia. Goi ham nay TRUOC cau DELETE tren quick_notes.
+ *
+ * Xoa CA tai lieu da o Thung rac cua no (deleted_at da co) — ghi chu me sap bien
+ * mat hoan toan nen khong con ly do giu lai tai lieu con cua no o dang cho don.
+ */
+export function permanentlyDeleteDocumentsForQuickNote(quickNoteId: number): void {
+  const rows = db.prepare(`SELECT id FROM documents WHERE quick_note_id = ?`).all(quickNoteId) as {
+    id: number;
+  }[];
+  for (const row of rows) permanentlyDeleteDocument(row.id);
 }
 
 /** Xoa theo kieu hai pha: dua file vao kho tam, commit DB, sau do huy file. */

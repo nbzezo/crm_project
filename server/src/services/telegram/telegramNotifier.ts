@@ -14,6 +14,12 @@ interface DueReminderRow {
   due_at: string;
 }
 
+interface DueQuickNoteRow {
+  id: number;
+  title: string;
+  reminder_at: string;
+}
+
 function alreadySent(db: Database, key: string): boolean {
   return Boolean(db.prepare(`SELECT 1 FROM telegram_sent_log WHERE dedupe_key = ?`).get(key));
 }
@@ -75,11 +81,49 @@ async function notifyDueReminders(db: Database): Promise<void> {
   }
 }
 
+/**
+ * FR14: nhac cua Ghi chu nhanh la cot noi tai (`reminder_at`/`reminder_status`),
+ * khong qua bang `reminders` — nen can mot vong quet rieng, dung chung co che
+ * gui (Telegram) va dedupe (`telegram_sent_log`) voi cac ham tren.
+ *
+ * Cung khoang -5/+15 phut voi notifyDueReminders — KHONG chi dung `<= now`:
+ * server tat lau ngay roi bat lai se khong don don mot loat nhac cu hang gio/
+ * ngay truoc thanh mot con "bao" thong bao Telegram cung mot luc.
+ */
+async function notifyDueQuickNotes(db: Database): Promise<void> {
+  const notes = db
+    .prepare(
+      `SELECT id, title, reminder_at
+         FROM quick_notes
+        WHERE deleted_at IS NULL AND reminder_status = 'pending'
+          AND reminder_at BETWEEN strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-5 minutes'))
+                               AND strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+15 minutes'))
+        ORDER BY reminder_at LIMIT 50`
+    )
+    .all() as DueQuickNoteRow[];
+
+  for (const note of notes) {
+    const key = `quick-note-${note.id}-${note.reminder_at}`;
+    if (alreadySent(db, key)) continue;
+    try {
+      const title = note.title || 'Ghi chú không tiêu đề';
+      await sendTelegramMessage(db, `📝 Nhắc ghi chú nhanh: ${title}`);
+      markSent(db, key);
+      db.prepare(`UPDATE quick_notes SET reminder_status = 'triggered' WHERE id = ?`).run(note.id);
+    } catch (error) {
+      console.error('[telegram] Gui nhac ghi chu nhanh that bai:', note.id, error);
+    }
+  }
+}
+
 export async function runDueTelegramChecks(db: Database): Promise<void> {
   const config = getTelegramConfig(db);
   if (!config.enabled || !config.has_token || !config.chat_id) return;
   if (config.notify_due_dates) await notifyDueCards(db);
-  if (config.notify_reminders) await notifyDueReminders(db);
+  if (config.notify_reminders) {
+    await notifyDueReminders(db);
+    await notifyDueQuickNotes(db);
+  }
 }
 
 export function notifyAssigneeChangeTelegram(db: Database, cardId: number): void {

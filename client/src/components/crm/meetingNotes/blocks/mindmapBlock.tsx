@@ -15,7 +15,15 @@ const MindmapCanvas = lazy(() => import('./MindmapCanvas'));
 export const mindmapBlockSpec = createReactBlockSpec(
   {
     type: 'mindmap',
-    propSchema: { data: { default: '' } },
+    propSchema: {
+      data: { default: '' },
+      // Chieu cao nguoi dung tu keo gian (MindmapCanvas.tsx) — luu lai de mo
+      // ghi chu lan sau giu dung kich thuoc da chinh, khong bi reset ve mac dinh.
+      height: { default: 480 },
+      // Ten bang mau nhanh da chon (xem PALETTES trong MindmapCanvas.tsx),
+      // 'default' = dung nguyen palette sang/toi goc cua mind-elixir.
+      palette: { default: 'default' },
+    },
     content: 'none',
   },
   {
