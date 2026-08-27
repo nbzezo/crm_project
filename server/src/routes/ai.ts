@@ -37,6 +37,11 @@ import {
 } from '../services/ai/documentIndex.ts';
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
+import {
+  getVoicePromptTemplates,
+  saveVoicePromptTemplates,
+  type VoicePromptTemplate,
+} from '../services/ai/promptTemplates.ts';
 
 const router = Router();
 
@@ -558,6 +563,84 @@ router.post('/assist/meeting-note/:id/inline', async (req, res) => {
         `Đoạn văn bản:\n${body.selection_text}`,
     });
     res.json(meetingNoteInlineResponse.parse({ text: result.text.trim() }));
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+const voicePromptTemplateSchema = z.object({
+  key: z.string().trim().min(1).max(50),
+  name: z.string().trim().min(1).max(100),
+  prompt: z.string().trim().min(1).max(4000),
+});
+const voicePromptTemplatesSchema = z.array(voicePromptTemplateSchema).max(30);
+
+router.get('/voice-prompt-templates', (_req, res) => {
+  res.json(getVoicePromptTemplates(db));
+});
+
+router.put('/voice-prompt-templates', (req, res) => {
+  const body: VoicePromptTemplate[] = parseBody(voicePromptTemplatesSchema, req);
+  saveVoicePromptTemplates(db, body);
+  res.json(body);
+});
+
+const voiceNoteConvertSchema = z.object({
+  document_id: z.number().int().positive(),
+  template_key: z.string().trim().min(1).max(50).optional(),
+});
+const voiceNoteConvertResponse = z.object({ text: z.string() });
+
+/**
+ * Chuyen mot ban ghi am (da tai len qua POST /api/documents, xem
+ * VoiceNoteRecorder.tsx) thanh van ban — nguyen van hoac tom tat theo mot mau
+ * prompt da cau hinh. Dung chung cho ca Ghi chu hop lan Ghi chu nhanh: endpoint
+ * chi can `document_id`, khong quan tam ban ghi thuoc loai ghi chu nao.
+ *
+ * `requiresCapability: 'audioInput'` de gateway.ts tu loc dung nha cung cap
+ * doc duoc audio (hien chi Gemini) — xem providers.ts, khong tu ep provider
+ * thu cong o day.
+ */
+router.post('/assist/voice-note/convert', async (req, res) => {
+  try {
+    const body = parseBody(voiceNoteConvertSchema, req);
+    const doc = db
+      .prepare(
+        `SELECT stored_name, mime, file_name FROM documents WHERE id = ? AND deleted_at IS NULL`
+      )
+      .get(body.document_id) as
+      { stored_name: string; mime: string; file_name: string } | undefined;
+    if (!doc) throw new HttpError(404, 'Không tìm thấy tệp ghi âm');
+    if (!doc.mime.startsWith('audio/')) throw new HttpError(422, 'Tệp này không phải bản ghi âm');
+
+    const filePath = safeFilePath(doc.stored_name);
+    if (!fs.existsSync(filePath)) throw new HttpError(404, 'Tệp ghi âm không còn trên ổ đĩa');
+    const dataBase64 = fs.readFileSync(filePath).toString('base64');
+
+    let system: string;
+    let prompt: string;
+    if (body.template_key) {
+      const template = getVoicePromptTemplates(db).find((t) => t.key === body.template_key);
+      if (!template) throw new HttpError(404, 'Không tìm thấy mẫu prompt');
+      system =
+        'Bạn xử lý bản ghi âm cuộc họp/trao đổi tiếng Việt theo đúng yêu cầu bên dưới. Chỉ trả về nội dung được yêu cầu, không thêm lời dẫn hay giải thích ngoài lề.';
+      prompt = template.prompt;
+    } else {
+      system =
+        'Bạn chuyển bản ghi âm tiếng Việt thành văn bản. Chép lại NGUYÊN VĂN lời nói, đầy đủ, không tóm tắt, không thêm nhận xét.';
+      prompt = 'Chuyển đoạn ghi âm đính kèm thành văn bản đầy đủ.';
+    }
+
+    const result = await runAi(db, {
+      task: 'voice_note_convert',
+      mode: 'fast',
+      requiresCapability: 'audioInput',
+      maxOutputTokens: 4000,
+      system,
+      prompt,
+      attachments: [{ mime: doc.mime, dataBase64, fileName: doc.file_name }],
+    });
+    res.json(voiceNoteConvertResponse.parse({ text: result.text.trim() }));
   } catch (error) {
     asHttpError(error);
   }

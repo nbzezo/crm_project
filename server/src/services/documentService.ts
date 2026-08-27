@@ -23,9 +23,22 @@ export function assertQuickNoteExists(quickNoteId: number | null | undefined): v
   );
 }
 
+/** Tuong tu assertQuickNoteExists — dinh kem tep (vd. ghi am) vao mot Ghi chu hop. */
+export function assertMeetingNoteExists(meetingNoteId: number | null | undefined): void {
+  if (meetingNoteId == null) return;
+  required(
+    db
+      .prepare(`SELECT id FROM meeting_notes WHERE id = ? AND deleted_at IS NULL`)
+      .get(meetingNoteId),
+    'Khong tim thay ghi chu hop'
+  );
+}
+
 export interface DocumentInput extends EntityLinks {
   /** Rieng Ghi chu nhanh — ngoai nhom EntityLinks dung chung (khong thuoc chuoi "cung khach hang"). */
   quick_note_id?: number | null;
+  /** Rieng Ghi chu hop — cung ly do voi quick_note_id o tren. */
+  meeting_note_id?: number | null;
   name?: string;
   doc_type?: string;
   description?: string;
@@ -43,6 +56,7 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
   try {
     assertEntityLinks(db, body);
     assertQuickNoteExists(body.quick_note_id);
+    assertMeetingNoteExists(body.meeting_note_id);
     const name = body.name?.trim() || file.originalname;
     fs.renameSync(file.path, finalPath);
     const id = db.transaction(() => {
@@ -50,10 +64,10 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
         .prepare(
           `INSERT INTO documents (name, doc_type, file_name, stored_name, mime, size,
                                   customer_id, contact_id, deal_id, contract_id, quotation_id, card_id,
-                                  quick_note_id,
+                                  quick_note_id, meeting_note_id,
                                   description, tags, owner, effective_date, expires_at, confidentiality,
                                   search_text, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
         )
         .run(
           name,
@@ -69,6 +83,7 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
           body.quotation_id ?? null,
           body.card_id ?? null,
           body.quick_note_id ?? null,
+          body.meeting_note_id ?? null,
           body.description ?? '',
           body.tags ?? '',
           body.owner ?? null,

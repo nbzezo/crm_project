@@ -1365,7 +1365,8 @@ body {
   font-size: 14px;
 }
 .meeting-note-canvas .bn-editor {
-  max-width: 760px;
+  /* Tang 30% so voi 760px ban dau theo yeu cau — 760 * 1.3 = 988px. */
+  max-width: 988px;
   margin-inline: auto;
   /* BlockNote tu dat nen trang rieng (--bn-colors-editor-background) khac mau
      voi bg-tr-list cua khung ngoai — bo di de ca khung la MOT be mat lien
@@ -1395,7 +1396,7 @@ body {
    Mot the Sticky Note nho hon nhieu so voi trang Ghi chu hop o tren — chu va
    khoang cach phai thu nho tiep de mot the vuong con doc duoc nhieu dong. */
 .quick-note-canvas .bn-default-styles {
-  font-size: 13px;
+  font-size: 14.5px;
   line-height: 1.45;
 }
 .quick-note-canvas .bn-editor {
@@ -1421,6 +1422,15 @@ body {
 .quick-note-canvas [data-prev-level='3'] {
   --level: 1.05em;
   --prev-level: 1.05em;
+}
+
+/* Khoi audio (ghi am — xem VoiceNoteRecorder.tsx) mac dinh cua BlockNote keo
+   rong het chieu ngang khoi (.bn-audio{width:100%}) — qua kho so voi mot dong
+   ghi chu. Gioi han lai cho gon, con lai trinh phat cua trinh duyet tu co. */
+.meeting-note-canvas .bn-audio,
+.quick-note-canvas .bn-audio {
+  max-width: 320px;
+  height: 32px;
 }
 
 /* ---------- Input trong che do toi ---------- */

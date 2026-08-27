@@ -210,5 +210,18 @@ export type QuickNoteConvertTarget = (typeof QUICK_NOTE_CONVERT_TARGETS)[number]
  * la ghi de. Khoa on dinh, KHONG phai chi so mang — doi thu tu mau trong
  * palette.ts sau nay khong lam sai lech du lieu da luu.
  */
-export const QUICK_NOTE_COLORS = ['yellow', 'green', 'pink', 'purple', 'blue', 'peach'] as const;
+export const QUICK_NOTE_COLORS = [
+  'yellow',
+  'green',
+  'pink',
+  'purple',
+  'blue',
+  'peach',
+  'red',
+  'teal',
+  'indigo',
+  'brown',
+  'gray',
+  'lime',
+] as const;
 export type QuickNoteColorKey = (typeof QUICK_NOTE_COLORS)[number];

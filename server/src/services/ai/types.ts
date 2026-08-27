@@ -8,6 +8,8 @@ export interface ModelCapabilities {
   vision: boolean;
   documentInput: boolean;
   reasoning: boolean;
+  /** Doc truc tiep du lieu audio (vd. ghi am) — hien chi Gemini ho tro qua inline_data. */
+  audioInput: boolean;
 }
 
 export interface DiscoveredModel {

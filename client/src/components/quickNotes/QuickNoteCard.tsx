@@ -295,11 +295,11 @@ function MoreMenu({
   );
 }
 
-/** Popup 6 mau + "dùng lại màu tự động" — dung chung cho hover nhanh tren the va MoreMenu day du. */
+/** Popup 12 mau + "dùng lại màu tự động" — dung chung cho hover nhanh tren the va MoreMenu day du. */
 function ColorPickerMenu({ note }: { note: QuickNote }) {
   const { update } = useQuickNoteMutations();
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {QUICK_NOTE_COLORS.map((c) => (
         <button
           key={c.key}
@@ -307,7 +307,7 @@ function ColorPickerMenu({ note }: { note: QuickNote }) {
           aria-label={`Đổi màu ${c.name}`}
           aria-pressed={colorForNote(note.id, note.color).key === c.key}
           onClick={() => update.mutate({ id: note.id, patch: { color: c.key } })}
-          className={`h-6 w-6 rounded-full ring-offset-2 transition ${
+          className={`h-6 w-6 shrink-0 rounded-full ring-offset-2 transition ${
             colorForNote(note.id, note.color).key === c.key ? 'ring-2 ring-tr-primary' : ''
           }`}
           style={{ backgroundColor: c.bgLight }}
@@ -392,6 +392,11 @@ function PreviewCard({
             <Paperclip size={11} aria-hidden="true" /> {note.attachment_count}
           </span>
         )}
+        {note.tags.map((tag) => (
+          <span key={tag} className="rounded-full bg-black/10 px-1.5 py-0.5 leading-none">
+            #{tag}
+          </span>
+        ))}
       </div>
 
       {/* Nut hover: bam duoc ma khong can mo ghi chu, giong Sticky Notes that + Google Keep. */}
@@ -481,7 +486,7 @@ function PreviewCard({
         onClose={colorPopover.close}
         anchor={colorPopover.anchor}
         title="Đổi màu"
-        width={224}
+        width={252}
       >
         <ColorPickerMenu note={note} />
       </Popover>
@@ -620,6 +625,7 @@ function ActiveCard({
 
       <div className="tr-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-3">
         <LazyQuickNoteBody
+          noteId={note.id}
           initialContentJson={note.content_json}
           onChange={(payload) => {
             bodyRef.current = payload;

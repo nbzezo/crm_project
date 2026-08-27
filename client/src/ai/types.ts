@@ -49,6 +49,13 @@ export interface AiProviderConfig {
   models: AiModel[];
 }
 
+/** Mẫu prompt xử lý ghi âm (chuyển văn bản/tóm tắt) — cấu hình trong Cài đặt. */
+export interface VoicePromptTemplate {
+  key: string;
+  name: string;
+  prompt: string;
+}
+
 export interface AiMeta {
   requestId: string;
   provider: AiProviderName;

@@ -9,6 +9,7 @@ import { Skeleton } from '../common/ui';
 const QuickNoteBody = lazy(() => import('./QuickNoteBody'));
 
 export function LazyQuickNoteBody(props: {
+  noteId: number;
   initialContentJson: string;
   onChange: (payload: { contentJson: string; contentText: string }) => void;
 }) {

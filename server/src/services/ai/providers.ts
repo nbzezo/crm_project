@@ -77,6 +77,7 @@ function defaultCapabilities(overrides: Partial<ModelCapabilities> = {}): ModelC
     vision: false,
     documentInput: false,
     reasoning: false,
+    audioInput: false,
     ...overrides,
   };
 }
@@ -110,6 +111,7 @@ async function listGemini(connection: ProviderConnection): Promise<DiscoveredMod
         capabilities: defaultCapabilities({
           vision: /gemini/i.test(id),
           documentInput: /gemini/i.test(id),
+          audioInput: /gemini/i.test(id),
           reasoning: Boolean(model.thinking) || /pro|thinking/i.test(id),
         }),
         inputTokenLimit: asNumber(model.inputTokenLimit),

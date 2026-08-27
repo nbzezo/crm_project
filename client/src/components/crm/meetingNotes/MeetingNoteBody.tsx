@@ -17,6 +17,7 @@ import {
 import { Sparkles } from 'lucide-react';
 import { api } from '../../../api/client';
 import { Button } from '../../common/ui';
+import { VoiceNoteRecorder } from '../../common/VoiceNoteRecorder';
 import { useThemeStore } from '../../../stores/themeStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useAssignees } from '../../tasks/AssigneePicker';
@@ -163,6 +164,15 @@ export default function MeetingNoteBody({
             {pending === item.key ? 'Đang xử lý…' : item.label}
           </Button>
         ))}
+        <span className="mx-1 h-4 w-px shrink-0 bg-tr-border" aria-hidden="true" />
+        <VoiceNoteRecorder
+          linkTarget={{ meeting_note_id: noteId }}
+          onInsertText={(text) => editor.insertInlineContent(text)}
+          onInsertAudio={({ url, name }) => {
+            const cursor = editor.getTextCursorPosition();
+            editor.insertBlocks([{ type: 'audio', props: { url, name } }], cursor.block, 'after');
+          }}
+        />
       </div>
       {aiError && <p className="mb-2 text-xs text-tr-danger">{aiError}</p>}
       <div className="meeting-note-canvas min-h-[220px] rounded-panel border border-tr-border bg-tr-list">

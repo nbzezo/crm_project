@@ -621,7 +621,19 @@ export interface MeetingNote {
 export type QuickNoteRelationType = 'customer' | 'contact' | 'deal' | 'project';
 export type QuickNoteReminderStatus = 'pending' | 'triggered' | 'completed' | 'cancelled';
 export type QuickNoteConvertTarget = 'task' | 'crm_note';
-export type QuickNoteColorKey = 'yellow' | 'green' | 'pink' | 'purple' | 'blue' | 'peach';
+export type QuickNoteColorKey =
+  | 'yellow'
+  | 'green'
+  | 'pink'
+  | 'purple'
+  | 'blue'
+  | 'peach'
+  | 'red'
+  | 'teal'
+  | 'indigo'
+  | 'brown'
+  | 'gray'
+  | 'lime';
 
 export interface QuickNoteRelation {
   id: number;

@@ -4,6 +4,7 @@ import '@blocknote/mantine/style.css';
 import { useCreateBlockNote } from '@blocknote/react';
 import type { PartialBlock } from '@blocknote/core';
 import { useThemeStore } from '../../stores/themeStore';
+import { VoiceNoteRecorder } from '../common/VoiceNoteRecorder';
 
 function parseInitialContent(json: string): PartialBlock[] | undefined {
   if (!json || json === '[]') return undefined;
@@ -31,9 +32,11 @@ function parseInitialContent(json: string): PartialBlock[] | undefined {
  * bam them lan hai vao vung soan thao (dung nhu Sticky Notes that).
  */
 export default function QuickNoteBody({
+  noteId,
   initialContentJson,
   onChange,
 }: {
+  noteId: number;
   initialContentJson: string;
   onChange: (payload: { contentJson: string; contentText: string }) => void;
 }) {
@@ -47,6 +50,16 @@ export default function QuickNoteBody({
 
   return (
     <div className="quick-note-canvas min-h-[80px]">
+      <div className="mb-1.5">
+        <VoiceNoteRecorder
+          linkTarget={{ quick_note_id: noteId }}
+          onInsertText={(text) => editor.insertInlineContent(text)}
+          onInsertAudio={({ url, name }) => {
+            const cursor = editor.getTextCursorPosition();
+            editor.insertBlocks([{ type: 'audio', props: { url, name } }], cursor.block, 'after');
+          }}
+        />
+      </div>
       <BlockNoteView
         editor={editor}
         theme={isDark ? 'dark' : 'light'}

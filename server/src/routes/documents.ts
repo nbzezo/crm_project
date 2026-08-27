@@ -10,6 +10,7 @@ import { DOC_TYPES } from '../lib/crm.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import {
+  assertMeetingNoteExists,
   assertQuickNoteExists,
   createDocument,
   permanentlyDeleteDocument,
@@ -35,6 +36,9 @@ export const DOCUMENT_EXTENSIONS = [
   '.txt',
   '.csv',
   '.zip',
+  '.webm',
+  '.m4a',
+  '.ogg',
 ] as const;
 const ALLOWED = new Set<string>(DOCUMENT_EXTENSIONS);
 
@@ -73,6 +77,7 @@ const LINK_COLUMNS = [
   'quotation_id',
   'card_id',
   'quick_note_id',
+  'meeting_note_id',
 ] as const;
 
 const emptyDateToNull = z.preprocess(
@@ -100,6 +105,7 @@ const metadataSchema = z.object({
   quotation_id: z.coerce.number().int().nullable().optional(),
   card_id: z.coerce.number().int().nullable().optional(),
   quick_note_id: z.coerce.number().int().nullable().optional(),
+  meeting_note_id: z.coerce.number().int().nullable().optional(),
 });
 
 const idsSchema = z.object({ ids: z.array(z.number().int().positive()).min(1).max(200) });
@@ -186,9 +192,10 @@ router.patch('/bulk', (req, res) => {
         card_id: merged.card_id as number | null,
       });
       assertQuickNoteExists(merged.quick_note_id as number | null);
+      assertMeetingNoteExists(merged.meeting_note_id as number | null);
       db.prepare(
         `UPDATE documents SET name = ?, doc_type = ?, customer_id = ?, contact_id = ?, deal_id = ?,
-                contract_id = ?, quotation_id = ?, card_id = ?, quick_note_id = ?, description = ?, tags = ?, owner = ?,
+                contract_id = ?, quotation_id = ?, card_id = ?, quick_note_id = ?, meeting_note_id = ?, description = ?, tags = ?, owner = ?,
                 effective_date = ?, expires_at = ?, confidentiality = ?, search_text = ?,
                 updated_at = datetime('now','localtime') WHERE id = ?`
       ).run(
@@ -201,6 +208,7 @@ router.patch('/bulk', (req, res) => {
         merged.quotation_id ?? null,
         merged.card_id ?? null,
         merged.quick_note_id ?? null,
+        merged.meeting_note_id ?? null,
         merged.description ?? '',
         merged.tags ?? '',
         merged.owner ?? null,
@@ -250,9 +258,18 @@ router.get('/:id/download', (req, res) => {
   const doc = required(
     db.prepare(`SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL`).get(id),
     'Không tìm thấy tài liệu'
-  ) as { stored_name: string; file_name: string };
+  ) as { stored_name: string; file_name: string; mime: string };
   const filePath = path.join(FILES_DIR, doc.stored_name);
   if (!fs.existsSync(filePath)) throw new HttpError(404, 'Tệp không còn trên ổ đĩa');
+  /*
+   * `.webm` la kieu container dung chung cho ca audio va video nen thu vien
+   * mime cua Express doan theo duoi tep se luon ra "video/webm" — sai voi ghi
+   * am chi co audio (VoiceNoteRecorder.tsx), khien mot so trinh phat kem
+   * duong hon co the tu choi phat. Dat Content-Type tu mime that su da luu
+   * luc tai len (chinh xac hon suy doan theo duoi tep) TRUOC khi goi download
+   * de "send" (ben trong res.download) khong tu ghi de.
+   */
+  res.type(doc.mime);
   res.download(filePath, doc.file_name);
 });
 
@@ -273,9 +290,10 @@ router.patch('/:id', (req, res) => {
     card_id: merged.card_id as number | null,
   });
   assertQuickNoteExists(merged.quick_note_id as number | null);
+  assertMeetingNoteExists(merged.meeting_note_id as number | null);
   db.prepare(
     `UPDATE documents SET name = ?, doc_type = ?, customer_id = ?, contact_id = ?, deal_id = ?,
-            contract_id = ?, quotation_id = ?, card_id = ?, quick_note_id = ?, description = ?, tags = ?, owner = ?,
+            contract_id = ?, quotation_id = ?, card_id = ?, quick_note_id = ?, meeting_note_id = ?, description = ?, tags = ?, owner = ?,
             effective_date = ?, expires_at = ?, confidentiality = ?, search_text = ?,
             updated_at = datetime('now','localtime') WHERE id = ?`
   ).run(
@@ -288,6 +306,7 @@ router.patch('/:id', (req, res) => {
     merged.quotation_id ?? null,
     merged.card_id ?? null,
     merged.quick_note_id ?? null,
+    merged.meeting_note_id ?? null,
     merged.description ?? '',
     merged.tags ?? '',
     merged.owner ?? null,
