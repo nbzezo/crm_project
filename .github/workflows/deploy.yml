@@ -1,0 +1,29 @@
+name: Deploy to lxc-crm
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync source to lxc-crm
+        run: |
+          ssh root@10.10.10.5 'mkdir -p /opt/crm'
+          rsync -avz --delete \
+            --exclude '.git' --exclude 'node_modules' --exclude '.github' \
+            ./ root@10.10.10.5:/opt/crm/
+
+      - name: Rebuild and restart containers
+        run: |
+          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build'
+
+      - name: Health check
+        run: |
+          sleep 15
+          curl -sf http://10.10.10.5/api/health && echo "DEPLOY OK" || (echo "Health check failed"; exit 1)

@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - WORKFLOW_DATA_DIR=/data
+    volumes:
+      - crm-data:/data          # SQLite persist (app.db, files, backups)
+      - client-dist:/public     # chia sẻ client build cho nginx
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - client-dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+volumes:
+  crm-data:
+  client-dist:
