@@ -1,14 +1,16 @@
-import { Diamond, Menu } from 'lucide-react';
+import { Diamond, LogOut, Menu } from 'lucide-react';
 import { Link } from 'react-router';
 import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
 import { ThemeToggle } from './ThemeToggle';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
-import { focusRing } from '../common/ui';
+import { useAuthStore } from '../../stores/authStore';
+import { focusRing, IconButton } from '../common/ui';
 
 export function Topbar() {
   const setNavOpen = useUiStore((s) => s.setNavOpen);
+  const logout = useAuthStore((s) => s.logout);
 
   return (
     <header className="tr-topbar flex h-14 shrink-0 items-center gap-1 border-b border-tr-border/70 bg-transparent px-2.5 sm:gap-2 sm:px-5">
@@ -40,6 +42,9 @@ export function Topbar() {
 
       <ThemeToggle />
       <ReminderBell />
+      <IconButton label={t.auth.signOut} onClick={() => void logout()}>
+        <LogOut size={18} aria-hidden="true" />
+      </IconButton>
     </header>
   );
 }

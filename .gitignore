@@ -3,4 +3,9 @@ dist/
 /.playwright/
 server/data/
 *.log
+.env
+.env.*
+!.env.example
 .DS_Store
+Thumbs.db
+desktop.ini

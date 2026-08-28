@@ -1,3 +1,7 @@
+> **LƯU TRỮ — tài liệu lịch sử.** Đối chiếu spec ↔ mã nguồn quanh thời điểm schema **v9**
+> (11/08/2026). Schema hiện tại đã ở **v35**; nội dung dưới đây không còn phản ánh
+> đúng hệ thống đang chạy. Giữ lại để tham khảo bối cảnh, không dùng làm căn cứ hiện hành.
+
 # RÀ SOÁT & CẬP NHẬT SPEC – CHẤM ĐIỂM CƠ HỘI B2B (BANT + 4P)
 
 **Phiên bản spec:** 1.0 → **1.1 (đã đối chiếu mã nguồn WorkFlow)**

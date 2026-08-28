@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Navigate, createBrowserRouter, RouterProvider } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+import { AuthGate } from './components/auth/AuthGate';
 import { useUiStore } from './stores/uiStore';
 import { initTheme } from './stores/themeStore';
 import './index.css';
@@ -115,7 +116,9 @@ initTheme();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthGate>
+        <RouterProvider router={router} />
+      </AuthGate>
     </QueryClientProvider>
   </StrictMode>
 );

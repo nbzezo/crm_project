@@ -1,6 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import session from 'express-session';
+import helmet from 'helmet';
 import { db } from './db/connection.ts';
 import { HttpError } from './lib/validate.ts';
+import { requireAuth } from './middleware/requireAuth.ts';
+import { SqliteSessionStore } from './services/auth/SqliteSessionStore.ts';
+import auth from './routes/auth.ts';
 import boards from './routes/boards.ts';
 import lists from './routes/lists.ts';
 import cards from './routes/cards.ts';
@@ -31,14 +39,59 @@ import ai from './routes/ai.ts';
 import notifications from './routes/notifications.ts';
 import telegram from './routes/telegram.ts';
 
-export function createApp(): Express {
+const here = path.dirname(fileURLToPath(import.meta.url));
+const CLIENT_DIST = path.resolve(here, '../../client/dist');
+
+export interface AppOptions {
+  /** Bat lop dang nhap (session + requireAuth). Tat trong unit test khong can auth. */
+  auth?: boolean;
+}
+
+export function createApp(options: AppOptions = {}): Express {
+  const { auth: useAuth = true } = options;
   const app = express();
+  app.set('trust proxy', 1);
+  // CSP tat de khong vo client (Vite/Tailwind/BlockNote/Excalidraw); cac header
+  // khac cua helmet (HSTS, X-Content-Type-Options, X-Frame-Options...) van bat.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: '5mb' }));
+
+  if (useAuth) {
+    const secret = process.env.WORKFLOW_SESSION_SECRET;
+    if (!secret) {
+      throw new Error(
+        '[auth] Thieu WORKFLOW_SESSION_SECRET — dat mot chuoi ngau nhien dai (>= 32 ky tu) roi khoi dong lai.'
+      );
+    }
+    app.use(
+      session({
+        name: 'sid',
+        store: new SqliteSessionStore(),
+        secret,
+        resave: false,
+        saveUninitialized: false,
+        rolling: true,
+        cookie: {
+          httpOnly: true,
+          // 'auto': Secure khi chay sau proxy TLS (trust proxy + X-Forwarded-Proto),
+          // khong bat buoc khi truy cap thang qua http (dev / E2E).
+          secure: 'auto',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+        },
+      })
+    );
+  }
 
   app.get('/api/health', (_req, res) => {
     db.prepare('SELECT 1').get();
     res.json({ ok: true, app: 'WorkFlow', database: 'ready' });
   });
+
+  if (useAuth) {
+    app.use('/api/auth', auth);
+    app.use('/api', requireAuth);
+  }
 
   app.use('/api/boards', boards);
   app.use('/api/lists', lists);
@@ -69,6 +122,20 @@ export function createApp(): Express {
   app.use('/api', scoring);
   app.use('/api', system);
   app.use('/api/ai', ai);
+
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'Khong tim thay endpoint' });
+  });
+
+  // Production (Docker): server phuc vu luon ban build cua client tren cung origin,
+  // nen khong can CORS. Bo qua khi chua co ban build (dev dung Vite, test khong co).
+  if (fs.existsSync(CLIENT_DIST)) {
+    app.use(express.static(CLIENT_DIST));
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
+      res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+    });
+  }
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Khong tim thay endpoint' });

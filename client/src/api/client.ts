@@ -20,6 +20,11 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (res.status === 401) {
+    // Phiên hết giữa chừng: AuthGate sẽ hiện lại màn đăng nhập.
+    const { useAuthStore } = await import('../stores/authStore');
+    useAuthStore.getState().markSignedOut();
+  }
   if (!res.ok) {
     let message = `Lỗi ${res.status}`;
     let details: Record<string, unknown> = {};

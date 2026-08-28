@@ -1,6 +1,7 @@
 # WorkFlow — Quản lý công việc cá nhân + CRM khách hàng B2B
 
-Ứng dụng web chạy local, một người dùng (không đăng nhập, không tính năng cộng tác).
+Ứng dụng web một người dùng: một tài khoản đăng nhập duy nhất, không có tính năng cộng tác nhiều người.
+Chạy được cả trên máy local lẫn triển khai thật trên server (Docker) — xem [Build và chạy production](#build-và-chạy-production).
 Kết hợp bảng Kanban kiểu Trello với CRM bán hàng B2B, giao diện tiếng Việt.
 
 Giao diện và thao tác mô phỏng Trello, **mặc định chế độ tối**: phông nền bảng đổi được, cột và thẻ theo tông Trello, menu popover cho mọi thiết lập.
@@ -107,29 +108,84 @@ gzip; các trang nặng, lịch, biểu đồ, kéo thả và cửa sổ thẻ �
 
 ## Build và chạy production
 
+Từ v35, mọi route `/api` (trừ `/api/health` và `/api/auth`) đòi đăng nhập. Server cũng tự phục vụ
+được `client/dist` trên cùng origin (chạy Node thuần), còn bản Docker đặt nginx phía trước để phục
+vụ tĩnh và reverse-proxy `/api` — không cần CORS ở cả hai kiểu.
+
+### Biến môi trường
+
+| Biến | Bắt buộc | Mặc định | Ý nghĩa |
+| --- | --- | --- | --- |
+| `WORKFLOW_SESSION_SECRET` | ✅ | — | Bí mật ký cookie phiên. Sinh: `openssl rand -base64 48` |
+| `WORKFLOW_ADMIN_USER` | ✅ (lần đầu) | — | Tên đăng nhập, **chỉ đọc một lần** khi bảng `users` còn rỗng |
+| `WORKFLOW_ADMIN_PASSWORD` | ✅ (lần đầu) | — | Mật khẩu ban đầu (≥ 8 ký tự), cũng chỉ đọc một lần |
+| `WORKFLOW_AI_MASTER_KEY` | nên có | Khóa tự sinh trong `<WORKFLOW_DATA_DIR>/.ai-master.key` | Khóa AES-256 mã hóa API key AI; production nên cấp secret 32 byte base64/hex |
+| `PORT` | | `3001` | Cổng HTTP của API |
+| `WORKFLOW_DATA_DIR` | | `server/data` | Thư mục chứa DB, file tải lên và backup |
+| `WORKFLOW_DB_PATH` | | `<WORKFLOW_DATA_DIR>/app.db` | Đường dẫn SQLite cụ thể; `:memory:` cho test |
+
+Server **từ chối khởi động** nếu thiếu `WORKFLOW_SESSION_SECRET`, hoặc nếu bảng `users` rỗng mà không
+có `WORKFLOW_ADMIN_USER`/`WORKFLOW_ADMIN_PASSWORD`. Sau lần seed đầu, đổi mật khẩu trong
+**Cài đặt → Tài khoản** hoặc:
+
+```bash
+# chạy từ mã nguồn (dev):
+npm run auth:reset-password -w server -- "<mật-khẩu-mới>"
+# trong container Docker (không có tsx, gọi thẳng bản đã build):
+docker compose exec app node server/dist/db/resetPassword.js "<mật-khẩu-mới>"
+```
+
+### Triển khai bằng Docker
+
+`docker-compose.yml` gồm hai service: `app` (Node, cổng 3001, không mở ra host) và `nginx`
+(`nginx.conf`: phục vụ `client/dist` + proxy `/api` sang `app`, mở cổng 80). `app` đọc bí mật
+từ `.env` qua `env_file`.
+
+```bash
+cp .env.example .env      # điền WORKFLOW_SESSION_SECRET, WORKFLOW_ADMIN_USER/PASSWORD
+docker compose up -d --build
+```
+
+Dữ liệu (DB, tệp tải lên, backup, `.ai-master.key`) nằm trong Docker volume `crm-data`, sống qua
+mọi lần `docker compose down && up`. Định kỳ chạy `docker compose build --pull` để lấy bản vá bảo
+mật của base image. nginx hiện phục vụ HTTP cổng 80 — đặt sau một reverse proxy TLS (cookie phiên
+chỉ an toàn qua HTTPS).
+
+### Tự động deploy (CI)
+
+`.github/workflows/deploy.yml` chạy trên self-hosted runner: mỗi lần push `main`, nó rsync mã
+nguồn sang `/opt/crm` trên `lxc-crm`, ghi `/opt/crm/.env` từ **GitHub Actions secrets**, rồi
+`docker compose up -d --build` và kiểm tra `/api/health`.
+
+Repo cần các secret sau (Settings → Secrets and variables → Actions):
+
+| Secret | Bắt buộc | Ghi chú |
+| --- | --- | --- |
+| `WORKFLOW_SESSION_SECRET` | ✅ | `openssl rand -base64 48`; thiếu thì workflow dừng ngay |
+| `WORKFLOW_ADMIN_PASSWORD` | ✅ (lần deploy đầu) | Mật khẩu tài khoản đầu tiên (≥ 8 ký tự) |
+| `WORKFLOW_ADMIN_USER` | | Mặc định `admin` nếu không đặt |
+| `WORKFLOW_AI_MASTER_KEY` | | Để trống thì app tự sinh khóa trong volume |
+
+Đổi mật khẩu sau lần deploy đầu bằng **Cài đặt → Tài khoản**; các secret `WORKFLOW_ADMIN_*`
+chỉ có tác dụng khi bảng `users` còn rỗng.
+
+### Chạy trực tiếp bằng Node (không Docker)
+
 ```bash
 npm run build
-npm start
+WORKFLOW_SESSION_SECRET=... WORKFLOW_ADMIN_USER=admin WORKFLOW_ADMIN_PASSWORD=... npm start
 ```
 
-Lệnh `npm start` chạy API đã biên dịch ở cổng 3001. Phục vụ thư mục `client/dist` bằng web server
-tĩnh và chuyển tiếp `/api` tới API. Có thể xem thử artifact client tại local bằng:
-
-```bash
-npm run preview -w client -- --host 127.0.0.1
-```
-
-Server hỗ trợ các biến môi trường sau:
-
-| Biến | Mặc định | Ý nghĩa |
-| --- | --- | --- |
-| `PORT` | `3001` | Cổng HTTP của API |
-| `WORKFLOW_DATA_DIR` | `server/data` | Thư mục chứa DB mặc định, file tải lên và backup |
-| `WORKFLOW_DB_PATH` | `<WORKFLOW_DATA_DIR>/app.db` | Đường dẫn SQLite cụ thể; dùng `:memory:` cho test |
-| `WORKFLOW_AI_MASTER_KEY` | Khóa cài đặt trong `<WORKFLOW_DATA_DIR>/.ai-master.key` | Khóa AES-256 mã hóa API key AI; production nên cấp secret 32 byte dạng base64/hex |
+`npm start` chạy API đã biên dịch ở cổng 3001 và phục vụ luôn `client/dist`. Vẫn cần một reverse
+proxy TLS ở phía trước (cookie phiên chỉ an toàn qua HTTPS).
 
 Khi dừng bằng `SIGINT`/`SIGTERM`, API ngừng nhận kết nối mới, đóng HTTP server rồi đóng SQLite.
 Migration chạy tự động và theo thứ tự khi mở DB.
+
+> **Lỗ hổng phụ thuộc đã biết:** `npm audit` báo 9 mục (7 moderate, 2 high) đều nằm trong chuỗi
+> `@excalidraw/excalidraw → mermaid-to-excalidraw → nanoid/langium`. Bản vá cần `npm audit fix --force`
+> (hạ cấp Excalidraw, breaking) nên để xử lý riêng kèm kiểm thử lại tính năng sơ đồ, không gộp vào
+> đợt chuẩn bị deploy này.
 
 ### Cấu hình AI Copilot
 
@@ -154,16 +210,21 @@ tạo khóa riêng cho lần cài đặt trong thư mục dữ liệu. Xem thi�
 ├── packages/contracts/ Contract và schema dùng chung cho API/UI
 ├── server/             Express + better-sqlite3 (cổng 3001)
 │   └── src/
-│       ├── db/        schema.sql, migrate, seed
-│       ├── lib/       vị trí kéo thả, tìm kiếm bỏ dấu, kiểm tra dữ liệu
-│       ├── services/  transaction và quy tắc nghiệp vụ nhiều bước
-│       └── routes/    parse HTTP, gọi service, trả response
+│       ├── db/         schema.sql, migrate, seed, resetPassword
+│       ├── lib/        vị trí kéo thả, tìm kiếm bỏ dấu, kiểm tra dữ liệu
+│       ├── middleware/ requireAuth
+│       ├── services/   transaction, quy tắc nghiệp vụ, auth (băm mật khẩu, phiên)
+│       └── routes/     parse HTTP, gọi service, trả response
 ├── client/             React 19 + Vite + Tailwind 4 (cổng 5173)
-    └── src/
-        ├── components/  kanban, crm, timeline, dùng chung
-        ├── pages/       22 trang
-        └── i18n/vi.ts   toàn bộ chuỗi giao diện
-└── e2e/                Luồng Playwright desktop/mobile trên production build
+│   └── src/
+│       ├── components/  kanban, crm, timeline, auth, dùng chung
+│       ├── pages/       22 trang + LoginPage
+│       └── i18n/vi.ts   toàn bộ chuỗi giao diện
+├── e2e/                Luồng Playwright desktop/mobile trên production build
+├── Dockerfile          Build đa tầng (node:22-bookworm → -slim), npm mirror cho mạng VN
+├── docker-compose.yml  Service app (Node) + nginx (nginx.conf: tĩnh + proxy /api)
+├── .github/workflows/  quality.yml (CI kiểm thử) + deploy.yml (tự deploy lên lxc-crm)
+└── docs/archive/       Tài liệu spec cũ, giữ để tham khảo lịch sử
 ```
 
 Xem thêm [tài liệu kiến trúc](docs/ARCHITECTURE.md).

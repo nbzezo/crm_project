@@ -16,7 +16,7 @@ let server: Server;
 let baseUrl = '';
 
 before(async () => {
-  server = createApp().listen(0);
+  server = createApp({ auth: false }).listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Khong khoi dong duoc test server');

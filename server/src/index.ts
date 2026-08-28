@@ -1,11 +1,15 @@
 import { createApp } from './app.ts';
 import { closeDatabase } from './db/connection.ts';
 import { db } from './db/connection.ts';
+import { ensureAdminUser } from './services/auth/bootstrapAdmin.ts';
 import { startAiAutomationScheduler } from './services/ai/automations.ts';
 import { startBackupTelegramScheduler } from './services/telegram/telegramBackup.ts';
 import { startTelegramNotifierScheduler } from './services/telegram/telegramNotifier.ts';
 
 const PORT = Number(process.env.PORT ?? 3001);
+
+await ensureAdminUser();
+
 const app = createApp();
 startAiAutomationScheduler(db);
 startTelegramNotifierScheduler(db);

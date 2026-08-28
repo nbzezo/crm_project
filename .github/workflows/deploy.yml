@@ -22,7 +22,17 @@ jobs:
       - name: Sync source to lxc-crm
         run: |
           ssh root@10.10.10.5 'mkdir -p /opt/crm'
-          rsync -avz --delete --exclude '.git' --exclude 'node_modules' --exclude '.github' ./src/ root@10.10.10.5:/opt/crm/
+          rsync -avz --delete --exclude '.git' --exclude 'node_modules' --exclude '.github' --exclude '.env' ./src/ root@10.10.10.5:/opt/crm/
+
+      - name: Write production .env on target
+        run: |
+          test -n "${{ secrets.WORKFLOW_SESSION_SECRET }}" || { echo "::error::Chua dat repo secret WORKFLOW_SESSION_SECRET"; exit 1; }
+          ssh root@10.10.10.5 'umask 077 && cat > /opt/crm/.env' <<'ENV'
+          WORKFLOW_SESSION_SECRET=${{ secrets.WORKFLOW_SESSION_SECRET }}
+          WORKFLOW_ADMIN_USER=${{ secrets.WORKFLOW_ADMIN_USER || 'admin' }}
+          WORKFLOW_ADMIN_PASSWORD=${{ secrets.WORKFLOW_ADMIN_PASSWORD }}
+          WORKFLOW_AI_MASTER_KEY=${{ secrets.WORKFLOW_AI_MASTER_KEY }}
+          ENV
 
       - name: Rebuild and restart containers
         run: |

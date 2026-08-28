@@ -2,6 +2,12 @@ services:
   app:
     build: .
     restart: unless-stopped
+    # .env chua bi mat auth: WORKFLOW_SESSION_SECRET (bat buoc), WORKFLOW_ADMIN_USER /
+    # WORKFLOW_ADMIN_PASSWORD (chi doc lan dau), WORKFLOW_AI_MASTER_KEY (tuy chon).
+    # Copy tu .env.example. Tren server, .github/workflows/deploy.yml tu ghi file nay
+    # tu GitHub Actions secrets truoc khi `docker compose up`.
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3001

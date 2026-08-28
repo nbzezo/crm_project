@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import MindElixir, { type MindElixirData, type MindElixirInstance, type Theme, type Topic } from 'mind-elixir';
+import MindElixir, {
+  type MindElixirData,
+  type MindElixirInstance,
+  type Theme,
+  type Topic,
+} from 'mind-elixir';
 import 'mind-elixir/style';
 import { Download, GripHorizontal } from 'lucide-react';
 import { useThemeStore } from '../../../../stores/themeStore';
@@ -25,24 +30,48 @@ const PALETTES: Record<string, { label: string; swatch: string; colors: string[]
     label: 'Xanh dương',
     swatch: '#0ea5e9',
     colors: [
-      '#0ea5e9', '#0284c7', '#0369a1', '#38bdf8', '#7dd3fc',
-      '#06b6d4', '#0891b2', '#155e75', '#3b82f6', '#1d4ed8',
+      '#0ea5e9',
+      '#0284c7',
+      '#0369a1',
+      '#38bdf8',
+      '#7dd3fc',
+      '#06b6d4',
+      '#0891b2',
+      '#155e75',
+      '#3b82f6',
+      '#1d4ed8',
     ],
   },
   green: {
     label: 'Xanh lá',
     swatch: '#22c55e',
     colors: [
-      '#22c55e', '#16a34a', '#15803d', '#4ade80', '#86efac',
-      '#10b981', '#059669', '#065f46', '#84cc16', '#65a30d',
+      '#22c55e',
+      '#16a34a',
+      '#15803d',
+      '#4ade80',
+      '#86efac',
+      '#10b981',
+      '#059669',
+      '#065f46',
+      '#84cc16',
+      '#65a30d',
     ],
   },
   orange: {
     label: 'Cam ấm',
     swatch: '#f97316',
     colors: [
-      '#f97316', '#ea580c', '#c2410c', '#fb923c', '#fdba74',
-      '#f59e0b', '#d97706', '#b45309', '#ef4444', '#dc2626',
+      '#f97316',
+      '#ea580c',
+      '#c2410c',
+      '#fb923c',
+      '#fdba74',
+      '#f59e0b',
+      '#d97706',
+      '#b45309',
+      '#ef4444',
+      '#dc2626',
     ],
   },
 };
@@ -193,7 +222,9 @@ export default function MindmapCanvas({ block, editor }: CanvasProps) {
               aria-pressed={paletteKey === key}
               onClick={() => choosePalette(key)}
               className={`h-5 w-5 shrink-0 rounded-full border-2 transition ${
-                paletteKey === key ? 'border-tr-primary' : 'border-transparent hover:border-tr-border'
+                paletteKey === key
+                  ? 'border-tr-primary'
+                  : 'border-transparent hover:border-tr-border'
               }`}
               style={{ backgroundColor: preset.swatch }}
             />

@@ -1,3 +1,7 @@
+> **LƯU TRỮ — tài liệu lịch sử.** Đối chiếu spec ↔ mã nguồn tại thời điểm schema **v8**
+> (11/08/2026). Schema hiện tại đã ở **v35**; nội dung dưới đây không còn phản ánh
+> đúng hệ thống đang chạy. Giữ lại để tham khảo bối cảnh, không dùng làm căn cứ hiện hành.
+
 # RÀ SOÁT & CẬP NHẬT BRD – QUẢN LÝ NHÃN (LABEL / TAG)
 
 **Phiên bản BRD:** 1.0 → **1.2 (đã đối chiếu mã nguồn WorkFlow + phương án triển khai không ảnh hưởng module khác)**

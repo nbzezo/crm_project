@@ -707,6 +707,10 @@ test('WCAG AA scan, skip-link va reflow 200%', async ({ page, request }, testInf
   }
 
   await page.goto('/');
+  // Cong xac thuc (AuthGate) render mot spinner truoc khi app xuat hien — cho
+  // mang lang di roi moi bam Tab, neu khong Tab roi vao body luc con spinner.
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.keyboard.press('Tab');
   const skipLink = page.getByRole('link', { name: 'Bỏ qua đến nội dung chính' });
   await expect(skipLink).toBeFocused();

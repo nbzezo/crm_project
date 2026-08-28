@@ -6,7 +6,14 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '.codegraph/**', 'server/data/**', 'docs/**'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '.codegraph/**',
+      '.claude/**',
+      'server/data/**',
+      'docs/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

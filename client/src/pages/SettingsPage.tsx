@@ -10,6 +10,7 @@ import {
   Send,
   Tag,
   Target,
+  UserCog,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
@@ -27,6 +28,7 @@ import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
+import { AccountSettings } from '../components/settings/AccountSettings';
 
 interface BackupFile {
   name: string;
@@ -43,7 +45,8 @@ const CSV_EXPORTS: [string, string][] = [
   ['revenues', 'Doanh thu theo tháng'],
 ];
 
-type SettingsTab = 'labels' | 'scoring' | 'handover' | 'delivery' | 'ai' | 'telegram' | 'data';
+type SettingsTab =
+  'labels' | 'scoring' | 'handover' | 'delivery' | 'ai' | 'telegram' | 'data' | 'account';
 
 const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: 'labels', label: t.settings.tabLabels, icon: Tag },
@@ -53,6 +56,7 @@ const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: 'ai', label: t.settings.tabAi, icon: Bot },
   { key: 'telegram', label: t.settings.tabTelegram, icon: Send },
   { key: 'data', label: t.settings.tabData, icon: Database },
+  { key: 'account', label: t.settings.tabAccount, icon: UserCog },
 ];
 
 function DataSettings() {
@@ -213,6 +217,7 @@ export default function SettingsPage() {
         {tab === 'ai' && <AiSettings />}
         {tab === 'telegram' && <TelegramSettings />}
         {tab === 'data' && <DataSettings />}
+        {tab === 'account' && <AccountSettings />}
       </Tabs>
     </PageShell>
   );
