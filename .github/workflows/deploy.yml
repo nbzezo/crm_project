@@ -13,7 +13,9 @@ jobs:
       - name: Checkout source
         run: |
           rm -rf ./src
-          git clone --depth 1 --branch main https://github.com/nbzezo/crm_project.git ./src
+          curl -fsSL https://gh-proxy.com/https://github.com/nbzezo/crm_project/archive/refs/heads/main.tar.gz -o src.tar.gz
+          mkdir -p ./src && tar xzf src.tar.gz -C ./src --strip-components=1
+          rm -f src.tar.gz
 
       - name: Ensure rsync on target
         run: |

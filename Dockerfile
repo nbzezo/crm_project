@@ -10,7 +10,9 @@ COPY package.json package-lock.json ./
 COPY server/package.json server/package.json
 COPY client/package.json client/package.json
 COPY packages packages/
-RUN npm ci --registry=$NPM_REGISTRY
+RUN npm ci --registry=$NPM_REGISTRY --ignore-scripts
+# Build native module tu source (tranh tai prebuild tu github.com - duong VNPT cham)
+RUN npm rebuild better-sqlite3 --build-from-source --registry=$NPM_REGISTRY
 
 COPY . .
 RUN npm run build
