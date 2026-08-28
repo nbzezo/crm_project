@@ -10,10 +10,29 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 30
     steps:
-      - name: Checkout source
+      - name: Checkout source (auto direct/proxy)
         run: |
-          rm -rf ./src
-          curl -fsSL https://gh-proxy.com/https://github.com/nbzezo/crm_project/archive/refs/heads/main.tar.gz -o src.tar.gz
+          set -e
+          rm -rf ./src src.tar.gz
+          BASE_URL="https://github.com/nbzezo/crm_project/archive/refs/heads/main.tar.gz"
+          PROXY_URL="https://gh-proxy.com/${BASE_URL}"
+
+          # Thu truc tiep, do toc do; neu < 0.5 MB/s hoac loi thi chuyen sang proxy
+          SPEED=$(curl -fsSL --max-time 25 -o src.tar.gz -w '%{speed_download}' "$BASE_URL" 2>/dev/null || echo 0)
+          echo "Direct speed: $(awk "BEGIN{printf \"%.2f\", ${SPEED:-0}/1000000}") MB/s"
+          USE_PROXY=0
+          if ! awk "BEGIN{exit !(${SPEED:-0} >= 500000)}"; then
+            echo "Direct too slow (<0.5 MB/s) or failed -> switching to gh-proxy.com"
+            USE_PROXY=1
+          fi
+          if ! tar tzf src.tar.gz >/dev/null 2>&1; then
+            echo "Direct tarball invalid -> switching to gh-proxy.com"
+            USE_PROXY=1
+          fi
+          if [ "$USE_PROXY" = "1" ]; then
+            rm -f src.tar.gz
+            curl -fsSL --max-time 300 -o src.tar.gz "$PROXY_URL"
+          fi
           mkdir -p ./src && tar xzf src.tar.gz -C ./src --strip-components=1
           rm -f src.tar.gz
 
