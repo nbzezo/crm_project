@@ -48,7 +48,7 @@ export function ListPopover({ card, pop, onDone }: Props) {
             key={list.id}
             type="button"
             onClick={() => move.mutate(list.id)}
-            className={`flex min-h-11 w-full items-center justify-between rounded px-3 text-left text-sm transition hover:bg-tr-hover sm:min-h-8 ${
+            className={`flex min-h-11 w-full items-center justify-between rounded px-3 text-left text-sm transition hover:bg-tr-hover fine:min-h-8 ${
               list.id === card.list_id ? 'font-semibold text-tr-primary' : 'text-tr-text'
             }`}
           >
@@ -95,7 +95,7 @@ export function LabelsPopover({ card, pop, onDone }: Props) {
                 else next.add(label.id);
                 save.mutate([...next]);
               }}
-              className={`flex min-h-11 w-full items-center justify-between rounded px-3 text-sm font-medium transition hover:brightness-95 sm:min-h-8 ${
+              className={`flex min-h-11 w-full items-center justify-between rounded px-3 text-sm font-medium transition hover:brightness-95 fine:min-h-8 ${
                 active ? 'ring-2 ring-tr-text ring-offset-1' : ''
               }`}
               style={{ backgroundColor: label.color, color: contrastInk(label.color) }}

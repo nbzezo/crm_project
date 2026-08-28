@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowLeft, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Tabs } from '../components/common/Tabs';
 import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
 import { PageShell } from '../components/common/PageShell';
+import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import {
   Button,
   DateInput,
@@ -96,12 +97,7 @@ export default function ProjectDetailPage() {
 
   return (
     <PageShell>
-      <Link
-        to="/projects"
-        className={`inline-flex items-center gap-1 text-sm text-tr-muted hover:text-tr-primary ${focusRing}`}
-      >
-        <ArrowLeft size={14} aria-hidden="true" /> {t.nav.projects}
-      </Link>
+      <Breadcrumbs items={[{ label: t.nav.projects, to: '/projects' }, { label: project.name }]} />
 
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-56 flex-1">
@@ -109,7 +105,7 @@ export default function ProjectDetailPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-tr-text">{project.name}</h1>
             <HealthBadge health={project.health} />
             {!!project.is_archived && (
-              <span className="rounded-full bg-tr-hover px-2 py-0.5 text-2xs text-tr-muted">
+              <span className="rounded-full bg-tr-hover px-2 py-0.5 text-xs text-tr-muted">
                 Đã lưu trữ
               </span>
             )}
@@ -410,7 +406,7 @@ function Overview({ project }: { project: ProjectDetail }) {
 function Stat({ label, value, tone }: { label: string; value: number | string; tone: string }) {
   return (
     <div>
-      <dt className="text-2xs text-tr-muted">{label}</dt>
+      <dt className="text-xs text-tr-muted">{label}</dt>
       <dd className={`text-lg font-semibold tabular-nums ${tone}`}>{value}</dd>
     </div>
   );
@@ -472,7 +468,7 @@ function Phases({ project }: { project: ProjectDetail }) {
               </span>
 
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${MILESTONE_TONE[phase.state]}`}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${MILESTONE_TONE[phase.state]}`}
               >
                 {t.milestoneState[phase.state]}
                 {phase.state === 'overdue' && phase.days_left !== null
@@ -566,7 +562,7 @@ function People({ project }: { project: ProjectDetail }) {
     <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel">
       <table className="w-full text-sm">
         <caption className="sr-only">Nhân sự tham gia dự án</caption>
-        <thead className="bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase">
+        <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
           <tr>
             <th scope="col" className="px-3 py-2">
               Người phụ trách
@@ -673,7 +669,7 @@ function Commercial({ project }: { project: ProjectDetail }) {
                     )}
                   </span>
                   {deal.stage === 'won' && !deal.handover_ready && (
-                    <span className="shrink-0 rounded-full bg-tr-warning/15 px-1.5 py-0.5 text-2xs font-semibold text-tr-warning">
+                    <span className="shrink-0 rounded-full bg-tr-warning/15 px-1.5 py-0.5 text-xs font-semibold text-tr-warning">
                       Chờ bàn giao
                     </span>
                   )}

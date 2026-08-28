@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
+import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { ArrowLeft, FolderKanban, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { DealForm } from '../components/crm/DealForm';
@@ -31,7 +32,7 @@ import {
   Skeleton,
   focusRing,
 } from '../components/common/ui';
-import { t } from '../i18n/vi';
+import { VETO_BADGE_COLOR, t } from '../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
@@ -130,9 +131,26 @@ export default function DealDetailPage() {
 
   return (
     <div className="p-6">
-      <div className="mb-4 flex items-start gap-3">
-        <Link to="/pipeline" className="mt-1 rounded p-1 text-tr-muted hover:bg-tr-hover">
-          <ArrowLeft size={18} />
+      {/* Chuoi ba tang that su cua co hoi la Khach hang → Ho so → Co hoi; di
+          qua Pipeline chi la mot loi vao khac. */}
+      <Breadcrumbs
+        items={[
+          { label: t.nav.customers, to: '/customers' },
+          // Ten khach hang khong phai luc nao cung co trong payload; thieu thi bo
+          // han bac do thay vi hien mot muc trong.
+          ...(deal.customer_name
+            ? [{ label: deal.customer_name, to: `/customers/${deal.customer_id}` }]
+            : []),
+          { label: deal.title },
+        ]}
+      />
+      <div className="mt-2 mb-4 flex items-start gap-3">
+        <Link
+          to="/pipeline"
+          aria-label={`Quay lại ${t.nav.pipeline}`}
+          className={`mt-1 rounded-control p-1 text-tr-muted hover:bg-tr-hover ${focusRing}`}
+        >
+          <ArrowLeft size={18} aria-hidden="true" />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -143,7 +161,7 @@ export default function DealDetailPage() {
               </ColorBadge>
             )}
             {card?.veto.some((v) => v.blocking) && (
-              <ColorBadge color="#e04b3a">Ngoài forecast</ColorBadge>
+              <ColorBadge color={VETO_BADGE_COLOR}>Ngoài forecast</ColorBadge>
             )}
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">

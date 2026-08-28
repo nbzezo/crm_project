@@ -235,7 +235,7 @@ export function TaskFilterBar() {
           <Filter size={14} aria-hidden="true" />
           Bộ lọc nâng cao
           {advancedFilterCount > 0 && (
-            <span className="rounded-full bg-tr-primary px-1.5 text-2xs font-semibold text-tr-on-primary">
+            <span className="rounded-full bg-tr-primary px-1.5 text-xs font-semibold text-tr-on-primary">
               {advancedFilterCount}
             </span>
           )}
@@ -383,7 +383,7 @@ export function TaskFilterBar() {
           {activeFilters.map((filter) => (
             <span
               key={filter.key}
-              className="inline-flex h-7 max-w-64 items-center gap-1 rounded-full border border-tr-primary/30 bg-tr-primary/10 px-2.5 text-xs font-medium text-tr-primary"
+              className="inline-flex min-h-7 max-w-64 items-center gap-1 rounded-full border border-tr-primary/30 bg-tr-primary/10 px-2.5 text-xs font-medium text-tr-primary"
             >
               <span className="truncate">{filter.label}</span>
               <button
@@ -506,7 +506,7 @@ function TaskSummaryBar() {
       aria-label="Tổng quan công việc"
       className="flex flex-wrap items-center gap-1 rounded-panel border border-tr-border bg-tr-panel p-2 shadow-sm"
     >
-      <span className="px-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase">
+      <span className="px-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase">
         Cần chú ý
       </span>
       {summary.map((item) => (

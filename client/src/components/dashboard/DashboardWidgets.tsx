@@ -234,7 +234,7 @@ function Metric({ icon: Icon, label, value, hint, tone, featured, to, onClick }:
         </span>
         {hint && (
           <span
-            className={`truncate text-2xs font-medium ${
+            className={`truncate text-xs font-medium ${
               featured
                 ? 'rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-[var(--tr-on-yellow)]'
                 : `pb-0.5 ${supportingTextClass}`
@@ -446,7 +446,7 @@ export function ActionWidget({
     >
       {recommendations.length > 0 && (
         <div className="mb-3 rounded-panel bg-tr-hover p-2.5">
-          <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-bold tracking-wide text-tr-subtle uppercase">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-wide text-tr-subtle uppercase">
             <ShieldAlert size={13} className="text-tr-warning" aria-hidden="true" /> Nên ưu tiên
           </div>
           <ol className="grid gap-1 sm:grid-cols-3">
@@ -470,7 +470,7 @@ export function ActionWidget({
               type="button"
               aria-pressed={selectedBucket}
               onClick={() => setActive(key)}
-              className={`min-h-9 rounded-full border px-3 text-xs font-medium transition sm:min-h-0 sm:py-1.5 ${focusRing} ${
+              className={`min-h-9 rounded-full border px-3 text-xs font-medium transition fine:min-h-0 fine:py-1.5 ${focusRing} ${
                 selectedBucket
                   ? alert
                     ? 'border-tr-danger bg-tr-danger text-tr-on-danger'
@@ -523,7 +523,7 @@ function RecommendationItem({
   const content = (
     <>
       <span
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-2xs font-bold ${
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
           item.tone === 'danger'
             ? 'bg-tr-danger/15 text-tr-danger'
             : item.tone === 'warning'
@@ -537,7 +537,7 @@ function RecommendationItem({
         <span className="block truncate text-xs font-semibold text-tr-text" title={item.title}>
           {item.title}
         </span>
-        <span className="block truncate text-2xs text-tr-subtle">{item.meta}</span>
+        <span className="block truncate text-xs text-tr-subtle">{item.meta}</span>
       </span>
     </>
   );
@@ -567,7 +567,7 @@ function TaskItem({ task, onOpen }: { task: TaskRow; onOpen: (id: number) => voi
       <button
         type="button"
         onClick={() => onOpen(task.id)}
-        className={`group flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control px-1 py-2 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+        className={`group flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control px-1 py-2 text-left transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
         aria-label={`Mở công việc ${task.title}`}
       >
         <PriorityBadge priority={task.priority} small />
@@ -575,7 +575,7 @@ function TaskItem({ task, onOpen }: { task: TaskRow; onOpen: (id: number) => voi
           <span className="block truncate text-sm font-medium text-tr-text" title={task.title}>
             {task.title}
           </span>
-          <span className="block truncate text-2xs text-tr-muted">
+          <span className="block truncate text-xs text-tr-muted">
             {task.board_name}
             {task.customer_name ? ` · ${task.customer_name}` : ''}
           </span>
@@ -684,7 +684,7 @@ function ReminderGroup({
   return (
     <section>
       <h3
-        className={`mb-1 text-2xs font-bold tracking-wide uppercase ${danger ? 'text-tr-danger' : 'text-tr-subtle'}`}
+        className={`mb-1 text-xs font-bold tracking-wide uppercase ${danger ? 'text-tr-danger' : 'text-tr-subtle'}`}
       >
         {label} <span className="font-normal text-tr-muted">{items.length}</span>
       </h3>
@@ -708,7 +708,7 @@ function ReminderItem({
   presentation: ReminderPresentation;
   onOpenTask: (id: number) => void;
 }) {
-  const className = `group flex min-h-10 w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1 ${focusRing}`;
+  const className = `group flex min-h-10 w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition hover:bg-tr-hover fine:min-h-0 fine:py-1 ${focusRing}`;
   const content = (
     <>
       <Bell
@@ -727,7 +727,7 @@ function ReminderItem({
           {reminder.title}
         </span>
         <span
-          className={`block truncate text-2xs ${
+          className={`block truncate text-xs ${
             presentation.tone === 'danger'
               ? 'font-semibold text-tr-danger'
               : presentation.tone === 'warning'
@@ -815,7 +815,7 @@ export function PipelineWidget({ data }: { data: DashboardData }) {
                       style={{ width: `${width}%`, backgroundColor: STAGE_COLORS[stage] }}
                     />
                   </span>
-                  <span className="col-start-2 mt-0.5 truncate text-right text-2xs text-tr-muted tabular-nums sm:col-start-auto sm:mt-0 sm:text-xs">
+                  <span className="col-start-2 mt-0.5 truncate text-right text-xs text-tr-muted tabular-nums sm:col-start-auto sm:mt-0 sm:text-xs">
                     <strong className="font-semibold text-tr-text">
                       {formatVNDShort(item.sum_vnd)}
                     </strong>{' '}
@@ -892,7 +892,7 @@ export function AttentionWidget({
         <span className="inline-flex items-center gap-2">
           Cơ hội cần chú ý
           {items.length > 0 && (
-            <span className="rounded-full bg-tr-warning/15 px-2 py-0.5 text-2xs font-bold text-tr-warning tabular-nums">
+            <span className="rounded-full bg-tr-warning/15 px-2 py-0.5 text-xs font-bold text-tr-warning tabular-nums">
               {items.length}
             </span>
           )}
@@ -935,7 +935,7 @@ function AttentionGroup({
   return (
     <section className="min-w-0">
       <h3
-        className={`mb-1.5 flex items-center gap-1.5 text-2xs font-bold tracking-wide uppercase ${danger ? 'text-tr-danger' : 'text-tr-warning'}`}
+        className={`mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase ${danger ? 'text-tr-danger' : 'text-tr-warning'}`}
       >
         {danger ? (
           <AlertTriangle size={13} aria-hidden="true" />
@@ -959,7 +959,7 @@ function AttentionGroup({
                   >
                     {deal.title}
                   </span>
-                  <span className="block truncate text-2xs text-tr-muted">
+                  <span className="block truncate text-xs text-tr-muted">
                     {deal.customer_name} · {formatVNDShort(deal.value_vnd)}
                   </span>
                 </span>
@@ -971,7 +971,7 @@ function AttentionGroup({
                 {reasons.slice(0, 2).map((reason) => (
                   <span
                     key={reason.label}
-                    className={`truncate rounded-full border px-1.5 py-0.5 text-2xs font-medium ${
+                    className={`truncate rounded-full border px-1.5 py-0.5 text-xs font-medium ${
                       reason.group === 'immediate'
                         ? 'border-tr-danger/25 bg-tr-danger/10 text-tr-danger'
                         : 'border-tr-warning/25 bg-tr-warning/10 text-tr-warning'
@@ -982,7 +982,7 @@ function AttentionGroup({
                   </span>
                 ))}
                 {reasons.length > 2 && (
-                  <span className="shrink-0 text-2xs text-tr-muted">+{reasons.length - 2}</span>
+                  <span className="shrink-0 text-xs text-tr-muted">+{reasons.length - 2}</span>
                 )}
               </span>
             </Link>
@@ -1046,7 +1046,7 @@ export function WorkloadWidget({
                 type="button"
                 onClick={() => onSelectAssignee(row.assignee_contact_id ?? 'none')}
                 aria-label={`${row.assignee_name ?? t.card.unassigned}: ${row.open_count} việc đang mở, ${row.overdue_count} quá hạn`}
-                className={`group flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+                className={`group flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
               >
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {row.assignee_name ? (
@@ -1060,12 +1060,12 @@ export function WorkloadWidget({
                   )}
                 </span>
                 {row.overdue_count > 0 && (
-                  <span className="shrink-0 rounded-full bg-tr-danger/15 px-2 py-0.5 text-2xs font-semibold text-tr-danger">
+                  <span className="shrink-0 rounded-full bg-tr-danger/15 px-2 py-0.5 text-xs font-semibold text-tr-danger">
                     {row.overdue_count} quá hạn
                   </span>
                 )}
                 {row.due_week_count > 0 && (
-                  <span className="shrink-0 rounded-full bg-tr-warning/15 px-2 py-0.5 text-2xs font-medium text-tr-warning">
+                  <span className="shrink-0 rounded-full bg-tr-warning/15 px-2 py-0.5 text-xs font-medium text-tr-warning">
                     {row.due_week_count} tuần này
                   </span>
                 )}
@@ -1112,11 +1112,11 @@ export function ContractsWidget({ data }: { data: DashboardData }) {
               <li key={contract.id}>
                 <Link
                   to="/contracts"
-                  className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+                  className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
                   aria-label={`${contract.name}, ${contractCountdown(contract.days_left)}`}
                 >
                   <span
-                    className={`w-[4.75rem] shrink-0 rounded-control px-1.5 py-1 text-center text-2xs font-bold tabular-nums ${
+                    className={`w-[4.75rem] shrink-0 rounded-control px-1.5 py-1 text-center text-xs font-bold tabular-nums ${
                       urgent
                         ? 'bg-tr-danger/10 text-tr-danger'
                         : warning
@@ -1133,7 +1133,7 @@ export function ContractsWidget({ data }: { data: DashboardData }) {
                     >
                       {contract.name}
                     </span>
-                    <span className="block truncate text-2xs text-tr-muted">
+                    <span className="block truncate text-xs text-tr-muted">
                       {contract.customer_name} · {formatDate(contract.end_date)}
                     </span>
                   </span>
@@ -1177,7 +1177,7 @@ export function RecentActivityWidget({ interactions }: { interactions: Interacti
             <li key={item.id}>
               <Link
                 to={`/customers/${item.customer_id}`}
-                className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+                className={`group flex min-h-11 min-w-0 items-start gap-2 rounded-control px-1.5 py-2 transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
               >
                 <Activity
                   size={14}
@@ -1185,7 +1185,7 @@ export function RecentActivityWidget({ interactions }: { interactions: Interacti
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-center gap-1.5 text-2xs text-tr-muted">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-tr-muted">
                     <span className="shrink-0 font-medium text-tr-subtle">
                       {activityWhen(item.occurred_at)}
                     </span>
@@ -1235,7 +1235,7 @@ export function BoardSummaryWidget({ boards }: { boards: DashboardData['recent_b
             <li key={board.id}>
               <Link
                 to={`/boards/${board.id}`}
-                className={`group flex min-h-11 min-w-0 items-center gap-2.5 rounded-control px-1.5 py-2 transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+                className={`group flex min-h-11 min-w-0 items-center gap-2.5 rounded-control px-1.5 py-2 transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
               >
                 <span
                   className="h-8 w-1.5 shrink-0 rounded-full"
@@ -1250,7 +1250,7 @@ export function BoardSummaryWidget({ boards }: { boards: DashboardData['recent_b
                   >
                     {board.name}
                   </span>
-                  <span className="block truncate text-2xs text-tr-muted">
+                  <span className="block truncate text-xs text-tr-muted">
                     {board.card_count > 0 ? (
                       <>{board.card_count} việc đang mở</>
                     ) : (

@@ -52,7 +52,7 @@ export function Modal({
      xem giai thich chi tiet hon trong Drawer.tsx, cung mot van de. */
   return createPortal(
     <div
-      className="tr-anim-fade fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-tr-overlay p-4 sm:p-8"
+      className="tr-anim-fade fixed inset-0 z-modal flex items-start justify-center overflow-y-auto bg-tr-overlay p-4 sm:p-8"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) requestClose();
       }}
@@ -89,7 +89,7 @@ export function Modal({
           de tranh vong nhap khau ConfirmDialog -> Modal -> ConfirmDialog. */}
       {confirming && (
         <div
-          className="tr-anim-fade fixed inset-0 z-[55] flex items-center justify-center bg-tr-overlay p-4"
+          className="tr-anim-fade fixed inset-0 z-modal-nested flex items-center justify-center bg-tr-overlay p-4"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setConfirming(false);
           }}

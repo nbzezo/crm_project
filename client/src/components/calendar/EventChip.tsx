@@ -23,7 +23,7 @@ export function EventChip({ item }: { item: CalEvent }) {
         <item.Icon size={12} className="shrink-0 opacity-90" aria-hidden="true" />
       )}
 
-      {item.time && <span className="shrink-0 text-2xs tabular-nums opacity-90">{item.time}</span>}
+      {item.time && <span className="shrink-0 text-xs tabular-nums opacity-90">{item.time}</span>}
 
       <span className={`min-w-0 flex-1 truncate ${item.done ? 'line-through' : ''}`}>
         {item.title}

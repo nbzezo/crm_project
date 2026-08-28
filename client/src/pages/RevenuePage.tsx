@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { Check, Download, Info, Plus, Settings2 } from 'lucide-react';
 import { api, qs } from '../api/client';
+import { ChartDataTable } from '../components/common/ChartDataTable';
 import { RevenueLineForm } from '../components/crm/RevenueLineForm';
 import { MonthlyRevenueModal } from '../components/crm/MonthlyRevenueModal';
 import { ServiceCatalog } from '../components/crm/ServiceCatalog';
@@ -33,7 +34,6 @@ import {
   focusRing,
 } from '../components/common/ui';
 import {
-  CHART_INK,
   REVENUE_STAGE_COLORS,
   REVENUE_STAGE_ORDER,
   REVENUE_STAGE_TINTS,
@@ -58,9 +58,9 @@ function periodOf(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+/* Mau truc/nhan lay tu token trong index.css (khoi `.recharts-*`), khong dat o day. */
 const AXIS_PROPS = {
-  stroke: CHART_INK.axis,
-  tick: { fill: CHART_INK.muted, fontSize: 11 },
+  tick: { fontSize: 11 },
   tickLine: false,
 };
 
@@ -327,7 +327,7 @@ export default function RevenuePage() {
               data={chartView === 'monthly' ? chartData : cumulativeChartData}
               margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
             >
-              <CartesianGrid stroke={CHART_INK.grid} vertical={false} />
+              <CartesianGrid vertical={false} />
               <XAxis dataKey="name" {...AXIS_PROPS} />
               <YAxis {...AXIS_PROPS} tickFormatter={(v: number) => formatVNDShort(v)} width={64} />
               <Tooltip content={<RevenueChartTooltip />} />
@@ -344,6 +344,18 @@ export default function RevenuePage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        {/* Bieu do cot chong 4 giai doan: khong the doc bang ban phim hay trinh
+            doc man hinh neu khong co bang kem theo. */}
+        <ChartDataTable
+          caption={`Doanh thu ${year} theo tháng — ${chartView === 'monthly' ? 'theo tháng' : 'lũy kế'}`}
+          valueLabel="Tổng"
+          rows={(chartView === 'monthly' ? chartData : cumulativeChartData).map((row) => ({
+            name: row.name,
+            value: REVENUE_STAGE_ORDER.map(
+              (stage) => `${t.revenueStage[stage]} ${formatVNDShort(row[stage])}`
+            ).join(' · '),
+          }))}
+        />
       </Panel>
 
       {/* Bảng nhập doanh thu 12 tháng */}
@@ -456,7 +468,7 @@ export default function RevenuePage() {
                         {line.customer_name}
                       </Link>
                       {line.contract_name && (
-                        <div className="text-2xs text-tr-muted">{line.contract_name}</div>
+                        <div className="text-xs text-tr-muted">{line.contract_name}</div>
                       )}
                     </td>
                     <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
@@ -624,7 +636,7 @@ function hexToRgba(hex: string, alpha: number): string {
 function StatusChip({ color, children }: { color: string; children: string }) {
   return (
     <span
-      className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
       style={{
         backgroundColor: hexToRgba(color, 0.14),
         borderColor: hexToRgba(color, 0.35),

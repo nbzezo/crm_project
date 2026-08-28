@@ -155,7 +155,7 @@ export function LabelSelectPopover({
       <div className="space-y-2">
         {groups.map((group) => (
           <div key={group.name}>
-            <p className="mb-1 text-[11px] font-semibold tracking-wide text-tr-muted uppercase">
+            <p className="mb-1 text-xs font-semibold tracking-wide text-tr-muted uppercase">
               {group.name}
             </p>
             <div className="space-y-1">

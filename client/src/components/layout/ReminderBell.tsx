@@ -321,7 +321,7 @@ export function ReminderBell() {
       <button
         type="button"
         onClick={popover.toggle}
-        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-tr-border bg-tr-panel text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary sm:h-9 sm:w-9"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-tr-border bg-tr-panel text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary fine:h-9 fine:w-9"
         aria-label={
           unreadCount > 0
             ? `Thông báo — ${unreadCount} chưa đọc`
@@ -338,7 +338,7 @@ export function ReminderBell() {
         {unreadCount > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-tr-panel bg-tr-danger px-1 text-[10px] font-bold text-tr-on-danger"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-tr-panel bg-tr-danger px-1 text-xs font-bold text-tr-on-danger"
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
@@ -404,7 +404,7 @@ export function ReminderBell() {
                 <div className="mt-2 flex items-center justify-between border-t border-tr-border pt-2">
                   <div>
                     <p className="text-xs font-medium text-tr-text">Thông báo trên máy tính</p>
-                    <p className="text-[11px] text-tr-muted">Chỉ xin quyền khi bạn chủ động bật</p>
+                    <p className="text-xs text-tr-muted">Chỉ xin quyền khi bạn chủ động bật</p>
                   </div>
                   <button
                     type="button"
@@ -518,11 +518,11 @@ export function ReminderBell() {
                   <div className="sticky top-0 z-10 flex items-center justify-between border-y border-tr-border bg-tr-surface/95 px-3 py-1.5 backdrop-blur first:border-t-0">
                     <h3
                       id={`notification-group-${group.key}`}
-                      className="text-[11px] font-semibold uppercase tracking-wide text-tr-subtle"
+                      className="text-xs font-semibold uppercase tracking-wide text-tr-subtle"
                     >
                       {group.label}
                     </h3>
-                    <span className="text-[11px] text-tr-muted">{group.items.length}</span>
+                    <span className="text-xs text-tr-muted">{group.items.length}</span>
                   </div>
                   {group.items.map((item) => (
                     <NotificationRow
@@ -633,7 +633,7 @@ function NotificationRow({
             )}
           </div>
           <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-tr-muted">{item.body}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <span className="font-medium text-tr-subtle">{itemLabel(item)}</span>
             <span
               className={`flex items-center gap-1 ${
@@ -689,7 +689,7 @@ function NotificationRow({
       </div>
       {snoozeOpen && (
         <div className="mt-2 ml-10 flex items-center gap-1 rounded-control border border-tr-border bg-tr-surface p-1">
-          <span className="mr-auto pl-2 text-[11px] font-medium text-tr-muted">Nhắc lại</span>
+          <span className="mr-auto pl-2 text-xs font-medium text-tr-muted">Nhắc lại</span>
           <button
             type="button"
             onClick={() => onSnooze('30m')}

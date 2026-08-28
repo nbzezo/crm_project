@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -32,6 +32,7 @@ import {
   useQuickNoteTags,
   type QuickNoteFilters,
 } from './useQuickNotes';
+import { buildDndAnnouncements } from '../../lib/dnd/announcements';
 import type { QuickNote } from '../../types';
 
 type Layout = 'grid' | 'list';
@@ -103,7 +104,7 @@ function FilterPopover({
         <Filter size={14} aria-hidden="true" />
         Lọc
         {activeCount > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-tr-primary px-1 text-2xs font-semibold text-tr-on-primary">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-tr-primary px-1 text-xs font-semibold text-tr-on-primary">
             {activeCount}
           </span>
         )}
@@ -134,7 +135,7 @@ function FilterPopover({
 
         {tags.length > 0 && (
           <div className="mt-2 border-t border-tr-border pt-2">
-            <div className="mb-1.5 px-1 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+            <div className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-tr-muted uppercase">
               Tag
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -235,6 +236,22 @@ export function QuickNotesBoard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  /* Ghi chu khong dat tieu de thi doc theo vi tri, vi "ghi chu khong ten" lap
+     lai nhieu lan trong mot cau thong bao thi khong phan biet duoc. */
+  const announcements = useMemo(
+    () =>
+      buildDndAnnouncements({
+        itemNoun: 'ghi chú',
+        resolve: (id) => {
+          const index = notes?.findIndex((n) => String(n.id) === id) ?? -1;
+          if (index < 0) return null;
+          const title = notes?.[index]?.title?.trim();
+          return title ? `ghi chú ${title}` : `ghi chú thứ ${index + 1}`;
+        },
+      }),
+    [notes]
+  );
+
   useDialog({ open, onClose: closeBoard, containerRef: panelRef });
 
   /**
@@ -293,7 +310,7 @@ export function QuickNotesBoard() {
 
   return createPortal(
     <div
-      className="tr-anim-fade fixed inset-0 z-50 flex items-start justify-center bg-tr-overlay p-3 sm:p-6"
+      className="tr-anim-fade fixed inset-0 z-modal flex items-start justify-center bg-tr-overlay p-3 sm:p-6"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) closeBoard();
       }}
@@ -408,12 +425,13 @@ export function QuickNotesBoard() {
           ) : (
             <DndContext
               sensors={sensors}
+              accessibility={{ announcements }}
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
               {pinnedNotes.length > 0 && (
                 <>
-                  <div className="mb-2 flex items-center gap-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
                     <Pin size={12} aria-hidden="true" /> Đã ghim
                   </div>
                   {renderGroup(pinnedNotes)}
@@ -422,7 +440,7 @@ export function QuickNotesBoard() {
               {otherNotes.length > 0 && (
                 <>
                   {pinnedNotes.length > 0 && (
-                    <div className="mt-4 mb-2 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+                    <div className="mt-4 mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
                       Ghi chú khác
                     </div>
                   )}

@@ -100,8 +100,10 @@ export function isOverdue(dueDate: string | null | undefined, isDone: number | b
   return dueDate.slice(0, 10) < todayStr();
 }
 
-/** Chon muc chu den hay trang de doc duoc tren nen mau bat ky. */
-export function contrastInk(hex: string): string {
+const INK_DARK = '#0b0b0b';
+const INK_LIGHT = '#ffffff';
+
+function relativeLuminance(hex: string): number {
   const value = hex.replace('#', '');
   const toLinear = (c: number) => {
     const s = c / 255;
@@ -110,8 +112,27 @@ export function contrastInk(hex: string): string {
   const r = toLinear(parseInt(value.slice(0, 2), 16));
   const g = toLinear(parseInt(value.slice(2, 4), 16));
   const b = toLinear(parseInt(value.slice(4, 6), 16));
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return (luminance + 0.05) / 0.05 > 4.5 ? '#0b0b0b' : '#ffffff';
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/**
+ * Chon muc chu den hay trang de doc duoc tren nen mau bat ky.
+ *
+ * Ban truoc tinh `(luminance + 0.05) / 0.05` — tuc la do tuong phan voi DEN
+ * TUYEN — roi lai tra ve `#0b0b0b`. Muc `#0b0b0b` co do choi 0,0033 chu khong
+ * phai 0, nen cong thuc cu uoc luong cao hon thuc te khoang 6,7%: mau nen roi
+ * vao dai 4,5–4,8 duoc gan muc den nhung do ra chi con khoang 4,46:1, duoi
+ * nguong AA. Gio do thang ca hai lua chon roi lay cai tot hon.
+ */
+export function contrastInk(hex: string): string {
+  const background = relativeLuminance(hex);
+  const onDark = contrastRatio(background, relativeLuminance(INK_DARK));
+  const onLight = contrastRatio(background, relativeLuminance(INK_LIGHT));
+  return onDark >= onLight ? INK_DARK : INK_LIGHT;
 }
 
 /** Bo dau tieng Viet — dung cho loc phia client. */

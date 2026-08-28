@@ -99,7 +99,7 @@ export default function BoardsPage() {
         </label>
         <button
           onClick={create.toggle}
-          className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-control bg-tr-primary px-3 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+          className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-control bg-tr-primary px-3 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
           aria-haspopup="dialog"
         >
           <Plus size={16} aria-hidden="true" /> {t.board.newBoard}
@@ -322,7 +322,7 @@ function BoardTile({
           </div>
         )}
         {!!board.is_archived && (
-          <div className="absolute bottom-2 left-2.5 rounded bg-black/35 px-1.5 py-0.5 text-[10px]">
+          <div className="absolute bottom-2 left-2.5 rounded bg-black/35 px-1.5 py-0.5 text-xs">
             {t.board.archived}
           </div>
         )}

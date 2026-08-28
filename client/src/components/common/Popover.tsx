@@ -88,7 +88,7 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
          body. Chan mousedown noi bo noi bot len document de popover cha khong
          dong va unmount lua chon con truoc khi su kien click kip chay. */
       onMouseDown={(event) => event.stopPropagation()}
-      className="tr-popover tr-popover-shadow tr-anim-pop fixed z-[70] flex flex-col overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
+      className="tr-popover tr-popover-shadow tr-anim-pop fixed z-popover flex flex-col overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
       style={{
         left: pos.left,
         top: pos.bottom == null ? pos.top : undefined,
@@ -138,7 +138,7 @@ export function PopoverItem({
     <button
       type="button"
       onClick={onClick}
-      className={`tr-popover-item -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary sm:py-1.5 ${
+      className={`tr-popover-item -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary fine:py-1.5 ${
         danger ? 'text-tr-danger' : 'text-tr-text'
       }`}
     >

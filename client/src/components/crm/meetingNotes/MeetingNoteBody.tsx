@@ -14,6 +14,7 @@ import {
   filterSuggestionItems,
   type PartialBlock,
 } from '@blocknote/core';
+import { vi } from '@blocknote/core/locales';
 import { Sparkles } from 'lucide-react';
 import { api } from '../../../api/client';
 import { Button } from '../../common/ui';
@@ -89,7 +90,8 @@ export default function MeetingNoteBody({
   const isDark = useThemeStore((s) => s.isDark());
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
   const initialContent = useMemo(() => parseInitialContent(initialContentJson), []);
-  const editor = useCreateBlockNote({ schema, initialContent });
+  /* Cung ly do voi QuickNoteBody: BlockNote mac dinh chay tieng Anh. */
+  const editor = useCreateBlockNote({ schema, initialContent, dictionary: vi });
   const { data: contacts = [] } = useAssignees();
   const [hasSelection, setHasSelection] = useState(false);
   const [pending, setPending] = useState<Instruction | null>(null);

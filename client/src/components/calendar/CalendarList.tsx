@@ -96,13 +96,11 @@ export function CalendarList({
                       {event.title}
                     </span>
                     {event.subtitle && (
-                      <span className="block truncate text-2xs text-tr-muted">
-                        {event.subtitle}
-                      </span>
+                      <span className="block truncate text-xs text-tr-muted">{event.subtitle}</span>
                     )}
                   </span>
                   {event.overdue && !event.done && (
-                    <span className="tr-badge-overdue inline-flex shrink-0 items-center gap-1 rounded-control px-1.5 py-0.5 text-2xs font-semibold">
+                    <span className="tr-badge-overdue inline-flex shrink-0 items-center gap-1 rounded-control px-1.5 py-0.5 text-xs font-semibold">
                       <OverdueIcon size={11} aria-hidden="true" />
                       {t.common.overdue}
                     </span>

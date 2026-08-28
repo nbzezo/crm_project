@@ -52,7 +52,7 @@ export function CardStatusChip({
   return (
     <span
       title={blockedReason ?? undefined}
-      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-2xs font-medium ${CARD_STATUS_TONE[value]}`}
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${CARD_STATUS_TONE[value]}`}
     >
       {t.cardStatus[value]}
     </span>

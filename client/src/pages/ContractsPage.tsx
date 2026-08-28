@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
+import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
 import { ContractForm } from '../components/crm/ContractForm';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Popover, PopoverItem } from '../components/common/Popover';
@@ -26,6 +27,7 @@ import {
   Select,
   SkeletonRows,
   TableHead,
+  focusRing,
 } from '../components/common/ui';
 import { CONTRACT_STATUS_COLORS, CONTRACT_STATUS_ORDER, t } from '../i18n/vi';
 import { formatDate, formatVND, formatVNDShort } from '../lib/format';
@@ -60,6 +62,7 @@ function matchesDeadline(contract: Contract, filter: DeadlineFilter): boolean {
 }
 
 export default function ContractsPage() {
+  const isWide = useMediaQuery(LG_QUERY);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -272,8 +275,74 @@ export default function ContractsPage() {
             </Button>
           }
         />
+      ) : !isWide ? (
+        <>
+          {/* Duoi lg: bang 7 cot rong 880px chi con la mot dai cuon ngang. Doi
+              sang the, giu bon thong tin ma nguoi ta thuc su quet mat qua:
+              ten, khach hang, gia tri, va con bao nhieu ngay. */}
+          <ul className="space-y-2" aria-label="Danh sách hợp đồng">
+            {filteredContracts.map((c) => (
+              <li
+                key={c.id}
+                className="rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ open: true, contract: c })}
+                    title={c.name}
+                    className={`flex min-w-0 flex-1 items-center gap-2 text-left ${focusRing}`}
+                  >
+                    <FileSignature
+                      size={14}
+                      className="shrink-0 text-tr-muted"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate font-semibold text-tr-text">{c.name}</span>
+                  </button>
+                  <ColorBadge color={CONTRACT_STATUS_COLORS[c.status]} small>
+                    {t.contractStatus[c.status]}
+                  </ColorBadge>
+                </div>
+                <Link
+                  to={`/customers/${c.customer_id}`}
+                  className={`mt-1 block truncate text-xs text-tr-primary hover:underline ${focusRing}`}
+                >
+                  {c.customer_name}
+                </Link>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+                  <span className="font-medium tabular-nums text-tr-text">
+                    {formatVND(c.value_vnd)}
+                  </span>
+                  {c.days_left === null || c.days_left === undefined ? (
+                    <span className="text-tr-muted">Chưa đặt hiệu lực</span>
+                  ) : (
+                    <span className={urgencyClass(c.days_left)}>
+                      {c.days_left < 0 ? `Quá hạn ${-c.days_left} ngày` : `Còn ${c.days_left} ngày`}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex justify-end gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setForm({ open: true, contract: c })}
+                  >
+                    <Eye size={13} /> Xem
+                  </Button>
+                  <IconButton
+                    onClick={(e) => setMenuFor({ id: c.id, anchor: e.currentTarget })}
+                    label={`Thao tác khác: ${c.name}`}
+                  >
+                    <MoreHorizontal size={16} aria-hidden="true" />
+                  </IconButton>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm">
+        <div className="tr-scroll overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm">
           <table className="w-full min-w-[880px] text-sm">
             <TableHead>
               <tr>
@@ -476,7 +545,7 @@ function RenewalCard({
         </span>
         <div className="flex items-center gap-2">
           {!!contract.renewal_followed && (
-            <span className="text-2xs whitespace-nowrap text-tr-success">Đã theo dõi</span>
+            <span className="text-xs whitespace-nowrap text-tr-success">Đã theo dõi</span>
           )}
           <Button
             variant={contract.renewal_followed ? 'secondary' : 'primary'}

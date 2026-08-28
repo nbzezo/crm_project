@@ -147,7 +147,7 @@ export function CardModal() {
   if (!card) {
     return (
       <div
-        className={`tr-anim-fade fixed inset-0 z-50 flex bg-tr-overlay ${
+        className={`tr-anim-fade fixed inset-0 z-modal flex bg-tr-overlay ${
           presentation === 'drawer' ? 'justify-end' : 'items-start justify-center p-4 pt-16'
         }`}
       >
@@ -177,7 +177,7 @@ export function CardModal() {
   return (
     <>
       <div
-        className={`tr-anim-fade fixed inset-0 z-50 flex bg-tr-overlay ${
+        className={`tr-anim-fade fixed inset-0 z-modal flex bg-tr-overlay ${
           presentation === 'drawer' ? 'justify-end' : 'overflow-y-auto p-4 pt-10 pb-10'
         }`}
         onMouseDown={(e) => e.target === e.currentTarget && requestClose()}
@@ -324,7 +324,7 @@ export function CardModal() {
                     {card.labels.map((l) => (
                       <span
                         key={l.id}
-                        className="inline-flex h-7 items-center rounded px-2.5 text-xs font-medium"
+                        className="inline-flex min-h-7 items-center rounded px-2.5 text-xs font-medium"
                         style={{ backgroundColor: l.color, color: contrastInk(l.color) }}
                       >
                         {l.name}
@@ -342,7 +342,7 @@ export function CardModal() {
                 <Field label={t.card.priority}>
                   <button
                     onClick={priorityPop.toggle}
-                    className="inline-flex h-7 items-center rounded px-2.5 text-xs font-medium"
+                    className="inline-flex min-h-7 items-center rounded px-2.5 text-xs font-medium"
                     style={{
                       backgroundColor: PRIORITY_COLORS[card.priority],
                       color: contrastInk(PRIORITY_COLORS[card.priority]),
@@ -356,11 +356,11 @@ export function CardModal() {
                   <Field label="Ngày">
                     <button
                       onClick={datePop.toggle}
-                      className="inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
+                      className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
                     >
                       {dateLabel}
                       {!!card.is_done && (
-                        <span className="tr-badge-done rounded px-1.5 text-[11px] font-medium">
+                        <span className="tr-badge-done rounded px-1.5 text-xs font-medium">
                           {t.common.done}
                         </span>
                       )}
@@ -373,7 +373,7 @@ export function CardModal() {
                 <Field label="Trạng thái">
                   <button
                     onClick={statusPop.toggle}
-                    className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${CARD_STATUS_TONE[card.status ?? 'todo']}`}
+                    className={`inline-flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${CARD_STATUS_TONE[card.status ?? 'todo']}`}
                   >
                     {t.cardStatus[card.status ?? 'todo']}
                   </button>
@@ -382,7 +382,7 @@ export function CardModal() {
                 <Field label={t.card.assignee}>
                   <button
                     onClick={assigneePop.toggle}
-                    className="inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
+                    className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
                   >
                     {card.assignee_name ? (
                       <AssigneeChip
@@ -405,7 +405,7 @@ export function CardModal() {
                     onClick={projectPop.toggle}
                     aria-label={`Dự án: ${card.project_name ?? 'Chưa chọn'}`}
                     aria-haspopup="dialog"
-                    className={`inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                    className={`inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
                   >
                     <FolderKanban size={13} aria-hidden="true" />
                     <span className={card.project_name ? '' : 'text-tr-muted'}>
@@ -419,7 +419,7 @@ export function CardModal() {
                   <Field label={t.card.customer}>
                     <button
                       onClick={customerPop.toggle}
-                      className="inline-flex h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
+                      className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
                     >
                       <Building2 size={13} /> {card.customer_name}
                       {card.deal_title && (
@@ -831,7 +831,7 @@ function ActionChip({
       type="button"
       onClick={onClick}
       aria-haspopup="dialog"
-      className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-control bg-tr-hover px-2.5 text-xs font-medium text-tr-text transition hover:bg-tr-hover-strong sm:min-h-0 sm:py-1 sm:text-[13px] ${focusRing}`}
+      className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-control bg-tr-hover px-2.5 text-xs font-medium text-tr-text transition hover:bg-tr-hover-strong fine:min-h-0 fine:py-1 fine:text-sm ${focusRing}`}
     >
       {icon}
       {children}
@@ -945,7 +945,7 @@ function ActivityColumn({ card }: { card: CardDetail }) {
 function Avatar({ muted }: { muted?: boolean }) {
   return (
     <span
-      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-2xs font-bold ${
+      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
         muted ? 'bg-tr-hover-strong text-tr-subtle' : 'bg-tr-primary text-tr-on-primary'
       }`}
     >

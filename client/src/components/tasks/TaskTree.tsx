@@ -254,14 +254,14 @@ export function TaskTree({
             >
               {task.title}
               {childCount > 0 && (
-                <span className="ml-2 rounded bg-tr-hover-strong px-1.5 py-0.5 text-2xs text-tr-subtle">
+                <span className="ml-2 rounded bg-tr-hover-strong px-1.5 py-0.5 text-xs text-tr-subtle">
                   {task.subtask_done ?? 0}/{childCount}
                 </span>
               )}
             </button>
           )}
           <span
-            className="block truncate px-1.5 text-2xs text-tr-subtle"
+            className="block truncate px-1.5 text-xs text-tr-subtle"
             title={`Khách hàng: ${task.customer_name ?? 'Chưa gắn'} · Bảng: ${task.board_name} · Danh sách: ${task.list_name}`}
           >
             Khách hàng: {task.customer_name ?? 'Chưa gắn'} · Bảng: {task.board_name}
@@ -395,7 +395,7 @@ export function TaskTree({
       <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
         <div className={showDetails ? 'min-w-[1000px] lg:min-w-[1390px]' : 'min-w-[900px]'}>
           <div
-            className={`sticky top-0 z-10 grid ${gridTemplate} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-2xs font-semibold tracking-wide text-tr-subtle uppercase`}
+            className={`sticky top-0 z-10 grid ${gridTemplate} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase`}
           >
             <span className="w-5" />
             {/* Khong dat `sr-only` truc tiep tren grid item: class nay dung position:absolute,

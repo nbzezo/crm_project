@@ -143,7 +143,7 @@ export function DealActivitySidebar({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm text-tr-text">{item.summary}</p>
-                    <p className="mt-0.5 text-2xs text-tr-muted">
+                    <p className="mt-0.5 text-xs text-tr-muted">
                       {formatDateTime(item.occurred_at)}
                       {item.contact_name && ` · ${item.contact_name}`}
                     </p>

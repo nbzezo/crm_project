@@ -19,6 +19,7 @@ import {
   ZAxis,
 } from 'recharts';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
+import { ChartDataTable } from '../common/ChartDataTable';
 import { t } from '../../i18n/vi';
 import { formatVND } from '../../lib/format';
 import type { Quadrant, Stage } from '../../types';
@@ -55,112 +56,137 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
   });
 
   return (
-    <div className="h-[26rem] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <ScatterChart margin={{ top: 12, right: 16, bottom: 28, left: 8 }}>
-          {/* Bốn ô nền theo đúng quy ước màu của toàn hệ thống */}
-          <ReferenceArea
-            x1={-0.5}
-            x2={QUADRANT_CUTOFF}
-            y1={QUADRANT_CUTOFF}
-            y2={12.5}
-            fill={QUADRANT_COLORS.reshape}
-            fillOpacity={0.1}
-          />
-          <ReferenceArea
-            x1={QUADRANT_CUTOFF}
-            x2={12.5}
-            y1={QUADRANT_CUTOFF}
-            y2={12.5}
-            fill={QUADRANT_COLORS.pursue}
-            fillOpacity={0.1}
-          />
-          <ReferenceArea
-            x1={-0.5}
-            x2={QUADRANT_CUTOFF}
-            y1={-0.5}
-            y2={QUADRANT_CUTOFF}
-            fill={QUADRANT_COLORS.disqualify}
-            fillOpacity={0.1}
-          />
-          <ReferenceArea
-            x1={QUADRANT_CUTOFF}
-            x2={12.5}
-            y1={-0.5}
-            y2={QUADRANT_CUTOFF}
-            fill={QUADRANT_COLORS.nurture}
-            fillOpacity={0.1}
-          />
+    <div className="w-full">
+      {/* Chieu cao co dinh chi ap cho vung ve; bang so lieu nam ngoai de khong
+          bi cat khi mo ra. */}
+      <div className="h-[26rem] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 12, right: 16, bottom: 28, left: 8 }}>
+            {/* Bốn ô nền theo đúng quy ước màu của toàn hệ thống */}
+            <ReferenceArea
+              x1={-0.5}
+              x2={QUADRANT_CUTOFF}
+              y1={QUADRANT_CUTOFF}
+              y2={12.5}
+              fill={QUADRANT_COLORS.reshape}
+              fillOpacity={0.1}
+            />
+            <ReferenceArea
+              x1={QUADRANT_CUTOFF}
+              x2={12.5}
+              y1={QUADRANT_CUTOFF}
+              y2={12.5}
+              fill={QUADRANT_COLORS.pursue}
+              fillOpacity={0.1}
+            />
+            <ReferenceArea
+              x1={-0.5}
+              x2={QUADRANT_CUTOFF}
+              y1={-0.5}
+              y2={QUADRANT_CUTOFF}
+              fill={QUADRANT_COLORS.disqualify}
+              fillOpacity={0.1}
+            />
+            <ReferenceArea
+              x1={QUADRANT_CUTOFF}
+              x2={12.5}
+              y1={-0.5}
+              y2={QUADRANT_CUTOFF}
+              fill={QUADRANT_COLORS.nurture}
+              fillOpacity={0.1}
+            />
 
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-tr-border)" />
-          <XAxis
-            type="number"
-            dataKey="x"
-            domain={[-0.5, 12.5]}
-            ticks={[0, 3, 6, 9, 12]}
-            tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
-            label={{
-              value: '4P — ta có khả năng thắng không',
-              position: 'bottom',
-              offset: 8,
-              style: { fontSize: 11, fill: 'var(--color-tr-muted)' },
-            }}
-          />
-          <YAxis
-            type="number"
-            dataKey="y"
-            domain={[-0.5, 12.5]}
-            ticks={[0, 3, 6, 9, 12]}
-            tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
-            label={{
-              value: 'BANT — đây có phải cơ hội thật không',
-              angle: -90,
-              position: 'insideLeft',
-              style: { fontSize: 11, fill: 'var(--color-tr-muted)' },
-            }}
-          />
-          <ZAxis type="number" dataKey="z" range={[60, 900]} />
-          <Tooltip
-            cursor={{ strokeDasharray: '3 3' }}
-            content={({ payload }) => {
-              const deal = payload?.[0]?.payload as MatrixDeal | undefined;
-              if (!deal) return null;
-              const vetoed = Boolean(deal.v1_no_event || deal.v2_no_economic);
-              return (
-                <div className="rounded-panel border border-tr-border bg-tr-panel p-2.5 text-xs shadow-lg">
-                  <p className="font-semibold text-tr-text">{deal.title}</p>
-                  <p className="text-tr-muted">{deal.customer_name}</p>
-                  <p className="mt-1 text-tr-text">
-                    BANT {deal.bant_total}/12 · 4P {deal.p4_total}/12 ·{' '}
-                    <span style={{ color: QUADRANT_COLORS[deal.quadrant] }}>
-                      {QUADRANT_LABELS[deal.quadrant]}
-                    </span>
-                  </p>
-                  <p className="text-tr-muted">
-                    {t.stage[deal.stage]} · {formatVND(deal.value_vnd)}
-                  </p>
-                  {vetoed && <p className="mt-1 text-tr-danger">Đang bị chặn khỏi forecast</p>}
-                </div>
-              );
-            }}
-          />
-          <Scatter
-            data={points}
-            onClick={(point: { id?: number }) => point?.id && navigate(`/deals/${point.id}`)}
-            cursor="pointer"
-          >
-            {points.map((point) => (
-              <Cell
-                key={point.id}
-                fill={QUADRANT_COLORS[point.quadrant]}
-                fillOpacity={0.75}
-                stroke={point.v1_no_event || point.v2_no_economic ? '#e04b3a' : 'transparent'}
-                strokeWidth={2}
-              />
-            ))}
-          </Scatter>
-        </ScatterChart>
-      </ResponsiveContainer>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-tr-border)" />
+            <XAxis
+              type="number"
+              dataKey="x"
+              domain={[-0.5, 12.5]}
+              ticks={[0, 3, 6, 9, 12]}
+              tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
+              label={{
+                value: '4P — ta có khả năng thắng không',
+                position: 'bottom',
+                offset: 8,
+                style: { fontSize: 11, fill: 'var(--color-tr-muted)' },
+              }}
+            />
+            <YAxis
+              type="number"
+              dataKey="y"
+              domain={[-0.5, 12.5]}
+              ticks={[0, 3, 6, 9, 12]}
+              tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
+              label={{
+                value: 'BANT — đây có phải cơ hội thật không',
+                angle: -90,
+                position: 'insideLeft',
+                style: { fontSize: 11, fill: 'var(--color-tr-muted)' },
+              }}
+            />
+            <ZAxis type="number" dataKey="z" range={[60, 900]} />
+            <Tooltip
+              cursor={{ strokeDasharray: '3 3' }}
+              content={({ payload }) => {
+                const deal = payload?.[0]?.payload as MatrixDeal | undefined;
+                if (!deal) return null;
+                const vetoed = Boolean(deal.v1_no_event || deal.v2_no_economic);
+                return (
+                  <div className="rounded-panel border border-tr-border bg-tr-panel p-2.5 text-xs shadow-lg">
+                    <p className="font-semibold text-tr-text">{deal.title}</p>
+                    <p className="text-tr-muted">{deal.customer_name}</p>
+                    <p className="mt-1 text-tr-text">
+                      BANT {deal.bant_total}/12 · 4P {deal.p4_total}/12 ·{' '}
+                      <span style={{ color: QUADRANT_COLORS[deal.quadrant] }}>
+                        {QUADRANT_LABELS[deal.quadrant]}
+                      </span>
+                    </p>
+                    <p className="text-tr-muted">
+                      {t.stage[deal.stage]} · {formatVND(deal.value_vnd)}
+                    </p>
+                    {vetoed && <p className="mt-1 text-tr-danger">Đang bị chặn khỏi forecast</p>}
+                  </div>
+                );
+              }}
+            />
+            <Scatter
+              data={points}
+              onClick={(point: { id?: number }) => point?.id && navigate(`/deals/${point.id}`)}
+              cursor="pointer"
+            >
+              {points.map((point) => (
+                <Cell
+                  key={point.id}
+                  fill={QUADRANT_COLORS[point.quadrant]}
+                  fillOpacity={0.75}
+                  /* Vien canh bao veto lay mau tu token qua CSS (`.tr-scatter-veto`
+                   trong index.css) thay vi ma hex cung — de no doi theo theme. */
+                  className={
+                    point.v1_no_event || point.v2_no_economic ? 'tr-scatter-veto' : undefined
+                  }
+                  stroke="transparent"
+                  strokeWidth={2}
+                />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+      {/* Bieu do phan tan hai truc khong the doc bang ban phim hay trinh doc man
+          hinh: moi diem la mot <path> khong Tab toi duoc, tooltip chi bat khi re
+          chuot. Bang duoi day la duong doc duy nhat cho ca hai nhom.
+          Dung `bant_total`/`p4_total` chu khong phai `x`/`y`: hai cai sau da bi
+          lam lech mot chut de cac diem trung toa do khong de len nhau. */}
+      <ChartDataTable
+        caption="Ma trận cơ hội — điểm BANT và 4P của từng cơ hội"
+        valueLabel="Phân loại · BANT · 4P · Giá trị"
+        rows={points.map((point) => ({
+          name: point.title,
+          value:
+            `${QUADRANT_LABELS[point.quadrant]} · BANT ${point.bant_total}/12 · ` +
+            `4P ${point.p4_total}/12 · ${formatVND(point.value_vnd)}` +
+            (point.v1_no_event || point.v2_no_economic ? ' · đang bị chặn khỏi forecast' : ''),
+        }))}
+      />
     </div>
   );
 }

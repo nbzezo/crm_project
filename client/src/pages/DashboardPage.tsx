@@ -41,7 +41,7 @@ function DashboardHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <span className="mb-1.5 inline-flex items-center rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-2xs font-bold tracking-wide text-[var(--tr-on-yellow)] uppercase">
+        <span className="mb-1.5 inline-flex items-center rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-xs font-bold tracking-wide text-[var(--tr-on-yellow)] uppercase">
           Trung tâm điều hành
         </span>
         <h1 className="text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">

@@ -65,7 +65,7 @@ export function PrioritySelect({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value as Priority)}
       aria-label={`${t.card.priority}: ${taskTitle}`}
-      className={`h-6 max-w-28 cursor-pointer rounded-full border px-2 text-2xs font-semibold outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-wait disabled:opacity-60 ${priorityClasses[value]}`}
+      className={`min-h-6 max-w-28 cursor-pointer rounded-full border px-2 text-xs font-semibold outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-wait disabled:opacity-60 ${priorityClasses[value]}`}
     >
       {PRIORITY_ORDER.map((priority) => (
         <option key={priority} value={priority} className="bg-tr-panel text-tr-text">
@@ -101,7 +101,7 @@ export function StatusSelect({
       onChange={(event) => onChange(Number(event.target.value))}
       aria-label={`Danh sách: ${task.title}`}
       title={`${task.board_name} · ${task.list_name}`}
-      className={`h-6 max-w-36 cursor-pointer rounded-full border border-tr-border bg-tr-hover px-2 text-2xs font-medium text-tr-subtle outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-default disabled:opacity-80`}
+      className={`min-h-6 max-w-36 cursor-pointer rounded-full border border-tr-border bg-tr-hover px-2 text-xs font-medium text-tr-subtle outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-default disabled:opacity-80`}
     >
       {lists.length === 0 && <option value={task.list_id}>{task.list_name}</option>}
       {lists.map((list) => (
@@ -205,7 +205,7 @@ export function SmartDeadline({
         {presentation.primary}
       </span>
       {presentation.secondary && (
-        <span className="mt-0.5 block text-2xs font-normal tabular-nums text-tr-muted">
+        <span className="mt-0.5 block text-xs font-normal tabular-nums text-tr-muted">
           {presentation.secondary}
         </span>
       )}
@@ -222,7 +222,7 @@ export function LabelTags({ labels, limit = 2 }: { labels: Label[]; limit?: numb
         <span
           key={label.id}
           title={label.name}
-          className="inline-flex h-5 min-w-0 items-center gap-1 rounded-full border border-tr-border bg-tr-hover px-1.5 text-2xs font-medium text-tr-subtle"
+          className="inline-flex min-h-5 min-w-0 items-center gap-1 rounded-full border border-tr-border bg-tr-hover px-1.5 text-xs font-medium text-tr-subtle"
         >
           <span
             aria-hidden="true"
@@ -234,7 +234,7 @@ export function LabelTags({ labels, limit = 2 }: { labels: Label[]; limit?: numb
       ))}
       {labels.length > limit && (
         <span
-          className="shrink-0 text-2xs text-tr-muted"
+          className="shrink-0 text-xs text-tr-muted"
           title={labels
             .slice(limit)
             .map((label) => label.name)
@@ -288,7 +288,7 @@ export function TaskRowActions({
           onClick={onToggleDone}
           title={task.is_done ? t.card.markUndone : t.card.markDone}
           aria-label={`${task.is_done ? t.card.markUndone : t.card.markDone}: ${task.title}`}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-success sm:h-8 sm:w-8 ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-success fine:h-8 fine:w-8 ${focusRing}`}
         >
           {task.is_done ? (
             <Circle size={15} aria-hidden="true" />
@@ -301,7 +301,7 @@ export function TaskRowActions({
           onClick={onOpen}
           title="Mở chi tiết"
           aria-label={`Mở chi tiết: ${task.title}`}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-text sm:h-8 sm:w-8 ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-text fine:h-8 fine:w-8 ${focusRing}`}
         >
           <PanelRightOpen size={15} aria-hidden="true" />
         </button>
@@ -311,7 +311,7 @@ export function TaskRowActions({
           title="Thao tác khác"
           aria-label={`Thao tác khác: ${task.title}`}
           aria-haspopup="dialog"
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-text sm:h-8 sm:w-8 ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover-strong hover:text-tr-text fine:h-8 fine:w-8 ${focusRing}`}
         >
           <Ellipsis size={16} aria-hidden="true" />
         </button>

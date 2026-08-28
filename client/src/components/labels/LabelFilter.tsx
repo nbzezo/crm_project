@@ -52,7 +52,7 @@ export function LabelFilter({
       <button
         type="button"
         onClick={pop.toggle}
-        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 py-1.5 text-sm text-tr-text transition hover:bg-tr-hover sm:min-h-[32px] ${focusRing}`}
+        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 py-1.5 text-sm text-tr-text transition hover:bg-tr-hover fine:min-h-[32px] ${focusRing}`}
       >
         <Tag size={15} />
         {t.card.labels}

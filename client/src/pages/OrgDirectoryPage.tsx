@@ -66,7 +66,7 @@ function tabLabel(text: string, count: number) {
   );
 }
 
-const ghostLinkClass = `tr-button tr-button-ghost inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-control px-2.5 py-1 text-xs font-medium text-tr-subtle transition hover:bg-tr-hover sm:min-h-0 ${focusRing}`;
+const ghostLinkClass = `tr-button tr-button-ghost inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-control px-2.5 py-1 text-xs font-medium text-tr-subtle transition hover:bg-tr-hover fine:min-h-0 ${focusRing}`;
 
 /**
  * Sổ danh bạ tổ chức không phải khách hàng: công ty mình, đối tác, nhà cung cấp.

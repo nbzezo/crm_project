@@ -144,7 +144,7 @@ export default function FollowUpPage() {
                     <button
                       type="button"
                       onClick={() => openCard(task.id, 'drawer')}
-                      className={`flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+                      className={`flex min-h-11 w-full items-center gap-2 rounded-control px-1.5 py-2 text-left transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
                     >
                       <span className="min-w-0 flex-1 truncate text-sm text-tr-text">
                         {task.title}
@@ -174,7 +174,7 @@ function DueBadge({ dueDate }: { dueDate: string | null }) {
   return (
     <span
       title={formatDateShort(dueDate)}
-      className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${tone}`}
+      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
     >
       {label}
     </span>
@@ -188,7 +188,7 @@ function NudgeCount({ count, lastAt }: { count?: number; lastAt?: string | null 
   const since = days === null ? '' : days === 0 ? ' · hôm nay' : ` · ${Math.abs(days)} ngày trước`;
   return (
     <span
-      className="shrink-0 rounded-full bg-tr-hover px-2 py-0.5 text-2xs text-tr-muted"
+      className="shrink-0 rounded-full bg-tr-hover px-2 py-0.5 text-xs text-tr-muted"
       title={`Đã nhắc ${count} lần${since}`}
     >
       đã nhắc {count}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
+import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import {
   ArrowLeft,
   Building2,
@@ -36,6 +37,7 @@ import {
   IconButton,
   Skeleton,
   TableHead,
+  focusRing,
 } from '../components/common/ui';
 import {
   ACCOUNT_STATUS_COLORS,
@@ -136,9 +138,16 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="p-6">
-      <div className="mb-4 flex items-start gap-3">
-        <Link to="/customers" className="mt-1 rounded p-1 text-tr-muted hover:bg-tr-hover">
-          <ArrowLeft size={18} />
+      <Breadcrumbs
+        items={[{ label: t.nav.customers, to: '/customers' }, { label: customer.name }]}
+      />
+      <div className="mt-2 mb-4 flex items-start gap-3">
+        <Link
+          to="/customers"
+          aria-label={`Quay lại ${t.nav.customers}`}
+          className={`mt-1 rounded-control p-1 text-tr-muted hover:bg-tr-hover ${focusRing}`}
+        >
+          <ArrowLeft size={18} aria-hidden="true" />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

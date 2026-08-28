@@ -114,7 +114,9 @@ export default function BoardPage() {
     <div className="relative flex h-full flex-col" style={backgroundStyle(board.background)}>
       <header
         className="flex min-h-12 shrink-0 flex-wrap items-center gap-1.5 px-2 py-1.5 text-white sm:h-12 sm:flex-nowrap sm:gap-2 sm:px-3 sm:py-0"
-        style={{ backgroundColor: '#0000001f' }}
+        /* Lop phu lam dam anh nen bang de chu trang doc duoc — dung token de con
+           chinh duoc mot cho, xem --tr-board-scrim trong index.css. */
+        style={{ backgroundColor: 'var(--tr-board-scrim)' }}
       >
         {editingName ? (
           <input
@@ -138,7 +140,7 @@ export default function BoardPage() {
               setNameDraft(board.name);
               setEditingName(true);
             }}
-            className="min-h-11 min-w-0 max-w-[55vw] truncate rounded px-2 py-1 text-left text-base font-bold transition hover:bg-white/20 sm:min-h-0 sm:max-w-xs"
+            className="min-h-11 min-w-0 max-w-[55vw] truncate rounded px-2 py-1 text-left text-base font-bold transition hover:bg-white/20 fine:min-h-0 sm:max-w-xs"
           >
             {board.name}
           </button>
@@ -150,7 +152,7 @@ export default function BoardPage() {
 
         <button
           onClick={() => patchBoard.mutate({ is_starred: !board.is_starred })}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition hover:bg-white/20 sm:h-8 sm:w-8"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition hover:bg-white/20 fine:h-8 fine:w-8"
           aria-label={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao bảng này'}
           title={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao bảng này'}
         >
@@ -188,7 +190,7 @@ export default function BoardPage() {
             <>
               <button
                 onClick={toggleLabelText}
-                className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 sm:h-8 sm:w-8"
+                className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 fine:h-8 fine:w-8"
                 aria-label={labelText ? 'Thu gọn chữ trên nhãn' : 'Hiện chữ trên nhãn'}
                 title={labelText ? 'Nhãn đang hiện chữ' : 'Nhãn đang thu gọn'}
               >
@@ -196,13 +198,13 @@ export default function BoardPage() {
               </button>
               <button
                 onClick={filterPopover.toggle}
-                className="inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded px-2 text-white transition hover:bg-white/20 sm:h-8 sm:min-w-8"
+                className="inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded px-2 text-white transition hover:bg-white/20 fine:h-8 sm:min-w-8"
                 aria-label={`Bộ lọc${activeFilters > 0 ? `, ${activeFilters} bộ lọc đang bật` : ''}`}
                 title="Bộ lọc"
               >
                 <Filter size={17} />
                 {activeFilters > 0 && (
-                  <span className="rounded-full bg-white px-1.5 text-2xs font-bold text-tr-primary">
+                  <span className="rounded-full bg-white px-1.5 text-xs font-bold text-tr-primary">
                     {activeFilters}
                   </span>
                 )}
@@ -211,7 +213,7 @@ export default function BoardPage() {
           )}
           <button
             onClick={() => setMenuOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 sm:h-8 sm:w-8"
+            className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 fine:h-8 fine:w-8"
             aria-label="Mở menu bảng"
             title="Menu bảng"
           >

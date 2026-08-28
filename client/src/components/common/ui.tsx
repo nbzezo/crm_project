@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
 import type {
   ButtonHTMLAttributes,
   ComponentProps,
@@ -26,8 +26,8 @@ const VARIANTS: Record<Variant, string> = {
 
 /* Chieu cao toi thieu 44px cho thiet bi cam ung (WCAG 2.5.5), thu gon tren chuot */
 const SIZES: Record<Size, string> = {
-  sm: 'min-h-[36px] px-2.5 py-1 text-xs sm:min-h-0',
-  md: 'min-h-[44px] px-3 py-1.5 text-sm sm:min-h-[32px]',
+  sm: 'min-h-[36px] px-2.5 py-1 text-xs fine:min-h-0',
+  md: 'min-h-[44px] px-3 py-1.5 text-sm fine:min-h-[32px]',
   lg: 'min-h-[44px] px-4 py-2 text-sm',
 };
 
@@ -75,7 +75,7 @@ export function IconButton({
       aria-label={label}
       title={title ?? label}
       {...props}
-      className={`tr-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 ${ICON_BUTTON_TONES[tone]} ${focusRing} ${className}`}
+      className={`tr-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:opacity-50 fine:h-8 fine:w-8 ${ICON_BUTTON_TONES[tone]} ${focusRing} ${className}`}
     />
   );
 }
@@ -209,8 +209,11 @@ export function Field({
   );
 }
 
+// Khong dat `text-sm` o day: co chu cua o nhap do `.tr-field-control` trong
+// index.css quyet dinh — 16px tren cam ung de iOS khong tu phong to, 14px khi
+// co con tro chinh xac.
 const inputBase =
-  'tr-field-control w-full rounded-control border border-tr-border bg-tr-list px-3 py-2 text-sm text-tr-text outline-none transition-[border-color,box-shadow] duration-150 hover:border-tr-primary/20 focus:border-tr-primary focus:ring-2 focus:ring-tr-primary/15 disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
+  'tr-field-control w-full rounded-control border border-tr-border bg-tr-list px-3 py-2 text-tr-text outline-none transition-[border-color,box-shadow] duration-150 hover:border-tr-primary/20 focus:border-tr-primary focus:ring-2 focus:ring-tr-primary/15 disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
 
 // ComponentProps<'input'> (thay vi InputHTMLAttributes) de `ref` duoc chap nhan dung kieu —
 // can cho cac o quick-add tu refocus sau khi luu (vd TasksPage.tsx QuickAddRow).
@@ -345,7 +348,7 @@ export function ColorBadge({
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap ${
-        small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+        small ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs'
       }`}
       style={{ backgroundColor: color, color: contrastInk(color) }}
     >
@@ -389,17 +392,59 @@ export function EmptyState({
  * Toast loi mac dinh (main.tsx) hien o goc duoi phai va tu tat sau 4 giay —
  * nguoi dung dang nhin vao form rat de bo lo. Bang nay giu loi ngay tren cho
  * bam Luu cho toi khi thu lai.
+ *
+ * Bang nay CHIEM FOCUS khi vua xuat hien. `role="alert"` chi khien trinh doc man
+ * hinh doc len noi dung, con focus ban phim thi van nam o nut Luu — nguoi dung
+ * ban phim nghe thay "co loi" nhung phai tu do nguoc len tim. Doi focus mot lan,
+ * dung luc bang xuat hien, la cach re nhat de dong khoang cach do.
+ *
+ * `fields` cho phep noi tung loi toi dung o nhap sai. Bam vao mot muc se dua
+ * focus thang toi o do, nen bang vua la thong bao vua la duong dan sua.
  */
-export function FormError({ error }: { error: unknown }) {
-  if (!error) return null;
-  const message = error instanceof Error ? error.message : t.common.saveError;
+export function FormError({
+  error,
+  fields,
+}: {
+  error: unknown;
+  fields?: { id: string; label: string }[];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Bam theo noi dung loi chu khong phai chinh `error`: mot doi tuong Error moi
+  // nhung cung thong diep (bam Luu lai, van sai cho cu) van phai keo focus ve.
+  const message = error ? (error instanceof Error ? error.message : t.common.saveError) : null;
+
+  useEffect(() => {
+    if (message) ref.current?.focus({ preventScroll: false });
+  }, [message]);
+
+  if (!message) return null;
+
   return (
     <div
+      ref={ref}
       role="alert"
-      className="mb-3 flex items-start gap-2 rounded-panel border border-tr-danger/50 bg-tr-danger/10 p-3 text-sm text-tr-text"
+      tabIndex={-1}
+      className="mb-3 rounded-panel border border-tr-danger/50 bg-tr-danger/10 p-3 text-sm text-tr-text outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-danger"
     >
-      <AlertCircle size={16} className="mt-0.5 shrink-0 text-tr-danger" aria-hidden="true" />
-      <span>{message}</span>
+      <div className="flex items-start gap-2">
+        <AlertCircle size={16} className="mt-0.5 shrink-0 text-tr-danger" aria-hidden="true" />
+        <span>{message}</span>
+      </div>
+      {fields && fields.length > 0 && (
+        <ul className="mt-2 ml-6 list-disc space-y-0.5">
+          {fields.map((field) => (
+            <li key={field.id}>
+              <button
+                type="button"
+                onClick={() => document.getElementById(field.id)?.focus()}
+                className={`underline underline-offset-2 hover:text-tr-danger ${focusRing}`}
+              >
+                {field.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -470,7 +515,7 @@ export function Panel({
     >
       {(title || action) && (
         <header className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-[13px] font-bold tracking-[-0.01em] text-tr-text">{title}</h2>
+          <h2 className="text-sm font-bold tracking-[-0.01em] text-tr-text">{title}</h2>
           {action}
         </header>
       )}

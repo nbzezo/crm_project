@@ -88,7 +88,7 @@ export function AiBrief({
               )}
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-2xs text-tr-muted">
+              <p className="text-xs text-tr-muted">
                 {result.meta.provider} · {result.meta.model} ·{' '}
                 {result.meta.inputTokens + result.meta.outputTokens} token
               </p>

@@ -226,7 +226,7 @@ function AssistantTab() {
                 placeholder="Ví dụ: Thứ sáu gọi lại chị Lan về báo giá VPBank, ưu tiên cao, chuẩn bị trước các câu hỏi về KYC…"
               />
             </Field>
-            <p className="mt-1 text-2xs text-tr-muted">
+            <p className="mt-1 text-xs text-tr-muted">
               AI sẽ viết lại tiêu đề, mô tả, ưu tiên, thời hạn và checklist. Nhấn Ctrl + Enter để
               phân tích nhanh.
             </p>
@@ -259,7 +259,7 @@ function AssistantTab() {
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-tr-primary">
                   <Check size={14} /> AI đã viết lại
                 </span>
-                <span className="text-2xs text-tr-muted">
+                <span className="text-xs text-tr-muted">
                   {quickTask.data.meta.provider} · {quickTask.data.meta.model}
                 </span>
               </div>
@@ -302,7 +302,7 @@ function AssistantTab() {
                   {warning}
                 </p>
               ))}
-              <p className="mt-3 text-2xs leading-relaxed text-tr-muted">
+              <p className="mt-3 text-xs leading-relaxed text-tr-muted">
                 Đây mới là bản nháp. Bạn vẫn có thể sửa và chọn bảng, dự án, người phụ trách trước
                 khi lưu.
               </p>
@@ -435,7 +435,7 @@ function ProposalCard({
       {proposal.explanation && (
         <p className="mt-1 text-xs text-tr-subtle">{proposal.explanation}</p>
       )}
-      <pre className="mt-2 max-h-44 overflow-auto rounded-lg bg-tr-panel p-2 text-2xs whitespace-pre-wrap text-tr-muted">
+      <pre className="mt-2 max-h-44 overflow-auto rounded-lg bg-tr-panel p-2 text-xs whitespace-pre-wrap text-tr-muted">
         {JSON.stringify(proposal.payload, null, 2)}
       </pre>
       {proposal.status === 'pending' ? (
@@ -594,7 +594,7 @@ function OperationsTab() {
               <div key={item.id} className="rounded-lg border border-tr-border p-3">
                 <p className="text-sm font-medium text-tr-text">{item.title}</p>
                 <p className="mt-1 text-xs leading-relaxed text-tr-subtle">{item.body}</p>
-                <div className="mt-2 flex items-center justify-between gap-2 text-2xs text-tr-muted">
+                <div className="mt-2 flex items-center justify-between gap-2 text-xs text-tr-muted">
                   <span>{formatDateTime(item.created_at.slice(0, 16))}</span>
                   {item.link && (
                     <Link className="font-medium text-tr-primary hover:underline" to={item.link}>
@@ -643,10 +643,18 @@ function UsageTab() {
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-tr-muted">
               <tr>
-                <th className="px-3 py-2">Provider</th>
-                <th className="px-3 py-2 text-right">Request</th>
-                <th className="px-3 py-2 text-right">Token</th>
-                <th className="px-3 py-2 text-right">Chi phí</th>
+                <th scope="col" className="px-3 py-2">
+                  Provider
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Request
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Token
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Chi phí
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-tr-border">
@@ -675,11 +683,21 @@ function UsageTab() {
           <table className="w-full text-left text-xs">
             <thead className="text-tr-muted">
               <tr>
-                <th className="px-3 py-2">Thời gian</th>
-                <th className="px-3 py-2">Tác vụ</th>
-                <th className="px-3 py-2">Model</th>
-                <th className="px-3 py-2 text-right">Token</th>
-                <th className="px-3 py-2">Trạng thái</th>
+                <th scope="col" className="px-3 py-2">
+                  Thời gian
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Tác vụ
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Model
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Token
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Trạng thái
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-tr-border">

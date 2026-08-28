@@ -77,9 +77,9 @@ export function QuickCreateFab() {
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden="true" />
+        <div className="fixed inset-0 z-sticky" onClick={() => setOpen(false)} aria-hidden="true" />
       )}
-      <div className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-2 sm:right-8 sm:bottom-8">
+      <div className="fixed right-5 bottom-5 z-nav-overlay flex flex-col items-end gap-2 sm:right-8 sm:bottom-8">
         {open && (
           <div className="tr-anim-pop flex flex-col items-end gap-2">
             <button

@@ -153,14 +153,14 @@ function MoreMenu({
   return (
     <div className="w-72">
       <div className="mb-3">
-        <div className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
           Màu
         </div>
         <ColorPickerMenu note={note} />
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
           Tag
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -198,7 +198,7 @@ function MoreMenu({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
           Reminder
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -218,7 +218,7 @@ function MoreMenu({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
           Gắn vào CRM
         </div>
         <QuickNoteRelations
@@ -228,7 +228,7 @@ function MoreMenu({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
           Đính kèm file
         </div>
         <QuickNoteAttachments noteId={note.id} />
@@ -375,7 +375,7 @@ function PreviewCard({
         )}
       </button>
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-2xs opacity-80">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
         <span>{formatDateTime(note.updated_at.replace(' ', 'T').slice(0, 16))}</span>
         {note.reminder_at && (
           <span className="inline-flex items-center gap-0.5">
@@ -667,7 +667,7 @@ function ActiveCard({
             <Trash2 size={16} />
           </button>
         </div>
-        <span className="flex-1 truncate px-1 text-right text-2xs opacity-70">{saveStatus}</span>
+        <span className="flex-1 truncate px-1 text-right text-xs opacity-70">{saveStatus}</span>
         <Button size="sm" onClick={onDeactivate}>
           Đóng
         </Button>
@@ -724,7 +724,7 @@ export function QuickNoteEditorModal({ note, onClose }: { note: QuickNote; onClo
 
   return createPortal(
     <div
-      className="tr-anim-fade fixed inset-0 z-50 flex items-center justify-center bg-tr-overlay p-4 sm:p-8"
+      className="tr-anim-fade fixed inset-0 z-modal flex items-center justify-center bg-tr-overlay p-4 sm:p-8"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

@@ -81,7 +81,7 @@ export function CustomerDrawer({ customer, onClose, onEdit, onCreateDeal }: Prop
             </Button>
             <Link
               to={`/customers/${displayCustomer.id}`}
-              className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium text-tr-primary transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary sm:min-h-[32px]"
+              className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium text-tr-primary transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary fine:min-h-[32px]"
             >
               Hồ sơ đầy đủ <ArrowUpRight size={14} aria-hidden="true" />
             </Link>
@@ -393,7 +393,7 @@ function Metric({
       >
         {value}
       </p>
-      <p className="mt-0.5 truncate text-2xs text-tr-muted">{label}</p>
+      <p className="mt-0.5 truncate text-xs text-tr-muted">{label}</p>
     </div>
   );
 }

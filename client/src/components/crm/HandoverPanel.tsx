@@ -120,10 +120,10 @@ export function HandoverPanel({ dealId }: { dealId: number }) {
                     {item.content}
                   </span>
                   {!item.is_required && (
-                    <span className="ml-1.5 text-2xs text-tr-muted">(tham khảo)</span>
+                    <span className="ml-1.5 text-xs text-tr-muted">(tham khảo)</span>
                   )}
                   {item.is_done && item.done_at && (
-                    <span className="ml-1.5 text-2xs text-tr-muted">
+                    <span className="ml-1.5 text-xs text-tr-muted">
                       {formatDateTime(item.done_at)}
                     </span>
                   )}

@@ -35,7 +35,7 @@ export const HEALTH_TONE: Record<ProjectHealth, string> = {
 export function HealthBadge({ health }: { health: ProjectHealth }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-2xs font-semibold ${HEALTH_TONE[health]}`}
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold ${HEALTH_TONE[health]}`}
     >
       {t.projectHealth[health]}
     </span>
@@ -126,7 +126,7 @@ function ProjectCard({ project }: { project: Project }) {
       {/* Thanh tiến độ: phần trăm việc đã xong, kèm mốc thời gian đã trôi qua để
           thấy ngay hai con số đó có đi cùng nhau không. */}
       <div className="mb-2">
-        <div className="mb-1 flex items-center justify-between text-2xs text-tr-muted">
+        <div className="mb-1 flex items-center justify-between text-xs text-tr-muted">
           <span>
             {project.task_done}/{project.task_total} việc
           </span>
@@ -140,7 +140,7 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-tr-muted">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tr-muted">
         {project.plan_end && (
           <span
             className={project.days_left !== null && project.days_left < 0 ? 'text-tr-danger' : ''}

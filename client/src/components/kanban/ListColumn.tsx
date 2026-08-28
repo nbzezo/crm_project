@@ -106,7 +106,7 @@ export const ListColumn = memo(function ListColumn({
           type="button"
           {...attributes}
           {...listeners}
-          className={`flex h-11 w-11 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing sm:h-8 ${focusRing}`}
+          className={`flex h-11 w-11 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing fine:h-8 ${focusRing}`}
           aria-label={`Di chuyển danh sách ${list.name}`}
         >
           <GripVertical size={16} aria-hidden="true" />
@@ -146,7 +146,7 @@ export const ListColumn = memo(function ListColumn({
             type="button"
             {...attributes}
             {...listeners}
-            className={`flex h-11 w-11 shrink-0 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing sm:h-8 sm:w-7 ${focusRing}`}
+            className={`flex h-11 w-11 shrink-0 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing fine:h-8 fine:w-7 ${focusRing}`}
             aria-label={`Di chuyển danh sách ${list.name}`}
           >
             <GripVertical size={15} aria-hidden="true" />
@@ -191,7 +191,7 @@ export const ListColumn = memo(function ListColumn({
                   dùng chọn, và nền trong suốt làm tương phản tụt dưới ngưỡng AA. */}
               {list.status_mapping && (
                 <span
-                  className={`ml-1.5 inline-flex items-center rounded-full bg-tr-panel px-1.5 py-0.5 text-[11px] font-medium ${CARD_STATUS_TEXT[list.status_mapping]}`}
+                  className={`ml-1.5 inline-flex items-center rounded-full bg-tr-panel px-1.5 py-0.5 text-xs font-medium ${CARD_STATUS_TEXT[list.status_mapping]}`}
                 >
                   {t.cardStatus[list.status_mapping]}
                 </span>
@@ -289,7 +289,7 @@ export const ListColumn = memo(function ListColumn({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className={`flex min-h-[44px] w-full items-center gap-1.5 rounded-panel px-2 text-sm text-tr-text transition hover:bg-tr-hover sm:min-h-0 sm:py-1.5 ${focusRing}`}
+              className={`flex min-h-[44px] w-full items-center gap-1.5 rounded-panel px-2 text-sm text-tr-text transition hover:bg-tr-hover fine:min-h-0 fine:py-1.5 ${focusRing}`}
             >
               <Plus size={16} aria-hidden="true" /> {t.board.addCard}
             </button>

@@ -32,7 +32,7 @@ export function LabelChips({
       {rest > 0 && (
         <span
           className={`rounded-md bg-tr-hover font-medium text-tr-subtle ${
-            small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+            small ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs'
           }`}
           title={labels
             .slice(max)
@@ -59,7 +59,7 @@ export function LabelChip({ label, small }: { label: Label; small?: boolean }) {
     <span
       title={title}
       className={`inline-flex max-w-[14rem] items-center gap-1 truncate rounded-md font-medium whitespace-nowrap ${
-        small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+        small ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs'
       } ${label.status === 'inactive' ? 'opacity-60' : ''}`}
       style={{ backgroundColor: label.color, color: contrastInk(label.color) }}
     >

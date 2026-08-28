@@ -154,7 +154,7 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
               </div>
               <a
                 href={`/api/documents/${doc.id}/download`}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-primary sm:h-8 sm:w-8 ${focusRing}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-primary fine:h-8 fine:w-8 ${focusRing}`}
                 aria-label={`Tải về: ${doc.name}`}
               >
                 <Download size={15} aria-hidden="true" />
@@ -165,7 +165,7 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
                 aria-label={`${t.common.delete}: ${doc.name}`}
                 /* Truoc day opacity-0 + group-hover: nut vo hinh khi Tab toi
                    va tren thiet bi cam ung. */
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 ${focusRing}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-danger fine:h-8 fine:w-8 hoverable:opacity-0 hoverable:group-hover:opacity-100 hoverable:focus-visible:opacity-100 ${focusRing}`}
               >
                 <Trash2 size={15} aria-hidden="true" />
               </button>

@@ -35,7 +35,14 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div role="group" aria-label="Giai đoạn cơ hội" className="flex flex-wrap items-center gap-1">
+      {/* `tr-stage-stepper`: moc de theme Zoho ve chuoi chevron giua cac buoc.
+          Truoc day CSS bam thang vao chuoi aria-label — doi nhan cho de doc la
+          mat hieu ung, im lang. Lop nay la hop dong tuong minh giua hai ben. */}
+      <div
+        role="group"
+        aria-label="Giai đoạn cơ hội"
+        className="tr-stage-stepper flex flex-wrap items-center gap-1"
+      >
         {LINEAR_STAGES.map((stage, index) => {
           const active = stage === deal.stage;
           const passed = currentIndex >= 0 && index < currentIndex;

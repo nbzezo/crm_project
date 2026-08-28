@@ -39,7 +39,7 @@ export function Drawer({
 
   return createPortal(
     <div
-      className="tr-anim-fade fixed inset-0 z-50 flex justify-end bg-tr-overlay"
+      className="tr-anim-fade fixed inset-0 z-modal flex justify-end bg-tr-overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

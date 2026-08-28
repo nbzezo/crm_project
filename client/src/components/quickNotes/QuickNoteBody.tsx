@@ -3,6 +3,7 @@ import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import { useCreateBlockNote } from '@blocknote/react';
 import type { PartialBlock } from '@blocknote/core';
+import { vi } from '@blocknote/core/locales';
 import { useThemeStore } from '../../stores/themeStore';
 import { VoiceNoteRecorder } from '../common/VoiceNoteRecorder';
 
@@ -42,7 +43,10 @@ export default function QuickNoteBody({
 }) {
   const isDark = useThemeStore((s) => s.isDark());
   const initialContent = useMemo(() => parseInitialContent(initialContentJson), []);
-  const editor = useCreateBlockNote({ initialContent });
+  /* `dictionary: vi` — BlockNote mac dinh chay tieng Anh, nen o soan thao hien
+     "Enter text or type '/' for commands" giua mot ung dung hoan toan tieng Viet.
+     Thu vien co san ban dich vi; menu slash va thanh cong cu cung theo do. */
+  const editor = useCreateBlockNote({ initialContent, dictionary: vi });
 
   useEffect(() => {
     editor.focus();

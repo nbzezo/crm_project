@@ -80,7 +80,7 @@ export function ChangeLogPanel({
                 {entry.note && (
                   <p className="mt-0.5 text-xs text-tr-subtle italic">Lý do: {entry.note}</p>
                 )}
-                <p className="mt-0.5 text-2xs text-tr-muted">
+                <p className="mt-0.5 text-xs text-tr-muted">
                   {formatDateTime(entry.changed_at)}
                   {entry.actor_name ? ` · ${entry.actor_name}` : ''}
                 </p>

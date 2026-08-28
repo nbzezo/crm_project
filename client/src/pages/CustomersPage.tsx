@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
 import { CustomerDrawer } from '../components/crm/CustomerDrawer';
 import { Modal } from '../components/common/Modal';
 import { PageHeader, PageShell } from '../components/common/PageShell';
@@ -67,6 +68,7 @@ const SMART_VIEWS: { value: CustomerSmartView; label: string }[] = [
 ];
 
 export default function CustomersPage() {
+  const isWide = useMediaQuery(LG_QUERY);
   const queryClient = useQueryClient();
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -427,18 +429,24 @@ export default function CustomersPage() {
                   Chọn tên khách hàng để xem nhanh mà không rời danh sách
                 </span>
               </div>
-              <CustomerTable
-                customers={customers}
-                labelMap={labelMap}
-                onSelect={setSelectedCustomer}
-                onDelete={setDeleteTarget}
-              />
-              <CustomerMobileList
-                customers={customers}
-                labelMap={labelMap}
-                onSelect={setSelectedCustomer}
-                onDelete={setDeleteTarget}
-              />
+              {/* Chi mount MOT bien the. Truoc day ca hai cung render roi mot cai
+                  bi `hidden` che di, nen moi khach hang duoc dung hai lan trong
+                  DOM — chi phi do tang tuyen tinh theo do dai danh sach. */}
+              {isWide ? (
+                <CustomerTable
+                  customers={customers}
+                  labelMap={labelMap}
+                  onSelect={setSelectedCustomer}
+                  onDelete={setDeleteTarget}
+                />
+              ) : (
+                <CustomerMobileList
+                  customers={customers}
+                  labelMap={labelMap}
+                  onSelect={setSelectedCustomer}
+                  onDelete={setDeleteTarget}
+                />
+              )}
             </>
           )}
         </>
@@ -529,10 +537,10 @@ function CustomerTable({
   onDelete: (customer: Customer) => void;
 }) {
   return (
-    <div className="tr-scroll hidden overflow-x-auto rounded-modal border border-tr-border bg-tr-panel shadow-sm lg:block">
+    <div className="tr-scroll overflow-x-auto rounded-modal border border-tr-border bg-tr-panel shadow-sm">
       <table className="w-full min-w-[62rem] table-fixed text-sm">
         <caption className="sr-only">Danh sách khách hàng và các tín hiệu cần chăm sóc</caption>
-        <thead className="sticky top-0 z-10 bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
+        <thead className="sticky top-0 z-10 bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
           <tr>
             <th scope="col" className="w-[22%] px-4 py-3">
               Khách hàng
@@ -654,7 +662,7 @@ function CustomerTable({
                     {formatRelativePast(customer.last_activity_at)}
                   </span>
                   {!customer.last_activity_at && (
-                    <span className="mt-0.5 block text-2xs text-tr-muted">
+                    <span className="mt-0.5 block text-xs text-tr-muted">
                       Tạo {formatRelativePast(customer.created_at).toLowerCase()}
                     </span>
                   )}
@@ -724,7 +732,7 @@ function CustomerMobileList({
   onDelete: (customer: Customer) => void;
 }) {
   return (
-    <div className="space-y-2 lg:hidden">
+    <div className="space-y-2">
       {customers.map((customer) => {
         const health = getCustomerHealth(customer);
         const nextAction = getNextCustomerAction(customer);
@@ -778,7 +786,7 @@ function CustomerMobileList({
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
-                <p className="text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+                <p className="text-xs font-semibold tracking-wide text-tr-muted uppercase">
                   Sức khỏe
                 </p>
                 <div className="mt-1">
@@ -786,7 +794,7 @@ function CustomerMobileList({
                 </div>
               </div>
               <div>
-                <p className="text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+                <p className="text-xs font-semibold tracking-wide text-tr-muted uppercase">
                   Việc tiếp theo
                 </p>
                 <div className="mt-1">
@@ -901,7 +909,7 @@ function HealthBadge({ health }: { health: ReturnType<typeof getCustomerHealth> 
       title={health.reason}
     >
       <span className="text-xs font-semibold">{health.label}</span>
-      <span className="truncate text-2xs opacity-90">{health.reason}</span>
+      <span className="truncate text-xs opacity-90">{health.reason}</span>
     </span>
   );
 }
@@ -956,7 +964,7 @@ function MobileMetric({
       >
         {value}
       </p>
-      <p className="truncate text-2xs text-tr-muted">{detail ? `${label} · ${detail}` : label}</p>
+      <p className="truncate text-xs text-tr-muted">{detail ? `${label} · ${detail}` : label}</p>
     </div>
   );
 }

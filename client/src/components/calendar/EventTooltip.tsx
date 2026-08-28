@@ -43,7 +43,7 @@ export function EventTooltip({ target }: { target: TooltipTarget | null }) {
     <div
       role="tooltip"
       style={{ top, left, width: WIDTH }}
-      className="tr-popover-shadow tr-anim-fade pointer-events-none fixed z-[80] rounded-panel border border-tr-border bg-tr-panel p-3 text-xs"
+      className="tr-popover-shadow tr-anim-fade pointer-events-none fixed z-tooltip rounded-panel border border-tr-border bg-tr-panel p-3 text-xs"
     >
       <div className="mb-1.5 flex items-start gap-2">
         <span
@@ -75,7 +75,7 @@ export function EventTooltip({ target }: { target: TooltipTarget | null }) {
       </dl>
 
       {item.overdue && !item.done && (
-        <span className="tr-badge-overdue mt-2 inline-block rounded-control px-1.5 py-0.5 text-2xs font-semibold">
+        <span className="tr-badge-overdue mt-2 inline-block rounded-control px-1.5 py-0.5 text-xs font-semibold">
           {t.common.overdue}
         </span>
       )}

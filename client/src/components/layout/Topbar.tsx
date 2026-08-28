@@ -26,7 +26,7 @@ export function Topbar() {
       <Link
         to="/"
         aria-label={t.app.name}
-        className={`flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-control transition hover:bg-tr-hover sm:h-9 sm:w-auto sm:px-1.5 sm:py-1 ${focusRing}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-control transition hover:bg-tr-hover fine:h-9 sm:w-auto sm:px-1.5 sm:py-1 ${focusRing}`}
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-control bg-tr-primary text-tr-on-primary shadow-sm sm:h-7 sm:w-7">
           <Diamond size={14} fill="currentColor" aria-hidden="true" />

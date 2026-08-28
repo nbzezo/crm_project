@@ -163,7 +163,7 @@ export function ScheduleSection({ card, onChanged }: { card: CardDetail; onChang
                       className={`flex w-full items-center gap-2 px-2 py-2 text-left text-sm transition hover:bg-tr-hover ${focusRing}`}
                     >
                       <span className="min-w-0 flex-1 truncate text-tr-text">{task.title}</span>
-                      <span className="shrink-0 text-2xs text-tr-muted">{task.board_name}</span>
+                      <span className="shrink-0 text-xs text-tr-muted">{task.board_name}</span>
                     </button>
                   </li>
                 ))
@@ -204,7 +204,7 @@ export function ScheduleSection({ card, onChanged }: { card: CardDetail; onChang
                 {!!dep.violated && (
                   <span
                     title="Việc này đã tới ngày bắt đầu nhưng việc trước chưa xong"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-tr-danger/15 px-2 py-0.5 text-2xs font-medium text-tr-danger"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-tr-danger/15 px-2 py-0.5 text-xs font-medium text-tr-danger"
                   >
                     <AlertTriangle size={11} aria-hidden="true" /> Đang bị kẹt
                   </span>

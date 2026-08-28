@@ -118,7 +118,7 @@ export function CustomerServices({ customerId }: { customerId: number }) {
                     <td className="px-4 py-2.5 font-medium text-tr-text">
                       {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
                       {line.contract_name && (
-                        <div className="text-2xs text-tr-muted">{line.contract_name}</div>
+                        <div className="text-xs text-tr-muted">{line.contract_name}</div>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-tr-subtle">{line.am || '—'}</td>

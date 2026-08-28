@@ -123,11 +123,11 @@ export function RiskRegister({ projectId, risks }: { projectId: number; risks: P
                 className="group rounded-control border border-tr-border px-3 py-2.5"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-tr-hover px-1.5 py-0.5 text-2xs font-semibold text-tr-subtle">
+                  <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs font-semibold text-tr-subtle">
                     {t.riskKind[risk.kind]}
                   </span>
                   <span
-                    className={`rounded px-1.5 py-0.5 text-2xs font-semibold ${SEVERITY_TONE[risk.severity]}`}
+                    className={`rounded px-1.5 py-0.5 text-xs font-semibold ${SEVERITY_TONE[risk.severity]}`}
                   >
                     {t.riskSeverity[risk.severity]}
                   </span>
@@ -169,7 +169,7 @@ export function RiskRegister({ projectId, risks }: { projectId: number; risks: P
                   <p className="mt-1 text-xs whitespace-pre-wrap text-tr-subtle">{risk.detail}</p>
                 )}
 
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-tr-muted">
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tr-muted">
                   {risk.owner_name && <span>Phụ trách: {risk.owner_name}</span>}
                   {risk.due_date && (
                     <span className={overdue ? 'font-semibold text-tr-danger' : ''}>

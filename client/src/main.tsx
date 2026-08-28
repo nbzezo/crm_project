@@ -4,6 +4,7 @@ import { Navigate, createBrowserRouter, RouterProvider } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { AuthGate } from './components/auth/AuthGate';
+import { NotFoundPage, RouteErrorPage } from './components/common/RouteError';
 import { useUiStore } from './stores/uiStore';
 import { initTheme } from './stores/themeStore';
 import './index.css';
@@ -46,6 +47,9 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+    /* Bat moi loi render va moi chunk `lazy()` khong tai duoc. Khong co no thi
+       nguoi dung roi vao man hinh loi mac dinh tieng Anh cua react-router. */
+    errorElement: <RouteErrorPage />,
     children: [
       {
         index: true,
@@ -107,6 +111,9 @@ const router = createBrowserRouter([
       { path: 'ai', element: <AiWorkspacePage />, handle: { title: 'Trợ lý AI' } },
       { path: 'notes', element: <NotesPage />, handle: { title: 'Ghi chú', visibleHeading: true } },
       { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },
+      /* URL khong khop: dat lam route con de van nam trong khung app — nguoi dung
+         lac duong khong bi mat luon thanh dieu huong de tim duong ra. */
+      { path: '*', element: <NotFoundPage />, handle: { title: 'Không tìm thấy trang' } },
     ],
   },
 ]);

@@ -146,7 +146,7 @@ export function RevenueLineForm({
                 <button
                   type="button"
                   onClick={() => setCatalogOpen(true)}
-                  className="inline-flex items-center gap-1 text-2xs font-medium text-tr-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-tr-primary hover:underline"
                 >
                   <Settings2 size={12} /> {t.service.manage}
                 </button>

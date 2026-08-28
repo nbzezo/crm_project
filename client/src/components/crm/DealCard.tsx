@@ -108,13 +108,13 @@ export function DealCardBody({
 
       <div className="mt-1 flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-semibold text-tr-success">{formatVND(deal.value_vnd)}</span>
-        <span className="text-2xs text-tr-muted">{deal.probability}%</span>
+        <span className="text-xs text-tr-muted">{deal.probability}%</span>
         {/* Điểm chất lượng đứng cạnh xác suất theo giai đoạn — hai chỉ số độc lập,
             chênh lệch giữa chúng chính là mức thổi phồng pipeline (F-08). */}
         {deal.quadrant && (deal.bant_total || deal.p4_total) ? (
           <span
             title={`BANT ${deal.bant_total}/12 · 4P ${deal.p4_total}/12 — ${QUADRANT_LABELS[deal.quadrant]}`}
-            className="inline-flex items-center gap-1 text-2xs tabular-nums"
+            className="inline-flex items-center gap-1 text-xs tabular-nums"
             style={{ color: QUADRANT_COLORS[deal.quadrant] }}
           >
             <span
@@ -129,7 +129,7 @@ export function DealCardBody({
       {/* FR-TAG-26: card cơ hội chỉ hiện vài nhãn đầu, phần còn lại gom "+N" */}
       <LabelChips labels={labels} max={3} small className="mt-1.5" />
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-2xs text-tr-muted">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-tr-muted">
         {deal.customer_name && (
           <span className="inline-flex max-w-[11rem] items-center gap-1 truncate">
             <Building2 size={12} />
@@ -158,7 +158,7 @@ export function DealCardBody({
       {/* FR-PIP-01: Next Action luôn hiển thị nổi bật trên card */}
       {deal.next_action ? (
         <div
-          className={`mt-2 flex items-center gap-1.5 rounded px-1.5 py-1 text-2xs ${
+          className={`mt-2 flex items-center gap-1.5 rounded px-1.5 py-1 text-xs ${
             nextActionOverdue ? 'tr-badge-overdue' : 'bg-tr-hover text-tr-subtle'
           }`}
         >
@@ -170,7 +170,7 @@ export function DealCardBody({
         </div>
       ) : (
         noNextAction && (
-          <div className="mt-2 flex items-center gap-1.5 rounded bg-tr-hover px-1.5 py-1 text-2xs text-tr-warning">
+          <div className="mt-2 flex items-center gap-1.5 rounded bg-tr-hover px-1.5 py-1 text-xs text-tr-warning">
             <AlertTriangle size={12} /> Chưa có hành động tiếp theo
           </div>
         )
@@ -179,7 +179,7 @@ export function DealCardBody({
       {/* Tạm dừng đứng trên các cảnh báo khác: một cơ hội đang dừng có chủ ý thì
           "chưa có hành động tiếp theo" không còn là vấn đề cần nhắc. */}
       {!!deal.on_hold && (
-        <div className="mt-1.5 flex items-center gap-1 rounded bg-tr-hover px-1.5 py-0.5 text-2xs text-tr-subtle">
+        <div className="mt-1.5 flex items-center gap-1 rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle">
           <PauseCircle size={12} aria-hidden="true" />
           Tạm dừng
           {deal.on_hold_review_date && ` · xem lại ${formatDateShort(deal.on_hold_review_date)}`}
@@ -187,14 +187,12 @@ export function DealCardBody({
       )}
 
       {stale && !deal.on_hold && (
-        <div className="mt-1 text-2xs text-tr-warning">
-          Không có tương tác {deal.days_idle} ngày
-        </div>
+        <div className="mt-1 text-xs text-tr-warning">Không có tương tác {deal.days_idle} ngày</div>
       )}
 
       {/* R-08: thời gian lưu tại giai đoạn — chỉ nói khi con số đã đáng chú ý. */}
       {!closed && (deal.days_in_stage ?? 0) >= STAGE_AGE_DAYS && (
-        <div className="mt-1 text-2xs text-tr-muted">Ở giai đoạn này {deal.days_in_stage} ngày</div>
+        <div className="mt-1 text-xs text-tr-muted">Ở giai đoạn này {deal.days_in_stage} ngày</div>
       )}
 
       {/*
@@ -203,20 +201,20 @@ export function DealCardBody({
         nhãn cảnh báo lên đó chỉ làm loãng tín hiệu ở cột thực sự cần nhìn.
       */}
       {deal.stage === 'won' && !deal.handover_ready && (
-        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-tr-warning/15 px-1.5 py-0.5 text-2xs font-semibold text-tr-warning">
+        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-tr-warning/15 px-1.5 py-0.5 text-xs font-semibold text-tr-warning">
           <PackageOpen size={12} aria-hidden="true" /> Chờ bàn giao
         </div>
       )}
 
       {deal.project_name && (
-        <div className="mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-2xs text-tr-muted">
+        <div className="mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-xs text-tr-muted">
           <FolderKanban size={12} aria-hidden="true" className="shrink-0" />
           <span className="truncate">{deal.project_name}</span>
         </div>
       )}
 
       {deal.lost_reason && (
-        <div className="mt-1 text-2xs text-tr-danger">
+        <div className="mt-1 text-xs text-tr-danger">
           Lý do: {t.lostReason[deal.lost_reason] ?? deal.lost_reason}
         </div>
       )}

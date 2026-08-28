@@ -82,7 +82,7 @@ function SmartButton({
           : 'border-tr-border bg-tr-panel hover:bg-tr-hover'
       }`}
     >
-      <span className="flex items-center gap-1.5 text-2xs text-tr-muted">
+      <span className="flex items-center gap-1.5 text-xs text-tr-muted">
         {icon}
         {label}
       </span>

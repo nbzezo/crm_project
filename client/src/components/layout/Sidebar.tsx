@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -54,6 +54,7 @@ import type { Board, NotificationFeed, TaskRow } from '../../types';
 import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from '../common/useDialog';
 import { focusRing } from '../common/ui';
+import { buildDndAnnouncements } from '../../lib/dnd/announcements';
 
 interface NavItem {
   to: string;
@@ -167,7 +168,7 @@ function loadCollapsed(): boolean {
 
 /* Muc dieu huong cao 44px tren cam ung, thu gon con 32px tu breakpoint sm. */
 const ITEM_BASE =
-  'flex min-h-[44px] items-center gap-2.5 rounded-full px-3 text-sm transition sm:min-h-0 sm:py-1.5';
+  'flex min-h-[44px] items-center gap-2.5 rounded-full px-3 text-sm transition fine:min-h-0 fine:py-1.5';
 
 function navItemClass(isActive: boolean, extra = ''): string {
   return `${ITEM_BASE} ${focusRing} min-w-0 ${extra} ${
@@ -181,7 +182,7 @@ function NavBadge({ count, tone = 'primary' }: { count: number; tone?: 'primary'
   if (count <= 0) return null;
   return (
     <span
-      className={`ml-auto flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-tr-on-primary ${
+      className={`ml-auto flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-xs font-semibold text-tr-on-primary ${
         tone === 'danger' ? 'bg-tr-danger' : 'bg-tr-primary'
       }`}
       aria-hidden="true"
@@ -313,7 +314,7 @@ function SortableNavItem({
         {...listeners}
         aria-label={`Sắp xếp ${item.label}`}
         title="Kéo để đổi vị trí · Nhấn Space để sắp xếp bằng bàn phím"
-        className={`absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-control text-tr-muted opacity-40 transition hover:bg-[var(--tr-nav-hover)] hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing sm:right-1 sm:h-7 sm:w-7 sm:opacity-0 sm:group-hover:opacity-70 ${focusRing}`}
+        className={`absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-control text-tr-muted opacity-40 transition hover:bg-[var(--tr-nav-hover)] hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing sm:right-1 fine:h-7 fine:w-7 hoverable:opacity-0 hoverable:group-hover:opacity-70 ${focusRing}`}
       >
         <GripVertical size={14} aria-hidden="true" />
       </button>
@@ -326,7 +327,7 @@ function StarredBoards({ boards, onNavigate }: { boards: Board[]; onNavigate?: (
 
   return (
     <section aria-label="Bảng đã gắn sao" className="mt-2 border-l border-tr-border/80 pl-1">
-      <h3 className="mb-1 flex items-center gap-1.5 px-3 text-2xs font-semibold text-tr-muted">
+      <h3 className="mb-1 flex items-center gap-1.5 px-3 text-xs font-semibold text-tr-muted">
         <Star size={11} aria-hidden="true" /> Bảng đã gắn sao
       </h3>
       {boards.map((board) => (
@@ -365,6 +366,24 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  /* Id cua muc dieu huong chinh la duong dan (`/tasks`), doc len nghe nhu duong
+     dan ky thuat — doi sang dung nhan hien tren man hinh. */
+  const announcements = useMemo(() => {
+    const labels = new Map(
+      [HOME_NAV, SETTINGS_NAV, ...NAV_GROUPS.flatMap((g) => g.items)].map((item) => [
+        item.to,
+        item.label,
+      ])
+    );
+    return buildDndAnnouncements({
+      itemNoun: 'mục điều hướng',
+      resolve: (id) => {
+        const label = labels.get(id);
+        return label ? `mục ${label}` : null;
+      },
+    });
+  }, []);
+
   const onDragEnd = (groupId: NavGroupId, event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -389,7 +408,7 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
           return (
             <section key={group.id} aria-label={group.label} className="mt-3">
               <div className="mb-1 flex min-h-5 items-center px-3">
-                <h3 className="text-2xs font-semibold tracking-[0.08em] text-tr-muted uppercase">
+                <h3 className="text-xs font-semibold tracking-[0.08em] text-tr-muted uppercase">
                   {group.label}
                 </h3>
                 {!isGroupDefaultOrder(group.id, order) && (
@@ -400,7 +419,7 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
                     }
                     aria-label="Khôi phục thứ tự mặc định"
                     title="Khôi phục thứ tự mặc định"
-                    className={`ml-auto -mr-2 flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] sm:-mr-1 sm:h-7 sm:w-7 ${focusRing}`}
+                    className={`ml-auto -mr-2 flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] sm:-mr-1 fine:h-7 fine:w-7 ${focusRing}`}
                   >
                     <RotateCcw size={13} aria-hidden="true" />
                   </button>
@@ -408,6 +427,7 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
               </div>
               <DndContext
                 sensors={sensors}
+                accessibility={{ announcements }}
                 collisionDetection={closestCenter}
                 onDragEnd={(event) => onDragEnd(group.id, event)}
               >
@@ -433,7 +453,7 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
 
       <div className="mt-auto border-t border-[var(--tr-nav-border)] px-2.5 pt-2 pb-3">
         <NavItemLink item={SETTINGS_NAV} onNavigate={onNavigate} />
-        <div className="mt-2 hidden px-3 text-2xs text-tr-muted sm:block">{t.search.hint}</div>
+        <div className="mt-2 hidden px-3 text-xs text-tr-muted sm:block">{t.search.hint}</div>
       </div>
     </>
   );
@@ -458,7 +478,7 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
         onClick={() => openQuickNotesBoard()}
         title={item.label}
         aria-label={item.label}
-        className={`relative flex h-11 w-11 items-center justify-center rounded-control text-[var(--tr-nav-text)] transition hover:bg-[var(--tr-nav-hover)] sm:h-9 sm:w-9 ${focusRing}`}
+        className={`relative flex h-11 w-11 items-center justify-center rounded-control text-[var(--tr-nav-text)] transition hover:bg-[var(--tr-nav-hover)] fine:h-9 fine:w-9 ${focusRing}`}
       >
         <Icon size={18} aria-hidden="true" />
         {badgeDot}
@@ -473,7 +493,7 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
       title={item.label}
       aria-label={item.label}
       className={({ isActive }) =>
-        `relative flex h-11 w-11 items-center justify-center rounded-control transition sm:h-9 sm:w-9 ${focusRing} ${
+        `relative flex h-11 w-11 items-center justify-center rounded-control transition fine:h-9 fine:w-9 ${focusRing} ${
           isActive
             ? 'bg-[var(--tr-nav-active-bg)] text-[var(--tr-nav-active-text)]'
             : 'text-[var(--tr-nav-text)] hover:bg-[var(--tr-nav-hover)]'
@@ -533,7 +553,7 @@ function NavDrawer({ order, onOrderChange }: Omit<SidebarNavProps, 'onNavigate'>
 
   return (
     <div
-      className="tr-anim-fade fixed inset-0 z-40 bg-tr-overlay md:hidden"
+      className="tr-anim-fade fixed inset-0 z-nav-overlay bg-tr-overlay md:hidden"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) setOpen(false);
       }}
@@ -602,11 +622,11 @@ export function Sidebar() {
           <CollapsedNav order={navOrder} />
         </aside>
       ) : (
-        <aside className="tr-scroll relative z-30 hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
+        <aside className="tr-scroll relative z-sticky hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
           <button
             type="button"
             onClick={() => updateCollapsed(true)}
-            className={`absolute -right-3 top-3 z-30 rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
+            className={`absolute -right-3 top-3 z-sticky rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
             aria-label="Thu gọn thanh điều hướng"
             aria-expanded
           >

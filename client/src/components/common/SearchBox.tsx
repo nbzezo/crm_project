@@ -86,18 +86,18 @@ export function SearchBox() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`tr-search-trigger flex h-11 w-full max-w-lg items-center gap-2 rounded-full border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text sm:h-8 ${focusRing}`}
+        className={`tr-search-trigger flex h-11 w-full max-w-lg items-center gap-2 rounded-full border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text fine:h-8 ${focusRing}`}
       >
         <Search size={15} aria-hidden="true" />
         <span className="flex-1 truncate text-left">{t.search.placeholder}</span>
-        <kbd className="hidden rounded-full border border-tr-border bg-tr-list px-2 py-0.5 text-[10px] text-tr-muted sm:inline">
+        <kbd className="hidden rounded-full border border-tr-border bg-tr-list px-2 py-0.5 text-xs text-tr-muted sm:inline">
           Ctrl K
         </kbd>
       </button>
 
       {open && (
         <div
-          className="tr-anim-fade fixed inset-0 z-50 flex items-start justify-center bg-tr-overlay p-4 pt-16 sm:pt-24"
+          className="tr-anim-fade fixed inset-0 z-modal flex items-start justify-center bg-tr-overlay p-4 pt-16 sm:pt-24"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) close();
           }}
@@ -255,7 +255,7 @@ export function SearchBox() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-1">
-      <div className="px-4 py-1 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+      <div className="px-4 py-1 text-xs font-semibold tracking-wide text-tr-muted uppercase">
         {title}
       </div>
       {children}

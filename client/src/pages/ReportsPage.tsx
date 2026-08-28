@@ -17,9 +17,9 @@ import {
 import { format, startOfMonth, startOfQuarter, subMonths } from 'date-fns';
 import { api, qs } from '../api/client';
 import { ErrorState, Panel, Skeleton, focusRing } from '../components/common/ui';
+import { ChartDataTable } from '../components/common/ChartDataTable';
 import {
   CATEGORICAL_COLORS,
-  CHART_INK,
   CHART_PRIMARY,
   PRIORITY_COLORS,
   PRIORITY_ORDER,
@@ -76,9 +76,9 @@ interface ReportsData {
 
 type RangeKey = 'month' | 'quarter' | 'six' | 'custom';
 
+/* Mau truc/nhan lay tu token trong index.css (khoi `.recharts-*`), khong dat o day. */
 const AXIS_PROPS = {
-  stroke: CHART_INK.axis,
-  tick: { fill: CHART_INK.muted, fontSize: 11 },
+  tick: { fontSize: 11 },
   tickLine: false,
 };
 
@@ -168,7 +168,7 @@ export default function ReportsPage() {
             type="button"
             onClick={() => setRangeKey(key)}
             aria-pressed={rangeKey === key}
-            className={`min-h-[44px] rounded-panel px-3 text-sm transition sm:min-h-0 sm:py-1.5 ${focusRing} ${
+            className={`min-h-[44px] rounded-panel px-3 text-sm transition fine:min-h-0 fine:py-1.5 ${focusRing} ${
               rangeKey === key
                 ? 'bg-tr-primary font-medium text-tr-on-primary'
                 : 'border border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'
@@ -228,7 +228,7 @@ export default function ReportsPage() {
                 <caption className="sr-only">
                   Thông lượng và khối lượng theo người phụ trách
                 </caption>
-                <thead className="text-left text-2xs tracking-wide text-tr-subtle uppercase">
+                <thead className="text-left text-xs tracking-wide text-tr-subtle uppercase">
                   <tr>
                     <th scope="col" className="px-2 py-1.5">
                       Người phụ trách
@@ -277,7 +277,7 @@ export default function ReportsPage() {
                         {/* Chỉ hiện số giờ khi MỌI việc tuần này đều đã ước lượng —
                             một tổng cộng dồn từ dữ liệu thiếu là một tổng sai. */}
                         {row.week_hours > 0 && (
-                          <span className="ml-1 text-2xs text-tr-muted">
+                          <span className="ml-1 text-xs text-tr-muted">
                             (
                             {row.estimated_count < row.due_week_count
                               ? `≥ ${row.week_hours}h`
@@ -300,7 +300,7 @@ export default function ReportsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={slipRows} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid vertical={false} stroke={CHART_INK.grid} />
+                <CartesianGrid vertical={false} />
                 <XAxis dataKey="name" {...AXIS_PROPS} />
                 <YAxis allowDecimals={false} {...AXIS_PROPS} />
                 <Tooltip
@@ -316,7 +316,7 @@ export default function ReportsPage() {
             Đuôi bên phải càng dài thì kế hoạch càng ít đáng tin — mỗi cột là số công việc đã dời
             hạn bấy nhiêu lần.
           </p>
-          <ChartSrData
+          <ChartDataTable
             caption="Số lần dời hạn"
             rows={slipRows.map((row) => ({ name: row.name, value: `${row.count} công việc` }))}
           />
@@ -328,7 +328,7 @@ export default function ReportsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={weekData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid vertical={false} stroke={CHART_INK.grid} />
+                <CartesianGrid vertical={false} />
                 <XAxis dataKey="name" {...AXIS_PROPS} />
                 <YAxis allowDecimals={false} {...AXIS_PROPS} />
                 <Tooltip
@@ -340,7 +340,7 @@ export default function ReportsPage() {
               </BarChart>
             </ResponsiveContainer>
           )}
-          <ChartSrData
+          <ChartDataTable
             caption={t.reports.completedByWeek}
             rows={weekData.map((row) => ({ name: row.name, value: `${row.count} công việc` }))}
           />
@@ -352,7 +352,7 @@ export default function ReportsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={monthData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-                <CartesianGrid vertical={false} stroke={CHART_INK.grid} />
+                <CartesianGrid vertical={false} />
                 <XAxis dataKey="name" {...AXIS_PROPS} />
                 <YAxis
                   tickFormatter={(v) => formatVNDShort(v as number)}
@@ -368,13 +368,16 @@ export default function ReportsPage() {
                   dataKey="sum_vnd"
                   stroke={CHART_PRIMARY}
                   strokeWidth={2}
-                  dot={{ r: 4, fill: CHART_PRIMARY, stroke: '#fff', strokeWidth: 2 }}
+                  /* Vien quanh diem lay mau be mat tu token (index.css, `.recharts-dot`)
+                     de diem trong nhu duoc khoet ra khoi panel o ca sau theme —
+                     truoc day la '#fff' cung, sai han tren nen toi. */
+                  dot={{ r: 4, fill: CHART_PRIMARY, strokeWidth: 2 }}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           )}
-          <ChartSrData
+          <ChartDataTable
             caption={t.reports.wonByMonth}
             rows={monthData.map((row) => ({ name: row.name, value: formatVND(row.sum_vnd) }))}
           />
@@ -392,7 +395,7 @@ export default function ReportsPage() {
                 layout="vertical"
                 margin={{ top: 4, right: 16, bottom: 4, left: 12 }}
               >
-                <CartesianGrid horizontal={false} stroke={CHART_INK.grid} />
+                <CartesianGrid horizontal={false} />
                 <XAxis
                   type="number"
                   tickFormatter={(v) => formatVNDShort(v as number)}
@@ -411,7 +414,7 @@ export default function ReportsPage() {
               </BarChart>
             </ResponsiveContainer>
           )}
-          <ChartSrData
+          <ChartDataTable
             caption={t.reports.pipelineByStage}
             rows={stageData.map((row) => ({
               name: row.name,
@@ -430,7 +433,7 @@ export default function ReportsPage() {
               unit="công việc"
             />
           )}
-          <ChartSrData
+          <ChartDataTable
             caption={t.reports.openByPriority}
             rows={priorityData.map((row) => ({ name: row.name, value: `${row.count} công việc` }))}
           />
@@ -448,7 +451,7 @@ export default function ReportsPage() {
               unit="lần"
             />
           )}
-          <ChartSrData
+          <ChartDataTable
             caption={t.reports.interactionsByType}
             rows={interactionData.map((row) => ({ name: row.name, value: `${row.count} lần` }))}
           />
@@ -547,8 +550,12 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
               <table className="w-full min-w-[32rem] text-sm">
                 <thead>
                   <tr className="border-b border-tr-border text-left text-xs text-tr-muted">
-                    <th className="py-1.5 pr-3 font-medium">Lý do thua</th>
-                    <th className="py-1.5 font-medium">Yếu tố yếu nhất khi chốt</th>
+                    <th scope="col" className="py-1.5 pr-3 font-medium">
+                      Lý do thua
+                    </th>
+                    <th scope="col" className="py-1.5 font-medium">
+                      Yếu tố yếu nhất khi chốt
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -592,42 +599,6 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
  * Bieu do SVG cua recharts khong co noi dung thay the, nen nguoi dung
  * trinh doc man hinh truoc day mat toan bo phan bao cao.
  */
-function ChartSrData({
-  caption,
-  rows,
-}: {
-  caption: string;
-  rows: { name: string; value: string }[];
-}) {
-  /*
-   * sr-only tren the <table> khong dang tin cay: bang co kich thuoc noi tai
-   * theo cot (table-layout: auto) nen trinh duyet van danh cho no phan khong
-   * gian day du de tinh scrollHeight du da bi cat khi ve — day la nguyen nhan
-   * gay khoang trong o cuoi trang khi cuon. Boc trong <div sr-only> de clip
-   * dung theo kich thuoc 1x1px cua div, khong bi anh huong boi kich thuoc bang.
-   */
-  return (
-    <div className="sr-only">
-      <table>
-        <caption>{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Mục</th>
-            <th scope="col">Giá trị</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.name}>
-              <th scope="row">{row.name}</th>
-              <td>{row.value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 const TOOLTIP_STYLE = {
   borderRadius: 8,
@@ -652,6 +623,8 @@ function DonutWithLegend({
     <div className="flex items-center gap-4">
       <ResponsiveContainer width="55%" height={190}>
         <PieChart>
+          {/* Duong tach giua cac lat lay mau be mat tu token (index.css,
+              `.recharts-sector`) — truoc day la stroke trang cung, sai tren nen toi. */}
           <Pie
             data={data}
             dataKey="count"
@@ -659,7 +632,6 @@ function DonutWithLegend({
             innerRadius={45}
             outerRadius={72}
             paddingAngle={2}
-            stroke="#fff"
             strokeWidth={2}
           >
             {data.map((_, index) => (

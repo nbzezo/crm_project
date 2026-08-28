@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
+import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { PageShell } from '../components/common/PageShell';
 import {
@@ -44,6 +45,7 @@ const confidentialityLabel: Record<CrmDocument['confidentiality'], string> = {
 };
 
 export default function DocumentsPage() {
+  const isWide = useMediaQuery(LG_QUERY);
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
   const openTaskComposer = useUiStore((state) => state.openTaskComposer);
@@ -168,7 +170,12 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     if (!focusId || documents.length === 0) return;
-    document.getElementById(`document-${focusId}`)?.scrollIntoView({ block: 'center' });
+    /* Duoi lg danh sach ve bang the chu khong phai hang bang, nen phai thu ca hai
+       id — chi tim `document-N` thi tren dien thoai khong cuon toi dau ca. */
+    const target =
+      document.getElementById(`document-${focusId}`) ??
+      document.getElementById(`document-card-${focusId}`);
+    target?.scrollIntoView({ block: 'center' });
   }, [documents, focusId]);
 
   const allSelected =
@@ -348,8 +355,72 @@ export default function DocumentsPage() {
                   : 'Kéo tệp vào khu vực tải lên phía trên để bắt đầu.'
             }
           />
+        ) : !isWide ? (
+          <>
+            {/* Duoi lg: bang 8 cot rong 1100px la ban rong nhat trong app — tren
+              dien thoai gan nhu chi con thao tac cuon ngang. Doi sang the, giu
+              ten tep, loai, khach hang va dung luong; cac cot con lai xem duoc
+              khi mo tai lieu. */}
+            <ul className="space-y-2" aria-label="Danh sách tài liệu">
+              {documents.map((document) => (
+                <li
+                  key={document.id}
+                  id={`document-card-${document.id}`}
+                  className={`rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm ${
+                    focusId === document.id ? 'ring-2 ring-tr-primary' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(document.id)}
+                      onChange={() =>
+                        setSelected((current) =>
+                          current.includes(document.id)
+                            ? current.filter((id) => id !== document.id)
+                            : [...current, document.id]
+                        )
+                      }
+                      aria-label={`Chọn ${document.name}`}
+                      className="mt-1 h-4 w-4 shrink-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => view === 'active' && setEditing(document)}
+                      disabled={view === 'trash'}
+                      title={document.name}
+                      className={`flex min-w-0 flex-1 items-start gap-2 text-left disabled:cursor-default ${
+                        view === 'active' ? focusRing : ''
+                      }`}
+                    >
+                      <FileText
+                        size={15}
+                        className="mt-0.5 shrink-0 text-tr-muted"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-tr-text">
+                          {document.name}
+                        </span>
+                        <span className="block truncate text-xs text-tr-muted">
+                          {document.file_name}
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tr-muted">
+                    {document.doc_type && <span>{document.doc_type}</span>}
+                    {document.customer_name && (
+                      <span className="truncate text-tr-subtle">{document.customer_name}</span>
+                    )}
+                    <span className="ml-auto tabular-nums">{formatBytes(document.size)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         ) : (
-          <div className="overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+          <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
             <table className="min-w-[1100px] w-full text-sm">
               <TableHead>
                 <tr>
@@ -436,7 +507,7 @@ export default function DocumentsPage() {
                             {tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="rounded-full bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-subtle"
+                                className="rounded-full bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle"
                               >
                                 {tag}
                               </span>

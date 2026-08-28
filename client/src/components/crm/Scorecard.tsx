@@ -368,7 +368,7 @@ function ScoreDial({
         {total}
         <span className="text-sm font-normal text-tr-muted">/12</span>
       </p>
-      <p className="text-2xs text-tr-muted">{hint}</p>
+      <p className="text-xs text-tr-muted">{hint}</p>
     </div>
   );
 }
@@ -487,7 +487,7 @@ function FactorRow({
         >
           {FACTOR_LABELS[item.factor]}
           {item.status === 'suggested' && (
-            <span className="ml-1.5 rounded bg-tr-hover px-1 py-0.5 text-2xs text-tr-warning">
+            <span className="ml-1.5 rounded bg-tr-hover px-1 py-0.5 text-xs text-tr-warning">
               AI đề xuất
             </span>
           )}

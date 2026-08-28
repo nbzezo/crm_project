@@ -90,7 +90,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
       <div className="mb-4 rounded-modal border border-tr-border bg-tr-panel p-3 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+            <p className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
               Cách nhóm
             </p>
             <Segmented
@@ -105,7 +105,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
           </div>
 
           <div className="sm:text-right">
-            <p className="mb-1.5 text-2xs font-semibold tracking-wide text-tr-muted uppercase">
+            <p className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
               Thang thời gian
             </p>
             <Segmented
@@ -233,7 +233,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
                         <span className="max-w-full shrink-0 truncate text-xs text-tr-muted sm:max-w-48">
                           {boardId ? item.list_name : (item.customer_name ?? item.board_name)}
                         </span>
-                        <span className="rounded-full border border-tr-border px-2 py-0.5 text-2xs text-tr-subtle">
+                        <span className="rounded-full border border-tr-border px-2 py-0.5 text-xs text-tr-subtle">
                           {t.priority[item.priority]}
                         </span>
                         <Button

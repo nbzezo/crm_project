@@ -97,6 +97,21 @@ export const t = {
     newPasswordHint: 'Ít nhất 8 ký tự',
     passwordChanged: 'Đã đổi mật khẩu',
   },
+  routeError: {
+    /* Loi tai chunk: hay gap nhat khi deploy ban moi trong luc tab dang mo — ban
+       cu tro toi file .js da bi thay the. Nguoi dung chi can tai lai trang. */
+    staleTitle: 'Ứng dụng vừa được cập nhật',
+    staleBody:
+      'Phiên bản bạn đang mở không còn khớp với máy chủ. Tải lại trang để dùng bản mới nhất; dữ liệu đã lưu không bị ảnh hưởng.',
+    crashTitle: 'Trang này gặp lỗi',
+    crashBody:
+      'Không hiển thị được nội dung. Bạn có thể tải lại trang, hoặc quay về Tổng quan rồi thử lại.',
+    notFoundTitle: 'Không tìm thấy trang',
+    notFoundBody: 'Đường dẫn này không tồn tại hoặc đã được đổi. Hãy chọn một mục ở thanh bên.',
+    reload: 'Tải lại trang',
+    home: 'Về Tổng quan',
+    details: 'Chi tiết kỹ thuật',
+  },
   priority: {
     low: 'Thấp',
     medium: 'Trung bình',
@@ -779,7 +794,13 @@ export const QUOTATION_STATUS_COLORS: Record<string, string> = {
 export const PRIORITY_COLORS: Record<Priority, string> = {
   urgent: '#d03b3b',
   high: '#eda100',
-  medium: '#2a78d6',
+  /* Truoc day la '#2a78d6'. Mau do roi dung vao dai chet: voi muc den chi dat
+     4,46:1 va voi muc trang 4,42:1 — khong lua chon nao qua duoc 4,5:1, nen huy
+     hieu "Trung binh" truot AA (axe bat duoc sau khi bat tag WCAG 2.2).
+     Da ha do sang tu 50,2% xuong 48,7% va giu nguyen tong mau 212,8 do lan do
+     bao hoa 68%, nen phan kiem dinh mu mau cua bang mau khong bi anh huong.
+     Gio dat 4,67:1 voi muc trang. */
+  medium: '#2874d0',
   low: '#1baf7a',
 };
 
@@ -803,8 +824,11 @@ export const CHART_PRIMARY = '#2a78d6';
 /** Cac o mau phan loai theo thu tu co dinh — da kiem dinh cho 5 slot dau. */
 export const CATEGORICAL_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'];
 
-export const CHART_INK = {
-  grid: '#e1e0d9',
-  axis: '#c3c2b7',
-  muted: '#898781',
-};
+/* `CHART_INK` da bi bo: mau luoi/truc/nhan cua recharts nay dat bang token trong
+   index.css (khoi `.recharts-*`) de doi theo tung theme. */
+
+/** Co hoi bi veto chan khoi forecast — dung cho ColorBadge o trang chi tiet co hoi. */
+export const VETO_BADGE_COLOR = '#e04b3a';
+
+/** Doi thu da tham gia soan tieu chi — canh bao muc vua trong hoi dong mua hang. */
+export const SHAPED_REQUIREMENTS_COLOR = '#e8a33d';

@@ -41,7 +41,7 @@ export function ScoringPrompt({
               </Link>
             ))}
           </div>
-          <p className="mt-2 text-2xs text-tr-muted">
+          <p className="mt-2 text-xs text-tr-muted">
             Bỏ qua cũng được — nhưng điểm không được cập nhật thì forecast sẽ nói sai.
           </p>
         </div>

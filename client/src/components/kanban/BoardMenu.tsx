@@ -99,7 +99,7 @@ export function BoardMenu({
 
   return (
     <>
-      <aside className="tr-popover-shadow absolute top-0 right-0 z-40 flex h-full w-[339px] flex-col bg-tr-panel">
+      <aside className="tr-popover-shadow absolute top-0 right-0 z-nav-overlay flex h-full w-[339px] flex-col bg-tr-panel">
         <header className="relative flex h-12 shrink-0 items-center justify-center border-b border-tr-border px-10">
           {view !== 'main' && (
             <button

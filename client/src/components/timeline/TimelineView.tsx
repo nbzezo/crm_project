@@ -78,7 +78,7 @@ function TaskTooltip({
     <div
       id={tooltipId}
       role="tooltip"
-      className="pointer-events-none fixed z-[100] rounded-panel border border-tr-border bg-tr-panel p-3 text-left shadow-[var(--tr-popover-shadow)]"
+      className="pointer-events-none fixed z-tooltip rounded-panel border border-tr-border bg-tr-panel p-3 text-left shadow-[var(--tr-popover-shadow)]"
       style={{
         left: position.left,
         top: position.top,
@@ -203,7 +203,7 @@ const TimelineTaskBar = memo(function TimelineTaskBar({
         onBlur={hideTooltip}
         aria-describedby={tooltipPosition ? tooltipId : undefined}
         aria-label={`${item.title}, ${formatDate(item.start_date)} đến ${formatDate(item.due_date)}, ưu tiên ${t.priority[item.priority]}${progress !== null ? `, tiến độ ${progress}%` : ''}${accessibleState}`}
-        className={`absolute top-1.5 flex h-6 cursor-pointer items-center overflow-hidden rounded-[5px] px-2 text-2xs font-semibold transition hover:z-30 hover:brightness-110 ${focusRing} ${
+        className={`absolute top-1.5 flex min-h-6 cursor-pointer items-center overflow-hidden rounded-[5px] px-2 text-xs font-semibold transition hover:z-30 hover:brightness-110 ${focusRing} ${
           overdueDays > 0 ? 'ring-2 ring-inset ring-tr-danger' : ''
         }`}
         style={{
@@ -446,7 +446,7 @@ export function TimelineView({
     >
       <div className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 border-b border-tr-border px-3 py-2">
         <div
-          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-tr-muted"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tr-muted"
           aria-label="Chú giải mức ưu tiên"
         >
           {PRIORITY_ORDER.map((priority) => (
@@ -491,7 +491,7 @@ export function TimelineView({
             <span className="text-xs font-semibold tracking-wide text-tr-subtle uppercase">
               Công việc
             </span>
-            <span className="text-2xs text-tr-muted">{items.length}</span>
+            <span className="text-xs text-tr-muted">{items.length}</span>
           </div>
           {groups.map((group) => {
             const collapsed = collapsedGroups.has(group.key);
@@ -511,7 +511,7 @@ export function TimelineView({
                     <ChevronDown size={15} className="shrink-0 text-tr-muted" aria-hidden="true" />
                   )}
                   <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                  <span className="shrink-0 rounded-full bg-tr-panel px-1.5 py-0.5 text-2xs font-medium text-tr-muted">
+                  <span className="shrink-0 rounded-full bg-tr-panel px-1.5 py-0.5 text-xs font-medium text-tr-muted">
                     {group.items.length}
                   </span>
                 </button>
@@ -532,7 +532,7 @@ export function TimelineView({
                       />
                       <span className="min-w-0 flex-1 truncate">{item.title}</span>
                       {progressFor(item) !== null && (
-                        <span className="shrink-0 text-2xs tabular-nums text-tr-muted">
+                        <span className="shrink-0 text-xs tabular-nums text-tr-muted">
                           {progressFor(item)}%
                         </span>
                       )}
@@ -586,7 +586,7 @@ export function TimelineView({
                   return (
                     <div
                       key={format(day, 'yyyy-MM-dd')}
-                      className={`shrink-0 border-r text-center text-[10px] leading-8 tabular-nums ${
+                      className={`shrink-0 border-r text-center text-xs leading-8 tabular-nums ${
                         weekend ? 'bg-tr-hover/60 text-tr-muted' : 'text-tr-subtle'
                       } ${index === todayIndex ? 'bg-tr-primary/10 font-bold text-tr-primary' : ''}`}
                       style={{
@@ -702,7 +702,7 @@ export function TimelineView({
                 style={{ left: todayIndex * dayWidth + dayWidth / 2 }}
                 aria-hidden="true"
               >
-                <span className="absolute top-11 -translate-x-1/2 rounded-full border border-tr-primary/50 bg-tr-panel px-1.5 py-0.5 text-[9px] font-semibold whitespace-nowrap text-tr-primary shadow-sm">
+                <span className="absolute top-11 -translate-x-1/2 rounded-full border border-tr-primary/50 bg-tr-panel px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-tr-primary shadow-sm">
                   Hôm nay
                 </span>
               </div>

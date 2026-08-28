@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+/**
+ * Bo tieu chi axe quet cho moi man hinh.
+ *
+ * Truoc day danh sach dung o 'wcag21aa', nen toan bo WCAG 2.2 khong duoc kiem:
+ * kich thuoc dich 24x24 (2.5.8), focus bi thanh dinh che (2.4.11) va thao tac
+ * keo-tha khong co phuong an thay the (2.5.7) — dung ba dieu ma mot app nhieu
+ * bang bieu va kanban de vi pham nhat.
+ */
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'];
+
 function localDate(offsetDays: number): string {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
@@ -39,12 +49,13 @@ test.beforeEach(async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('chon va luu bon giao dien tuy bien', async ({ page }) => {
+test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
+  // Bo theme rut con ba: sang, toi, Zoho. Quet axe tren tung theme vi tuong phan
+  // la thu duy nhat khong the suy ra tu theme nay sang theme khac.
   const themes = [
-    { label: 'Neo ấm', value: 'neo-tactile' },
-    { label: 'Neat Slate', value: 'neat-slate' },
-    { label: 'Kem ngọc', value: 'cream-teal' },
+    { label: 'Sáng', value: 'light' },
     { label: 'Zoho CRM', value: 'zoho' },
+    { label: 'Tối', value: 'dark' },
   ] as const;
 
   for (const theme of themes) {
@@ -54,9 +65,7 @@ test('chon va luu bon giao dien tuy bien', async ({ page }) => {
     await picker.getByRole('button', { name: new RegExp(`^${theme.label}`) }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.value);
     await expect(page.getByRole('button', { name: `Giao diện: ${theme.label}` })).toBeVisible();
-    const scan = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-      .analyze();
+    const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
     expect(
       scan.violations.map(({ id, impact, nodes }) => ({
         id,
@@ -66,9 +75,12 @@ test('chon va luu bon giao dien tuy bien', async ({ page }) => {
     ).toEqual([]);
   }
 
+  // Lua chon phai song qua lan tai lai. Bam theo phan tu cuoi cua `themes` thay
+  // vi mot gia tri cung, de doi thu tu danh sach khong lam hong bai test nay.
+  const last = themes[themes.length - 1];
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'zoho');
-  await expect(page.getByRole('button', { name: 'Giao diện: Zoho CRM' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', last.value);
+  await expect(page.getByRole('button', { name: `Giao diện: ${last.label}` })).toBeVisible();
 });
 
 test('notification center xu ly, hoan tac va mo dung ngu canh lich', async ({
@@ -100,9 +112,7 @@ test('notification center xu ly, hoan tac va mo dung ngu canh lich', async ({
   await expect(center.getByRole('button', { name: '30 phút' })).toBeVisible();
   await expect(center.getByRole('button', { name: 'Mai 09:00' })).toBeVisible();
 
-  const scan = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
+  const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   expect(
     scan.violations.map(({ id, impact, nodes }) => ({
       id,
@@ -681,9 +691,7 @@ test('WCAG AA scan, skip-link va reflow 200%', async ({ page, request }, testInf
   for (const pathname of ['/', `/boards/${board.id}`]) {
     await page.goto(pathname);
     await page.waitForLoadState('networkidle');
-    const scan = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-      .analyze();
+    const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
     expect(
       scan.violations.map(({ id, impact, nodes }) => ({
         id,
@@ -727,4 +735,74 @@ test('WCAG AA scan, skip-link va reflow 200%', async ({ page, request }, testInf
     overflowAtZoom,
     `${testInfo.project.name}: dashboard tran ngang o 200%`
   ).toBeLessThanOrEqual(1);
+});
+
+test('quay lai giu vi tri cuon, dieu huong moi ve dau trang va doi focus', async ({
+  page,
+  request,
+}, testInfo) => {
+  // Tu tao du lieu thay vi dua vao seed: bai test can mot danh sach DU DAI de co
+  // cho ma cuon, va so khach hang trong seed thi khong dam bao dieu do.
+  const tag = `E2E Scroll ${testInfo.project.name} ${Date.now()}`;
+  for (let i = 0; i < 25; i++) {
+    const created = await request.post('/api/customers', { data: { name: `${tag} ${i}` } });
+    expect(created.ok()).toBeTruthy();
+  }
+
+  const scrollTop = () => page.evaluate(() => document.getElementById('main-content')!.scrollTop);
+
+  // Di bang URL chu khong bam thanh ben: tren mobile thanh ben nam trong ngan keo.
+  await page.goto('/customers');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Khách hàng');
+  /* Cho toi khi danh sach du dai de co cho ma cuon. Khong bam vao mot o chu cu
+     the: trang doi bo cuc theo be rong (bang tren desktop, the tren mobile) nen
+     cung mot ten co the dang bi an. Dieu kien that su can la chieu cao. */
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const main = document.getElementById('main-content')!;
+          return main.scrollHeight - main.clientHeight;
+        }),
+      { timeout: 10_000 }
+    )
+    .toBeGreaterThan(400);
+
+  await page.evaluate(() => {
+    document.getElementById('main-content')!.scrollTo({ top: 240 });
+  });
+  await expect.poll(scrollTop).toBeGreaterThan(0);
+  const before = await scrollTop();
+
+  /* Dieu huong BEN TRONG app, khong dung `page.goto`: goto la tai lai ca trang,
+     ma vi tri cuon von duoc giu trong bo nho cua tai lieu — tai lai thi mat sach,
+     dung nhu ky vong. Duoi md thanh dieu huong nam trong ngan keo. */
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  }
+  await page.getByRole('link', { name: 'Báo cáo', exact: true }).click();
+  await expect(page).toHaveURL(/\/reports$/);
+  /* "Ve dau trang", khong phai "dung bang 0 tai tich tac nay": doc ngay sau khi
+     URL doi la doc vao luc bo cuc con dang on dinh, va vai pixel sai lech khong
+     noi len dieu gi ve hanh vi dang duoc bao ve. */
+  await expect.poll(scrollTop, { timeout: 3000 }).toBeLessThan(20);
+
+  // Quay lai: phai tra ve dung cho da cuon toi, khong nem ve dau trang.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/customers$/);
+  await expect.poll(scrollTop, { timeout: 5000 }).toBeGreaterThan(before - 10);
+});
+
+test('dieu huong trong app dua focus vao vung noi dung', async ({ page }, testInfo) => {
+  // `page.goto` la tai lai ca trang nen khong kiem tra duoc hanh vi nay — phai
+  // dieu huong BEN TRONG app, tuc la bam mot lien ket cua react-router.
+  // Duoi md thanh dieu huong nam trong ngan keo, phai mo ra truoc.
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  }
+  await page.getByRole('link', { name: 'Báo cáo', exact: true }).click();
+  await expect(page).toHaveURL(/\/reports$/);
+  await expect(page.locator('#main-content')).toBeFocused();
 });

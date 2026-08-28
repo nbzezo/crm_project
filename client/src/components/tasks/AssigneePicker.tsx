@@ -157,7 +157,7 @@ export function AssigneeChip({
       <span
         title={full}
         aria-label={`${t.card.assignee}: ${full}`}
-        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${tone}`}
+        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${tone}`}
       >
         {initialsOf(name)}
       </span>
@@ -168,7 +168,7 @@ export function AssigneeChip({
       title={full}
       className={`inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-xs ${tone}`}
     >
-      <span className="text-[10px] font-semibold">{initialsOf(name)}</span>
+      <span className="text-xs font-semibold">{initialsOf(name)}</span>
       <span className="truncate">{name}</span>
     </span>
   );

@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { Outlet, useMatches } from 'react-router';
+import { useRouteViewport } from './lib/useRouteViewport';
 import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
@@ -20,6 +21,8 @@ const QuickNotesBoard = lazy(() =>
 );
 
 export default function App() {
+  const mainRef = useRef<HTMLElement>(null);
+  useRouteViewport(mainRef);
   const matches = useMatches();
   const pageHandle = [...matches]
     .reverse()
@@ -31,7 +34,7 @@ export default function App() {
     <div className="tr-app-stage">
       <a
         href="#main-content"
-        className="sr-only z-[100] rounded bg-tr-primary px-4 py-2 text-tr-on-primary focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        className="sr-only z-skip-link rounded bg-tr-primary px-4 py-2 text-tr-on-primary focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
       >
         Bỏ qua đến nội dung chính
       </a>
@@ -43,6 +46,7 @@ export default function App() {
               (vd sr-only), neu khong chung se lay viewport lam containing block va
               lam <html> phinh ra qua chieu cao thuc, gay khoang trong khi cuon trang. */}
           <main
+            ref={mainRef}
             id="main-content"
             tabIndex={-1}
             className="relative min-w-0 flex-1 overflow-auto bg-transparent outline-none"

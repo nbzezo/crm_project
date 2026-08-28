@@ -158,7 +158,7 @@ export function LabelManager() {
                   />
                   <span className="font-semibold text-tr-text">{group.name}</span>
                   {group.status === 'inactive' && (
-                    <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-muted">
+                    <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-muted">
                       {t.labels.inactive}
                     </span>
                   )}
@@ -229,7 +229,7 @@ export function LabelManager() {
                           </span>
                         )}
                         {label.status === 'inactive' && (
-                          <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-muted">
+                          <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-muted">
                             {t.labels.inactive}
                           </span>
                         )}

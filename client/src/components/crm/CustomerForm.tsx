@@ -174,10 +174,22 @@ export function CustomerForm({
           </Select>
         </Field>
         <Field label={t.customer.phone}>
-          <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+          <Input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={form.phone}
+            onChange={(e) => set('phone', e.target.value)}
+          />
         </Field>
         <Field label={t.customer.email}>
-          <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+          <Input
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+          />
         </Field>
         <Field label={t.customer.website}>
           <Input value={form.website} onChange={(e) => set('website', e.target.value)} />

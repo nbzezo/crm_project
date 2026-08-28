@@ -171,7 +171,7 @@ export function DeliverySettings() {
         <ul className="space-y-1.5">
           {items.map((item, index) => (
             <li key={index} className="flex items-center gap-2">
-              <span className="w-6 shrink-0 text-right text-2xs tabular-nums text-tr-muted">
+              <span className="w-6 shrink-0 text-right text-xs tabular-nums text-tr-muted">
                 {index + 1}
               </span>
               <Input

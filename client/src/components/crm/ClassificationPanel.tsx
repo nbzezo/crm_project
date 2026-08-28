@@ -85,10 +85,16 @@ export function ClassificationPanel({
           Vượt <b>bất kỳ</b> ngưỡng nào là đủ để đề xuất Mô hình A — không lấy trung bình.
         </caption>
         <thead>
-          <tr className="text-2xs text-tr-muted uppercase">
-            <th className="py-1 text-left font-semibold">Tiêu chí</th>
-            <th className="py-1 text-right font-semibold">Hiện tại</th>
-            <th className="py-1 text-right font-semibold">Ngưỡng</th>
+          <tr className="text-xs text-tr-muted uppercase">
+            <th scope="col" className="py-1 text-left font-semibold">
+              Tiêu chí
+            </th>
+            <th scope="col" className="py-1 text-right font-semibold">
+              Hiện tại
+            </th>
+            <th scope="col" className="py-1 text-right font-semibold">
+              Ngưỡng
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -143,7 +149,7 @@ export function ClassificationPanel({
               placeholder="Vì sao chọn khác đề xuất? (tối thiểu 10 ký tự)"
               aria-label="Lý do chọn khác đề xuất"
             />
-            <p className="mt-1 flex items-center gap-1 text-2xs text-tr-muted">
+            <p className="mt-1 flex items-center gap-1 text-xs text-tr-muted">
               <Info size={11} aria-hidden="true" />
               Lý do được lưu vào nhật ký thay đổi của dự án.
             </p>

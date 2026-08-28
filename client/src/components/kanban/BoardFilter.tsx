@@ -141,7 +141,7 @@ export function BoardFilter({
                 onToggle={() => toggleLabel(label.id)}
               >
                 <span
-                  className="inline-flex h-6 min-w-24 items-center rounded px-2 text-xs font-medium"
+                  className="inline-flex min-h-6 min-w-24 items-center rounded px-2 text-xs font-medium"
                   style={{ backgroundColor: label.color, color: contrastInk(label.color) }}
                 >
                   {label.name}

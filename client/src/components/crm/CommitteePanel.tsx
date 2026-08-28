@@ -25,7 +25,7 @@ import {
   Skeleton,
   focusRing,
 } from '../common/ui';
-import { t } from '../../i18n/vi';
+import { SHAPED_REQUIREMENTS_COLOR, t } from '../../i18n/vi';
 import {
   BLOCKED_REASONS,
   EVENT_TYPE_LABELS,
@@ -171,7 +171,7 @@ function MembersBlock({
                 onChange={(e) =>
                   update.mutate({ contactId: member.contact_id, patch: { stance: e.target.value } })
                 }
-                className="h-7 w-auto py-0 text-xs"
+                className="min-h-7 w-auto py-0 text-xs"
               >
                 {Object.entries(STANCE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -203,7 +203,7 @@ function MembersBlock({
                       patch: { influence: Number(e.target.value) },
                     })
                   }
-                  className="h-7 w-auto py-0 text-xs"
+                  className="min-h-7 w-auto py-0 text-xs"
                 >
                   {[1, 2, 3, 4, 5].map((n) => (
                     <option key={n} value={n}>
@@ -323,7 +323,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 flex-1 text-tr-text">{event.description}</span>
               {event.is_primary === 1 && (
-                <span className="rounded bg-tr-hover px-1.5 py-0.5 text-2xs text-tr-subtle">
+                <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle">
                   Sự kiện chính
                 </span>
               )}
@@ -341,7 +341,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
               <DateInput
                 value={event.event_date}
                 onChange={(value) => update.mutate({ id: event.id, patch: { event_date: value } })}
-                className="h-7 w-auto py-0 text-xs"
+                className="min-h-7 w-auto py-0 text-xs"
               />
               <label className="flex items-center gap-1 text-tr-subtle">
                 <input
@@ -530,7 +530,7 @@ function CompetitorsBlock({ dealId, onChange }: { dealId: number; onChange: () =
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 flex-1 text-sm font-medium text-tr-text">{c.name}</span>
               {c.shaped_requirements === 1 && (
-                <ColorBadge color="#e8a33d" small>
+                <ColorBadge color={SHAPED_REQUIREMENTS_COLOR} small>
                   Đã soạn tiêu chí
                 </ColorBadge>
               )}
@@ -552,7 +552,7 @@ function CompetitorsBlock({ dealId, onChange }: { dealId: number; onChange: () =
                   onChange={(e) =>
                     update.mutate({ id: c.id, patch: { price_position: e.target.value } })
                   }
-                  className="h-7 w-auto py-0 text-xs"
+                  className="min-h-7 w-auto py-0 text-xs"
                 >
                   {Object.entries(PRICE_POSITION_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>

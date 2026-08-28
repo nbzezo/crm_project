@@ -184,14 +184,14 @@ export function TaskTable({
                 )}
                 <span className="truncate">{info.getValue()}</span>
                 {(task.subtask_total ?? 0) > 0 && (
-                  <span className="shrink-0 rounded-full bg-tr-hover-strong px-1.5 text-2xs font-medium text-tr-subtle no-underline">
+                  <span className="shrink-0 rounded-full bg-tr-hover-strong px-1.5 text-xs font-medium text-tr-subtle no-underline">
                     {task.subtask_done}/{task.subtask_total}
                   </span>
                 )}
               </button>
               {metadata && (
                 <span
-                  className="mt-0.5 block max-w-full truncate text-2xs text-tr-subtle"
+                  className="mt-0.5 block max-w-full truncate text-xs text-tr-subtle"
                   title={metadata}
                 >
                   {metadata}
@@ -416,7 +416,7 @@ export function TaskTable({
       <div className="tr-scroll max-h-[70vh] overflow-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
         <table className={`w-full text-sm ${showDetails ? 'min-w-[1180px]' : 'min-w-[760px]'}`}>
           <caption className="sr-only">Danh sách công việc</caption>
-          <thead className="sticky top-0 z-10 bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
+          <thead className="sticky top-0 z-10 bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => {

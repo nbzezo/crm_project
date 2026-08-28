@@ -187,22 +187,22 @@ export const ContactList = forwardRef<
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate font-medium text-tr-text">{c.full_name}</span>
                     {!!c.is_primary && (
-                      <span className="inline-flex items-center gap-0.5 rounded bg-tr-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-warning">
+                      <span className="inline-flex items-center gap-0.5 rounded bg-tr-warning/15 px-1.5 py-0.5 text-xs font-medium text-tr-warning">
                         <Star size={10} /> {t.contact.primary}
                       </span>
                     )}
                     {!!c.is_me && (
-                      <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-primary">
+                      <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-xs font-medium text-tr-primary">
                         Tôi
                       </span>
                     )}
                     {c.is_active === 0 && (
-                      <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-muted">
+                      <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-muted">
                         Ngừng hoạt động
                       </span>
                     )}
                     {c.buying_role && (
-                      <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-subtle">
+                      <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle">
                         {t.buyingRole[c.buying_role] ?? c.buying_role}
                       </span>
                     )}
@@ -214,7 +214,7 @@ export const ContactList = forwardRef<
                 {/* opacity-0 + group-hover khien nut vo hinh tren thiet bi cam ung
                     va khi Tab toi — nen hien lai khi nhan focus, va luon hien
                     tren thiet bi khong co con tro di chuot. */}
-                <div className="flex gap-0.5 opacity-100 transition group-hover:opacity-100 sm:opacity-0 sm:focus-within:opacity-100">
+                <div className="flex gap-0.5 opacity-100 transition group-hover:opacity-100 hoverable:opacity-0 hoverable:focus-within:opacity-100">
                   <IconButton
                     onClick={() => {
                       setEditing(c);
@@ -329,10 +329,22 @@ export const ContactList = forwardRef<
             </Select>
           </Field>
           <Field label={t.customer.phone}>
-            <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+            <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={form.phone}
+              onChange={(e) => set('phone', e.target.value)}
+            />
           </Field>
           <Field label={t.customer.email}>
-            <Input value={form.email} onChange={(e) => set('email', e.target.value)} />
+            <Input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={form.email}
+              onChange={(e) => set('email', e.target.value)}
+            />
           </Field>
           <Field label={t.contact.zalo}>
             <Input value={form.zalo} onChange={(e) => set('zalo', e.target.value)} />
@@ -437,17 +449,17 @@ function CompactMemberRow({
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="truncate text-sm font-medium text-tr-text">{c.full_name}</span>
           {!!c.is_me && (
-            <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-primary">
+            <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-xs font-medium text-tr-primary">
               Tôi
             </span>
           )}
           {!!c.is_primary && (
-            <span className="inline-flex items-center gap-0.5 rounded bg-tr-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-tr-warning">
+            <span className="inline-flex items-center gap-0.5 rounded bg-tr-warning/15 px-1.5 py-0.5 text-xs font-medium text-tr-warning">
               <Star size={10} /> {t.contact.primary}
             </span>
           )}
           {c.is_active === 0 && (
-            <span className="rounded bg-tr-hover px-1.5 py-0.5 text-[10px] text-tr-muted">
+            <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-muted">
               Ngừng hoạt động
             </span>
           )}
@@ -458,14 +470,14 @@ function CompactMemberRow({
       </div>
       {c.relationship && (
         <span
-          className={`hidden shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap sm:inline-block ${
+          className={`hidden shrink-0 rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap sm:inline-block ${
             RELATIONSHIP_BADGE_CLASS[c.relationship] ?? 'bg-tr-hover text-tr-subtle'
           }`}
         >
           ● {t.relationship[c.relationship] ?? c.relationship}
         </span>
       )}
-      <div className="flex shrink-0 gap-0.5 opacity-100 transition group-hover:opacity-100 sm:opacity-0 sm:focus-within:opacity-100">
+      <div className="flex shrink-0 gap-0.5 opacity-100 transition group-hover:opacity-100 hoverable:opacity-0 hoverable:focus-within:opacity-100">
         <IconButton onClick={onEdit} label={`${t.common.edit}: ${c.full_name}`}>
           <Pencil size={13} aria-hidden="true" />
         </IconButton>

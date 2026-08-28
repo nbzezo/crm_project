@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -44,6 +44,8 @@ import { STAGE_COLORS, STAGE_ORDER, t } from '../i18n/vi';
 import { formatVND, formatVNDShort } from '../lib/format';
 import { invalidateCrmViews } from '../lib/queryKeys';
 import { applyOptimisticStage, cloneDeals, locateDeal, refreshDealTotals } from '../lib/dnd/deals';
+import { buildDndAnnouncements } from '../lib/dnd/announcements';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import { useDealStageMove } from '../hooks/useDealStageMove';
 import type { Deal, DealsResponse, Label, Stage } from '../types';
 
@@ -69,6 +71,29 @@ export default function PipelinePage() {
     queryKey: ['deals'],
     queryFn: () => api.get<DealsResponse>('/api/deals'),
   });
+
+  /* Doi id ky thuat (`stage-quoted`, id so cua co hoi) sang ten doc duoc, de
+     trinh doc man hinh phat ra "Da tha Hop dong ACME vao Bao gia" thay vi
+     "Da tha 42 vao stage-quoted". */
+  const announcements = useMemo(
+    () =>
+      buildDndAnnouncements({
+        itemNoun: 'cơ hội',
+        resolve: (id) => {
+          if (id.startsWith('stage-')) {
+            const stage = id.slice('stage-'.length) as Stage;
+            return `cột ${t.stage[stage] ?? stage}`;
+          }
+          if (!data) return null;
+          for (const stage of STAGE_ORDER) {
+            const deal = data.stages[stage]?.find((d) => String(d.id) === id);
+            if (deal) return `cơ hội ${deal.title}`;
+          }
+          return null;
+        },
+      }),
+    [data]
+  );
 
   /* Cung bo sensor voi bang Kanban: chuot, cam ung va ban phim. */
   const sensors = useSensors(
@@ -303,6 +328,7 @@ export default function PipelinePage() {
       {view === 'board' ? (
         <DndContext
           sensors={sensors}
+          accessibility={{ announcements }}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
@@ -356,6 +382,10 @@ export default function PipelinePage() {
 }
 
 function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) => void }) {
+  /* Chi mount mot bien the: truoc day ca danh sach the lan bang cung render,
+     mot cai bi `hidden` che di, nen moi co hoi ton hai lan node DOM. */
+  const isWide = useMediaQuery('(min-width: 640px)');
+
   if (deals.length === 0) {
     return (
       <div className="m-4 rounded-panel border border-tr-border bg-tr-panel p-8 text-center text-sm text-tr-muted">
@@ -366,77 +396,97 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
 
   return (
     <div className="tr-scroll flex-1 overflow-auto p-4">
-      <ul className="space-y-2 sm:hidden" aria-label="Danh sách cơ hội">
-        {deals.map((deal) => (
-          <li key={deal.id}>
-            <button
-              type="button"
-              onClick={() => onOpen(deal)}
-              className={`w-full rounded-panel border border-tr-border bg-tr-panel p-3 text-left shadow-sm transition hover:border-tr-primary/40 hover:bg-tr-hover ${focusRing}`}
-            >
-              <span className="flex items-start gap-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-tr-text">
-                    {deal.title}
+      {!isWide && (
+        <ul className="space-y-2" aria-label="Danh sách cơ hội">
+          {deals.map((deal) => (
+            <li key={deal.id}>
+              <button
+                type="button"
+                onClick={() => onOpen(deal)}
+                className={`w-full rounded-panel border border-tr-border bg-tr-panel p-3 text-left shadow-sm transition hover:border-tr-primary/40 hover:bg-tr-hover ${focusRing}`}
+              >
+                <span className="flex items-start gap-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-tr-text">
+                      {deal.title}
+                    </span>
+                    <span className="block truncate text-xs text-tr-muted">
+                      {deal.customer_name}
+                    </span>
                   </span>
-                  <span className="block truncate text-xs text-tr-muted">{deal.customer_name}</span>
-                </span>
-                <ColorBadge color={STAGE_COLORS[deal.stage]} small>
-                  {t.stage[deal.stage]}
-                </ColorBadge>
-              </span>
-              <span className="mt-2 flex items-end justify-between gap-3 text-xs">
-                <span className="min-w-0 truncate text-tr-subtle">
-                  {deal.next_action || 'Chưa có hành động tiếp theo'}
-                </span>
-                <strong className="shrink-0 text-tr-text">{formatVNDShort(deal.value_vnd)}</strong>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <div className="hidden overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm sm:block">
-        <table className="w-full min-w-[760px] text-sm">
-          <caption className="sr-only">Danh sách cơ hội bán hàng</caption>
-          <thead className="bg-tr-surface text-left text-2xs tracking-wide text-tr-subtle uppercase">
-            <tr>
-              <th className="px-3 py-2">Cơ hội</th>
-              <th className="px-3 py-2">Khách hàng</th>
-              <th className="px-3 py-2">Giai đoạn</th>
-              <th className="px-3 py-2 text-right">Giá trị</th>
-              <th className="px-3 py-2">Hành động tiếp theo</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-tr-border">
-            {deals.map((deal) => (
-              <tr key={deal.id} className="hover:bg-tr-hover">
-                <td className="px-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpen(deal)}
-                    className={`max-w-64 truncate text-left font-semibold text-tr-text hover:text-tr-primary hover:underline ${focusRing}`}
-                  >
-                    {deal.title}
-                  </button>
-                </td>
-                <td className="max-w-48 truncate px-3 py-2 text-tr-subtle">{deal.customer_name}</td>
-                <td className="px-3 py-2">
                   <ColorBadge color={STAGE_COLORS[deal.stage]} small>
                     {t.stage[deal.stage]}
                   </ColorBadge>
-                </td>
-                <td className="px-3 py-2 text-right font-medium whitespace-nowrap text-tr-text">
-                  {formatVNDShort(deal.value_vnd)}
-                </td>
-                <td className="max-w-64 truncate px-3 py-2 text-tr-subtle">
-                  {deal.next_action || 'Chưa đặt'}
-                </td>
+                </span>
+                <span className="mt-2 flex items-end justify-between gap-3 text-xs">
+                  <span className="min-w-0 truncate text-tr-subtle">
+                    {deal.next_action || 'Chưa có hành động tiếp theo'}
+                  </span>
+                  <strong className="shrink-0 text-tr-text">
+                    {formatVNDShort(deal.value_vnd)}
+                  </strong>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {isWide && (
+        <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+          <table className="w-full min-w-[760px] text-sm">
+            <caption className="sr-only">Danh sách cơ hội bán hàng</caption>
+            <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+              <tr>
+                <th scope="col" className="px-3 py-2">
+                  Cơ hội
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Khách hàng
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Giai đoạn
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Giá trị
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Hành động tiếp theo
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-tr-border">
+              {deals.map((deal) => (
+                <tr key={deal.id} className="hover:bg-tr-hover">
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpen(deal)}
+                      className={`max-w-64 truncate text-left font-semibold text-tr-text hover:text-tr-primary hover:underline ${focusRing}`}
+                    >
+                      {deal.title}
+                    </button>
+                  </td>
+                  <td className="max-w-48 truncate px-3 py-2 text-tr-subtle">
+                    {deal.customer_name}
+                  </td>
+                  <td className="px-3 py-2">
+                    <ColorBadge color={STAGE_COLORS[deal.stage]} small>
+                      {t.stage[deal.stage]}
+                    </ColorBadge>
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium whitespace-nowrap text-tr-text">
+                    {formatVNDShort(deal.value_vnd)}
+                  </td>
+                  <td className="max-w-64 truncate px-3 py-2 text-tr-subtle">
+                    {deal.next_action || 'Chưa đặt'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
