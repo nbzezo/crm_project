@@ -313,7 +313,25 @@ export function TaskFormDialog() {
   });
 
   const titleMissing = !title.trim();
-  const listMissing = listId === '';
+  /*
+   * Đích đến (danh sách) LUÔN phải có, nhưng chỉ BẮT người dùng chọn khi máy chủ
+   * không tự suy ra được. Mở form kèm ngữ cảnh (khách hàng/cơ hội/dự án/cột) và
+   * `/api/cards/context` có `suggested_list_id` thì để `resolveDefaultList` phía
+   * server lo — form chỉ nói rõ việc sẽ rơi vào bảng nào. Mở từ nút toàn cục
+   * (không ngữ cảnh) thì gợi ý là "bảng đầu tiên" nên vẫn bắt chọn cho tường minh.
+   */
+  const openedWithContext =
+    Object.keys(composer?.context ?? {}).length > 0 ||
+    Object.keys(composer?.draft?.links ?? {}).length > 0 ||
+    composer?.projectId != null ||
+    composer?.listId !== undefined;
+  const canAutoResolveList = context?.suggested_list_id != null;
+  const noBoards = context != null && context.boards.length === 0;
+  const listRequired = !openedWithContext || !canAutoResolveList;
+  const listMissing = listId === '' && listRequired;
+  const suggestedList = context?.lists.find((l) => l.id === context.suggested_list_id) ?? null;
+  const suggestedBoardName =
+    context?.boards.find((b) => b.id === suggestedList?.board_id)?.name ?? null;
   const dirty = Boolean(title.trim() || description.trim() || checklistText.trim());
 
   return (
@@ -459,8 +477,21 @@ export function TaskFormDialog() {
         </Field>
         <Field
           label="Danh sách"
-          required
-          error={submitted && listMissing ? t.common.required : undefined}
+          required={listRequired}
+          hint={
+            !listRequired && listId === '' && suggestedList
+              ? `Để trống thì việc sẽ vào "${
+                  suggestedBoardName ? `${suggestedBoardName} / ` : ''
+                }${suggestedList.name}".`
+              : undefined
+          }
+          error={
+            submitted && listMissing
+              ? noBoards
+                ? 'Chưa có bảng nào — tạo bảng ở ô phía trên để có nơi thêm việc.'
+                : t.common.required
+              : undefined
+          }
         >
           <Select
             value={listId}
