@@ -1,6 +1,6 @@
 import type { Priority } from '../types';
 
-type AiProviderName = 'gemini' | 'anthropic' | 'deepseek';
+type AiProviderName = 'gemini' | 'anthropic' | 'deepseek' | '9router';
 export type AiMode = 'fast' | 'balanced' | 'reasoning';
 
 export const TASK_LINK_KEYS = [

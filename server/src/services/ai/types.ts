@@ -1,4 +1,4 @@
-export const AI_PROVIDERS = ['gemini', 'anthropic', 'deepseek'] as const;
+export const AI_PROVIDERS = ['gemini', 'anthropic', 'deepseek', '9router'] as const;
 export type AiProviderName = (typeof AI_PROVIDERS)[number];
 
 export interface ModelCapabilities {

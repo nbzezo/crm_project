@@ -146,8 +146,24 @@ function AssistantTab() {
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<'crm' | 'documents' | 'all'>('all');
   const [mode, setMode] = useState<AiMode>('balanced');
+  const [conversation, setConversation] = useState<{ question: string; result: AiAskResult }[]>([]);
   const ask = useMutation({
-    mutationFn: () => api.post<AiAskResult>('/api/ai/ask', { question, scope, mode }),
+    mutationFn: (submittedQuestion: string) =>
+      api.post<AiAskResult>('/api/ai/ask', {
+        question: submittedQuestion,
+        scope,
+        mode,
+        history: conversation
+          .flatMap((turn) => [
+            { role: 'user', content: turn.question },
+            { role: 'assistant', content: turn.result.answer },
+          ])
+          .slice(-10),
+      }),
+    onSuccess: (result, submittedQuestion) => {
+      setConversation((current) => [...current, { question: submittedQuestion, result }]);
+      setQuestion('');
+    },
   });
   const quickTask = useMutation({
     mutationFn: () =>
@@ -165,10 +181,29 @@ function AssistantTab() {
         variables.decision === 'approve' ? 'Đã thực thi hành động AI' : 'Đã từ chối đề xuất',
         'success'
       );
-      if (ask.data?.proposal?.id === variables.id)
-        ask.data.proposal.status = variables.decision === 'approve' ? 'executed' : 'rejected';
+      setConversation((current) =>
+        current.map((turn) =>
+          turn.result.proposal?.id === variables.id
+            ? {
+                ...turn,
+                result: {
+                  ...turn.result,
+                  proposal: {
+                    ...turn.result.proposal,
+                    status: variables.decision === 'approve' ? 'executed' : 'rejected',
+                  },
+                },
+              }
+            : turn
+        )
+      );
     },
   });
+
+  const submitQuestion = () => {
+    const value = question.trim();
+    if (value.length >= 3 && !ask.isPending) ask.mutate(value);
+  };
 
   const reviewQuickTask = () => {
     const result = quickTask.data;
@@ -325,13 +360,73 @@ function AssistantTab() {
         </div>
       </Panel>
 
-      <Panel title="Hỏi dữ liệu CRM" className="lg:col-span-8">
+      <Panel title="Trò chuyện với trợ lý" className="lg:col-span-8">
+        {conversation.length > 0 && (
+          <div className="mb-4 max-h-[34rem] space-y-4 overflow-y-auto border-b border-tr-border pb-4">
+            {conversation.map((turn, index) => (
+              <div key={`${index}-${turn.result.meta.requestId}`} className="space-y-2">
+                <div className="ml-auto max-w-[85%] rounded-panel bg-tr-primary px-3 py-2 text-sm text-white">
+                  {turn.question}
+                </div>
+                <div className="max-w-[92%] rounded-panel border border-tr-border bg-tr-list p-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-tr-primary">
+                    <Sparkles size={14} /> {turn.result.meta.provider} · {turn.result.meta.model}
+                  </div>
+                  <p className="mt-2 text-sm leading-7 whitespace-pre-wrap text-tr-text">
+                    {turn.result.answer}
+                  </p>
+                  {turn.result.sources.length > 0 && (
+                    <details className="mt-2 text-xs text-tr-muted">
+                      <summary className="cursor-pointer font-medium">Nguồn đã dùng</summary>
+                      <ul className="mt-1 space-y-1 pl-3">
+                        {turn.result.sources.map((source) => (
+                          <li key={source}>• {source}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  {turn.result.proposal && (
+                    <div className="mt-3">
+                      <ProposalCard
+                        proposal={turn.result.proposal}
+                        onDecide={(decision) =>
+                          decide.mutate({ id: turn.result.proposal!.id, decision })
+                        }
+                        pending={decide.isPending}
+                      />
+                    </div>
+                  )}
+                  {turn.result.follow_up_questions.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {turn.result.follow_up_questions.map((followUp) => (
+                        <button
+                          key={followUp}
+                          type="button"
+                          onClick={() => setQuestion(followUp)}
+                          className="rounded-full border border-tr-border px-2.5 py-1 text-left text-xs text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text"
+                        >
+                          {followUp}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_160px] sm:items-end">
           <Field label="Câu hỏi">
             <Textarea
               rows={4}
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                  event.preventDefault();
+                  submitQuestion();
+                }
+              }}
               placeholder="Ví dụ: Cơ hội nào giá trị lớn đang thiếu tương tác và tôi nên làm gì tiếp theo?"
             />
           </Field>
@@ -357,38 +452,12 @@ function AssistantTab() {
           <Button
             variant="primary"
             disabled={question.trim().length < 3 || ask.isPending}
-            onClick={() => ask.mutate()}
+            onClick={submitQuestion}
           >
             <Send size={15} /> {ask.isPending ? 'Đang phân tích…' : 'Gửi câu hỏi'}
           </Button>
         </div>
         <FormError error={ask.error ?? decide.error} />
-
-        {ask.data && (
-          <div className="mt-5 space-y-4 border-t border-tr-border pt-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-tr-primary">
-              <Sparkles size={14} /> {ask.data.meta.provider} · {ask.data.meta.model}
-            </div>
-            <p className="text-sm leading-7 whitespace-pre-wrap text-tr-text">{ask.data.answer}</p>
-            {ask.data.sources.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold text-tr-subtle">Nguồn đã dùng</h3>
-                <ul className="mt-1 space-y-1 text-xs text-tr-muted">
-                  {ask.data.sources.map((source) => (
-                    <li key={source}>• {source}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {ask.data.proposal && (
-              <ProposalCard
-                proposal={ask.data.proposal}
-                onDecide={(decision) => decide.mutate({ id: ask.data!.proposal!.id, decision })}
-                pending={decide.isPending}
-              />
-            )}
-          </div>
-        )}
       </Panel>
 
       <div className="space-y-4 lg:col-span-4">

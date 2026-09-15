@@ -4,7 +4,7 @@
 
 ### Giai đoạn 1 — nền tảng và trải nghiệm theo ngữ cảnh
 
-- Gemini, Anthropic Claude và DeepSeek qua adapter riêng; không phụ thuộc SDK của provider.
+- Gemini, Anthropic Claude, DeepSeek và 9Router qua adapter HTTP; không phụ thuộc SDK của provider.
 - API key cấu hình từ UI, mã hóa AES-256-GCM tại server.
 - Đồng bộ model trực tiếp từ Models API và lưu capability chuẩn hóa.
 - Ba profile model: nhanh, cân bằng, suy luận.
@@ -44,6 +44,7 @@ flowchart LR
   GW --> GEMINI["Gemini"]
   GW --> CLAUDE["Claude"]
   GW --> DEEPSEEK["DeepSeek"]
+  GW --> NINEROUTER["9Router (OpenAI-compatible)"]
   API --> PROPOSAL["Action proposal\npending"]
   PROPOSAL -->|"User approve"| CRM[("SQLite CRM")]
 ```

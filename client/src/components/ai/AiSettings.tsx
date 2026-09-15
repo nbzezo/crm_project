@@ -198,6 +198,15 @@ function ProviderEditor({ config }: { config: AiProviderConfig }) {
         </div>
       </div>
 
+      {config.provider === '9router' && (
+        <p className="mt-3 text-xs leading-relaxed text-tr-muted">
+          Mặc định dùng 9Router cục bộ tại <code>http://127.0.0.1:20128/v1</code>. Nếu dùng 9Router
+          Cloud, đổi Base URL thành <code>https://9router.com/v1</code> rồi nhập API key từ
+          Dashboard 9Router. Khi WorkFlow chạy bằng Docker và 9Router chạy trên máy chủ, dùng
+          <code> http://host.docker.internal:20128/v1</code>.
+        </p>
+      )}
+
       <FormError error={save.error ?? sync.error} />
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>
@@ -382,7 +391,8 @@ export function AiSettings() {
       >
         <p className="mb-4 text-sm text-tr-subtle">
           API key chỉ được gửi đến backend và mã hóa tại máy chủ. Model được đọc trực tiếp từ
-          Gemini, Claude hoặc DeepSeek; hệ thống tự chọn theo tác vụ và chuyển nhà cung cấp khi lỗi.
+          Gemini, Claude, DeepSeek hoặc 9Router; hệ thống tự chọn theo tác vụ và chuyển nhà cung cấp
+          khi lỗi.
         </p>
         {isLoading && <p className="text-sm text-tr-muted">Đang tải cấu hình AI…</p>}
         <FormError error={error} />

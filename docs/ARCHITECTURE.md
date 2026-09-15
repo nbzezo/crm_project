@@ -11,7 +11,7 @@ flowchart LR
   HTTP --> SVC["Services\ntransaction + business rules"]
   SVC --> DB[("SQLite\nforeign keys + migrations")]
   SVC --> FS["File store\ntemp + promote/delete"]
-  SVC --> AI["AI gateway\nGemini · Claude · DeepSeek"]
+  SVC --> AI["AI gateway\nGemini · Claude · DeepSeek · 9Router"]
   CT["@workflow/contracts\ntypes + constants + schemas"] --> UI
   CT --> HTTP
 ```

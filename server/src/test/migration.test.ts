@@ -102,6 +102,17 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
       }[];
       assert.ok(documentColumns.some((c) => c.name === 'quick_note_id'));
 
+      // v36: 9Router la provider rieng, co the luu/sync ma khong muon danh DeepSeek.
+      const nineRouter = db
+        .prepare(
+          `SELECT display_name, base_url FROM ai_provider_configs WHERE provider = '9router'`
+        )
+        .get() as { display_name: string; base_url: string } | undefined;
+      assert.deepEqual(nineRouter, {
+        display_name: '9Router',
+        base_url: 'http://127.0.0.1:20128/v1',
+      });
+
       assert.deepEqual(db.pragma('foreign_key_check'), []);
       assert.equal((db.pragma('integrity_check', { simple: true }) as string).toLowerCase(), 'ok');
     } finally {

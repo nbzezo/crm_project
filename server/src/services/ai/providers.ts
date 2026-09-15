@@ -90,6 +90,15 @@ function inferDeepSeekCapabilities(id: string): ModelCapabilities {
   });
 }
 
+/** 9Router exposes many upstream providers through one OpenAI-compatible model list. */
+function infer9RouterCapabilities(id: string): ModelCapabilities {
+  const lower = id.toLowerCase();
+  return defaultCapabilities({
+    reasoning: /reason|thinking|opus|o[134](?:-|$)|gpt-5|gemini.*pro/.test(lower),
+    toolCalling: !/reasoner/.test(lower),
+  });
+}
+
 async function listGemini(connection: ProviderConnection): Promise<DiscoveredModel[]> {
   const body = await fetchJson(`${baseUrl(connection.baseUrl)}/v1beta/models?pageSize=1000`, {
     headers: { 'x-goog-api-key': connection.apiKey },
@@ -170,11 +179,30 @@ async function listDeepSeek(connection: ProviderConnection): Promise<DiscoveredM
     .filter((model) => Boolean(model.id));
 }
 
+async function list9Router(connection: ProviderConnection): Promise<DiscoveredModel[]> {
+  const body = await fetchJson(`${baseUrl(connection.baseUrl)}/models`, {
+    headers: { authorization: `Bearer ${connection.apiKey}` },
+  });
+  return asArray(body.data)
+    .map(asRecord)
+    .map((model) => {
+      const id = String(model.id ?? '');
+      return {
+        id,
+        displayName: String(model.name ?? model.display_name ?? id),
+        capabilities: infer9RouterCapabilities(id),
+        inputTokenLimit: asNumber(model.context_window ?? model.contextWindow),
+      };
+    })
+    .filter((model) => Boolean(model.id));
+}
+
 export async function listProviderModels(
   connection: ProviderConnection
 ): Promise<DiscoveredModel[]> {
   if (connection.provider === 'gemini') return listGemini(connection);
   if (connection.provider === 'anthropic') return listAnthropic(connection);
+  if (connection.provider === '9router') return list9Router(connection);
   return listDeepSeek(connection);
 }
 
@@ -275,7 +303,7 @@ async function generateAnthropic(
   };
 }
 
-async function generateDeepSeek(
+async function generateOpenAiCompatible(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
@@ -307,15 +335,21 @@ export async function generateWithProvider(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
-  if (request.attachments?.length && connection.provider === 'deepseek') {
-    throw new AiProviderError('DeepSeek chưa hỗ trợ đọc tệp đính kèm', 'attachment_unsupported');
+  if (
+    request.attachments?.length &&
+    (connection.provider === 'deepseek' || connection.provider === '9router')
+  ) {
+    throw new AiProviderError(
+      `${connection.provider === '9router' ? '9Router' : 'DeepSeek'} chưa hỗ trợ đọc tệp đính kèm trong ứng dụng`,
+      'attachment_unsupported'
+    );
   }
   const result =
     connection.provider === 'gemini'
       ? await generateGemini(connection, request)
       : connection.provider === 'anthropic'
         ? await generateAnthropic(connection, request)
-        : await generateDeepSeek(connection, request);
+        : await generateOpenAiCompatible(connection, request);
   if (!result.text) {
     throw new AiProviderError('Mô hình không trả về nội dung', 'empty_response', undefined, true);
   }
@@ -325,5 +359,6 @@ export async function generateWithProvider(
 export function defaultProviderUrl(provider: AiProviderName): string {
   if (provider === 'gemini') return 'https://generativelanguage.googleapis.com';
   if (provider === 'anthropic') return 'https://api.anthropic.com';
+  if (provider === '9router') return 'http://127.0.0.1:20128/v1';
   return 'https://api.deepseek.com';
 }

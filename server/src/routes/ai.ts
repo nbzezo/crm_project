@@ -79,7 +79,7 @@ function safeBaseUrl(value: string): string {
   } catch {
     throw new HttpError(400, 'API Base URL không hợp lệ');
   }
-  const localhost = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  const localhost = ['localhost', '127.0.0.1', '::1', 'host.docker.internal'].includes(url.hostname);
   if (url.protocol !== 'https:' && !(localhost && url.protocol === 'http:')) {
     throw new HttpError(400, 'API Base URL phải dùng HTTPS (trừ localhost)');
   }
@@ -697,10 +697,28 @@ function searchCrm(query: string) {
   };
 }
 
+function recentQuickNotes() {
+  return db
+    .prepare(
+      `SELECT id, title, substr(content_text, 1, 2000) AS content, tags, is_pinned,
+              reminder_at, reminder_status, updated_at
+         FROM quick_notes
+        WHERE deleted_at IS NULL AND archived_at IS NULL
+        ORDER BY is_pinned DESC, updated_at DESC LIMIT 12`
+    )
+    .all();
+}
+
+const askHistoryItemSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().trim().min(1).max(4000),
+});
+
 const askSchema = z.object({
   question: z.string().trim().min(3).max(10_000),
   scope: z.enum(['crm', 'documents', 'all']).default('all'),
   mode: z.enum(['fast', 'balanced', 'reasoning']).optional(),
+  history: z.array(askHistoryItemSchema).max(10).default([]),
 });
 const askResponseSchema = z.object({
   answer: z.string().min(1),
@@ -722,19 +740,37 @@ router.post('/ask', async (req, res) => {
       if (count.n === 0 && documents.n > 0) await indexAllDocuments(db);
     }
     const context = {
-      crm: body.scope === 'documents' ? null : searchCrm(body.question),
+      crm:
+        body.scope === 'documents'
+          ? null
+          : {
+              today: buildTodayContext(db),
+              search_matches: searchCrm(body.question),
+              recent_quick_notes: recentQuickNotes(),
+            },
       documents:
         body.scope === 'crm'
           ? []
           : searchDocumentChunks(db, body.question, body.scope === 'all' ? 8 : 12),
     };
+    const history = body.history
+      .map((item) => `${item.role === 'user' ? 'Người dùng' : 'Trợ lý'}: ${item.content}`)
+      .join('\n');
     const result = await runAi(db, {
       task: 'crm_ask',
       mode: body.mode,
       json: true,
       system:
-        'Bạn là trợ lý phân tích CRM. Chỉ dùng ngữ cảnh được cung cấp, nói rõ khi thiếu dữ liệu. Không tự thực thi hành động. Nếu có hành động phù hợp, chỉ đề xuất đúng một action theo schema. Trả JSON hợp lệ.',
-      prompt: `Câu hỏi: ${body.question}\nTrả JSON {"answer":"...","sources":["..."],"follow_up_questions":["..."],"proposed_action":null}. proposed_action nếu có phải là một trong: create_task, create_reminder, update_deal_next_action, create_interaction với payload đầy đủ. Không đưa action nếu thiếu ID hoặc ngày chính xác. Ngữ cảnh:\n${compactJson(context)}`,
+        'Bạn là trợ lý công việc và CRM chủ động cho một người dùng Việt Nam. Trả lời trực tiếp, ưu tiên việc cần làm, rủi ro và bước tiếp theo. ' +
+        'Chỉ coi dữ liệu trong ngữ cảnh hiện tại là nguồn sự thật; lịch sử hội thoại chỉ giúp hiểu câu hỏi nối tiếp. Nói rõ khi thiếu dữ liệu. ' +
+        'Không tự thực thi hành động. Nếu có hành động phù hợp, chỉ đề xuất đúng một action theo schema. Trả JSON hợp lệ.',
+      prompt:
+        `Hôm nay: ${new Date().toISOString().slice(0, 10)}\n` +
+        (history ? `Lịch sử hội thoại gần nhất:\n${history}\n\n` : '') +
+        `Câu hỏi hiện tại: ${body.question}\n` +
+        'Trả JSON {"answer":"...","sources":["..."],"follow_up_questions":["..."],"proposed_action":null}. ' +
+        'proposed_action nếu có phải là một trong: create_task, create_reminder, update_deal_next_action, create_interaction với payload đầy đủ. ' +
+        `Không đưa action nếu thiếu ID hoặc ngày chính xác. Ngữ cảnh:\n${compactJson(context)}`,
       maxOutputTokens: 2400,
     });
     const parsed = askResponseSchema.parse(parseAiJson(result.text));
