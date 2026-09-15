@@ -1,9 +1,17 @@
 import { create } from 'zustand';
 
-export type ThemeMode = 'light' | 'dark' | 'zoho' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'zoho' | 'ubuntu' | 'system';
 
 const STORAGE_KEY = 'workflow-theme';
-const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'zoho', 'system'];
+const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'zoho', 'ubuntu', 'system'];
+
+/**
+ * Theme co NEN TOI. Khong chi de doi token CSS: `isDark()` la nguon su that cho
+ * BlockNote, Excalidraw va MindElixir — ba thu vien tu ve giao dien rieng va chi
+ * nhan mot co sang/toi. Bo sot theme toi o day thi ba vung do render nen sang
+ * giua mot app dang toi.
+ */
+const DARK_THEMES = new Set<ThemeMode>(['dark', 'ubuntu']);
 
 /**
  * Ba theme da go: 'neo-tactile', 'neat-slate', 'cream-teal'.
@@ -53,7 +61,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
   isDark: () => {
     const { mode } = get();
-    return mode === 'dark' || (mode === 'system' && systemPrefersDark());
+    return DARK_THEMES.has(mode) || (mode === 'system' && systemPrefersDark());
   },
 }));
 

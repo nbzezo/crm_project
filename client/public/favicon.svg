@@ -1,5 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#2a78d6" />
-  <rect x="7" y="8" width="6.5" height="16" rx="2" fill="#ffffff" />
-  <rect x="18.5" y="8" width="6.5" height="10" rx="2" fill="#ffffff" opacity="0.75" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Cung mark giong components/common/Logo.tsx, nhung mau co dinh: file nay
+       nam ngoai app nen khong doc duoc token CSS. Net va cham day hon ban trong
+       app de con ro o co 16px tren tab trinh duyet. -->
+  <rect width="32" height="32" rx="7" fill="#2c001e" />
+  <g transform="translate(1.6 3.2) scale(1.18)" fill="none">
+    <path
+      d="M13.94 4.76A7.5 7.5 0 1 0 19.24 10.06"
+      stroke="#e95420"
+      stroke-width="2.9"
+      stroke-linecap="round"
+    />
+    <circle cx="13.94" cy="4.76" r="1.9" fill="#e95420" />
+    <circle cx="6.7" cy="17.3" r="2.6" fill="#e95420" />
+    <circle cx="19.24" cy="10.06" r="3.3" fill="#e95420" />
+  </g>
 </svg>

@@ -1,5 +1,6 @@
-import { Diamond, LogOut, Menu } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { Link } from 'react-router';
+import { Logo } from '../common/Logo';
 import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
 import { ThemeToggle } from './ThemeToggle';
@@ -28,9 +29,7 @@ export function Topbar() {
         aria-label={t.app.name}
         className={`flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-control transition hover:bg-tr-hover fine:h-9 sm:w-auto sm:px-1.5 sm:py-1 ${focusRing}`}
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-control bg-tr-primary text-tr-on-primary shadow-sm sm:h-7 sm:w-7">
-          <Diamond size={14} fill="currentColor" aria-hidden="true" />
-        </span>
+        <Logo className="h-8 w-8 shadow-sm sm:h-7 sm:w-7" />
         <span className="hidden text-base font-bold tracking-[-0.02em] text-tr-text sm:inline">
           {t.app.name}
         </span>

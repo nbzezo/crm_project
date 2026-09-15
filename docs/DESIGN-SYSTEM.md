@@ -9,6 +9,7 @@ Tài liệu này là nguồn tham chiếu ngắn cho các mẫu UI dùng chung. 
 - `IconButton`: dùng cho thao tác chỉ có biểu tượng. Luôn truyền `label`; kích thước chạm tối thiểu 44 px trên màn hình cảm ứng và thu gọn trên desktop.
 - `FormModalActions`: cặp Hủy/Lưu chuẩn cho modal biểu mẫu, bao gồm trạng thái đang lưu và chống gửi lặp.
 - `TableHead`: kiểu tiêu đề bảng thống nhất. Mỗi ô tiêu đề vẫn phải có `scope="col"`.
+- `Logo`: dấu hiệu nhận diện dùng chung cho topbar và trang đăng nhập. Vẽ bằng `currentColor` trên nền `--tr-primary` nên tự đúng màu ở mọi theme; không dựng lại tấm nền logo ở từng màn hình.
 - `RevenueFunnelCards`, `RevenueLineActions`, `CustomerDealFields`: mẫu CRM dùng chung cho KPI doanh thu, thao tác dòng và liên kết khách hàng/cơ hội.
 
 ## Token và bảng màu

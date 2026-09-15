@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Diamond } from 'lucide-react';
+import { Logo } from '../components/common/Logo';
 import { Button, Field, FormError, Input } from '../components/common/ui';
 import { t } from '../i18n/vi';
 import { useAuthStore } from '../stores/authStore';
@@ -28,9 +28,7 @@ export default function LoginPage() {
     <div className="tr-app-stage flex min-h-dvh items-center justify-center bg-tr-surface px-4">
       <div className="w-full max-w-sm rounded-modal border border-tr-border bg-tr-panel p-6 shadow-lg">
         <div className="mb-5 flex flex-col items-center gap-2 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-control bg-tr-primary text-tr-on-primary">
-            <Diamond size={18} fill="currentColor" aria-hidden="true" />
-          </span>
+          <Logo className="h-10 w-10" />
           <h1 className="text-lg font-bold text-tr-text">{t.auth.signInTitle}</h1>
           <p className="text-xs text-tr-muted">{t.auth.signInSubtitle}</p>
         </div>

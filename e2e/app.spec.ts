@@ -50,12 +50,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
-  // Bo theme rut con ba: sang, toi, Zoho. Quet axe tren tung theme vi tuong phan
-  // la thu duy nhat khong the suy ra tu theme nay sang theme khac.
+  // Bo theme rut con bon: sang, toi, Zoho, Ubuntu. Quet axe tren tung theme vi
+  // tuong phan la thu duy nhat khong the suy ra tu theme nay sang theme khac.
   const themes = [
     { label: 'Sáng', value: 'light' },
     { label: 'Zoho CRM', value: 'zoho' },
     { label: 'Tối', value: 'dark' },
+    { label: 'Ubuntu 26', value: 'ubuntu' },
   ] as const;
 
   for (const theme of themes) {

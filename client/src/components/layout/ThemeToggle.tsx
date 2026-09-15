@@ -1,4 +1,4 @@
-import { Building2, Check, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { Building2, Check, Monitor, Moon, Orbit, Sun, type LucideIcon } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 
@@ -31,6 +31,13 @@ const OPTIONS: ThemeOption[] = [
     description: 'Phẳng gọn kiểu doanh nghiệp — ngọc lam & cam',
     icon: Building2,
     colors: ['#eaf1f0', '#ffffff', '#0e5c56'],
+  },
+  {
+    mode: 'ubuntu',
+    label: 'Ubuntu 26',
+    description: 'Yaru tối — aubergine & cam Ubuntu',
+    icon: Orbit,
+    colors: ['#2c001e', '#2a1e25', '#ff7043'],
   },
   {
     mode: 'system',

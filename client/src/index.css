@@ -384,6 +384,155 @@
   --cal-contract-end-fg: #103634;
 }
 
+/* ---------- Ubuntu 26: ngon ngu Yaru. Nen toi tong AM (aubergine #2c001e cua
+   Ubuntu) thay vi tong xanh-lanh cua theme 'dark', accent cam Ubuntu, bo goc rong
+   kieu GNOME. Cam thuong hieu #e95420 chi dat 4,39:1 tren nen panel — duoi nguong
+   AA cho chu nho — nen o day dung ban nang sang #ff7043 (5,8:1); cam nguyen ban
+   duoc giu lai cho favicon, noi no nam tren nen aubergine. */
+[data-theme='ubuntu'] {
+  color-scheme: dark;
+  /* CO Y KHONG doi `--font-sans` sang font Ubuntu. Ca 'Ubuntu' lan 'Ubuntu Sans'
+     tren Google Fonts deu khong co subset tieng Viet: latin-ext cua chung dung o
+     U+1E00-1E9F roi nhay sang U+1EF2, bo trong U+1EA0-1EF1 — tuc phan lon chu co
+     dau (ạ, ế, ộ, ứ...). Dat chung len dau chuoi font thi moi tu tieng Viet se
+     tron hai kieu chu: chu khong dau ve bang Ubuntu, chu co dau roi ve font du
+     phong. Ban sac Yaru o day nam o mau, bo goc va accent color, khong phai o
+     mat chu. */
+  --radius-compact: 6px;
+  --radius-control: 10px;
+  --radius-panel: 14px;
+  --radius-modal: 18px;
+
+  --tr-page-bg: #150a10;
+  --tr-shell-gradient: linear-gradient(120deg, #2c1620 0%, #1f1119 58%, #2a1512 100%);
+  --tr-shell-border: rgba(246, 241, 238, 0.1);
+  --tr-shell-shadow: 0 28px 65px rgba(0, 0, 0, 0.62);
+  --tr-yellow: #f5c211;
+  --tr-yellow-soft: #4a3a12;
+  --tr-on-yellow: #f5c211;
+
+  --tr-nav: #2c001e;
+  --tr-surface: #1d1418;
+  --tr-panel: #2a1e25;
+  --tr-list: #241a20;
+  --tr-card: #2a1e25;
+  --tr-text: #f6f1ee;
+  --tr-subtle: #d9cdd3;
+  --tr-muted: #b0a1a9;
+  --tr-border: rgba(246, 241, 238, 0.14);
+  --tr-primary: #ff7043;
+  --tr-primary-hover: #ff8a5c;
+  /* Chu tren nut cam phai la mau toi: trang chi dat 2,7:1 tren #ff7043. */
+  --tr-on-primary: #1d1418;
+  --tr-danger: #f87168;
+  --tr-on-danger: #1d1418;
+  --tr-success: #8bdd9f;
+  --tr-on-success: #1d1418;
+  --tr-warning: #f5c211;
+  --tr-hover: rgba(246, 241, 238, 0.07);
+  --tr-hover-strong: rgba(246, 241, 238, 0.14);
+  --tr-overlay: rgba(20, 8, 14, 0.62);
+  --tr-card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.38),
+    0 6px 18px rgba(0, 0, 0, 0.3);
+  --tr-popover-shadow: 0 14px 40px rgba(0, 0, 0, 0.52);
+  --tr-scroll-thumb: rgba(246, 241, 238, 0.18);
+  --tr-scroll-thumb-hover: rgba(246, 241, 238, 0.32);
+  --tr-badge-done-bg: #1e4a2c;
+  --tr-badge-done-fg: #8bdd9f;
+  --tr-badge-overdue-bg: #4a221f;
+  --tr-badge-overdue-fg: #f87168;
+  --tr-badge-soon-bg: #4a3a12;
+  --tr-badge-soon-fg: #f5c211;
+
+  --interaction-call-bg: #17304f;
+  --interaction-call-fg: #85b8ff;
+  --interaction-email-bg: #2e2450;
+  --interaction-email-fg: #b8acf6;
+  --interaction-meeting-bg: #14452f;
+  --interaction-meeting-fg: #8bdd9f;
+  --interaction-demo-bg: #4a3a12;
+  --interaction-demo-fg: #f5c211;
+  --interaction-proposal-bg: #4a221f;
+  --interaction-proposal-fg: #f87168;
+  --interaction-followup-bg: #153f4c;
+  --interaction-followup-fg: #9dd9ee;
+  --interaction-zalo-bg: #17304f;
+  --interaction-zalo-fg: #85b8ff;
+  --tr-relation-good: #b3df72;
+
+  --tr-nav-panel: #2a1620;
+  --tr-nav-text: #d9cdd3;
+  --tr-nav-border: rgba(246, 241, 238, 0.14);
+  --tr-nav-hover: rgba(246, 241, 238, 0.08);
+  --tr-nav-active-bg: #48132e;
+  --tr-nav-active-text: #ff7043;
+
+  --cal-reminder-bg: #f5c211;
+  --cal-reminder-fg: #1d1418;
+  --cal-next-action-bg: #ff7043;
+  --cal-next-action-fg: #1d1418;
+  --cal-deal-close-bg: #b8acf6;
+  --cal-deal-close-fg: #1d1418;
+  --cal-contract-end-bg: #9dd9ee;
+  --cal-contract-end-fg: #1d1418;
+
+  --cal-type-ink: #1d1418;
+  --cal-type-task: #85b8ff;
+  --cal-type-meeting: #b8acf6;
+  --cal-type-call: #8bdd9f;
+  --cal-type-reminder: #f5c211;
+  --cal-type-appointment: #9dd9ee;
+  --cal-type-deadline: #ff9d80;
+  --cal-type-other: #b0a1a9;
+}
+
+/* Khoi neo cua dashboard: aubergine nguyen chat. Phai lap lai ca `--color-tr-*`
+   vi cung ly do da ghi o khoi zoho ben duoi. */
+[data-theme='ubuntu'] .tr-bento-dark {
+  --tr-panel: #2c001e;
+  --tr-text: #f6f1ee;
+  --tr-subtle: #ddc9d4;
+  --tr-muted: #bda3b1;
+  --tr-border: rgba(246, 241, 238, 0.14);
+  --tr-hover: rgba(255, 255, 255, 0.08);
+  --tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --tr-primary: #ff7043;
+  --tr-primary-hover: #ff8a5c;
+  --tr-on-primary: #2c001e;
+  --tr-danger: #f87168;
+  --tr-success: #8bdd9f;
+  --tr-warning: #f5c211;
+  --color-tr-panel: #2c001e;
+  --color-tr-text: #f6f1ee;
+  --color-tr-subtle: #ddc9d4;
+  --color-tr-muted: #bda3b1;
+  --color-tr-border: rgba(246, 241, 238, 0.14);
+  --color-tr-hover: rgba(255, 255, 255, 0.08);
+  --color-tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --color-tr-primary: #ff7043;
+  --color-tr-primary-hover: #ff8a5c;
+  --color-tr-on-primary: #2c001e;
+  --color-tr-danger: #f87168;
+  --color-tr-success: #8bdd9f;
+  --color-tr-warning: #f5c211;
+  background-color: #2c001e;
+}
+
+/* Ubuntu bao hieu accent color rat manh o o chon va vung boi den. */
+[data-theme='ubuntu'] :where(input[type='checkbox'], input[type='radio']) {
+  accent-color: var(--tr-primary);
+}
+
+[data-theme='ubuntu'] ::selection {
+  background: color-mix(in srgb, var(--tr-primary) 30%, transparent);
+}
+
+/* Nut chinh kieu Adwaita: mot vach sang mong o canh tren. */
+[data-theme='ubuntu'] :where(.bg-tr-primary) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
 [data-theme='zoho'] .tr-bento-dark {
   --tr-panel: #0b4f4a;
   --tr-text: #f3fbf9;
@@ -971,7 +1120,9 @@ body {
 
 /* ---------- Input trong che do toi ---------- */
 [data-theme='dark'] input[type='date'],
-[data-theme='dark'] input[type='datetime-local'] {
+[data-theme='dark'] input[type='datetime-local'],
+[data-theme='ubuntu'] input[type='date'],
+[data-theme='ubuntu'] input[type='datetime-local'] {
   color-scheme: dark;
 }
 
