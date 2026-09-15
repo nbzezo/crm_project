@@ -3,7 +3,7 @@ import { REVENUE_STAGE_COLORS, t } from '../../i18n/vi';
 import { formatShare, formatVND, formatVNDShort } from '../../lib/format';
 import type { RevenueStage } from '../../types';
 
-export interface RevenueFunnelTotal {
+interface RevenueFunnelTotal {
   amount: number;
   forecast: number;
   reconciled: number;

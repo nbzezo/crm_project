@@ -29,7 +29,7 @@ import {
 import { AssigneeSelect } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
 
-export interface TaskColumns {
+interface TaskColumns {
   priority?: boolean;
   startDate?: boolean;
   dueDate?: boolean;

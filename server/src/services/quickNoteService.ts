@@ -60,7 +60,7 @@ function firstPosition(db: Database, pinned: 0 | 1): number {
   return row.minPos != null ? row.minPos / 2 : 1024;
 }
 
-export interface QuickNoteRelationRow {
+interface QuickNoteRelationRow {
   id: number;
   object_type: QuickNoteRelationType;
   object_id: number;

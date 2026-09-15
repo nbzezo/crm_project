@@ -1,5 +1,4 @@
 import { addDays as addDaysFn, format, parseISO } from 'date-fns';
-import { vi } from 'date-fns/locale';
 
 const vndFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -74,10 +73,6 @@ export function formatDateTime(value: string | null | undefined): string {
 export function formatMonth(month: string): string {
   const [y, m] = month.split('-');
   return `T${Number(m)}/${y.slice(2)}`;
-}
-
-export function formatWeekday(dateStr: string): string {
-  return format(parseISO(dateStr), 'EEEE', { locale: vi });
 }
 
 /** Ngay hom nay theo gio may, dang 'YYYY-MM-DD'. */

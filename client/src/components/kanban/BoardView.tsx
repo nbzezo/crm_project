@@ -42,7 +42,7 @@ import type { BoardFull, Card, CardStatus } from '../../types';
  * `meContactId` phai truyen vao thay vi doc trong ham: "Viec cua toi" duoc dinh
  * nghia boi contacts.is_me o may chu, va ham nay la ham thuan de con test duoc.
  */
-export function matchesFilters(card: Card, f: BoardFilters, meContactId?: number | null): boolean {
+function matchesFilters(card: Card, f: BoardFilters, meContactId?: number | null): boolean {
   if (f.q && !foldText(`${card.title} ${card.description ?? ''}`).includes(foldText(f.q)))
     return false;
   // FR-TAG-22: 'and' = phai co du moi nhan da chon; 'or' (mac dinh) = co it nhat mot

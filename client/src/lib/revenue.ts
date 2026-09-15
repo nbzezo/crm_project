@@ -1,6 +1,6 @@
 import type { RevenueTotals } from '../types';
 
-export const EMPTY_TOTALS: RevenueTotals = {
+const EMPTY_TOTALS: RevenueTotals = {
   amount_vnd: 0,
   forecast_vnd: 0,
   stage_forecast_vnd: 0,

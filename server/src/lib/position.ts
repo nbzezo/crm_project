@@ -5,7 +5,7 @@ export const STEP = 1024;
 const MIN_GAP = 1e-6;
 
 /** Cac bang co cot position + cot pham vi (scope) tuong ung. */
-export type PositionScope =
+type PositionScope =
   | { table: 'lists'; scopeCol: 'board_id'; scopeVal: number }
   | { table: 'cards'; scopeCol: 'list_id'; scopeVal: number }
   | { table: 'deals'; scopeCol: 'stage'; scopeVal: string }

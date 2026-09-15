@@ -1,7 +1,7 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { focusRing } from './ui';
 
-export interface TabItem<T extends string> {
+interface TabItem<T extends string> {
   value: T;
   label: ReactNode;
   count?: number;

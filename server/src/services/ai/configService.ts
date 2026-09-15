@@ -25,7 +25,7 @@ interface ProviderSecretRow {
   updated_at: string;
 }
 
-export interface ProviderUpdate {
+interface ProviderUpdate {
   baseUrl?: string;
   apiKey?: string;
   clearApiKey?: boolean;

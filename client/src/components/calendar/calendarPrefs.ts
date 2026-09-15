@@ -4,7 +4,7 @@ import { todayStr } from '../../lib/format';
 
 export type CalendarViewMode = 'month' | 'week' | 'day' | 'list';
 
-export const CALENDAR_VIEWS: CalendarViewMode[] = ['month', 'week', 'day', 'list'];
+const CALENDAR_VIEWS: CalendarViewMode[] = ['month', 'week', 'day', 'list'];
 
 /** Ten view tuong ung ben FullCalendar. `list` do ung dung tu dung nen khong co o day. */
 export const FC_VIEW: Record<Exclude<CalendarViewMode, 'list'>, string> = {
@@ -16,7 +16,7 @@ export const FC_VIEW: Record<Exclude<CalendarViewMode, 'list'>, string> = {
 const STORAGE_KEY = 'workflow-calendar-view';
 
 /** So ngay hien trong che do Danh sach (muc 15) — cung la tran hieu nang cua no. */
-export const LIST_DAYS = 30;
+const LIST_DAYS = 30;
 
 export function isViewMode(value: string | null): value is CalendarViewMode {
   return value !== null && (CALENDAR_VIEWS as string[]).includes(value);

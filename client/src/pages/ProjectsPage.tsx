@@ -25,7 +25,7 @@ import { formatDateShort, formatVNDShort } from '../lib/format';
 import type { Customer, Project, ProjectHealth, ProjectStatus } from '../types';
 
 /** Màu sức khỏe — đỏ/vàng/xanh, đọc được trong một cái liếc mắt qua danh sách. */
-export const HEALTH_TONE: Record<ProjectHealth, string> = {
+const HEALTH_TONE: Record<ProjectHealth, string> = {
   unknown: 'bg-tr-hover-strong text-tr-muted',
   green: 'bg-tr-success/15 text-tr-success',
   amber: 'bg-tr-warning/15 text-tr-warning',

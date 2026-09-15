@@ -19,7 +19,7 @@ import zlib from 'node:zlib';
 
 export type ExtractMethod = 'text' | 'pdf' | 'docx' | 'xlsx' | 'none';
 
-export interface ExtractResult {
+interface ExtractResult {
   text: string;
   method: ExtractMethod;
   /** Ly do khong trich duoc — de len log va len canh bao cho nguoi dung. */
@@ -27,7 +27,7 @@ export interface ExtractResult {
 }
 
 /** Tran chung: doc qua nguong nay thi khong con la "doc metadata" nua. */
-export const MAX_EXTRACT_BYTES = 5 * 1024 * 1024;
+const MAX_EXTRACT_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_PAGES = 60;
 const MAX_TEXT_CHARS = 400_000;
 

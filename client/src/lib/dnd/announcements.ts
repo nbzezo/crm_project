@@ -1,4 +1,4 @@
-import type { Announcements, ScreenReaderInstructions } from '@dnd-kit/core';
+import type { Announcements } from '@dnd-kit/core';
 
 /**
  * Loi thong bao tieng Viet cho moi thao tac keo tha.
@@ -12,7 +12,7 @@ import type { Announcements, ScreenReaderInstructions } from '@dnd-kit/core';
  * doc man hinh phat ra "Dang giu card-17" — dung ky thuat, vo nghia voi nguoi
  * nghe. Chua co ten thi rot ve mot danh tu chung thay vi doc id tho.
  */
-export interface AnnouncementOptions {
+interface AnnouncementOptions {
   /** Ten loai muc dang keo, vi du 'thẻ', 'cơ hội', 'ghi chú', 'mục điều hướng'. */
   itemNoun: string;
   /** Doi id sang nhan doc duoc; tra ve null neu khong tra duoc. */
@@ -34,15 +34,5 @@ export function buildDndAnnouncements({ itemNoun, resolve }: AnnouncementOptions
         ? `Đã thả ${name(active.id)} vào ${name(over.id)}.`
         : `Đã hủy. ${name(active.id)} trở về vị trí cũ.`,
     onDragCancel: ({ active }) => `Đã hủy kéo thả. ${name(active.id)} trở về vị trí cũ.`,
-  };
-}
-
-/** Huong dan doc mot lan khi nguoi dung focus vao tay cam keo. */
-export function dndInstructions(itemNoun: string): ScreenReaderInstructions {
-  return {
-    draggable:
-      `Nhấn Space hoặc Enter để bắt đầu kéo ${itemNoun}. ` +
-      'Khi đang kéo, dùng phím mũi tên để di chuyển. ' +
-      'Nhấn Space hoặc Enter lần nữa để thả, hoặc Escape để hủy.',
   };
 }

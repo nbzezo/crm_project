@@ -242,7 +242,7 @@ export function runAutomation(db: Database, id: number) {
 
 let scheduler: ReturnType<typeof setInterval> | null = null;
 
-export function runDueAutomations(db: Database) {
+function runDueAutomations(db: Database) {
   const due = db
     .prepare(
       `SELECT id FROM ai_automations WHERE enabled = 1

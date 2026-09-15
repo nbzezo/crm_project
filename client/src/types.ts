@@ -200,7 +200,7 @@ export interface ChecklistItem {
   position: number;
 }
 
-export interface CardComment {
+interface CardComment {
   id: number;
   card_id: number;
   body: string;
@@ -211,7 +211,7 @@ export interface CardComment {
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'checkbox';
 
 /** Dinh nghia truong thong tin — board_id null nghia la dung chung cho moi bang. */
-export interface CardField {
+interface CardField {
   id: number;
   board_id: number | null;
   name: string;
@@ -524,7 +524,7 @@ export interface RevenueSummary {
 }
 
 /** Dòng dịch vụ hiển thị trong hồ sơ khách hàng (tổng doanh thu mọi năm). */
-export interface CustomerService {
+interface CustomerService {
   id: number;
   customer_id: number;
   service_id: number | null;
@@ -587,7 +587,7 @@ export interface Interaction {
   result?: string | null;
 }
 
-export interface MeetingNoteAttendee {
+interface MeetingNoteAttendee {
   contact_id: number;
   full_name: string;
 }
@@ -619,8 +619,8 @@ export interface MeetingNote {
 }
 
 export type QuickNoteRelationType = 'customer' | 'contact' | 'deal' | 'project';
-export type QuickNoteReminderStatus = 'pending' | 'triggered' | 'completed' | 'cancelled';
-export type QuickNoteConvertTarget = 'task' | 'crm_note';
+type QuickNoteReminderStatus = 'pending' | 'triggered' | 'completed' | 'cancelled';
+type QuickNoteConvertTarget = 'task' | 'crm_note';
 export type QuickNoteColorKey =
   | 'yellow'
   | 'green'
@@ -688,8 +688,8 @@ export interface Reminder {
   deal_title?: string | null;
 }
 
-export type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system';
-export type NotificationSeverity = 'info' | 'warning' | 'critical';
+type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system';
+type NotificationSeverity = 'info' | 'warning' | 'critical';
 
 /** Mot muc da duoc hop nhat tu nhac hen, lich, task hoac canh bao AI/CRM. */
 export interface NotificationItem {
@@ -791,7 +791,7 @@ export interface TaskRow {
 }
 
 /** Một lần dời hạn — biến "trượt tiến độ" thành con số đọc được. */
-export interface CardDueChange {
+interface CardDueChange {
   id: number;
   card_id: number;
   old_due: string | null;
@@ -801,7 +801,7 @@ export interface CardDueChange {
 }
 
 /** Phụ thuộc finish-to-start; `violated` = việc trước chưa xong mà việc sau đã bắt đầu. */
-export interface CardDependency {
+interface CardDependency {
   id: number;
   title: string;
   is_done: number;
@@ -859,7 +859,7 @@ export interface Project {
 }
 
 /** Người xuất hiện trong dự án — suy ra từ người phụ trách các công việc. */
-export interface ProjectPerson {
+interface ProjectPerson {
   contact_id: number;
   full_name: string;
   phone: string | null;
@@ -913,7 +913,7 @@ export interface ProjectDetail extends Project {
 /** Trạng thái mốc của một giai đoạn — suy ra, không bao giờ lưu. */
 export type MilestoneState = 'none' | 'done' | 'overdue' | 'due_soon' | 'on_track';
 
-export interface Phase {
+interface Phase {
   id: number;
   name: string;
   is_archived: number;
@@ -924,7 +924,7 @@ export interface Phase {
   days_left: number | null;
 }
 
-export interface ClassificationSignal {
+interface ClassificationSignal {
   key: string;
   label: string;
   value: number;
@@ -1031,20 +1031,6 @@ export interface HandoverState {
   sla_days: number;
   /** Tên các bộ mẫu đang cấu hình được, luôn có khoá `default`. */
   templates: string[];
-}
-
-/** Một lần đã nhắc người phụ trách — biến "đã nhắc chưa" thành số đo được. */
-export interface TaskNudge {
-  id: number;
-  card_id: number;
-  card_title: string | null;
-  contact_id: number | null;
-  contact_name: string | null;
-  channel: NudgeChannel;
-  message: string;
-  sent_at: string;
-  response: string | null;
-  responded_at: string | null;
 }
 
 /** Loai lich ca nhan (bang calendar_events, v11). */
@@ -1201,7 +1187,7 @@ export interface ScoreItem {
   blocked_by: string | null;
 }
 
-export interface Recommendation {
+interface Recommendation {
   code: 'veto' | 'lift_factor' | 'reverify';
   factor: Factor | null;
   veto_code: VetoCode | null;
@@ -1229,7 +1215,7 @@ export interface Scorecard {
   recommendations: Recommendation[];
 }
 
-export interface CommitteeMember {
+interface CommitteeMember {
   contact_id: number;
   full_name: string;
   title: string | null;

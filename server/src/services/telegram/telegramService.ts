@@ -23,7 +23,7 @@ interface TelegramSettingsRow {
   updated_at: string;
 }
 
-export interface TelegramConfig {
+interface TelegramConfig {
   enabled: boolean;
   chat_id: string;
   has_token: boolean;
@@ -39,7 +39,7 @@ export interface TelegramConfig {
   last_error: string | null;
 }
 
-export interface TelegramConfigUpdate {
+interface TelegramConfigUpdate {
   enabled?: boolean;
   chatId?: string;
   botToken?: string;

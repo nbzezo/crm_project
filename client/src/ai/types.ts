@@ -1,6 +1,6 @@
 import type { Priority } from '../types';
 
-export type AiProviderName = 'gemini' | 'anthropic' | 'deepseek';
+type AiProviderName = 'gemini' | 'anthropic' | 'deepseek';
 export type AiMode = 'fast' | 'balanced' | 'reasoning';
 
 export const TASK_LINK_KEYS = [
@@ -12,7 +12,7 @@ export const TASK_LINK_KEYS = [
 ] as const;
 export type TaskLinkKey = (typeof TASK_LINK_KEYS)[number];
 
-export interface AiModel {
+interface AiModel {
   model_id: string;
   display_name: string;
   capabilities: {
@@ -56,7 +56,7 @@ export interface VoicePromptTemplate {
   prompt: string;
 }
 
-export interface AiMeta {
+interface AiMeta {
   requestId: string;
   provider: AiProviderName;
   model: string;

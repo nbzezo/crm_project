@@ -7,7 +7,7 @@ export interface RevenueCell {
   note: string;
 }
 
-export interface RevenuePatch {
+interface RevenuePatch {
   amount_vnd?: number;
   forecast_vnd?: number;
   stage?: RevenueStage;

@@ -28,8 +28,6 @@ import { decorateProject, PROJECT_SELECT } from '../services/projectService.ts';
 
 const router = Router();
 
-export { STAGES };
-
 const stageEnum = z.enum(STAGES);
 const dateOnly = z
   .string()

@@ -9,7 +9,7 @@ import { Button, Field, Input, Select, Textarea } from '../common/ui';
 import type { DocumentOptions } from './DocumentUploadManager';
 
 /** De xuat metadata do AI doc tu noi dung tep — chua ghi vao CSDL. */
-export interface DocumentAssistResult {
+interface DocumentAssistResult {
   name: string;
   doc_type: string;
   description: string;

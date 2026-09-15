@@ -7,7 +7,7 @@ import { isValidFieldValue, parseFieldOptions } from '../lib/cardFieldValues.ts'
 
 const router = Router();
 
-export const FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox'] as const;
+const FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox'] as const;
 
 const fieldSchema = z.object({
   board_id: z.number().int().nullable().optional(),

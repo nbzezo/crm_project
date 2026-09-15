@@ -42,7 +42,7 @@ import telegram from './routes/telegram.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(here, '../../client/dist');
 
-export interface AppOptions {
+interface AppOptions {
   /** Bat lop dang nhap (session + requireAuth). Tat trong unit test khong can auth. */
   auth?: boolean;
 }

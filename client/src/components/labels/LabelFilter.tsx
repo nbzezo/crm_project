@@ -8,7 +8,7 @@ import { t } from '../../i18n/vi';
 import type { Label, LabelEntity } from '../../types';
 
 /** Cach ghep nhieu nhan khi loc (FR-TAG-22). Mac dinh 'or' — giu dung hanh vi cu. */
-export type LabelMatchMode = 'or' | 'and';
+type LabelMatchMode = 'or' | 'and';
 
 export interface LabelFilterState {
   ids: number[];

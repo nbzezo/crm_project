@@ -30,7 +30,7 @@ function installationKey(): Buffer {
   return key;
 }
 
-export interface EncryptedSecret {
+interface EncryptedSecret {
   ciphertext: string;
   iv: string;
   tag: string;

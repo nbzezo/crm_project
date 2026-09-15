@@ -50,7 +50,7 @@ function useQuickCreateAssignee(
 }
 
 /** Hai chữ cái đầu — họ tên tiếng Việt lấy chữ đầu của từ đầu và từ cuối. */
-export function initialsOf(fullName: string): string {
+function initialsOf(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   const first = parts[0][0] ?? '';

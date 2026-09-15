@@ -22,7 +22,7 @@ import { indexDocument } from '../services/ai/documentIndex.ts';
 const router = Router();
 
 /** Danh sach nay la nguon su that dung chung voi thuoc tinh accept o giao dien. */
-export const DOCUMENT_EXTENSIONS = [
+const DOCUMENT_EXTENSIONS = [
   '.pdf',
   '.doc',
   '.docx',

@@ -1,7 +1,7 @@
 import { db } from '../../db/connection.ts';
 import { hashPassword } from './passwords.ts';
 
-export interface UserRow {
+interface UserRow {
   id: number;
   username: string;
   password_hash: string;

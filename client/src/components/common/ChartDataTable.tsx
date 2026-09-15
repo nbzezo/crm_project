@@ -1,7 +1,7 @@
 import { Table2 } from 'lucide-react';
 import { focusRing } from './ui';
 
-export interface ChartRow {
+interface ChartRow {
   name: string;
   value: string;
 }

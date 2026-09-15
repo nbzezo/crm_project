@@ -116,7 +116,7 @@ async function notifyDueQuickNotes(db: Database): Promise<void> {
   }
 }
 
-export async function runDueTelegramChecks(db: Database): Promise<void> {
+async function runDueTelegramChecks(db: Database): Promise<void> {
   const config = getTelegramConfig(db);
   if (!config.enabled || !config.has_token || !config.chat_id) return;
   if (config.notify_due_dates) await notifyDueCards(db);

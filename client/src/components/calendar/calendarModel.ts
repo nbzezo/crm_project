@@ -17,7 +17,7 @@ import { formatVNDShort } from '../../lib/format';
 import type { CalEventType, CalendarEventRow, CalendarItem } from '../../types';
 
 /** Nguon sinh ra su kien. 'event' la lich ca nhan tu tao, con lai la dan xuat. */
-export type CalendarSource = CalendarItem['kind'];
+type CalendarSource = CalendarItem['kind'];
 
 /* ---------- Bien nua khoang <-> FullCalendar ---------- */
 /**
@@ -36,7 +36,7 @@ export function allDayEndFromForm(endInclusive: string): string {
 }
 
 /** Icon theo loai lich ca nhan (muc 21, 22). */
-export const EVENT_TYPE_ICON: Record<CalEventType, LucideIcon> = {
+const EVENT_TYPE_ICON: Record<CalEventType, LucideIcon> = {
   task: CheckSquare,
   meeting: Users,
   call: Phone,
@@ -54,7 +54,7 @@ export const EVENT_TYPE_ICON: Record<CalEventType, LucideIcon> = {
  * thi khong the keo, khong the xoa khoi lich, khong co trang thai "Da huy".
  * Tach ra day de moi cho chi hoi mot cau: "duoc lam gi?".
  */
-export interface Capabilities {
+interface Capabilities {
   /** Mo bieu mau sua day du. Chi lich ca nhan (Phase 4) moi co. */
   edit: boolean;
   /** Keo sang ngay khac. */
@@ -70,7 +70,7 @@ export interface Capabilities {
 }
 
 /** Noi di toi khi bam vao mot su kien chi-doc. */
-export type CalLink =
+type CalLink =
   { kind: 'card'; cardId: number; label: string } | { kind: 'route'; to: string; label: string };
 
 const NO_CAPS: Capabilities = {

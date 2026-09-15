@@ -16,8 +16,6 @@ export interface QuickNoteFilters {
   updated_to?: string;
 }
 
-export const emptyQuickNoteFilters: QuickNoteFilters = { view: 'active' };
-
 export function useQuickNotesList(filters: QuickNoteFilters) {
   return useQuery({
     queryKey: ['quick-notes', 'list', filters],
@@ -25,14 +23,6 @@ export function useQuickNotesList(filters: QuickNoteFilters) {
       api.get<QuickNote[]>(
         `/api/quick-notes${qs(filters as Record<string, string | number | boolean | null | undefined>)}`
       ),
-  });
-}
-
-export function useQuickNote(id: number | null) {
-  return useQuery({
-    queryKey: ['quick-notes', 'detail', id],
-    queryFn: () => api.get<QuickNote>(`/api/quick-notes/${id}`),
-    enabled: id !== null,
   });
 }
 

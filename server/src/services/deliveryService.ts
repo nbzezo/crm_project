@@ -12,21 +12,21 @@ import { HttpError, required } from '../lib/validate.ts';
 
 /* ---------- Cau hinh ---------- */
 
-export interface ClassificationThresholds {
+interface ClassificationThresholds {
   contract_value_vnd: number;
   duration_days: number;
   phase_count: number;
   team_count: number;
 }
 
-export interface BoardTemplateItem {
+interface BoardTemplateItem {
   name: string;
   status: CardStatus | null;
 }
 
-export type BoardTemplates = Record<string, BoardTemplateItem[]>;
+type BoardTemplates = Record<string, BoardTemplateItem[]>;
 
-export interface DeliverySettings {
+interface DeliverySettings {
   classification: ClassificationThresholds;
   boardTemplates: BoardTemplates;
 }
@@ -102,7 +102,7 @@ export function saveDeliverySettings(db: Database, patch: Record<string, unknown
 
 /* ---------- R-11: phan loai mo hinh trien khai ---------- */
 
-export interface ClassificationSignal {
+interface ClassificationSignal {
   key: keyof ClassificationThresholds;
   label: string;
   value: number;
@@ -110,7 +110,7 @@ export interface ClassificationSignal {
   crossed: boolean;
 }
 
-export interface Classification {
+interface Classification {
   suggested: 'A' | 'B';
   signals: ClassificationSignal[];
   /** Mo hinh da duoc chot; null khi chua ai quyet. */
@@ -321,9 +321,9 @@ export function listRisks(db: Database, projectId: number): unknown[] {
 
 /* ---------- R-03: trang thai moc giai doan ---------- */
 
-export type MilestoneState = 'none' | 'done' | 'overdue' | 'due_soon' | 'on_track';
+type MilestoneState = 'none' | 'done' | 'overdue' | 'due_soon' | 'on_track';
 
-export interface PhaseRow {
+interface PhaseRow {
   milestone_date: string | null;
   card_total: number;
   card_done: number;
@@ -348,7 +348,7 @@ export function milestoneStateOf(phase: PhaseRow, today = new Date()): Milestone
   return 'on_track';
 }
 
-export interface Phase extends PhaseRow {
+interface Phase extends PhaseRow {
   id: number;
   name: string;
   is_archived: number;

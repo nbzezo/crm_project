@@ -9,7 +9,7 @@ import { t } from '../../i18n/vi';
 import type { Label, LabelEntity } from '../../types';
 
 /** Khoa truy van dung chung cho moi cho gan nhan cua mot ban ghi. */
-export function labelLinksKey(entityType: LabelEntity, entityId: number) {
+function labelLinksKey(entityType: LabelEntity, entityId: number) {
   return ['label-links', entityType, entityId] as const;
 }
 
@@ -104,7 +104,7 @@ export function EntityLabels({
  * Popover chon nhan: nhom cha lam tieu de (khong tick duoc — BR-TAG-13),
  * nhan con la dong tick duoc. Tim kiem khong dau dung foldText co san.
  */
-export function LabelSelectPopover({
+function LabelSelectPopover({
   pop,
   scope,
   selectedIds,

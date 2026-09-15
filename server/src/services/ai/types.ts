@@ -27,7 +27,7 @@ export interface ProviderConnection {
 }
 
 /** Tep gui kem cho mo hinh doc truc tiep — dung khi parser cuc bo khong ra chu. */
-export interface AiAttachment {
+interface AiAttachment {
   mime: string;
   dataBase64: string;
   fileName: string;
@@ -49,7 +49,7 @@ export interface GenerateResult {
   outputTokens: number;
 }
 
-export type AiTaskMode = 'fast' | 'balanced' | 'reasoning';
+type AiTaskMode = 'fast' | 'balanced' | 'reasoning';
 
 export interface AiRunRequest {
   task: string;

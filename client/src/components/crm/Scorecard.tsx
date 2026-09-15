@@ -137,7 +137,7 @@ export function Scorecard({
 
 /* ---------- Đầu trang: tổng, ô ma trận, veto, đề xuất ---------- */
 
-export function ScoreSummary({
+function ScoreSummary({
   card,
   history,
   onSetNextAction,

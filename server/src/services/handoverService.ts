@@ -10,14 +10,14 @@
 import type { Database } from 'better-sqlite3';
 import { HttpError, required } from '../lib/validate.ts';
 
-export interface HandoverTemplateItem {
+interface HandoverTemplateItem {
   content: string;
   required: boolean;
 }
 
-export type HandoverTemplates = Record<string, HandoverTemplateItem[]>;
+type HandoverTemplates = Record<string, HandoverTemplateItem[]>;
 
-export interface HandoverSettings {
+interface HandoverSettings {
   templates: HandoverTemplates;
   slaDays: number;
 }
@@ -79,7 +79,7 @@ export function saveHandoverSettings(db: Database, patch: Record<string, unknown
   })();
 }
 
-export interface HandoverItem {
+interface HandoverItem {
   id: number;
   deal_id: number;
   content: string;
@@ -170,7 +170,7 @@ export function applyHandoverTemplate(
  * Moc tinh tu `closed_at` — thoi diem chot thuong mai, chu khong phai
  * `updated_at`: sua mot dong ghi chu khong lam dong ho ban giao chay lai tu dau.
  */
-export interface OverdueHandover {
+interface OverdueHandover {
   id: number;
   title: string;
   customer_name: string;

@@ -7,7 +7,7 @@ import type { QuickNoteColorKey } from '../../types';
  * Doi lech sang mot cap bg/text tuong phan manh o ca hai theme thay vi mot
  * mau tinh, dung theo bo chu vien tay khong dua vao mau lam tin hieu duy nhat.
  */
-export interface QuickNoteColor {
+interface QuickNoteColor {
   key: QuickNoteColorKey;
   name: string;
   bgLight: string;

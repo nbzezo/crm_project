@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { ChevronRight } from 'lucide-react';
 import { focusRing } from './ui';
 
-export interface Crumb {
+interface Crumb {
   label: string;
   /** Bo trong o muc cuoi — do la trang hien tai, khong tro di dau. */
   to?: string;

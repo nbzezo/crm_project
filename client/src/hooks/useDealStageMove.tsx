@@ -32,14 +32,14 @@ import { formatVND, todayStr } from '../lib/format';
 import type { Deal, Factor, Stage, VetoCode } from '../types';
 
 /** Phần chi tiết server gửi kèm lỗi 409 STAGE_GATE_BLOCKED. */
-export interface GateDetails {
+interface GateDetails {
   target: Stage;
   required: number;
   bant_total: number;
   blocked_by: string[];
 }
 
-export type MoveVars = {
+type MoveVars = {
   dealId: number;
   stage: Stage;
   beforeId: number | null;

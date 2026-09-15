@@ -12,7 +12,7 @@
 import type { Database } from 'better-sqlite3';
 import { HttpError, required } from './validate.ts';
 
-export type ChangeEntity = 'deal' | 'project' | 'contract';
+type ChangeEntity = 'deal' | 'project' | 'contract';
 
 const TRACKED: Record<ChangeEntity, readonly string[]> = {
   /* Cac truong quyet dinh gia tri thuong mai va diem chuyen giao. */
@@ -66,7 +66,7 @@ function asText(value: unknown): string | null {
  * Tra ve null khi so danh ba chua danh dau ai la "toi": khuyet nguoi thuc hien
  * van tot hon la tu gan bua cho mot nguoi bat ky.
  */
-export function resolveActor(db: Database, explicit?: number | null): number | null {
+function resolveActor(db: Database, explicit?: number | null): number | null {
   if (explicit != null) {
     required(
       db.prepare(`SELECT id FROM contacts WHERE id = ?`).get(explicit),
@@ -144,7 +144,7 @@ export function recordChanges(
   return written;
 }
 
-export interface ChangeLogEntry {
+interface ChangeLogEntry {
   id: number;
   field: string;
   old_value: string | null;

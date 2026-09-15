@@ -3,13 +3,13 @@ import type { Customer } from '../../types';
 
 export type CustomerSmartView = 'all' | 'prospect' | 'opportunity' | 'follow-up' | 'stale';
 
-export type CustomerHealth = {
+type CustomerHealth = {
   level: 'good' | 'attention' | 'risk';
   label: string;
   reason: string;
 };
 
-export type CustomerNextAction = {
+type CustomerNextAction = {
   kind: 'deal' | 'task' | 'reminder';
   title: string;
   date: string | null;
@@ -21,7 +21,7 @@ function asLocalDate(value: string): Date {
   return new Date(normalized);
 }
 
-export function daysSince(value: string | null | undefined): number | null {
+function daysSince(value: string | null | undefined): number | null {
   if (!value) return null;
   const date = asLocalDate(value);
   if (Number.isNaN(date.getTime())) return null;

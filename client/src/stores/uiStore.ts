@@ -48,7 +48,7 @@ export interface BoardFilters {
   assignee: number | '' | 'mine' | 'none';
 }
 
-export const emptyBoardFilters: BoardFilters = {
+const emptyBoardFilters: BoardFilters = {
   q: '',
   labelIds: [],
   labelMode: 'or',
@@ -98,7 +98,7 @@ export interface TaskContext {
 }
 
 /** Dữ liệu đã được chuẩn hóa để điền vào form tạo công việc dùng chung. */
-export interface TaskComposerDraft {
+interface TaskComposerDraft {
   title: string;
   description?: string;
   priority?: Priority;

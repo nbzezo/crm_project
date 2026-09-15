@@ -33,7 +33,7 @@ import {
 
 /* ---------- Kieu du lieu ---------- */
 
-export interface ScoreRow {
+interface ScoreRow {
   factor: Factor;
   score: number;
   status: 'suggested' | 'confirmed';
@@ -45,7 +45,7 @@ export interface ScoreRow {
   scored_at: string | null;
 }
 
-export interface ScoreItem extends ScoreRow {
+interface ScoreItem extends ScoreRow {
   axis: 'bant' | 'p4';
   /** Diem toi da hien tai cho phep boi du lieu (BR-SCR-01..08); 3 = khong bi chan. */
   max_allowed: number;
@@ -53,20 +53,20 @@ export interface ScoreItem extends ScoreRow {
   blocked_by: string | null;
 }
 
-export interface VetoFlag {
+interface VetoFlag {
   code: VetoCode;
   /** true = chan forecast; false = chi canh bao (V3 o che do 'warn'). */
   blocking: boolean;
 }
 
-export interface Recommendation {
+interface Recommendation {
   /** Ma dung de dich sang cau chu o i18n phia giao dien. */
   code: 'veto' | 'lift_factor' | 'reverify';
   factor: Factor | null;
   veto_code: VetoCode | null;
 }
 
-export interface Scorecard {
+interface Scorecard {
   deal_id: number;
   stage: Stage;
   locked: boolean;
@@ -89,7 +89,7 @@ export interface Scorecard {
   recommendations: Recommendation[];
 }
 
-export interface ScoringSettings {
+interface ScoringSettings {
   stageGate: Partial<Record<Stage, number>>;
   staleDays: number;
   v3Mode: 'warn' | 'veto';
@@ -155,7 +155,7 @@ interface DealRow {
   score_updated_at: string | null;
 }
 
-export function getDeal(db: Database, dealId: number): DealRow {
+function getDeal(db: Database, dealId: number): DealRow {
   const row = db
     .prepare(
       `SELECT id, stage, value_vnd, expected_close_date, bant_total, p4_total, score_updated_at
@@ -166,7 +166,7 @@ export function getDeal(db: Database, dealId: number): DealRow {
   return row;
 }
 
-export function getScoreRows(db: Database, dealId: number): Map<Factor, ScoreRow> {
+function getScoreRows(db: Database, dealId: number): Map<Factor, ScoreRow> {
   const rows = db
     .prepare(
       `SELECT factor, score, status, evidence, source_type, source_id, verified, challenge, scored_at
@@ -176,7 +176,7 @@ export function getScoreRows(db: Database, dealId: number): Map<Factor, ScoreRow
   return new Map(rows.map((r) => [r.factor, r]));
 }
 
-export interface CommitteeMember {
+interface CommitteeMember {
   contact_id: number;
   full_name: string;
   title: string | null;
@@ -204,7 +204,7 @@ export function getCommittee(db: Database, dealId: number): CommitteeMember[] {
     .all(dealId, dealId) as CommitteeMember[];
 }
 
-export interface DealEvent {
+interface DealEvent {
   id: number;
   deal_id: number;
   event_type: string;
@@ -223,7 +223,7 @@ export function getEvents(db: Database, dealId: number): DealEvent[] {
     .all(dealId) as DealEvent[];
 }
 
-export interface DealCompetitor {
+interface DealCompetitor {
   id: number;
   deal_id: number;
   name: string;
@@ -253,7 +253,7 @@ export function getCompetitors(db: Database, dealId: number): DealCompetitor[] {
  * Tra ve { max, blocked_by } — `blocked_by` la ma viec can lam, giao dien dich sang
  * cau chu va dan nguoi dung toi dung tab can sua.
  */
-export function factorCeiling(
+function factorCeiling(
   db: Database,
   dealId: number,
   factor: Factor
@@ -371,11 +371,7 @@ function needsNumber(factor: Factor, score: number, evidence: string): boolean {
  * `touch` = false khi lan ghi khong phai la mot lan cham that (vi du chi luu de xuat),
  * de dong ho staleness khong bi lam moi oan.
  */
-export function recalcTotals(
-  db: Database,
-  dealId: number,
-  touch = true
-): { bant: number; p4: number } {
+function recalcTotals(db: Database, dealId: number, touch = true): { bant: number; p4: number } {
   const rows = db
     .prepare(`SELECT factor, score FROM deal_scores WHERE deal_id = ? AND status = 'confirmed'`)
     .all(dealId) as { factor: Factor; score: number }[];
@@ -393,13 +389,6 @@ export function recalcTotals(
   return { bant, p4 };
 }
 
-export function quadrantOf(bant: number, p4: number): Quadrant {
-  if (bant >= QUADRANT_CUTOFF && p4 >= QUADRANT_CUTOFF) return 'pursue';
-  if (bant >= QUADRANT_CUTOFF) return 'reshape';
-  if (p4 >= QUADRANT_CUTOFF) return 'nurture';
-  return 'disqualify';
-}
-
 interface ScorecardViewRow {
   deal_id: number;
   bant_total: number;
@@ -411,14 +400,14 @@ interface ScorecardViewRow {
   v3_shaped: number;
 }
 
-export function readScorecardView(db: Database, dealId: number): ScorecardViewRow {
+function readScorecardView(db: Database, dealId: number): ScorecardViewRow {
   const row = db.prepare(`SELECT * FROM deal_scorecard WHERE deal_id = ?`).get(dealId) as
     ScorecardViewRow | undefined;
   if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
   return row;
 }
 
-export function vetoFlagsOf(row: ScorecardViewRow, settings: ScoringSettings): VetoFlag[] {
+function vetoFlagsOf(row: ScorecardViewRow, settings: ScoringSettings): VetoFlag[] {
   const flags: VetoFlag[] = [];
   if (row.v1_no_event) flags.push({ code: 'V1_NO_COMPELLING_EVENT', blocking: true });
   if (row.v2_no_economic) flags.push({ code: 'V2_NO_ECONOMIC_BUYER', blocking: true });
@@ -490,11 +479,7 @@ export function getScorecard(db: Database, dealId: number): Scorecard {
  * F-15: toi da 3 de xuat, uu tien theo thu tu — go veto truoc, roi den yeu to co
  * don bay lon nhat, cuoi cung la yeu to can xac thuc lai.
  */
-export function recommendationsOf(
-  items: ScoreItem[],
-  veto: VetoFlag[],
-  stale: boolean
-): Recommendation[] {
+function recommendationsOf(items: ScoreItem[], veto: VetoFlag[], stale: boolean): Recommendation[] {
   const out: Recommendation[] = [];
 
   for (const flag of veto.filter((f) => f.blocking)) {
@@ -519,7 +504,7 @@ export function recommendationsOf(
 
 /* ---------- Ghi diem ---------- */
 
-export interface WriteScoreInput {
+interface WriteScoreInput {
   score: number;
   evidence: string;
   status?: 'suggested' | 'confirmed';
@@ -671,7 +656,7 @@ export function unverifyBySource(db: Database, sourceType: string, sourceId: num
 
 /* ---------- Cong giai doan (F-04) ---------- */
 
-export interface GateResult {
+interface GateResult {
   ok: boolean;
   required: number | null;
   bant_total: number;

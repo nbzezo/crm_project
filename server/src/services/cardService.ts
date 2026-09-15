@@ -12,7 +12,7 @@ import { computeMovePosition, nextPosition, STEP } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { HttpError, required } from '../lib/validate.ts';
 
-export interface MoveCardInput {
+interface MoveCardInput {
   list_id: number;
   beforeId?: number | null;
   afterId?: number | null;

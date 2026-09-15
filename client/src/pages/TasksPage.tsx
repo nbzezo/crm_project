@@ -47,7 +47,7 @@ import type {
   TaskRow,
 } from '../types';
 
-export function useTaskQuery() {
+function useTaskQuery() {
   const filters = useUiStore((s) => s.taskFilters);
   const params = {
     q: filters.q,
@@ -87,7 +87,7 @@ export function useTaskQuery() {
   });
 }
 
-export function TaskFilterBar() {
+function TaskFilterBar() {
   const filters = useUiStore((s) => s.taskFilters);
   const setFilters = useUiStore((s) => s.setTaskFilters);
   const resetFilters = useUiStore((s) => s.resetTaskFilters);

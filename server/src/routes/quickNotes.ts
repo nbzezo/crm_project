@@ -57,7 +57,7 @@ router.post('/', (req, res) => {
 });
 
 /** Danh sach tag khong trung — phai dung TRUOC '/:id' de khong bi intParam bat nham. */
-router.get('/tags', (req, res) => res.json(listQuickNoteTags(db)));
+router.get('/tags', (_req, res) => res.json(listQuickNoteTags(db)));
 
 router.get('/:id', (req, res) => res.json(getQuickNote(db, intParam(req.params.id))));
 

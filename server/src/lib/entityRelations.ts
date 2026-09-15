@@ -190,7 +190,7 @@ export function assertOrgKindChange(db: Database, customerId: number, nextKind: 
   }
 }
 
-export interface AssigneeColumns {
+interface AssigneeColumns {
   assignee_contact_id: number | null;
   assignee_org_id: number | null;
 }

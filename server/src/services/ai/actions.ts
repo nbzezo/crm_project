@@ -73,7 +73,7 @@ export const proposedActionSchema = z.discriminatedUnion('type', [
     payload: createInteractionSchema,
   }),
 ]);
-export type ProposedAction = z.infer<typeof proposedActionSchema>;
+type ProposedAction = z.infer<typeof proposedActionSchema>;
 
 export function saveActionProposal(db: Database, requestId: string | null, action: ProposedAction) {
   const info = db
@@ -92,7 +92,7 @@ export function saveActionProposal(db: Database, requestId: string | null, actio
   return getActionProposal(db, Number(info.lastInsertRowid));
 }
 
-export function getActionProposal(db: Database, id: number) {
+function getActionProposal(db: Database, id: number) {
   const row = required(
     db.prepare(`SELECT * FROM ai_action_proposals WHERE id = ?`).get(id) as
       Record<string, unknown> | undefined,

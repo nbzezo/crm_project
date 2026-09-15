@@ -27,7 +27,7 @@ import { formatDate, formatDateShort, formatVNDShort } from '../../lib/format';
 import { AssigneeChip } from '../tasks/AssigneePicker';
 import type { Interaction, OrgKind, Reminder, Stage, TaskRow } from '../../types';
 
-export interface AttentionDeal {
+interface AttentionDeal {
   id: number;
   title: string;
   stage: Stage;
@@ -40,7 +40,7 @@ export interface AttentionDeal {
   days_idle: number;
 }
 
-export interface ExpiringContract {
+interface ExpiringContract {
   id: number;
   name: string;
   number: string | null;
@@ -52,7 +52,7 @@ export interface ExpiringContract {
   renewal_followed: number;
 }
 
-export interface WorkloadRow {
+interface WorkloadRow {
   assignee_contact_id: number | null;
   assignee_name: string | null;
   assignee_org_id: number | null;
@@ -262,7 +262,7 @@ function Metric({ icon: Icon, label, value, hint, tone, featured, to, onClick }:
 
 export type TaskBucketKey = 'overdue' | 'today' | 'tomorrow' | 'next7';
 
-export type RecommendedAction =
+type RecommendedAction =
   | {
       id: string;
       title: string;

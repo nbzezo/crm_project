@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, FileText, Paperclip, Trash2, Upload } from 'lucide-react';
+import { Download, FileText, Trash2, Upload } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Button, EmptyState, Field, Select, focusRing } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -185,15 +185,5 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
         }}
       />
     </div>
-  );
-}
-
-export function DocumentCountBadge({ count }: { count: number }) {
-  if (!count) return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-xs text-tr-muted">
-      <Paperclip size={12} />
-      {count}
-    </span>
   );
 }

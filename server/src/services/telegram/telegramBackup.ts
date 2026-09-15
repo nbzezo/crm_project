@@ -24,7 +24,7 @@ export async function sendBackupToTelegram(db: Database): Promise<{ name: string
 
 /** Kiem tra va gui sao luu dinh ky neu da den han; luon doi lich ke ca khi loi
  *  (giong runDueAutomations) de tranh vong lap thu lai lien tuc khi loi dai han. */
-export async function runDueBackupCheck(db: Database): Promise<void> {
+async function runDueBackupCheck(db: Database): Promise<void> {
   const config = getTelegramConfig(db);
   if (!config.enabled || !config.has_token || !config.chat_id || !config.backup_enabled) return;
 

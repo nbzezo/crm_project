@@ -25,13 +25,6 @@ export function daysFromToday(value?: string | null): number | null {
   return Math.round((date.getTime() - today.getTime()) / DAY_MS);
 }
 
-export function normalizeTaskText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('vi');
-}
-
 /*
  * `isReviewStatus()` và `statusClasses()` đã bị xóa ở v19.
  *

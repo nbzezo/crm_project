@@ -32,11 +32,6 @@ export function backgroundStyle(value: string | null | undefined): React.CSSProp
     : { backgroundColor: background };
 }
 
-/** Mau dai dien (dung cho o vuong nho trong danh sach bang). */
-export function isGradient(value: string | null | undefined): boolean {
-  return Boolean(value?.startsWith('linear-gradient'));
-}
-
 /** Bo mau anh bia the — dung bang mau nhan cua Trello. */
 export const COVER_COLORS = [
   '#4bce97',

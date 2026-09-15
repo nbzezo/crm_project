@@ -27,7 +27,7 @@ function systemPrefersDark(): boolean {
 }
 
 /** Gan thuoc tinh data-theme len <html> de bo token CSS doi theo. */
-export function applyTheme(mode: ThemeMode): void {
+function applyTheme(mode: ThemeMode): void {
   const resolved = mode === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : mode;
   document.documentElement.setAttribute('data-theme', resolved);
 }

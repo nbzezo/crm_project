@@ -34,7 +34,7 @@ export function assertMeetingNoteExists(meetingNoteId: number | null | undefined
   );
 }
 
-export interface DocumentInput extends EntityLinks {
+interface DocumentInput extends EntityLinks {
   /** Rieng Ghi chu nhanh — ngoai nhom EntityLinks dung chung (khong thuoc chuoi "cung khach hang"). */
   quick_note_id?: number | null;
   /** Rieng Ghi chu hop — cung ly do voi quick_note_id o tren. */
