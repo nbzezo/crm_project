@@ -318,6 +318,7 @@ async function generateOpenAiCompatible(
       ],
       max_tokens: request.maxOutputTokens ?? 2048,
       temperature: request.temperature ?? 0.2,
+      stream: false,
       ...(request.json ? { response_format: { type: 'json_object' } } : {}),
     }),
   });
