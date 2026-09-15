@@ -806,3 +806,97 @@ test('dieu huong trong app dua focus vao vung noi dung', async ({ page }, testIn
   await expect(page).toHaveURL(/\/reports$/);
   await expect(page.locator('#main-content')).toBeFocused();
 });
+
+/*
+ * Hai test duoi bao ve mot su co tung lam vo ca trang: cay phu thuoc co HAI ban
+ * React cung luc. `@excalidraw/excalidraw` keo theo `@radix-ui/react-tabs@1.0.2`
+ * voi peer `react: ^16.8 || ^17.0 || ^18.0`, nen npm cai react@18 o node_modules
+ * goc va day react@19 cua client xuong client/node_modules. Moi thu vien duoc
+ * hoist (@mantine/core cua @blocknote/mantine, @tiptap, @radix-ui...) chay tren
+ * React 18, con code app chay tren React 19.
+ *
+ * @mantine/core 9 khai bao peer `react: ^19.2.0` va render context object truc
+ * tiep — `jsx(MantineContext, { value, children })`. React 19 cho phep; React 18
+ * thi canh bao "Rendering <Context> directly is not supported" roi nem
+ * "render is not a function", keo ca trang vao errorElement.
+ *
+ * Bam duoi day la `overrides` trong package.json goc (ep mot ban React duy nhat)
+ * va `resolve.dedupe` trong client/vite.config.ts. Hai test nay se do lai neu
+ * cay phu thuoc tach lam hai ban React lan nua — trieu chung chi lo ra luc chay,
+ * typecheck va build deu khong bat duoc.
+ */
+
+/** Gom loi trang + loi console cho rieng mot test (beforeEach chi gom cho no). */
+function collectPageErrors(page: import('@playwright/test').Page): string[] {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  return errors;
+}
+
+test('ghi chu nhanh: mo trinh soan thao khong lam vo trang', async ({ page }, testInfo) => {
+  const errors = collectPageErrors(page);
+
+  // Duoi md thanh dieu huong nam trong ngan keo, phai mo ra truoc.
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Ghi chú nhanh', exact: true }).first().click();
+  const board = page.getByRole('dialog', { name: 'Ghi chú nhanh' });
+  await expect(board).toBeVisible();
+
+  await board.getByRole('button', { name: 'Ghi chú mới' }).click();
+
+  /* Vung soan thao BlockNote la contenteditable do ProseMirror dung len. No chi
+     xuat hien khi MantineProvider render troi lot — dung cho da vo truoc day. */
+  const editor = page.locator('.bn-editor[contenteditable="true"]');
+  await expect(editor).toBeVisible();
+
+  await editor.pressSequentially('Ghi chu kiem thu');
+  await expect(editor).toContainText('Ghi chu kiem thu');
+
+  await expect(page.getByText('Trang này gặp lỗi')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
+  const errors = collectPageErrors(page);
+
+  /* Moi khoi chen vao MOT ghi chu rieng: sau khi chen, con tro nam trong canvas
+     (mind-elixir / Excalidraw deu tu bat phim), nen go '/' lan hai khong con mo
+     duoc menu slash. Tach ra cung dung y do cua test hon — can biet TUNG canvas
+     tu render duoc, khong phai ca hai phai cung ton tai mot luc. */
+  const blocks = [
+    { title: 'Sơ đồ tư duy', canvas: 'me-root' },
+    { title: 'Sơ đồ logic', canvas: '.excalidraw' },
+  ];
+
+  for (const block of blocks) {
+    await page.goto('/notes');
+    await page.getByRole('button', { name: 'Ghi chú mới' }).click();
+
+    const editor = page.locator('.bn-editor[contenteditable="true"]');
+    await expect(editor).toBeVisible();
+
+    await editor.click();
+    await editor.pressSequentially('/');
+    const menuItem = page.getByRole('option', { name: block.title });
+    await expect(menuItem).toBeVisible();
+    await menuItem.click();
+
+    /* Khoi nam TRONG editor, nen no chi render duoc khi lop Mantine ben ngoai da
+       render xong — do cung la ly do no do theo khi cay co hai ban React.
+       Ca hai canvas deu lazy-load nen cho rong tay hon mac dinh. Chon dung
+       phan tu do THU VIEN dung len (`me-root` cua mind-elixir, `.excalidraw`),
+       khong phai div boc ngoai cua block — div boc van co mat ke ca khi canvas
+       ben trong chet, nen no khong chung minh duoc dieu gi. */
+    await expect(page.locator(block.canvas)).toBeVisible({ timeout: 20_000 });
+
+    await expect(page.getByText('Trang này gặp lỗi')).toHaveCount(0);
+  }
+
+  expect(errors).toEqual([]);
+});
