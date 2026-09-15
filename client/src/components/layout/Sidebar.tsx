@@ -24,6 +24,7 @@ import {
   BarChart3,
   BellRing,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
@@ -67,6 +68,8 @@ interface NavItem {
    * cho sap xep/badge, chi khong duoc dung lam duong dan thuc su.
    */
   isAction?: boolean;
+  /** Muc cap 1 chi gom cac diem den cap 2, khong tu dieu huong. */
+  children?: NavItem[];
 }
 
 type NavGroupId = 'work' | 'sales' | 'insights';
@@ -111,8 +114,15 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     items: [
       { to: '/reports', label: t.nav.reports, icon: BarChart3 },
       { to: '/ai', label: t.nav.ai, icon: Sparkles },
-      { to: '/notes', label: t.nav.notes, icon: NotebookText },
-      { to: '/quick-notes', label: t.nav.quickNotes, icon: NotebookPen, isAction: true },
+      {
+        to: 'notes-group',
+        label: t.nav.notes,
+        icon: NotebookText,
+        children: [
+          { to: '/notes', label: t.nav.meetingNotes, icon: NotebookText, end: true },
+          { to: '/quick-notes', label: t.nav.quickNotes, icon: NotebookPen, isAction: true },
+        ],
+      },
     ],
   },
 ];
@@ -229,9 +239,11 @@ function NavItemLink({
   onNavigate,
   badge = 0,
   badgeTone,
-}: { item: NavItem; onNavigate?: () => void } & NavBadgeProps) {
+  nested = false,
+}: { item: NavItem; onNavigate?: () => void; nested?: boolean } & NavBadgeProps) {
   const Icon = item.icon;
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+  const extra = nested ? 'pl-4 text-xs' : '';
 
   if (item.isAction) {
     return (
@@ -241,7 +253,7 @@ function NavItemLink({
           openQuickNotesBoard();
           onNavigate?.();
         }}
-        className={navItemClass(false)}
+        className={navItemClass(false, extra)}
       >
         <Icon size={16} className="shrink-0" aria-hidden="true" />
         <span className="truncate">{item.label}</span>
@@ -255,7 +267,7 @@ function NavItemLink({
       to={item.to}
       end={item.end}
       onClick={onNavigate}
-      className={({ isActive }) => navItemClass(isActive)}
+      className={({ isActive }) => navItemClass(isActive, extra)}
     >
       <Icon size={16} className="shrink-0" aria-hidden="true" />
       <span className="truncate">{item.label}</span>
@@ -275,6 +287,17 @@ function SortableNavItem({
   });
   const Icon = item.icon;
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+  const { pathname } = useLocation();
+  const [expanded, setExpanded] = useState(true);
+  const childActive = Boolean(
+    item.children?.some(
+      (child) =>
+        !child.isAction &&
+        (child.end
+          ? pathname === child.to
+          : pathname === child.to || pathname.startsWith(`${child.to}/`))
+    )
+  );
   const itemExtra = `pr-12 sm:pr-9 ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`;
 
   return (
@@ -283,7 +306,31 @@ function SortableNavItem({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group relative ${isDragging ? 'z-10 opacity-80' : ''}`}
     >
-      {item.isAction ? (
+      {item.children ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            aria-expanded={expanded}
+            className={navItemClass(childActive, itemExtra)}
+          >
+            <Icon size={16} className="shrink-0" aria-hidden="true" />
+            <span className="truncate">{item.label}</span>
+            <ChevronDown
+              size={14}
+              className={`ml-auto mr-4 shrink-0 transition-transform ${expanded ? '' : '-rotate-90'}`}
+              aria-hidden="true"
+            />
+          </button>
+          {expanded && (
+            <div className="mt-0.5 ml-5 space-y-0.5 border-l border-[var(--tr-nav-border)] pl-1.5">
+              {item.children.map((child) => (
+                <NavItemLink key={child.to} item={child} onNavigate={onNavigate} nested />
+              ))}
+            </div>
+          )}
+        </>
+      ) : item.isAction ? (
         <button
           type="button"
           onClick={() => {
@@ -513,7 +560,8 @@ function CollapsedNav({ order }: { order: NavOrder }) {
     const itemMap = new Map(group.items.map((item) => [item.to, item]));
     return order[group.id]
       .map((to) => itemMap.get(to))
-      .filter((item): item is NavItem => item !== undefined);
+      .filter((item): item is NavItem => item !== undefined)
+      .flatMap((item) => item.children ?? [item]);
   });
 
   return (
