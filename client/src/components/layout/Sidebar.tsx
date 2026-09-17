@@ -24,6 +24,7 @@ import {
   BarChart3,
   BellRing,
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -38,6 +39,7 @@ import {
   ListChecks,
   NotebookPen,
   NotebookText,
+  Pencil,
   RotateCcw,
   Settings,
   Sparkles,
@@ -68,11 +70,9 @@ interface NavItem {
    * cho sap xep/badge, chi khong duoc dung lam duong dan thuc su.
    */
   isAction?: boolean;
-  /** Muc cap 1 chi gom cac diem den cap 2, khong tu dieu huong. */
-  children?: NavItem[];
 }
 
-type NavGroupId = 'work' | 'sales' | 'insights';
+type NavGroupId = 'daily' | 'projects' | 'sales' | 'analytics' | 'tools';
 type NavOrder = Record<NavGroupId, string[]>;
 
 const HOME_NAV: NavItem = {
@@ -82,16 +82,28 @@ const HOME_NAV: NavItem = {
   end: true,
 };
 const SETTINGS_NAV: NavItem = { to: '/settings', label: t.nav.settings, icon: Settings };
+const QUICK_NOTES_NAV: NavItem = {
+  to: '/quick-notes',
+  label: t.nav.quickNotes,
+  icon: NotebookPen,
+  isAction: true,
+};
 const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   {
-    id: 'work',
-    label: t.nav.groupWork,
+    id: 'daily',
+    label: t.nav.groupDaily,
+    items: [
+      { to: '/tasks', label: t.nav.tasks, icon: ListChecks },
+      { to: '/follow-up', label: t.nav.followUpShort, icon: BellRing },
+      { to: '/calendar', label: t.nav.calendar, icon: CalendarDays },
+    ],
+  },
+  {
+    id: 'projects',
+    label: t.nav.groupProjects,
     items: [
       { to: '/projects', label: t.nav.projects, icon: FolderKanban },
       { to: '/boards', label: t.nav.boards, icon: Trello },
-      { to: '/tasks', label: t.nav.tasks, icon: ListChecks },
-      { to: '/follow-up', label: t.nav.followUp, icon: BellRing },
-      { to: '/calendar', label: t.nav.calendar, icon: CalendarDays },
       { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare },
       { to: '/documents', label: t.nav.documents, icon: FolderOpen },
     ],
@@ -100,39 +112,37 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     id: 'sales',
     label: t.nav.groupSales,
     items: [
-      { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
       { to: '/customers', label: t.nav.customers, icon: Users },
       { to: '/pipeline', label: t.nav.pipeline, icon: Target },
-      { to: '/pipeline-health', label: t.nav.pipelineHealth, icon: Activity },
       { to: '/contracts', label: t.nav.contracts, icon: FileSignature },
       { to: '/revenue', label: t.nav.revenue, icon: CircleDollarSign },
+      { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
     ],
   },
   {
-    id: 'insights',
-    label: t.nav.groupInsights,
+    id: 'analytics',
+    label: t.nav.groupAnalytics,
     items: [
       { to: '/reports', label: t.nav.reports, icon: BarChart3 },
+      { to: '/pipeline-health', label: t.nav.pipelineHealth, icon: Activity },
+    ],
+  },
+  {
+    id: 'tools',
+    label: t.nav.groupTools,
+    items: [
       { to: '/ai', label: t.nav.ai, icon: Sparkles },
-      {
-        to: 'notes-group',
-        label: t.nav.notes,
-        icon: NotebookText,
-        children: [
-          { to: '/notes', label: t.nav.meetingNotes, icon: NotebookText, end: true },
-          { to: '/quick-notes', label: t.nav.quickNotes, icon: NotebookPen, isAction: true },
-        ],
-      },
+      { to: '/notes', label: t.nav.notes, icon: NotebookText, end: true },
     ],
   },
 ];
 
-const DEFAULT_NAV_ORDER: NavOrder = {
-  work: NAV_GROUPS[0].items.map((item) => item.to),
-  sales: NAV_GROUPS[1].items.map((item) => item.to),
-  insights: NAV_GROUPS[2].items.map((item) => item.to),
-};
-const NAV_ORDER_STORAGE_KEY = 'workflow-sidebar-nav-order-v1';
+const DEFAULT_NAV_ORDER = Object.fromEntries(
+  NAV_GROUPS.map((group) => [group.id, group.items.map((item) => item.to)])
+) as NavOrder;
+/* v2 co so do nhom moi; khong tai thu tu v1 vi cac muc da chuyen qua nhom khac. */
+const NAV_ORDER_STORAGE_KEY = 'workflow-sidebar-nav-order-v2';
+const NAV_GROUPS_COLLAPSED_STORAGE_KEY = 'workflow-sidebar-groups-collapsed-v1';
 
 function normalizeNavOrder(value: unknown): NavOrder {
   const saved = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -173,6 +183,23 @@ function loadCollapsed(): boolean {
     return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+type CollapsedGroups = Partial<Record<NavGroupId, boolean>>;
+
+function loadCollapsedGroups(): CollapsedGroups {
+  if (typeof window === 'undefined') return {};
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(NAV_GROUPS_COLLAPSED_STORAGE_KEY) ?? '{}'
+    ) as unknown;
+    if (!value || typeof value !== 'object') return {};
+    return Object.fromEntries(
+      NAV_GROUPS.map((group) => [group.id, (value as Record<string, unknown>)[group.id] === true])
+    ) as CollapsedGroups;
+  } catch {
+    return {};
   }
 }
 
@@ -239,11 +266,9 @@ function NavItemLink({
   onNavigate,
   badge = 0,
   badgeTone,
-  nested = false,
-}: { item: NavItem; onNavigate?: () => void; nested?: boolean } & NavBadgeProps) {
+}: { item: NavItem; onNavigate?: () => void } & NavBadgeProps) {
   const Icon = item.icon;
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
-  const extra = nested ? 'pl-4 text-xs' : '';
 
   if (item.isAction) {
     return (
@@ -253,7 +278,7 @@ function NavItemLink({
           openQuickNotesBoard();
           onNavigate?.();
         }}
-        className={navItemClass(false, extra)}
+        className={navItemClass(false)}
       >
         <Icon size={16} className="shrink-0" aria-hidden="true" />
         <span className="truncate">{item.label}</span>
@@ -267,7 +292,7 @@ function NavItemLink({
       to={item.to}
       end={item.end}
       onClick={onNavigate}
-      className={({ isActive }) => navItemClass(isActive, extra)}
+      className={({ isActive }) => navItemClass(isActive)}
     >
       <Icon size={16} className="shrink-0" aria-hidden="true" />
       <span className="truncate">{item.label}</span>
@@ -287,17 +312,6 @@ function SortableNavItem({
   });
   const Icon = item.icon;
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
-  const { pathname } = useLocation();
-  const [expanded, setExpanded] = useState(true);
-  const childActive = Boolean(
-    item.children?.some(
-      (child) =>
-        !child.isAction &&
-        (child.end
-          ? pathname === child.to
-          : pathname === child.to || pathname.startsWith(`${child.to}/`))
-    )
-  );
   const itemExtra = `pr-12 sm:pr-9 ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`;
 
   return (
@@ -306,31 +320,7 @@ function SortableNavItem({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group relative ${isDragging ? 'z-10 opacity-80' : ''}`}
     >
-      {item.children ? (
-        <>
-          <button
-            type="button"
-            onClick={() => setExpanded((current) => !current)}
-            aria-expanded={expanded}
-            className={navItemClass(childActive, itemExtra)}
-          >
-            <Icon size={16} className="shrink-0" aria-hidden="true" />
-            <span className="truncate">{item.label}</span>
-            <ChevronDown
-              size={14}
-              className={`ml-auto mr-4 shrink-0 transition-transform ${expanded ? '' : '-rotate-90'}`}
-              aria-hidden="true"
-            />
-          </button>
-          {expanded && (
-            <div className="mt-0.5 ml-5 space-y-0.5 border-l border-[var(--tr-nav-border)] pl-1.5">
-              {item.children.map((child) => (
-                <NavItemLink key={child.to} item={child} onNavigate={onNavigate} nested />
-              ))}
-            </div>
-          )}
-        </>
-      ) : item.isAction ? (
+      {item.isAction ? (
         <button
           type="button"
           onClick={() => {
@@ -373,9 +363,9 @@ function StarredBoards({ boards, onNavigate }: { boards: Board[]; onNavigate?: (
   if (boards.length === 0) return null;
 
   return (
-    <section aria-label="Bảng đã gắn sao" className="mt-2 border-l border-tr-border/80 pl-1">
+    <section aria-label="Đã ghim" className="mt-2 border-l border-tr-border/80 pl-1">
       <h3 className="mb-1 flex items-center gap-1.5 px-3 text-xs font-semibold text-tr-muted">
-        <Star size={11} aria-hidden="true" /> Bảng đã gắn sao
+        <Star size={11} aria-hidden="true" /> Đã ghim
       </h3>
       {boards.map((board) => (
         <NavLink
@@ -400,18 +390,45 @@ interface SidebarNavProps {
   order: NavOrder;
   onOrderChange: (next: NavOrder) => void;
   onNavigate?: () => void;
+  allowCustomize?: boolean;
 }
 
 /** Phan noi dung dung chung cho ca thanh ben co dinh lan ngan keo tren mobile. */
-function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
+function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }: SidebarNavProps) {
   const { data: boards = [] } = useBoards();
-  const starred = boards.filter((board) => board.is_starred);
+  const starred = boards.filter((board) => board.is_starred).slice(0, 5);
   const badges = useNavBadges();
+  const { pathname } = useLocation();
+  const [editMode, setEditMode] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedGroups);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  /* Khi den mot trang bang link sau hoac nut Back, luon mo nhom chua trang do. */
+  useEffect(() => {
+    const activeGroup = NAV_GROUPS.find((group) =>
+      group.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))
+    );
+    if (!activeGroup) return;
+    setCollapsedGroups((current) =>
+      current[activeGroup.id] ? { ...current, [activeGroup.id]: false } : current
+    );
+  }, [pathname]);
+
+  const toggleGroup = (groupId: NavGroupId) => {
+    setCollapsedGroups((current) => {
+      const next = { ...current, [groupId]: !current[groupId] };
+      try {
+        localStorage.setItem(NAV_GROUPS_COLLAPSED_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Trinh duyet chan storage van khong duoc lam hong thao tac thu gon nhom.
+      }
+      return next;
+    });
+  };
 
   /* Id cua muc dieu huong chinh la duong dan (`/tasks`), doc len nghe nhu duong
      dan ky thuat — doi sang dung nhan hien tren man hinh. */
@@ -445,20 +462,52 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
     <>
       <nav aria-label={t.app.name} className="px-2.5 py-3">
         <NavItemLink item={HOME_NAV} onNavigate={onNavigate} />
+        <StarredBoards boards={starred} onNavigate={onNavigate} />
+
+        {allowCustomize && (
+          <div className="mt-2 flex justify-end px-1">
+            <button
+              type="button"
+              onClick={() => setEditMode((current) => !current)}
+              aria-pressed={editMode}
+              className={`flex min-h-9 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${focusRing}`}
+            >
+              {editMode ? (
+                <Check size={13} aria-hidden="true" />
+              ) : (
+                <Pencil size={13} aria-hidden="true" />
+              )}
+              {editMode ? 'Xong' : 'Tùy chỉnh menu'}
+            </button>
+          </div>
+        )}
 
         {NAV_GROUPS.map((group) => {
           const itemMap = new Map(group.items.map((item) => [item.to, item]));
           const items = order[group.id]
             .map((to) => itemMap.get(to))
             .filter((item): item is NavItem => item !== undefined);
+          const isCollapsed = collapsedGroups[group.id] === true;
 
           return (
             <section key={group.id} aria-label={group.label} className="mt-3">
               <div className="mb-1 flex min-h-5 items-center px-3">
-                <h3 className="text-xs font-semibold tracking-[0.08em] text-tr-muted uppercase">
-                  {group.label}
+                <h3 className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.id)}
+                    aria-expanded={!isCollapsed}
+                    className={`flex w-full items-center gap-1.5 rounded-control text-left text-xs font-semibold tracking-[0.08em] text-tr-muted uppercase transition hover:text-[var(--tr-nav-text)] ${focusRing}`}
+                  >
+                    <ChevronDown
+                      size={12}
+                      className={`shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">{group.label}</span>
+                  </button>
                 </h3>
-                {!isGroupDefaultOrder(group.id, order) && (
+                {editMode && !isGroupDefaultOrder(group.id, order) && (
                   <button
                     type="button"
                     onClick={() =>
@@ -472,16 +521,32 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
                   </button>
                 )}
               </div>
-              <DndContext
-                sensors={sensors}
-                accessibility={{ announcements }}
-                collisionDetection={closestCenter}
-                onDragEnd={(event) => onDragEnd(group.id, event)}
-              >
-                <SortableContext items={order[group.id]} strategy={verticalListSortingStrategy}>
+              {!isCollapsed &&
+                (editMode ? (
+                  <DndContext
+                    sensors={sensors}
+                    accessibility={{ announcements }}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event) => onDragEnd(group.id, event)}
+                  >
+                    <SortableContext items={order[group.id]} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-0.5">
+                        {items.map((item) => (
+                          <SortableNavItem
+                            key={item.to}
+                            item={item}
+                            onNavigate={onNavigate}
+                            badge={badges[item.to]}
+                            badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                ) : (
                   <div className="space-y-0.5">
                     {items.map((item) => (
-                      <SortableNavItem
+                      <NavItemLink
                         key={item.to}
                         item={item}
                         onNavigate={onNavigate}
@@ -490,15 +555,14 @@ function SidebarNav({ order, onOrderChange, onNavigate }: SidebarNavProps) {
                       />
                     ))}
                   </div>
-                </SortableContext>
-              </DndContext>
-              {group.id === 'work' && <StarredBoards boards={starred} onNavigate={onNavigate} />}
+                ))}
             </section>
           );
         })}
       </nav>
 
       <div className="mt-auto border-t border-[var(--tr-nav-border)] px-2.5 pt-2 pb-3">
+        <NavItemLink item={QUICK_NOTES_NAV} onNavigate={onNavigate} />
         <NavItemLink item={SETTINGS_NAV} onNavigate={onNavigate} />
         <div className="mt-2 hidden px-3 text-xs text-tr-muted sm:block">{t.search.hint}</div>
       </div>
@@ -556,27 +620,35 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
 /** Dai thu gon: chi hien icon, bo qua bang gan sao va keo-tha de giu don gian. */
 function CollapsedNav({ order }: { order: NavOrder }) {
   const badges = useNavBadges();
-  const items = NAV_GROUPS.flatMap((group) => {
-    const itemMap = new Map(group.items.map((item) => [item.to, item]));
-    return order[group.id]
-      .map((to) => itemMap.get(to))
-      .filter((item): item is NavItem => item !== undefined)
-      .flatMap((item) => item.children ?? [item]);
-  });
 
   return (
     <nav aria-label={t.app.name} className="flex flex-1 flex-col items-center gap-1 py-3">
       <CollapsedNavLink item={HOME_NAV} />
-      <div className="my-1.5 h-px w-6 bg-[var(--tr-nav-border)]" aria-hidden="true" />
-      {items.map((item) => (
-        <CollapsedNavLink
-          key={item.to}
-          item={item}
-          badge={badges[item.to]}
-          badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
-        />
-      ))}
-      <div className="mt-auto pt-2">
+      {NAV_GROUPS.map((group) => {
+        const itemMap = new Map(group.items.map((item) => [item.to, item]));
+        const items = order[group.id]
+          .map((to) => itemMap.get(to))
+          .filter((item): item is NavItem => item !== undefined);
+        return (
+          <div
+            key={group.id}
+            role="group"
+            aria-label={group.label}
+            className="flex flex-col items-center gap-1 border-t border-[var(--tr-nav-border)] pt-1"
+          >
+            {items.map((item) => (
+              <CollapsedNavLink
+                key={item.to}
+                item={item}
+                badge={badges[item.to]}
+                badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+              />
+            ))}
+          </div>
+        );
+      })}
+      <div className="mt-auto flex flex-col gap-1 border-t border-[var(--tr-nav-border)] pt-2">
+        <CollapsedNavLink item={QUICK_NOTES_NAV} />
         <CollapsedNavLink item={SETTINGS_NAV} />
       </div>
     </nav>
@@ -680,7 +752,7 @@ export function Sidebar() {
           >
             <ChevronLeft size={14} aria-hidden="true" />
           </button>
-          <SidebarNav order={navOrder} onOrderChange={updateNavOrder} />
+          <SidebarNav order={navOrder} onOrderChange={updateNavOrder} allowCustomize />
         </aside>
       )}
     </>

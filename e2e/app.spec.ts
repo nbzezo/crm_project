@@ -49,6 +49,44 @@ test.beforeEach(async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh', async ({
+  page,
+}, testInfo) => {
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
+  }
+
+  const container =
+    testInfo.project.name === 'mobile-chromium'
+      ? page.getByRole('dialog')
+      : page.getByRole('complementary');
+
+  for (const group of [
+    'Công việc hôm nay',
+    'Quản lý dự án',
+    'Khách hàng & kinh doanh',
+    'Phân tích',
+    'Công cụ',
+  ]) {
+    await expect(container.getByRole('button', { name: group, exact: true })).toBeVisible();
+  }
+  await expect(container.getByRole('link', { name: 'Sức khỏe pipeline' })).toBeVisible();
+  await expect(container.getByRole('button', { name: 'Ghi nhanh', exact: true })).toBeVisible();
+
+  await container.getByRole('button', { name: 'Công cụ', exact: true }).click();
+  await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toBeHidden();
+  await container.getByRole('button', { name: 'Công cụ', exact: true }).click();
+  await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
+
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(container.getByRole('button', { name: 'Sắp xếp Công việc' })).toHaveCount(0);
+    await container.getByRole('button', { name: 'Tùy chỉnh menu' }).click();
+    await expect(container.getByRole('button', { name: 'Sắp xếp Công việc' })).toBeVisible();
+    await container.getByRole('button', { name: 'Xong' }).click();
+    await expect(container.getByRole('button', { name: 'Sắp xếp Công việc' })).toHaveCount(0);
+  }
+});
+
 test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
   // Bo theme rut con bon: sang, toi, Zoho, Ubuntu. Quet axe tren tung theme vi
   // tuong phan la thu duy nhat khong the suy ra tu theme nay sang theme khac.
@@ -845,7 +883,7 @@ test('ghi chu nhanh: mo trinh soan thao khong lam vo trang', async ({ page }, te
     await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
   }
-  await page.getByRole('button', { name: 'Ghi chú nhanh', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Ghi nhanh', exact: true }).click();
   const board = page.getByRole('dialog', { name: 'Ghi chú nhanh' });
   await expect(board).toBeVisible();
 
