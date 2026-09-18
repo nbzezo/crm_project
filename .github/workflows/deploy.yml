@@ -57,10 +57,12 @@ jobs:
 
       - name: Rebuild and restart containers
         run: |
-          # nginx.conf duoc bind-mount nen `up -d` khong tao lai container nginx khi
-          # chi noi dung file doi — phai nap lai cau hinh, neu khong cac gioi han
-          # client_max_body_size / proxy_read_timeout moi se khong co hieu luc.
-          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build && (docker compose exec -T nginx nginx -t && docker compose exec -T nginx nginx -s reload || docker compose restart nginx)'
+          # nginx.conf duoc bind-mount theo TUNG TEP, ma Docker gan mount vao inode
+          # chu khong phai duong dan. Buoc rsync o tren ghi file tam roi rename de len,
+          # tao ra mot inode moi — container nginx dang chay van doc inode cu, nen ca
+          # `nginx -s reload` lan `docker compose restart nginx` deu khong thay noi dung
+          # moi. Chi tao lai container moi gan lai mount, nen phai --force-recreate.
+          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build && docker compose up -d --force-recreate nginx'
 
       - name: Health check
         run: |
