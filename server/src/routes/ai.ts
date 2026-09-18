@@ -38,7 +38,9 @@ import {
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
+  getVoiceModel,
   getVoicePromptTemplates,
+  saveVoiceModel,
   saveVoicePromptTemplates,
   type VoicePromptTemplate,
 } from '../services/ai/promptTemplates.ts';
@@ -568,6 +570,15 @@ router.post('/assist/meeting-note/:id/inline', async (req, res) => {
   }
 });
 
+/**
+ * Gemini gioi han ~20MB cho TOAN BO request chua `inline_data`, con multer cho
+ * phep tai len 25MB (documents.ts). Chan som o day de nguoi dung nhan mot cau
+ * giai thich thay vi mot loi 400 tu nha cung cap dich thanh 502.
+ */
+const MAX_INLINE_AUDIO_BYTES = 18 * 1024 * 1024;
+/** Doc het mot ban ghi vai phut lau hon nhieu so voi mac dinh 45s cua providers.ts. */
+const VOICE_CONVERT_TIMEOUT_MS = 180_000;
+
 const voicePromptTemplateSchema = z.object({
   key: z.string().trim().min(1).max(50),
   name: z.string().trim().min(1).max(100),
@@ -585,6 +596,21 @@ router.put('/voice-prompt-templates', (req, res) => {
   res.json(body);
 });
 
+const voiceModelSchema = z.object({
+  provider: z.enum(AI_PROVIDERS).nullable(),
+  model: z.string().trim().max(200).nullable(),
+});
+
+router.get('/voice-model', (_req, res) => {
+  res.json(getVoiceModel(db));
+});
+
+router.put('/voice-model', (req, res) => {
+  const body = parseBody(voiceModelSchema, req);
+  saveVoiceModel(db, body);
+  res.json(getVoiceModel(db));
+});
+
 const voiceNoteConvertSchema = z.object({
   document_id: z.number().int().positive(),
   template_key: z.string().trim().min(1).max(50).optional(),
@@ -597,9 +623,13 @@ const voiceNoteConvertResponse = z.object({ text: z.string() });
  * prompt da cau hinh. Dung chung cho ca Ghi chu hop lan Ghi chu nhanh: endpoint
  * chi can `document_id`, khong quan tam ban ghi thuoc loai ghi chu nao.
  *
- * `requiresCapability: 'audioInput'` de gateway.ts tu loc dung nha cung cap
- * doc duoc audio (hien chi Gemini) — xem providers.ts, khong tu ep provider
- * thu cong o day.
+ * Model: neu nguoi dung da chon trong Cai dat thi ghim cung provider + model do;
+ * neu de "tu dong" thi `requiresCapability: 'audioInput'` cho gateway.ts tu loc
+ * nha cung cap doc duoc audio (hien chi Gemini) — xem providers.ts.
+ *
+ * Han gio rieng `VOICE_CONVERT_TIMEOUT_MS`: mac dinh 45s cua providers.ts du cho
+ * mot cau chat nhung khong du de mot model doc het ban ghi vai phut, va lan het
+ * gio do noi len giao dien thanh dung mot con so 502 khong noi len dieu gi.
  */
 router.post('/assist/voice-note/convert', async (req, res) => {
   try {
@@ -615,6 +645,14 @@ router.post('/assist/voice-note/convert', async (req, res) => {
 
     const filePath = safeFilePath(doc.stored_name);
     if (!fs.existsSync(filePath)) throw new HttpError(404, 'Tệp ghi âm không còn trên ổ đĩa');
+    const bytes = fs.statSync(filePath).size;
+    if (bytes > MAX_INLINE_AUDIO_BYTES) {
+      throw new HttpError(
+        413,
+        `Bản ghi ${(bytes / 1024 / 1024).toFixed(1)}MB vượt giới hạn ` +
+          `${MAX_INLINE_AUDIO_BYTES / 1024 / 1024}MB cho một lần chuyển. Hãy chia thành nhiều đoạn ngắn hơn.`
+      );
+    }
     const dataBase64 = fs.readFileSync(filePath).toString('base64');
 
     let system: string;
@@ -631,10 +669,14 @@ router.post('/assist/voice-note/convert', async (req, res) => {
       prompt = 'Chuyển đoạn ghi âm đính kèm thành văn bản đầy đủ.';
     }
 
+    const voiceModel = getVoiceModel(db);
     const result = await runAi(db, {
       task: 'voice_note_convert',
       mode: 'fast',
-      requiresCapability: 'audioInput',
+      ...(voiceModel.provider && voiceModel.model
+        ? { provider: voiceModel.provider, model: voiceModel.model }
+        : { requiresCapability: 'audioInput' as const }),
+      timeoutMs: VOICE_CONVERT_TIMEOUT_MS,
       maxOutputTokens: 4000,
       system,
       prompt,

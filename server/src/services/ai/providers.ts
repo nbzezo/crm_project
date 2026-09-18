@@ -234,7 +234,8 @@ async function generateGemini(
           ...(request.json ? { responseMimeType: 'application/json' } : {}),
         },
       }),
-    }
+    },
+    request.timeoutMs
   );
   const candidate = asRecord(asArray(body.candidates)[0]);
   const content = asRecord(candidate.content);
@@ -254,40 +255,44 @@ async function generateAnthropic(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
-  const body = await fetchJson(`${baseUrl(connection.baseUrl)}/v1/messages`, {
-    method: 'POST',
-    headers: {
-      ...JSON_HEADERS,
-      'x-api-key': connection.apiKey,
-      'anthropic-version': '2023-06-01',
+  const body = await fetchJson(
+    `${baseUrl(connection.baseUrl)}/v1/messages`,
+    {
+      method: 'POST',
+      headers: {
+        ...JSON_HEADERS,
+        'x-api-key': connection.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: request.model,
+        max_tokens: request.maxOutputTokens ?? 2048,
+        temperature: request.temperature ?? 0.2,
+        system: request.system,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              ...(request.attachments ?? []).map((file) => ({
+                // Anthropic tach anh va tai lieu thanh hai loai khoi noi dung khac nhau.
+                type: file.mime.startsWith('image/') ? 'image' : 'document',
+                source: { type: 'base64', media_type: file.mime, data: file.dataBase64 },
+              })),
+              { type: 'text', text: request.prompt },
+            ],
+          },
+          /*
+           * Anthropic khong co tham so ep JSON nhu Gemini/DeepSeek. Moi cho mot luot
+           * assistant bang dau '{' la cach duy nhat lam mo hinh bat dau ngay bang doi
+           * tuong JSON thay vi mot cau dan nhap — phan mo dau nay khong nam trong
+           * phan hoi nen phai tu ghep lai ben duoi.
+           */
+          ...(request.json ? [{ role: 'assistant', content: '{' }] : []),
+        ],
+      }),
     },
-    body: JSON.stringify({
-      model: request.model,
-      max_tokens: request.maxOutputTokens ?? 2048,
-      temperature: request.temperature ?? 0.2,
-      system: request.system,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            ...(request.attachments ?? []).map((file) => ({
-              // Anthropic tach anh va tai lieu thanh hai loai khoi noi dung khac nhau.
-              type: file.mime.startsWith('image/') ? 'image' : 'document',
-              source: { type: 'base64', media_type: file.mime, data: file.dataBase64 },
-            })),
-            { type: 'text', text: request.prompt },
-          ],
-        },
-        /*
-         * Anthropic khong co tham so ep JSON nhu Gemini/DeepSeek. Moi cho mot luot
-         * assistant bang dau '{' la cach duy nhat lam mo hinh bat dau ngay bang doi
-         * tuong JSON thay vi mot cau dan nhap — phan mo dau nay khong nam trong
-         * phan hoi nen phai tu ghep lai ben duoi.
-         */
-        ...(request.json ? [{ role: 'assistant', content: '{' }] : []),
-      ],
-    }),
-  });
+    request.timeoutMs
+  );
   const raw = asArray(body.content)
     .map((part) => asRecord(part))
     .filter((part) => part.type === 'text')
@@ -307,21 +312,25 @@ async function generateOpenAiCompatible(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
-  const body = await fetchJson(`${baseUrl(connection.baseUrl)}/chat/completions`, {
-    method: 'POST',
-    headers: { ...JSON_HEADERS, authorization: `Bearer ${connection.apiKey}` },
-    body: JSON.stringify({
-      model: request.model,
-      messages: [
-        { role: 'system', content: request.system },
-        { role: 'user', content: request.prompt },
-      ],
-      max_tokens: request.maxOutputTokens ?? 2048,
-      temperature: request.temperature ?? 0.2,
-      stream: false,
-      ...(request.json ? { response_format: { type: 'json_object' } } : {}),
-    }),
-  });
+  const body = await fetchJson(
+    `${baseUrl(connection.baseUrl)}/chat/completions`,
+    {
+      method: 'POST',
+      headers: { ...JSON_HEADERS, authorization: `Bearer ${connection.apiKey}` },
+      body: JSON.stringify({
+        model: request.model,
+        messages: [
+          { role: 'system', content: request.system },
+          { role: 'user', content: request.prompt },
+        ],
+        max_tokens: request.maxOutputTokens ?? 2048,
+        temperature: request.temperature ?? 0.2,
+        stream: false,
+        ...(request.json ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    },
+    request.timeoutMs
+  );
   const choice = asRecord(asArray(body.choices)[0]);
   const message = asRecord(choice.message);
   const usage = asRecord(body.usage);

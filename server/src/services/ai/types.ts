@@ -41,6 +41,8 @@ export interface GenerateRequest {
   temperature?: number;
   json?: boolean;
   attachments?: AiAttachment[];
+  /** Han gio cho lan goi HTTP nay; bo trong thi dung mac dinh trong providers.ts. */
+  timeoutMs?: number;
 }
 
 export interface GenerateResult {
@@ -54,6 +56,12 @@ type AiTaskMode = 'fast' | 'balanced' | 'reasoning';
 export interface AiRunRequest {
   task: string;
   mode?: AiTaskMode;
+  /**
+   * Chi dinh DONG THOI `provider` + `model` = ghim cung: gateway chi goi dung nha
+   * cung cap do, khong fallback va khong loc theo `requiresCapability` (nguoi dung
+   * da chon co chu dich trong Cai dat). Chi dat mot minh `provider` thi van chi la
+   * uu tien thu truoc, cac nha cung cap con lai van duoc dung khi loi.
+   */
   provider?: AiProviderName;
   model?: string;
   system: string;
@@ -63,6 +71,11 @@ export interface AiRunRequest {
   contextType?: string;
   contextId?: number;
   attachments?: AiAttachment[];
+  /**
+   * Han gio cho MOI lan goi nha cung cap. Mac dinh 45s du cho mot cau chat nhung
+   * khong du cho tac vu doc ban ghi am dai — het gio bien thanh 502 kho hieu o route.
+   */
+  timeoutMs?: number;
   /**
    * Chi dung nha cung cap co model dap ung nang luc nay.
    *

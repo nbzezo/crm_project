@@ -1,6 +1,6 @@
 import type { Priority } from '../types';
 
-type AiProviderName = 'gemini' | 'anthropic' | 'deepseek' | '9router';
+export type AiProviderName = 'gemini' | 'anthropic' | 'deepseek' | '9router';
 export type AiMode = 'fast' | 'balanced' | 'reasoning';
 
 export const TASK_LINK_KEYS = [
@@ -22,6 +22,8 @@ interface AiModel {
     vision?: boolean;
     documentInput?: boolean;
     reasoning?: boolean;
+    /** Đọc trực tiếp dữ liệu audio — điều kiện để dùng cho chuyển ghi âm thành văn bản. */
+    audioInput?: boolean;
   };
   input_token_limit: number | null;
   output_token_limit: number | null;
@@ -54,6 +56,15 @@ export interface VoicePromptTemplate {
   key: string;
   name: string;
   prompt: string;
+}
+
+/**
+ * Model dùng cho chuyển ghi âm thành văn bản. Cả hai trường null = để hệ thống tự
+ * chọn nhà cung cấp đọc được audio; chọn tay thì backend ghim cứng đúng model đó.
+ */
+export interface VoiceModelSetting {
+  provider: AiProviderName | null;
+  model: string | null;
 }
 
 interface AiMeta {

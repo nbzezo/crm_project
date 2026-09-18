@@ -12,7 +12,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import type { AiProviderConfig, VoicePromptTemplate } from '../../ai/types';
+import type { AiProviderConfig, VoiceModelSetting, VoicePromptTemplate } from '../../ai/types';
 import { Button, Field, FormError, Input, Panel, Select, Textarea, focusRing } from '../common/ui';
 import { useUiStore } from '../../stores/uiStore';
 
@@ -262,7 +262,103 @@ function slugifyKey(name: string, taken: Set<string>): string {
   return candidate;
 }
 
-function VoicePromptTemplatesSettings() {
+/**
+ * Chon model chuyen ghi am -> van ban.
+ *
+ * Tach khoi ba o model cua tung nha cung cap vi day la lua chon theo TAC VU chu
+ * khong theo nha cung cap: chi mot so model doc duoc audio, va khi chon tay thi
+ * backend ghim cung dung model do thay vi fallback sang model khong doc duoc
+ * (nguyen nhan cu cua loi 502 "khong doc duoc tep dinh kem").
+ */
+function VoiceModelSettings({ providers }: { providers: AiProviderConfig[] }) {
+  const queryClient = useQueryClient();
+  const pushToast = useUiStore((state) => state.pushToast);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['ai-voice-model'],
+    queryFn: () => api.get<VoiceModelSetting>('/api/ai/voice-model'),
+  });
+
+  const [choice, setChoice] = useState<string | null>(null);
+  const saved = data?.provider && data.model ? `${data.provider}::${data.model}` : '';
+  const value = choice ?? saved;
+
+  const save = useMutation({
+    mutationFn: () => {
+      // Tach o dau '::' DAU TIEN: model_id cua vai nha cung cap co dau ':' ben trong.
+      const cut = value.indexOf('::');
+      const body =
+        cut > 0
+          ? { provider: value.slice(0, cut), model: value.slice(cut + 2) }
+          : { provider: null, model: null };
+      return api.put<VoiceModelSetting>('/api/ai/voice-model', body);
+    },
+    onSuccess: (next) => {
+      queryClient.setQueryData(['ai-voice-model'], next);
+      setChoice(null);
+      pushToast('Đã lưu model cho ghi âm', 'success');
+    },
+  });
+
+  const options = providers.flatMap((provider) =>
+    provider.models
+      .filter((model) => model.is_available)
+      .map((model) => ({
+        key: `${provider.provider}::${model.model_id}`,
+        label: `${provider.display_name} · ${model.display_name}`,
+        audio: Boolean(model.capabilities.audioInput),
+      }))
+  );
+  const selected = options.find((option) => option.key === value);
+
+  return (
+    <div className="rounded-panel border border-tr-border bg-tr-list p-3">
+      <FormError error={error ?? save.error} />
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[260px] flex-1">
+          <Field
+            label="Model chuyển ghi âm thành văn bản"
+            hint="Để trống là tự động chọn nhà cung cấp đầu tiên đọc được audio."
+          >
+            <Select
+              value={value}
+              disabled={isLoading}
+              onChange={(event) => setChoice(event.target.value)}
+            >
+              <option value="">— tự động —</option>
+              {options.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                  {option.audio ? ' · audio' : ''}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Button
+          variant="primary"
+          disabled={save.isPending || isLoading || value === saved}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? 'Đang lưu…' : 'Lưu model'}
+        </Button>
+      </div>
+      {selected && !selected.audio && (
+        <p className="mt-2 text-xs text-tr-warning">
+          Model này không được đánh dấu đọc được audio. Vẫn dùng được nếu nhà cung cấp hỗ trợ, nhưng
+          nếu chuyển ghi âm báo lỗi thì hãy đổi sang model có nhãn “audio”.
+        </p>
+      )}
+      {options.length === 0 && (
+        <p className="mt-2 text-xs text-tr-muted">
+          Chưa có model nào — bấm “Đồng bộ model” ở nhà cung cấp phía trên trước.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function VoicePromptTemplatesSettings({ providers }: { providers: AiProviderConfig[] }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
 
@@ -299,7 +395,7 @@ function VoicePromptTemplatesSettings() {
     <Panel
       title={
         <span className="flex items-center gap-2">
-          <Mic size={16} className="text-tr-primary" /> Mẫu prompt cho ghi âm
+          <Mic size={16} className="text-tr-primary" /> Ghi âm → văn bản
         </span>
       }
     >
@@ -308,6 +404,10 @@ function VoicePromptTemplatesSettings() {
         nguyên văn" hoặc một trong các mẫu tóm tắt dưới đây.
       </p>
       <FormError error={error ?? save.error} />
+
+      <div className="mb-4">
+        <VoiceModelSettings providers={providers} />
+      </div>
 
       <ul className="space-y-3">
         {draft.map((item, index) => (
@@ -403,7 +503,7 @@ export function AiSettings() {
         </div>
       </Panel>
 
-      <VoicePromptTemplatesSettings />
+      <VoicePromptTemplatesSettings providers={providers} />
     </div>
   );
 }

@@ -783,7 +783,13 @@ function UsageTab() {
                     {item.input_tokens + item.output_tokens}
                   </td>
                   <td className="px-3 py-2">
-                    {item.status}
+                    <span className={item.status === 'success' ? '' : 'text-tr-danger'}>
+                      {item.status}
+                    </span>
+                    {/* error_code la manh thong tin duy nhat noi ro vi sao mot lan goi
+                        that bai (timeout, provider_429, capability_missing…) — thieu no
+                        thi moi loi deu chi hien ra ngoai thanh mot con so 502. */}
+                    {item.error_code ? ` · ${item.error_code}` : ''}
                     {item.fallback_count ? ` · fallback ${item.fallback_count}` : ''}
                   </td>
                 </tr>

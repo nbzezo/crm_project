@@ -33,8 +33,14 @@ function estimateCost(config: GatewayConfig, inputTokens: number, outputTokens: 
   );
 }
 
+/**
+ * `request.model` chi ap dung cho nha cung cap duoc chi dinh: truoc day no duoc
+ * gan cho MOI nha cung cap trong vong fallback, nghia la mot model `gemini-*`
+ * co the bi gui sang Anthropic va that bai voi loi kho hieu.
+ */
 function modelFor(config: GatewayConfig, request: AiRunRequest): string | null {
-  if (request.model) return request.model;
+  if (request.model && (!request.provider || request.provider === config.provider))
+    return request.model;
   if (request.mode === 'fast') return config.fast_model ?? config.default_model;
   if (request.mode === 'reasoning') return config.reasoning_model ?? config.default_model;
   return config.default_model ?? config.fast_model ?? config.reasoning_model;
@@ -126,11 +132,19 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
          FROM ai_provider_configs WHERE enabled = 1 AND status = 'ready'`
     )
     .all() as GatewayConfig[];
+  /**
+   * Ghim cung khi nguoi dung chon ca nha cung cap lan model (vd. model speech-to-text
+   * trong Cai dat): fallback luc nay se chay bang mot model khac han cai da chon, nen
+   * bao loi ro rang con hon la am tham doi model.
+   */
+  const pinned = Boolean(request.provider && request.model);
   const ordered = request.provider
-    ? [
-        ...configs.filter((config) => config.provider === request.provider),
-        ...configs.filter((config) => config.provider !== request.provider),
-      ]
+    ? pinned
+      ? configs.filter((config) => config.provider === request.provider)
+      : [
+          ...configs.filter((config) => config.provider === request.provider),
+          ...configs.filter((config) => config.provider !== request.provider),
+        ]
     : configs;
 
   if (ordered.length === 0) {
@@ -145,12 +159,22 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
       errorCode: 'not_configured',
     });
     throw new AiProviderError(
-      'Chưa có nhà cung cấp AI sẵn sàng. Hãy cấu hình trong Cài đặt.',
+      pinned
+        ? `Nhà cung cấp ${request.provider} chưa bật hoặc chưa kết nối được. Kiểm tra lại trong Cài đặt.`
+        : 'Chưa có nhà cung cấp AI sẵn sàng. Hãy cấu hình trong Cài đặt.',
       'not_configured'
     );
   }
 
-  let lastError: unknown;
+  /**
+   * Hai loai loi phai tach nhau: `skipError` la ly do bo qua mot nha cung cap TRUOC
+   * khi goi (thieu nang luc, het quota), `attemptError` la loi cua mot lan goi that.
+   * Truoc day ca hai cung ghi vao mot bien nen mot lan Gemini timeout that su bi
+   * ghi de boi "Model ... khong doc duoc tep dinh kem" cua nha cung cap ke tiep —
+   * nguoi dung nhan duoc 502 voi thong bao hoan toan sai nguyen nhan.
+   */
+  let attemptError: unknown;
+  let skipError: unknown;
   let fallbackCount = 0;
   let lastProvider: AiProviderName | undefined;
   let lastModel: string | undefined;
@@ -159,23 +183,25 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
     const model = modelFor(config, request);
     const connection = providerConnection(db, config.provider);
     if (!model || !connection) continue;
+    lastProvider = config.provider;
+    lastModel = model;
+    // Nguoi dung ghim model thi tin lua chon do: bang nang luc chi la suy doan tu ten model.
     if (
+      !pinned &&
       request.requiresCapability &&
       !modelSupports(db, config.provider, model, request.requiresCapability)
     ) {
-      lastError = new AiProviderError(
-        `Model ${model} không đọc được tệp đính kèm`,
+      skipError ??= new AiProviderError(
+        `Model ${model} (${config.provider}) không đọc được tệp đính kèm. Chọn model đọc được audio trong Cài đặt hoặc bấm "Đồng bộ model".`,
         'capability_missing'
       );
       fallbackCount += 1;
       continue;
     }
-    lastProvider = config.provider;
-    lastModel = model;
 
     const used = usageToday(db, config.provider);
     if (config.daily_token_limit > 0 && used.tokens >= config.daily_token_limit) {
-      lastError = new AiProviderError('Đã đạt giới hạn token trong ngày', 'token_quota');
+      skipError ??= new AiProviderError('Đã đạt giới hạn token trong ngày', 'token_quota');
       fallbackCount += 1;
       continue;
     }
@@ -184,7 +210,7 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
       config.daily_cost_limit_usd > 0 &&
       used.cost >= config.daily_cost_limit_usd
     ) {
-      lastError = new AiProviderError('Đã đạt giới hạn chi phí AI trong ngày', 'cost_quota');
+      skipError ??= new AiProviderError('Đã đạt giới hạn chi phí AI trong ngày', 'cost_quota');
       fallbackCount += 1;
       continue;
     }
@@ -197,6 +223,7 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
         json: request.json,
         maxOutputTokens: request.maxOutputTokens,
         attachments: request.attachments,
+        timeoutMs: request.timeoutMs,
       });
       const estimatedCostUsd = estimateCost(config, result.inputTokens, result.outputTokens);
       saveUsage(db, {
@@ -222,14 +249,16 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
         estimatedCostUsd,
       };
     } catch (error) {
-      lastError = error;
+      // Giu loi cua lan goi DAU tien: thu tu duyet chinh la thu tu uu tien.
+      attemptError ??= error;
       fallbackCount += 1;
     }
   }
 
+  const failure = attemptError ?? skipError;
   const providerError =
-    lastError instanceof AiProviderError
-      ? lastError
+    failure instanceof AiProviderError
+      ? failure
       : new AiProviderError('Không nhà cung cấp AI nào xử lý được yêu cầu', 'all_providers_failed');
   saveUsage(db, {
     requestId,

@@ -57,7 +57,10 @@ jobs:
 
       - name: Rebuild and restart containers
         run: |
-          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build'
+          # nginx.conf duoc bind-mount nen `up -d` khong tao lai container nginx khi
+          # chi noi dung file doi — phai nap lai cau hinh, neu khong cac gioi han
+          # client_max_body_size / proxy_read_timeout moi se khong co hieu luc.
+          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build && (docker compose exec -T nginx nginx -t && docker compose exec -T nginx nginx -s reload || docker compose restart nginx)'
 
       - name: Health check
         run: |
