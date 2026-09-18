@@ -90,12 +90,23 @@ function inferDeepSeekCapabilities(id: string): ModelCapabilities {
   });
 }
 
-/** 9Router exposes many upstream providers through one OpenAI-compatible model list. */
+/**
+ * 9Router exposes many upstream providers through one OpenAI-compatible model list.
+ *
+ * Nang luc chi doan duoc tu ten model vi danh sach khong mo ta gi them — cung cach
+ * lam nhu listGemini. Doan rong hon la co y: doan thieu thi gateway loai model ra
+ * va nguoi dung khong bao gio thu duoc, con doan thua thi cung lam nha cung cap
+ * tra ve mot thong bao loi cu the doc duoc.
+ */
 function infer9RouterCapabilities(id: string): ModelCapabilities {
   const lower = id.toLowerCase();
+  const multimodal = /gemini|gpt-4|gpt-5|claude|sonnet|opus|haiku|pixtral|llava|-vl/.test(lower);
   return defaultCapabilities({
     reasoning: /reason|thinking|opus|o[134](?:-|$)|gpt-5|gemini.*pro/.test(lower),
     toolCalling: !/reasoner/.test(lower),
+    vision: multimodal,
+    documentInput: multimodal,
+    audioInput: /gemini|audio/.test(lower),
   });
 }
 
@@ -308,6 +319,37 @@ async function generateAnthropic(
   };
 }
 
+/** `audio/webm;codecs=opus` -> `webm`: truong `format` la ten dinh dang, khong phai mime. */
+function audioFormat(mime: string): string {
+  const subtype = mime.slice('audio/'.length).replace(/^x-/, '');
+  return subtype === 'mpeg' ? 'mp3' : subtype;
+}
+
+/**
+ * Dich mot tep dinh kem sang phan noi dung cua giao thuc OpenAI chat completions.
+ *
+ * Ba dang khac han nhau chu khong phai mot: anh di trong `image_url` duoi dang
+ * data URL, audio di trong `input_audio` (base64 tran kem ten dinh dang rieng),
+ * con lai la `file`. Cac router OpenAI-compatible (9Router, LiteLLM…) dich tiep
+ * nhung phan nay sang API goc cua nha cung cap thuc su phia sau.
+ */
+function openAiAttachmentPart(file: NonNullable<GenerateRequest['attachments']>[number]) {
+  const mime = (file.mime.split(';')[0] ?? '').trim().toLowerCase();
+  if (mime.startsWith('image/')) {
+    return { type: 'image_url', image_url: { url: `data:${mime};base64,${file.dataBase64}` } };
+  }
+  if (mime.startsWith('audio/')) {
+    return {
+      type: 'input_audio',
+      input_audio: { data: file.dataBase64, format: audioFormat(mime) },
+    };
+  }
+  return {
+    type: 'file',
+    file: { filename: file.fileName, file_data: `data:${mime};base64,${file.dataBase64}` },
+  };
+}
+
 async function generateOpenAiCompatible(
   connection: ProviderConnection,
   request: GenerateRequest
@@ -321,7 +363,17 @@ async function generateOpenAiCompatible(
         model: request.model,
         messages: [
           { role: 'system', content: request.system },
-          { role: 'user', content: request.prompt },
+          {
+            role: 'user',
+            // Chuoi tran khi khong co tep: mot so may chu OpenAI-compatible cu van
+            // tu choi dang mang noi dung cho cau hoi chi co chu.
+            content: request.attachments?.length
+              ? [
+                  ...request.attachments.map(openAiAttachmentPart),
+                  { type: 'text', text: request.prompt },
+                ]
+              : request.prompt,
+          },
         ],
         max_tokens: request.maxOutputTokens ?? 2048,
         temperature: request.temperature ?? 0.2,
@@ -345,12 +397,11 @@ export async function generateWithProvider(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
-  if (
-    request.attachments?.length &&
-    (connection.provider === 'deepseek' || connection.provider === '9router')
-  ) {
+  // DeepSeek khong co API da phuong thuc nao de gui tep vao, khac voi 9Router —
+  // 9Router chi la router OpenAI-compatible nen tep di duoc qua `openAiAttachmentPart`.
+  if (request.attachments?.length && connection.provider === 'deepseek') {
     throw new AiProviderError(
-      `${connection.provider === '9router' ? '9Router' : 'DeepSeek'} chưa hỗ trợ đọc tệp đính kèm trong ứng dụng`,
+      'DeepSeek chưa hỗ trợ đọc tệp đính kèm trong ứng dụng',
       'attachment_unsupported'
     );
   }
