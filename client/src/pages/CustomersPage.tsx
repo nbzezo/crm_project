@@ -902,6 +902,7 @@ function HealthBadge({ health }: { health: ReturnType<typeof getCustomerHealth> 
     good: 'bg-tr-success/10 text-tr-success',
     attention: 'bg-tr-warning/10 text-tr-warning',
     risk: 'bg-tr-danger/10 text-tr-danger',
+    new: 'bg-tr-hover text-tr-subtle',
   };
   return (
     <span
@@ -909,7 +910,10 @@ function HealthBadge({ health }: { health: ReturnType<typeof getCustomerHealth> 
       title={health.reason}
     >
       <span className="text-xs font-semibold">{health.label}</span>
-      <span className="truncate text-xs opacity-90">{health.reason}</span>
+      {/* Khong dung `opacity-90` o day: muc chu von chi vua du AA tren chinh nen
+          tint 10% cua no, ha them 10% la rot xuong 3,7:1. Phan cap giu bang do
+          dam (semibold vs thuong), khong bang do mo. */}
+      <span className="truncate text-xs">{health.reason}</span>
     </span>
   );
 }

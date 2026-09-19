@@ -24,13 +24,18 @@ export function isViewMode(value: string | null): value is CalendarViewMode {
 
 /**
  * View dung khi URL chua chi dinh: lua chon lan truoc (muc 7), neu chua co thi
- * mac dinh. Man hinh hep mac dinh la Ngay — luoi thang 7 cot khong dung duoc
- * tren dien thoai (muc 54).
+ * Thang.
+ *
+ * Truoc day ham nay doc `window.innerWidth` — nhung no chi chay MOT LAN luc
+ * mount nen xoay may hay thu nho cua so khong doi lai duoc, va mot lua chon da
+ * luu tu desktop se de len vinh vien khien dien thoai van mo luoi 7 cot. Viec
+ * co man hinh hep hay khong gio do CalendarView quyet dinh qua `useMediaQuery`,
+ * tuc la phan ung theo thoi gian thuc.
  */
 export function defaultView(): CalendarViewMode {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (isViewMode(saved)) return saved;
-  return typeof window !== 'undefined' && window.innerWidth < 640 ? 'day' : 'month';
+  return 'month';
 }
 
 export function rememberView(view: CalendarViewMode): void {

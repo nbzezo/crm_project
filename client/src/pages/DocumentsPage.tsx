@@ -7,14 +7,16 @@ import {
   FilePenLine,
   FileText,
   ListPlus,
+  Plus,
   LockKeyhole,
   Search,
   Trash2,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
+import { Drawer } from '../components/common/Drawer';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import { PageShell } from '../components/common/PageShell';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import {
   Button,
   EmptyState,
@@ -60,6 +62,20 @@ export default function DocumentsPage() {
   const [bulkType, setBulkType] = useState('');
   const [bulkCustomer, setBulkCustomer] = useState('');
   const [editing, setEditing] = useState<CrmDocument | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+  /* Keo tep vao BAT KY dau tren trang cung mo ngan tai len. Sau khi khoi upload
+     roi khoi than trang, nguoi dung quen thao tac keo-tha cu se khong con dich
+     de tha — nhanh nay giu lai loi vao do. */
+  useEffect(() => {
+    if (view !== 'active') return;
+    const onDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      setUploadOpen(true);
+    };
+    window.addEventListener('dragenter', onDragEnter);
+    return () => window.removeEventListener('dragenter', onDragEnter);
+  }, [view]);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   useEffect(() => {
@@ -186,21 +202,41 @@ export default function DocumentsPage() {
 
   return (
     <PageShell width="wide">
-      <header>
-        <p className="text-sm text-tr-muted">
-          Quản lý hồ sơ khách hàng, liên kết bán hàng và vòng đời tài liệu tại một nơi.
-        </p>
-      </header>
+      {/*
+       * Khoi tai len nam trong Drawer chu khong con dat thang tren trang.
+       *
+       * Truoc day ~450px dau trang la bieu mau 11 truong + vung keo tha, day
+       * danh sach tai lieu xuong tan y~610 — chi con ba dong lot man hinh
+       * 1526x866, va tren dien thoai phai cuon hon mot man ruoi moi thay tep dau
+       * tien. Nhung phan lon luot vao trang Tai lieu la de TIM mot tep, khong
+       * phai de tai len.
+       */}
+      <PageHeader
+        description="Quản lý hồ sơ khách hàng, liên kết bán hàng và vòng đời tài liệu tại một nơi."
+        actions={
+          view === 'active' ? (
+            <Button variant="primary" onClick={() => setUploadOpen(true)}>
+              <Plus size={15} aria-hidden="true" /> Tải tài liệu
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {view === 'active' && (
+      <Drawer
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        title="Tải tài liệu"
+        width="w-[min(44rem,100vw)]"
+      >
         <DocumentUploadManager
           options={options}
-          onReview={(documentId) =>
+          onReview={(documentId) => {
+            setUploadOpen(false);
             // Danh sach vua duoc lam moi sau upload nen tai lieu da co trong `documents`.
-            setEditing(documents.find((item) => item.id === documentId) ?? null)
-          }
+            setEditing(documents.find((item) => item.id === documentId) ?? null);
+          }}
         />
-      )}
+      </Drawer>
 
       <section aria-label="Kho tài liệu" className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm">
@@ -568,7 +604,7 @@ export default function DocumentsPage() {
                                 type="button"
                                 onClick={() => setEditing(document)}
                                 aria-label={`Sửa ${document.name}`}
-                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
                               >
                                 <FilePenLine size={15} />
                               </button>
@@ -589,24 +625,32 @@ export default function DocumentsPage() {
                                 }
                                 aria-label={`Tạo công việc từ ${document.name}`}
                                 title="Tạo công việc"
-                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
                               >
                                 <ListPlus size={15} />
                               </button>
                               <a
                                 href={`/api/documents/${document.id}/download`}
                                 aria-label={`Tải xuống ${document.name}`}
-                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
                               >
                                 <Download size={15} />
                               </a>
+                              {/* Tach khoi cum: nut Xoa truoc day dung sat nut Tai xuong,
+                                  cung kieu dang, cach nhau 4px — hai hanh dong mot
+                                  benh mot lanh ma trong nhu nhau. Vach ngan + le
+                                  trai lam no thanh mot cum rieng. */}
+                              <span
+                                aria-hidden="true"
+                                className="mx-1 h-5 w-px self-center bg-tr-border"
+                              />
                               <button
                                 type="button"
                                 onClick={() =>
                                   setPendingAction({ type: 'trash', ids: [document.id] })
                                 }
                                 aria-label={`Chuyển ${document.name} vào thùng rác`}
-                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
                               >
                                 <Trash2 size={15} />
                               </button>
@@ -617,7 +661,7 @@ export default function DocumentsPage() {
                                 type="button"
                                 onClick={() => restore.mutate([document.id])}
                                 aria-label={`Khôi phục ${document.name}`}
-                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
                               >
                                 <ArchiveRestore size={15} />
                               </button>
@@ -627,7 +671,7 @@ export default function DocumentsPage() {
                                   setPendingAction({ type: 'permanent', ids: [document.id] })
                                 }
                                 aria-label={`Xóa vĩnh viễn ${document.name}`}
-                                className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
                               >
                                 <Trash2 size={15} />
                               </button>

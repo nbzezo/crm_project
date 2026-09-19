@@ -36,6 +36,7 @@ import {
   rememberView,
   type CalendarViewMode,
 } from '../calendar/calendarPrefs';
+import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import type { CalendarConflict, CalendarItem } from '../../types';
 
 /**
@@ -62,7 +63,13 @@ export function CalendarView({ boardId, projectId }: { boardId?: number; project
   /* View SUY RA tu URL chu khong giu state rieng — neu giu rieng thi bam Back
      se doi URL ma man hinh dung yen. */
   const cv = searchParams.get('cv');
-  const view: CalendarViewMode = isViewMode(cv) ? cv : fallbackView;
+  const requestedView: CalendarViewMode = isViewMode(cv) ? cv : fallbackView;
+  /* Duoi 768px, luoi thang 7 cot chi con ~45px moi o — khong du cho du MOT su
+     kien. Che do Danh sach (agenda) la thu thay the dung, va Pipeline da lam
+     dung viec nay tu lau bang chinh hook nay. Chi ep rieng che do Thang; Tuan
+     va Ngay van dung duoc o man hep. */
+  const isNarrow = !useMediaQuery(MD_QUERY);
+  const view: CalendarViewMode = isNarrow && requestedView === 'month' ? 'list' : requestedView;
   const date = normalizeDate(searchParams.get('cd'));
 
   // Muc 7: ghi nho ca khi view den tu URL, khong chi khi bam nut.
@@ -197,8 +204,17 @@ export function CalendarView({ boardId, projectId }: { boardId?: number; project
         <Legend color="var(--cal-reminder-bg)" label={t.reminder.reminders} />
         {!scoped && (
           <>
-            <Legend color="var(--cal-next-action-bg)" label={t.calendar.legendNextAction} />
-            <Legend color="var(--cal-deal-close-bg)" label={t.calendar.legendDealClose} />
+            {/* `ring` de tach khoi "Nhắc hẹn" — hai mau vang/cam nay gan nhau nhat. */}
+            <Legend
+              color="var(--cal-next-action-bg)"
+              label={t.calendar.legendNextAction}
+              shape="ring"
+            />
+            <Legend
+              color="var(--cal-deal-close-bg)"
+              label={t.calendar.legendDealClose}
+              shape="round"
+            />
             <Legend color="var(--cal-contract-end-bg)" label={t.calendar.legendContractEnd} />
           </>
         )}
@@ -492,10 +508,27 @@ function renderChip(arg: { event: { extendedProps: Record<string, unknown> } }) 
   return <EventChip item={arg.event.extendedProps.item as CalEvent} />;
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
+/**
+ * `shape`: o kich thuoc 10px, vang cua "Nhắc hẹn" va cam cua "Hành động tiếp
+ * theo" gan nhu khong phan biet noi — va voi nguoi mu mau thi khong phan biet
+ * duoc that. Them mot truc thu hai (dac / vien / bo tron) de tin hieu khong phu
+ * thuoc rieng vao mau.
+ */
+function Legend({
+  color,
+  label,
+  shape = 'solid',
+}: {
+  color: string;
+  label: string;
+  shape?: 'solid' | 'ring' | 'round';
+}) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
+      <span
+        className={`h-2.5 w-2.5 ${shape === 'round' ? 'rounded-full' : 'rounded-sm'}`}
+        style={shape === 'ring' ? { border: `2px solid ${color}` } : { backgroundColor: color }}
+      />
       {label}
     </span>
   );

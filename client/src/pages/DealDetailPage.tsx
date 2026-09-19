@@ -16,7 +16,7 @@ import { DealSmartButtons } from '../components/crm/DealSmartButtons';
 import { DealActivitySidebar } from '../components/crm/DealActivitySidebar';
 import { HandoverPanel } from '../components/crm/HandoverPanel';
 import { ChangeLogPanel } from '../components/crm/ChangeLogPanel';
-import { HealthBadge } from './ProjectsPage';
+import { HealthBadge } from '../components/crm/ProjectHealthBadge';
 import { Scorecard } from '../components/crm/Scorecard';
 import { CommitteePanel } from '../components/crm/CommitteePanel';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
@@ -160,9 +160,13 @@ export default function DealDetailPage() {
                 Scoring: {QUADRANT_LABELS[card.quadrant]}
               </ColorBadge>
             )}
-            {card?.veto.some((v) => v.blocking) && (
-              <ColorBadge color={VETO_BADGE_COLOR}>Ngoài forecast</ColorBadge>
-            )}
+            {/* Deal vua tao, chua cham diem nao, con o giai doan dau thi chua phai
+                luc gan nhan do — xem ghi chu `softTone` trong Scorecard.tsx. */}
+            {card?.veto.some((v) => v.blocking) &&
+              !(
+                card.scored_count === 0 &&
+                (card.stage === 'lead' || card.stage === 'approaching')
+              ) && <ColorBadge color={VETO_BADGE_COLOR}>Ngoài forecast</ColorBadge>}
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">
                 <RefreshCw size={12} /> Gia hạn

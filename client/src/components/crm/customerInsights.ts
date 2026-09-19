@@ -4,10 +4,14 @@ import type { Customer } from '../../types';
 export type CustomerSmartView = 'all' | 'prospect' | 'opportunity' | 'follow-up' | 'stale';
 
 type CustomerHealth = {
-  level: 'good' | 'attention' | 'risk';
+  /** `new` = chua du du lieu de ket luan, khong phai mot danh gia tot/xau. */
+  level: 'good' | 'attention' | 'risk' | 'new';
   label: string;
   reason: string;
 };
+
+/** Duoi nguong nay thi khach moi tao chua the bi cham la "nguoi". */
+const NEW_CUSTOMER_DAYS = 7;
 
 type CustomerNextAction = {
   kind: 'deal' | 'task' | 'reminder';
@@ -49,6 +53,7 @@ export function getCustomerHealth(customer: Customer): CustomerHealth {
   const overdueTasks = customer.overdue_task_count ?? 0;
   const missingActions = customer.deals_without_next_action_count ?? 0;
   const inactiveDays = customerInactiveDays(customer);
+  const neverContacted = !customer.last_activity_at;
 
   if (overdueTasks >= 2) {
     return {
@@ -69,6 +74,29 @@ export function getCustomerHealth(customer: Customer): CustomerHealth {
         : 'Chưa tương tác từ khi tạo',
     };
   }
+  /*
+   * Chua tung tuong tac lan nao.
+   *
+   * Truoc day nhanh nay khong ton tai: `customerInactiveDays` roi ve `created_at`
+   * khi chua co `last_activity_at`, nen mot khach tao 20 ngay truoc voi 0 co hoi,
+   * 0 cong viec khong vuot nguong 30 ngay va roi thang xuong nhanh cuoi — duoc
+   * cham "Tốt · Không có việc quá hạn". Ket qua la khach bi bo quen han trong
+   * khoe hon khach dang duoc cham tich cuc. Do "tuoi" cua tuong tac phai nam
+   * trong cong thuc, khong chi rieng "co viec qua han hay khong".
+   */
+  if (neverContacted) {
+    return inactiveDays < NEW_CUSTOMER_DAYS
+      ? {
+          level: 'new',
+          label: 'Chưa đủ dữ liệu',
+          reason: `Mới tạo ${inactiveDays} ngày trước`,
+        }
+      : {
+          level: 'attention',
+          label: 'Nguội',
+          reason: `Chưa tương tác lần nào sau ${inactiveDays} ngày — cần liên hệ`,
+        };
+  }
   if (overdueTasks === 1) {
     return { level: 'attention', label: 'Cần chú ý', reason: '1 công việc quá hạn' };
   }
@@ -79,18 +107,14 @@ export function getCustomerHealth(customer: Customer): CustomerHealth {
       reason: `${missingActions} cơ hội chưa có Next Action`,
     };
   }
-  if (customer.last_activity_at && inactiveDays >= 14) {
+  if (inactiveDays >= 14) {
     return {
       level: 'attention',
       label: 'Cần chú ý',
       reason: `${inactiveDays} ngày chưa tương tác`,
     };
   }
-  return {
-    level: 'good',
-    label: 'Tốt',
-    reason: customer.last_activity_at ? 'Đang được chăm sóc' : 'Không có việc quá hạn',
-  };
+  return { level: 'good', label: 'Tốt', reason: 'Đang được chăm sóc' };
 }
 
 export function getNextCustomerAction(customer: Customer): CustomerNextAction | null {

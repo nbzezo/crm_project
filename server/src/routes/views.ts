@@ -664,6 +664,8 @@ router.get('/pipeline-health', (_req, res) => {
     .prepare(
       `SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
               c.name AS customer_name,
+              CAST(julianday(date('now','localtime')) - julianday(substr(d.created_at,1,10))
+                   AS INTEGER) AS deal_age_days,
               s.bant_total, s.p4_total, s.quadrant, s.score_age_days,
               s.v1_no_event, s.v2_no_economic, s.v3_shaped
          FROM deals d
@@ -676,18 +678,32 @@ router.get('/pipeline-health', (_req, res) => {
     value_vnd: number;
     probability: number;
     quadrant: string;
+    deal_age_days: number;
     score_age_days: number | null;
     v1_no_event: number;
     v2_no_economic: number;
     v3_shaped: number;
   }[];
 
+  /**
+   * Cua so an han cho co hoi vua tao.
+   *
+   * `score_age_days === null` nghia la CHUA CHAM DIEM LAN NAO, nen moi deal vua
+   * tao deu dinh co STALE ngay lap tuc va bi tinh vao "thoi phong pipeline". Voi
+   * mot he thong con it deal, mot co hoi tao ba giay truoc du de day chi so len
+   * 100% — con so do khong noi len dieu gi ve chat luong pipeline, chi noi rang
+   * nguoi dung chua kip cham diem.
+   */
+  const GRACE_DAYS = 7;
+
   const blockedBy = (row: (typeof rows)[number]): string[] => {
     const flags: string[] = [];
     if (row.v1_no_event) flags.push('V1_NO_COMPELLING_EVENT');
     if (row.v2_no_economic) flags.push('V2_NO_ECONOMIC_BUYER');
     if (row.v3_shaped && settings.v3Mode === 'veto') flags.push('V3_COMPETITOR_SHAPED');
-    if (row.score_age_days === null || row.score_age_days > settings.staleDays) flags.push('STALE');
+    const unscoredButNew = row.score_age_days === null && row.deal_age_days < GRACE_DAYS;
+    if (!unscoredButNew && (row.score_age_days === null || row.score_age_days > settings.staleDays))
+      flags.push('STALE');
     return flags;
   };
 

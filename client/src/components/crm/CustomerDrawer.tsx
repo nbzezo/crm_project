@@ -403,7 +403,7 @@ function HealthPill({
   label,
   reason,
 }: {
-  level: 'good' | 'attention' | 'risk';
+  level: 'good' | 'attention' | 'risk' | 'new';
   label: string;
   reason: string;
 }) {
@@ -411,6 +411,7 @@ function HealthPill({
     good: 'bg-tr-success/10 text-tr-success',
     attention: 'bg-tr-warning/10 text-tr-warning',
     risk: 'bg-tr-danger/10 text-tr-danger',
+    new: 'bg-tr-hover text-tr-subtle',
   };
   return (
     <span

@@ -1,9 +1,17 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { ListTodo, NotebookPen, NotebookText, X } from 'lucide-react';
+import { Building2, ListTodo, NotebookPen, NotebookText, Target, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
+
+/* Lazy: hai bieu mau nay nang, va phan lon phien lam viec khong mo toi chung. */
+const DealForm = lazy(() =>
+  import('../crm/DealForm').then((module) => ({ default: module.DealForm }))
+);
+const CustomerForm = lazy(() =>
+  import('../crm/CustomerForm').then((module) => ({ default: module.CustomerForm }))
+);
 import { useUiStore } from '../../stores/uiStore';
 import type { MeetingNote } from '../../types';
 
@@ -41,6 +49,15 @@ function CheckBadgeIcon({ className }: { className?: string }) {
  */
 export function QuickCreateFab() {
   const [open, setOpen] = useState(false);
+  const [dealOpen, setDealOpen] = useState(false);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Mo menu thi dua focus vao muc dau — neu khong, nguoi dung ban phim bam mo
+  // xong van dang dung o nut FAB va phai Tab nguoc lai.
+  useEffect(() => {
+    if (open) menuRef.current?.querySelector('button')?.focus();
+  }, [open]);
   const navigate = useNavigate();
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
@@ -81,9 +98,50 @@ export function QuickCreateFab() {
       )}
       <div className="fixed right-5 bottom-5 z-nav-overlay flex flex-col items-end gap-2 sm:right-8 sm:bottom-8">
         {open && (
-          <div className="tr-anim-pop flex flex-col items-end gap-2">
+          /* `role="menu"` + Escape + dua focus vao muc dau: truoc day day chi la
+             mot <div> chua cac nut roi, khong khai bao gi va khong dong duoc bang
+             ban phim. */
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label="Tạo nhanh"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setOpen(false);
+              }
+            }}
+            className="tr-anim-pop flex flex-col items-end gap-2"
+          >
+            {/* Hai thu can tao nhanh nhat trong mot CRM lai la hai thu truoc day
+                khong co mat trong menu nay. */}
             <button
               type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setDealOpen(true);
+              }}
+              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
+            >
+              <Target size={16} className="text-tr-primary" aria-hidden="true" />
+              Cơ hội
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setCustomerOpen(true);
+              }}
+              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
+            >
+              <Building2 size={16} className="text-tr-primary" aria-hidden="true" />
+              Khách hàng
+            </button>
+            <button
+              type="button"
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 openTaskComposer();
@@ -95,6 +153,7 @@ export function QuickCreateFab() {
             </button>
             <button
               type="button"
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 openQuickNotesBoard({ createNew: true });
@@ -106,12 +165,13 @@ export function QuickCreateFab() {
             </button>
             <button
               type="button"
+              role="menuitem"
               disabled={createNote.isPending}
               onClick={() => createNote.mutate()}
               className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover disabled:opacity-60 ${focusRing}`}
             >
               <NotebookText size={16} className="text-tr-primary" aria-hidden="true" />
-              {createNote.isPending ? 'Đang tạo…' : 'Ghi chú'}
+              {createNote.isPending ? 'Đang tạo…' : 'Ghi chú họp'}
             </button>
           </div>
         )}
@@ -132,6 +192,10 @@ export function QuickCreateFab() {
           />
         </button>
       </div>
+      <Suspense fallback={null}>
+        {dealOpen && <DealForm open onClose={() => setDealOpen(false)} />}
+        {customerOpen && <CustomerForm open onClose={() => setCustomerOpen(false)} />}
+      </Suspense>
     </>
   );
 }

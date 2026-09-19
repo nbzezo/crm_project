@@ -28,3 +28,4 @@ export function useMediaQuery(query: string): boolean {
 
 /** Breakpoint `lg` cua Tailwind — moc ma cac trang danh sach doi bang <-> the. */
 export const LG_QUERY = '(min-width: 1024px)';
+export const MD_QUERY = '(min-width: 768px)';

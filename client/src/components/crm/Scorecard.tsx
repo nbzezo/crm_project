@@ -15,6 +15,7 @@ import {
   BadgeCheck,
   CircleHelp,
   History,
+  Info,
   Link2,
   Lock,
   ShieldAlert,
@@ -151,6 +152,12 @@ function ScoreSummary({
       ? `vượt ranh giới ${distance} điểm`
       : `còn thiếu ${Math.abs(distance)} điểm để qua ranh giới`;
 
+  /* Chi bat tong canh bao DO khi deal da di qua giai doan dau ma van thieu.
+     O 'lead'/'approaching' ma chua cham diem nao thi day la trang thai BINH
+     THUONG cua mot co hoi moi, khong phai loi. */
+  const softTone =
+    card.scored_count === 0 && (card.stage === 'lead' || card.stage === 'approaching');
+
   return (
     <Panel>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -195,7 +202,25 @@ function ScoreSummary({
         </div>
       </div>
 
-      {card.veto.length > 0 && (
+      {/*
+       * Tach hai trang thai rat khac nhau ma truoc day deu ra mot mau do:
+       *  - CHUA CHAM DIEM (`scored_count === 0`) o giai doan dau: he thong chua
+       *    biet gi ve deal nay. Mot co hoi vua tao 3 giay da mang hai banner do
+       *    + "Ngoài forecast" khien nguoi ban hieu la minh vua LAM SAI dieu gi,
+       *    trong khi thuc ra ho chi... chua cham diem.
+       *  - DA CHAM NHUNG KHONG DAT: luc do mau do moi dung nghia.
+       */}
+      {softTone && card.veto.length > 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-control border border-tr-border bg-tr-hover px-3 py-2 text-sm">
+          <Info size={15} className="mt-0.5 shrink-0 text-tr-muted" aria-hidden="true" />
+          <span className="text-tr-subtle">
+            Cơ hội này <strong className="text-tr-text">chưa được chấm điểm</strong>, nên chưa đủ dữ
+            liệu để đưa vào forecast. Chấm BANT/4P bên dưới để hệ thống đánh giá.
+          </span>
+        </div>
+      )}
+
+      {!softTone && card.veto.length > 0 && (
         <ul className="mt-3 space-y-1.5">
           {card.veto.map((flag) => (
             <li
@@ -236,6 +261,8 @@ function ScoreSummary({
         Forecast:{' '}
         {card.forecast_eligible ? (
           <strong className="text-tr-success">được tính vào forecast đã lọc</strong>
+        ) : softTone ? (
+          <strong className="text-tr-subtle">chưa tính vào forecast — chưa chấm điểm</strong>
         ) : (
           <strong className="text-tr-danger">bị loại khỏi forecast đã lọc</strong>
         )}
