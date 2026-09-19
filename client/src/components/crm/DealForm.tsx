@@ -23,6 +23,7 @@ import {
   t,
 } from '../../i18n/vi';
 import { formatVND } from '../../lib/format';
+import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useCustomerOptions, useProjectOptions } from '../../lib/useCrmOptions';
 import type { Contact, Deal, Stage } from '../../types';
@@ -67,7 +68,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
   const [onHoldReason, setOnHoldReason] = useState('');
   const [onHoldReview, setOnHoldReview] = useState<string | null>(null);
   /** Chi hien loi sau lan bam Luu dau tien — khong mang chu do khi vua mo form. */
-  const [submitted, setSubmitted] = useState(false);
+  const { submitted, validate, reset: resetErrors } = useFormErrors();
 
   const { data: customers = [] } = useCustomerOptions(open);
   const { data: projects = [] } = useProjectOptions(open);
@@ -108,7 +109,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
     setOnHold(Boolean(deal?.on_hold));
     setOnHoldReason(deal?.on_hold_reason ?? '');
     setOnHoldReview(deal?.on_hold_review_date ?? null);
-    setSubmitted(false);
+    resetErrors();
     save.reset();
   }, [open, deal?.id]);
 
@@ -169,8 +170,18 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
   const lostReasonMissing = stage === 'lost' && !lostReason;
   /* S08: tạm dừng phải kèm lý do và ngày xem xét lại — máy chủ cũng từ chối nếu
      thiếu, nhưng chặn ngay ở đây thì người dùng không phải gửi rồi mới biết. */
-  const onHoldIncomplete = onHold && (!onHoldReason.trim() || !onHoldReview);
-  const invalid = titleMissing || customerMissing || lostReasonMissing || onHoldIncomplete;
+  /* Danh sach o dang thieu, kem id de bang tom tat nhay thang toi tung o.
+     KHONG dung de khoa nut Luu: khoa nut la ly do truoc day nguoi dung bam ma
+     khong thay gi xay ra, va cung khien co `submitted` khong bao gio bat len
+     duoc nen moi loi inline ben duoi tro thanh code chet. */
+  const issues: FieldIssue[] = [];
+  if (titleMissing) issues.push({ id: 'deal-title', label: t.deal.title });
+  if (customerMissing) issues.push({ id: 'deal-customer', label: t.card.customer });
+  if (onHold && !onHoldReason.trim())
+    issues.push({ id: 'deal-on-hold-reason', label: 'Lý do tạm dừng' });
+  if (onHold && !onHoldReview)
+    issues.push({ id: 'deal-on-hold-review', label: 'Ngày xem xét lại' });
+  if (lostReasonMissing) issues.push({ id: 'deal-lost-reason', label: t.deal.lostReason });
 
   return (
     <Modal
@@ -182,15 +193,24 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
         <FormModalActions
           onCancel={onClose}
           onSubmit={() => {
-            setSubmitted(true);
+            if (!validate(issues)) return;
             save.mutate();
           }}
           pending={save.isPending}
-          disabled={invalid}
         />
       }
     >
       <FormError error={save.error} />
+      {/* takeFocus={false}: `validate` da dua focus ve o dau tien bi loi roi,
+          keo nguoc len bang tom tat se cuop mat. Bang van la role="alert" nen
+          trinh doc man hinh doc len, va moi muc bam duoc de nhay toi o do. */}
+      {submitted && issues.length > 0 && (
+        <FormError
+          takeFocus={false}
+          error={new Error('Chưa lưu được — còn trường bắt buộc chưa điền.')}
+          fields={issues}
+        />
+      )}
 
       {/* FR-TAG-06: nhãn lưu ngay khi tick, không đi cùng nút Lưu của biểu mẫu —
           nên chỉ hiện khi cơ hội đã tồn tại. */}
@@ -208,7 +228,12 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
             required
             error={submitted && titleMissing ? t.common.required : undefined}
           >
-            <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              id="deal-title"
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </Field>
         </div>
 
@@ -218,6 +243,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
           error={submitted && customerMissing ? t.common.required : undefined}
         >
           <Combobox
+            id="deal-customer"
             value={customerId === '' ? '' : Number(customerId)}
             onChange={(v) => {
               setCustomerId(v === '' ? '' : String(v));
@@ -391,6 +417,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
                     error={submitted && !onHoldReason.trim() ? t.common.required : undefined}
                   >
                     <Input
+                      id="deal-on-hold-reason"
                       value={onHoldReason}
                       onChange={(e) => setOnHoldReason(e.target.value)}
                       placeholder="Khách hoãn ngân sách sang quý sau…"
@@ -402,7 +429,11 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
                   required
                   error={submitted && !onHoldReview ? t.common.required : undefined}
                 >
-                  <DateInput value={onHoldReview} onChange={setOnHoldReview} />
+                  <DateInput
+                    id="deal-on-hold-review"
+                    value={onHoldReview}
+                    onChange={setOnHoldReview}
+                  />
                 </Field>
               </>
             )}
@@ -465,7 +496,11 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
               required
               error={submitted && lostReasonMissing ? t.common.required : undefined}
             >
-              <Select value={lostReason} onChange={(e) => setLostReason(e.target.value)}>
+              <Select
+                id="deal-lost-reason"
+                value={lostReason}
+                onChange={(e) => setLostReason(e.target.value)}
+              >
                 <option value="">{t.common.selectPlaceholder}</option>
                 {LOST_REASON_ORDER.map((r) => (
                   <option key={r} value={r}>

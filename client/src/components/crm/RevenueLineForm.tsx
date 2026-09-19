@@ -4,7 +4,15 @@ import { Settings2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { Combobox } from '../common/Combobox';
 import { Modal } from '../common/Modal';
-import { DateInput, Field, FormModalActions, Input, Select, Textarea } from '../common/ui';
+import {
+  DateInput,
+  Field,
+  FormError,
+  FormModalActions,
+  Input,
+  Select,
+  Textarea,
+} from '../common/ui';
 import { ServiceCatalog } from './ServiceCatalog';
 import { CONTRACT_KIND_ORDER, CONTRACT_TERM_ORDER, SERVICE_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateRevenueViews } from '../../lib/queryKeys';
@@ -17,6 +25,7 @@ import type {
   Service,
   ServiceStatus,
 } from '../../types';
+import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 
 const EMPTY = {
   am: '',
@@ -109,7 +118,13 @@ export function RevenueLineForm({
   const set = <K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const { submitted, validate } = useFormErrors();
+
   const activeServices = services.filter((s) => s.is_active || String(s.id) === serviceId);
+
+  const customerMissing = !customerId;
+  const issues: FieldIssue[] = [];
+  if (customerMissing) issues.push({ id: 'revenue-customer', label: t.card.customer });
 
   return (
     <>
@@ -121,15 +136,30 @@ export function RevenueLineForm({
         footer={
           <FormModalActions
             onCancel={onClose}
-            onSubmit={() => save.mutate()}
+            onSubmit={() => {
+              if (!validate(issues)) return;
+              save.mutate();
+            }}
             pending={save.isPending}
-            disabled={!customerId}
           />
         }
       >
+        {submitted && issues.length > 0 && (
+          <FormError
+            takeFocus={false}
+            error={new Error('Chưa lưu được — còn trường bắt buộc chưa điền.')}
+            fields={issues}
+          />
+        )}
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label={t.card.customer}>
+          <Field
+            label={t.card.customer}
+            required
+            error={submitted && customerMissing ? t.common.required : undefined}
+          >
             <Combobox
+              id="revenue-customer"
               value={customerId === '' ? '' : Number(customerId)}
               onChange={(v) => setCustomerId(v === '' ? '' : String(v))}
               options={customers.map((c) => ({ id: c.id, label: c.name }))}

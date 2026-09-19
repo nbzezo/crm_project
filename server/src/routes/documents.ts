@@ -108,6 +108,18 @@ const metadataSchema = z.object({
   meeting_note_id: z.coerce.number().int().nullable().optional(),
 });
 
+function assertDocumentDates(value: Record<string, unknown>): void {
+  const from = value.effective_date as string | null | undefined;
+  const to = value.expires_at as string | null | undefined;
+  if (from && to && to < from) {
+    throw new HttpError(422, 'Ngày hết hạn không được trước ngày hiệu lực', {
+      code: 'INVALID_DATE_RANGE',
+      start_field: 'effective_date',
+      end_field: 'expires_at',
+    });
+  }
+}
+
 const idsSchema = z.object({ ids: z.array(z.number().int().positive()).min(1).max(200) });
 
 function reload(id: number) {
@@ -191,6 +203,7 @@ router.patch('/bulk', (req, res) => {
         quotation_id: merged.quotation_id as number | null,
         card_id: merged.card_id as number | null,
       });
+      assertDocumentDates(merged);
       assertQuickNoteExists(merged.quick_note_id as number | null);
       assertMeetingNoteExists(merged.meeting_note_id as number | null);
       db.prepare(
@@ -289,6 +302,7 @@ router.patch('/:id', (req, res) => {
     quotation_id: merged.quotation_id as number | null,
     card_id: merged.card_id as number | null,
   });
+  assertDocumentDates(merged);
   assertQuickNoteExists(merged.quick_note_id as number | null);
   assertMeetingNoteExists(merged.meeting_note_id as number | null);
   db.prepare(

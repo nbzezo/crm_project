@@ -53,7 +53,10 @@ export function Toasts() {
       onMouseLeave={release}
       onFocusCapture={hold}
       onBlurCapture={release}
-      className="pointer-events-none fixed right-4 bottom-4 z-toast flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2"
+      /* Nang len tren nut "Tạo nhanh": FAB ghim `right-5 bottom-5` (56px cao) nen
+         voi `bottom-4` toast de chong len no — axe bao target-size vi nut bi che
+         mot phan, va tren mobile nguoi dung khong bam duoc nut Hoàn tác. */
+      className="pointer-events-none fixed right-4 bottom-24 z-toast flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2 sm:right-8 sm:bottom-28"
     >
       {toasts.map((toast) => (
         <div

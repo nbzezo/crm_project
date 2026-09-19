@@ -10,7 +10,9 @@
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { useDealStageMove } from '../../hooks/useDealStageMove';
-import { focusRing } from '../common/ui';
+import { CircleSlash, Ellipsis } from 'lucide-react';
+import { focusRing, IconButton } from '../common/ui';
+import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { STAGE_COLORS, STAGE_ORDER, t } from '../../i18n/vi';
 import { contrastInk } from '../../lib/format';
 import { invalidateCrmViews } from '../../lib/queryKeys';
@@ -28,10 +30,12 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
     },
   });
 
+  const lostMenu = usePopover();
   const isLost = deal.stage === 'lost';
   const currentIndex = LINEAR_STAGES.indexOf(deal.stage as (typeof LINEAR_STAGES)[number]);
 
-  const go = (stage: Stage) => move({ dealId: deal.id, stage, beforeId: null, afterId: null });
+  const go = (stage: Stage) =>
+    move({ dealId: deal.id, stage, beforeId: null, afterId: null, prevStage: deal.stage });
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -81,13 +85,39 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
           {deal.lost_reason && ` — ${t.lostReason[deal.lost_reason] ?? deal.lost_reason}`}
         </span>
       ) : (
-        <button
-          type="button"
-          onClick={() => go('lost')}
-          className={`rounded-compact px-1.5 py-1 text-xs font-medium text-tr-muted transition hover:text-tr-danger hover:underline ${focusRing}`}
-        >
-          Đánh dấu thua cuộc
-        </button>
+        /* Tach khoi thanh giai doan: truoc day "Đánh dấu thua cuộc" dung ngay
+           canh "Thành công" — hai hanh dong he qua trai nguoc hoan toan, cach
+           nhau vai pixel. Gio no nam trong menu "…" voi kieu dang destructive,
+           phai mo ra moi bam duoc. Ly do thua van do LostReasonDialog hoi
+           (BR-03), nen khong mat buoc xac nhan nao. */
+        <>
+          <IconButton
+            label="Hành động khác cho cơ hội"
+            onClick={lostMenu.toggle}
+            aria-haspopup="menu"
+            aria-expanded={lostMenu.open}
+          >
+            <Ellipsis size={16} aria-hidden="true" />
+          </IconButton>
+          <Popover
+            open={lostMenu.open}
+            anchor={lostMenu.anchor}
+            onClose={lostMenu.close}
+            title="Hành động khác"
+            width={224}
+          >
+            <PopoverItem
+              danger
+              icon={<CircleSlash size={15} aria-hidden="true" />}
+              onClick={() => {
+                lostMenu.close();
+                go('lost');
+              }}
+            >
+              Đánh dấu thua cuộc
+            </PopoverItem>
+          </Popover>
+        </>
       )}
 
       {dialogs}

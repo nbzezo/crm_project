@@ -13,7 +13,7 @@ import {
 import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import type { Contract, Customer, Deal, Quotation } from '../../types';
-import { Button, Field, Input, Select, Textarea, focusRing } from '../common/ui';
+import { Button, DateInput, Field, Input, Select, Textarea, focusRing } from '../common/ui';
 import { DOCUMENT_ACCEPT, formatBytes, MAX_UPLOAD_BYTES } from '../crm/DocumentUpload';
 
 export interface DocumentOptions {
@@ -365,17 +365,15 @@ export function DocumentUploadManager({
           />
         </Field>
         <Field label="Ngày hiệu lực">
-          <Input
-            type="date"
-            value={metadata.effective_date}
-            onChange={(event) => setField('effective_date', event.target.value)}
+          <DateInput
+            value={metadata.effective_date || null}
+            onChange={(value) => setField('effective_date', value ?? '')}
           />
         </Field>
         <Field label="Ngày hết hạn">
-          <Input
-            type="date"
-            value={metadata.expires_at}
-            onChange={(event) => setField('expires_at', event.target.value)}
+          <DateInput
+            value={metadata.expires_at || null}
+            onChange={(value) => setField('expires_at', value ?? '')}
           />
         </Field>
         <Field label="Mức độ bảo mật">

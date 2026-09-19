@@ -138,6 +138,18 @@ router.get('/', (req, res) => {
   res.json({ stages: byStage, totals });
 });
 
+function assertPocDates(value: Record<string, unknown>): void {
+  const start = value.poc_start_date as string | null | undefined;
+  const end = value.poc_end_date as string | null | undefined;
+  if (start && end && end < start) {
+    throw new HttpError(422, 'Ngày kết thúc PoC không được trước ngày bắt đầu', {
+      code: 'INVALID_DATE_RANGE',
+      start_field: 'poc_start_date',
+      end_field: 'poc_end_date',
+    });
+  }
+}
+
 router.post('/', (req, res) => {
   const body = parseBody(dealSchema, req);
   assertEntityLinks(db, body);
@@ -298,6 +310,7 @@ router.patch('/:id', (req, res) => {
     customer_id: merged.customer_id as number,
     contact_id: merged.contact_id as number | null,
   });
+  assertPocDates(merged);
   assertCrmCustomer(db, merged.customer_id as number);
   /*
    * Kiem lai ca khi chi doi khach hang: co hoi doi sang khach khac trong khi van

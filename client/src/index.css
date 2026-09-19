@@ -133,12 +133,17 @@
      nhat (`--tr-surface`): success 3,86:1, danger 3,80:1, warning 4,37:1. Loi co
      san, chi lo ra khi bai quet axe duoc mo rong sang ca theme sang. Da ha do
      sang, giu nguyen tong mau va do bao hoa; muc trang dat tren chung van >= 4,5:1
-     nen dung lam nen nut cung khong sao. */
-  --tr-danger: #c7382a;
+     nen dung lam nen nut cung khong sao.
+
+     Lan hai (sau khi mo rong axe sang /customers): success va warning con duoc
+     dung LAM MUC CHU tren chinh nen tint 10% cua no — the "Tốt" / "Cần chú ý" —
+     va o do chung chi dat 4,38 va 4,41:1. Da ha them mot bac: gio 5,37 va
+     4,90:1. Cap nay duoc khoa lai trong client/scripts/check-contrast.mjs. */
+  --tr-danger: #b32f23;
   --tr-on-danger: #ffffff;
-  --tr-success: #1c7b47;
+  --tr-success: #186b3e;
   --tr-on-success: #ffffff;
-  --tr-warning: #946109;
+  --tr-warning: #8a5a08;
   --tr-hover: rgba(48, 48, 47, 0.06);
   --tr-hover-strong: rgba(48, 48, 47, 0.12);
   --tr-overlay: rgba(36, 36, 35, 0.48);
@@ -230,10 +235,10 @@
   --tr-subtle: #aeb8c4;
   --tr-muted: #8995a3;
   --tr-border: #b8c7d624;
-  --tr-primary: #579dff;
+  --tr-primary: #5fa2ff;
   --tr-primary-hover: #85b8ff;
   --tr-on-primary: #1d2125;
-  --tr-danger: #f87168;
+  --tr-danger: #f87870;
   --tr-on-danger: #1d2125;
   --tr-success: #7ee2b8;
   --tr-on-success: #1d2125;
@@ -326,12 +331,12 @@
   --tr-subtle: #4b5a57;
   --tr-muted: #5b6a67;
   --tr-border: rgba(20, 43, 41, 0.13);
-  --tr-primary: #1b6fae;
+  --tr-primary: #1a6ba7;
   --tr-primary-hover: #15578c;
   --tr-on-primary: #ffffff;
-  --tr-danger: #d4181a;
+  --tr-danger: #c51618;
   --tr-on-danger: #ffffff;
-  --tr-success: #0b7a3e;
+  --tr-success: #0b763c;
   --tr-on-success: #ffffff;
   --tr-warning: #8a5a12;
   --tr-hover: rgba(14, 92, 86, 0.06);
@@ -866,9 +871,11 @@ body {
   font-weight: 600;
   color: var(--tr-text);
 }
+/* Nang tu --tr-subtle len --tr-text de con mot bac nua dung cho ngay cua thang
+   khac ben duoi — van giu duoc phan cap ma ca hai bac deu dat AA. */
 .fc .fc-col-header-cell-cushion,
 .fc .fc-daygrid-day-number {
-  color: var(--tr-subtle);
+  color: var(--tr-text);
 }
 .fc .fc-button {
   background-color: var(--tr-hover);
@@ -941,12 +948,30 @@ body {
   font-weight: 600;
 }
 
-/* Muc 10 — ngay cua thang truoc/sau: mo di nhung van doc duoc, su kien giu nguyen do ro. */
+/* Muc 10 — ngay cua thang truoc/sau: phan biet bang NEN, khong ha do dam cua chu.
+   `opacity: 0.55` truoc day keo muc chu xuong 1,37:1 o theme sang (axe do tren
+   /calendar) — duoi han nguong AA. Khong cuu duoc bang cach nang opacity: chinh
+   --tr-subtle von chi dat ~5,6:1 nen 0,8 van chi ra 3,7:1. Gio dung mot bac
+   token that (--tr-text cho ngay trong thang, --tr-subtle cho ngay thang khac):
+   van thay ro dau la ngay ngoai thang, ma ca hai deu dat AU o moi theme. Nen o
+   cung da khac mau san nen tin hieu khong chi nam o muc chu. */
 .fc .fc-daygrid-day.fc-day-other {
   background-color: var(--tr-hover);
 }
+/* FullCalendar tu dat `.fc-day-other .fc-daygrid-day-top { opacity: .3 }` —
+   opacity nam tren phan tu BOC chu khong phai tren so ngay, nen chi doi `color`
+   thoi van bi no nhan xuong (do lai ra 1,62:1). Tat opacity roi tu chon muc chu. */
+.fc .fc-day-other .fc-daygrid-day-top {
+  opacity: 1;
+}
+/* Cot Thu 7 / Chu nhat: nen nhat hon mot chut de dem tuan bang mat de hon. */
+.fc .fc-day-sat,
+.fc .fc-day-sun {
+  background-color: var(--tr-hover);
+}
+
 .fc .fc-day-other .fc-daygrid-day-number {
-  opacity: 0.55;
+  color: var(--tr-subtle);
 }
 
 /* Muc 38 — su kien da hoan thanh: mo di + gach nhe, khong chi dua vao mau. */

@@ -31,6 +31,10 @@ export function Combobox({
   disabled = false,
   onQuickCreate,
   quickCreateLabel,
+  id,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
+  'aria-required': ariaRequired,
 }: {
   value: number | '';
   onChange: (value: number | '') => void;
@@ -47,6 +51,18 @@ export function Combobox({
   /** Khi co, cho phep tao nhanh mot ban ghi moi tu chinh o tim kiem — khong roi khoi form. */
   onQuickCreate?: (query: string) => Promise<ComboboxOption>;
   quickCreateLabel?: (query: string) => string;
+  /**
+   * `Field` bom id + cac thuoc tinh aria vao con cua no bang cloneElement. Truoc
+   * day component nay huy cac prop do vi chi destructure mot danh sach co dinh
+   * va khong co rest spread — hau qua la `label htmlFor` cua moi truong
+   * Combobox bat buoc (vd "Khách hàng" trong form co hoi) tro vao mot id khong
+   * ton tai, con aria-required/aria-invalid thi khong bao gio toi trinh doc man
+   * hinh. Khai bao tuong minh o day de chung di dung cho.
+   */
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean;
+  'aria-required'?: boolean;
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [query, setQuery] = useState('');
@@ -98,11 +114,20 @@ export function Combobox({
       <button
         type="button"
         ref={triggerRef}
+        id={id}
         disabled={disabled}
         onClick={() => setAnchor((prev) => (prev ? null : triggerRef.current))}
+        /* `role="combobox"` chu khong de mac dinh la `button`: day dung la mot
+           combobox dang thu gon, va quan trong hon — vai tro `button` KHONG cho
+           phep `aria-required`, nen khi truong bat buoc (vd "Khách hàng") bom
+           thuoc tinh do vao thi axe bao loi aria-allowed-attr muc critical. */
+        role="combobox"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
+        aria-required={ariaRequired}
         className={
           triggerClassName ??
           `flex w-full items-center justify-between gap-1.5 rounded-control border border-tr-border bg-tr-list px-3 py-2 text-left text-sm outline-none transition hover:border-tr-primary/20 focus-visible:border-tr-primary disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted disabled:hover:border-tr-border ${focusRing} ${className}`
@@ -120,6 +145,7 @@ export function Combobox({
         onClose={close}
         title={ariaLabel ?? placeholder}
         width={288}
+        matchAnchorWidth
       >
         <div className="sticky -top-3 z-10 -mx-3 -mt-3 bg-tr-panel px-3 pb-2 pt-3">
           <div className="relative">

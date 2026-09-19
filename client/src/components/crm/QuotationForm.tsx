@@ -17,6 +17,7 @@ import { DocumentPanel } from './DocumentUpload';
 import { QUOTATION_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import type { Quotation } from '../../types';
+import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 
 const EMPTY = {
   code: '',
@@ -44,7 +45,7 @@ export function QuotationForm({
   const [customerId, setCustomerId] = useState('');
   const [dealId, setDealId] = useState('');
   const [form, setForm] = useState(EMPTY);
-  const [submitted, setSubmitted] = useState(false);
+  const { submitted, validate, reset: resetErrors } = useFormErrors();
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +63,7 @@ export function QuotationForm({
           }
         : EMPTY
     );
-    setSubmitted(false);
+    resetErrors();
     save.reset();
   }, [open, quotation?.id]);
 
@@ -89,6 +90,9 @@ export function QuotationForm({
 
   const customerMissing = !customerId;
 
+  const issues: FieldIssue[] = [];
+  if (customerMissing) issues.push({ id: 'quotation-customer', label: t.card.customer });
+
   return (
     <Modal
       open={open}
@@ -103,15 +107,21 @@ export function QuotationForm({
         <FormModalActions
           onCancel={onClose}
           onSubmit={() => {
-            setSubmitted(true);
+            if (!validate(issues)) return;
             save.mutate();
           }}
           pending={save.isPending}
-          disabled={customerMissing}
         />
       }
     >
       <FormError error={save.error} />
+      {submitted && issues.length > 0 && (
+        <FormError
+          takeFocus={false}
+          error={new Error('Chưa lưu được — còn trường bắt buộc chưa điền.')}
+          fields={issues}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label={t.quotation.code}>
@@ -128,6 +138,7 @@ export function QuotationForm({
           onCustomerChange={setCustomerId}
           dealId={dealId}
           onDealChange={setDealId}
+          customerFieldId="quotation-customer"
           customerError={submitted && customerMissing ? t.common.required : undefined}
           dealHint={t.quotation.versionHint}
         />

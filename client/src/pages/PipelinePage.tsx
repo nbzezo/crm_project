@@ -28,6 +28,7 @@ import { DealForm } from '../components/crm/DealForm';
 import {
   Button,
   ColorBadge,
+  EmptyState,
   ErrorState,
   Select,
   Skeleton,
@@ -184,6 +185,16 @@ export default function PipelinePage() {
       return;
     }
 
+    /* Chup vi tri cu TRUOC khi splice — toast "Hoàn tác" can no de tra thẻ ve
+       dung cot va dung cho trong cot. Sap xep lai trong cung mot cot thi
+       prevStage trung targetStage nen hook tu bo qua toast. */
+    const fromList = next.stages[from.stage];
+    const previous = {
+      prevStage: from.stage,
+      prevBeforeId: from.index > 0 ? fromList[from.index - 1].id : null,
+      prevAfterId: from.index < fromList.length - 1 ? fromList[from.index + 1].id : null,
+    };
+
     if (from.stage === targetStage) {
       const list = next.stages[targetStage];
       const overIdx =
@@ -215,6 +226,7 @@ export default function PipelinePage() {
       stage: targetStage,
       beforeId: idx > 0 ? finalList[idx - 1].id : null,
       afterId: idx < finalList.length - 1 ? finalList[idx + 1].id : null,
+      ...previous,
     });
   }
 
@@ -265,8 +277,19 @@ export default function PipelinePage() {
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-4 px-4 pt-4">
         <Metric label="Cơ hội đang mở" value={String(openTotal.count)} />
-        <Metric label="Tổng pipeline" value={formatVND(openTotal.sum)} />
-        <Metric label="Weighted pipeline" value={formatVND(Math.round(openTotal.weighted))} />
+        {/* Dang RUT GON, khong phai day du: chan moi cot Kanban ngay ben duoi cung
+            la dang rut gon, de hai kieu canh nhau trong mot khung nhin thi cung
+            mot so tien doc ra hai ve khac han. Con so chinh xac nam o `title`. */}
+        <Metric
+          label="Tổng pipeline"
+          value={formatVNDShort(openTotal.sum)}
+          title={formatVND(openTotal.sum)}
+        />
+        <Metric
+          label="Weighted pipeline"
+          value={formatVNDShort(Math.round(openTotal.weighted))}
+          title={formatVND(Math.round(openTotal.weighted))}
+        />
         {(pendingHandover.length > 0 || pendingHandoverOnly) && (
           <FilterMetric
             label="Won chờ bàn giao"
@@ -388,8 +411,11 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
 
   if (deals.length === 0) {
     return (
-      <div className="m-4 rounded-panel border border-tr-border bg-tr-panel p-8 text-center text-sm text-tr-muted">
-        Không có cơ hội nào khớp bộ lọc.
+      <div className="m-4">
+        <EmptyState
+          message="Không có cơ hội nào khớp bộ lọc."
+          hint="Thử nới bộ lọc nhãn hoặc giai đoạn ở thanh trên."
+        />
       </div>
     );
   }
@@ -491,11 +517,13 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, title }: { label: string; value: string; title?: string }) {
   return (
     <div>
       <div className="text-xs text-tr-muted">{label}</div>
-      <div className="text-lg font-semibold text-tr-text">{value}</div>
+      <div className="text-lg font-semibold text-tr-text" title={title}>
+        {value}
+      </div>
     </div>
   );
 }

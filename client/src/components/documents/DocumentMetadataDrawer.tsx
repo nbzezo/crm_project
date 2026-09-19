@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import type { CrmDocument } from '../../types';
 import { Drawer } from '../common/Drawer';
-import { Button, Field, Input, Select, Textarea } from '../common/ui';
+import { Button, DateInput, Field, Input, Select, Textarea } from '../common/ui';
 import type { DocumentOptions } from './DocumentUploadManager';
 
 /** De xuat metadata do AI doc tu noi dung tep — chua ghi vao CSDL. */
@@ -352,17 +352,15 @@ export function DocumentMetadataDrawer({
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Ngày hiệu lực">
-              <Input
-                type="date"
-                value={form.effective_date}
-                onChange={(event) => set('effective_date', event.target.value)}
+              <DateInput
+                value={form.effective_date || null}
+                onChange={(value) => set('effective_date', value ?? '')}
               />
             </Field>
             <Field label="Ngày hết hạn">
-              <Input
-                type="date"
-                value={form.expires_at}
-                onChange={(event) => set('expires_at', event.target.value)}
+              <DateInput
+                value={form.expires_at || null}
+                onChange={(value) => set('expires_at', value ?? '')}
               />
             </Field>
           </div>

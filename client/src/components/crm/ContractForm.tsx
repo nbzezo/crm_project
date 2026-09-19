@@ -18,6 +18,7 @@ import { CONTRACT_STATUS_ORDER, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useProjectOptions } from '../../lib/useCrmOptions';
 import type { Contract } from '../../types';
+import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 
 const EMPTY = {
   name: '',
@@ -48,7 +49,7 @@ export function ContractForm({
   /** v27: dự án mà hợp đồng này tài trợ — nguồn của "Giá trị hợp đồng đã ký". */
   const [projectId, setProjectId] = useState('');
   const [form, setForm] = useState(EMPTY);
-  const [submitted, setSubmitted] = useState(false);
+  const { submitted, validate, reset: resetErrors } = useFormErrors();
   const { data: projects = [] } = useProjectOptions(open);
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export function ContractForm({
           }
         : EMPTY
     );
-    setSubmitted(false);
+    resetErrors();
     save.reset();
   }, [open, contract?.id]);
 
@@ -103,6 +104,10 @@ export function ContractForm({
   const nameMissing = !form.name.trim();
   const customerMissing = !customerId;
 
+  const issues: FieldIssue[] = [];
+  if (nameMissing) issues.push({ id: 'contract-name', label: t.contract.name });
+  if (customerMissing) issues.push({ id: 'contract-customer', label: t.card.customer });
+
   return (
     <Modal
       open={open}
@@ -113,15 +118,21 @@ export function ContractForm({
         <FormModalActions
           onCancel={onClose}
           onSubmit={() => {
-            setSubmitted(true);
+            if (!validate(issues)) return;
             save.mutate();
           }}
           pending={save.isPending}
-          disabled={nameMissing || customerMissing}
         />
       }
     >
       <FormError error={save.error} />
+      {submitted && issues.length > 0 && (
+        <FormError
+          takeFocus={false}
+          error={new Error('Chưa lưu được — còn trường bắt buộc chưa điền.')}
+          fields={issues}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -130,7 +141,12 @@ export function ContractForm({
             required
             error={submitted && nameMissing ? t.common.required : undefined}
           >
-            <Input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} />
+            <Input
+              id="contract-name"
+              autoFocus
+              value={form.name}
+              onChange={(e) => set('name', e.target.value)}
+            />
           </Field>
         </div>
         <Field label={t.contract.number}>
@@ -142,8 +158,22 @@ export function ContractForm({
           onCustomerChange={setCustomerId}
           dealId={dealId}
           onDealChange={setDealId}
+          customerFieldId="contract-customer"
           customerError={submitted && customerMissing ? t.common.required : undefined}
           dealHint={t.common.optional}
+          /* Chon co hoi xong thi dien san nhung gi he thong da biet. Chi dien vao
+             o dang TRONG — khong de len thu nguoi dung da go, va moi o van sua
+             duoc binh thuong. Luong "keo deal sang Thành công" da lam dung viec
+             nay tu truoc (useDealStageMove -> WonDialog); form thu cong thi chua. */
+          onDealSelected={(deal) => {
+            if (!deal) return;
+            setForm((f) => ({
+              ...f,
+              name: f.name.trim() ? f.name : deal.title,
+              value_vnd: f.value_vnd || deal.value_vnd,
+            }));
+            if (projectId === '' && deal.project_id) setProjectId(String(deal.project_id));
+          }}
         />
         <Field label="Giá trị">
           <MoneyInput value={form.value_vnd} onChange={(v) => set('value_vnd', v)} />

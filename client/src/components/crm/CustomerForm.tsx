@@ -8,6 +8,7 @@ import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { ORG_KINDS } from '@workflow/contracts';
 import type { Customer, OrgKind } from '../../types';
+import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 
 const EMPTY = {
   name: '',
@@ -49,6 +50,7 @@ export function CustomerForm({
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY);
   const [touchedName, setTouchedName] = useState(false);
+  const { submitted, validate } = useFormErrors();
   /** Ban sao luc mo form — dung de biet nguoi dung da sua gi chua. */
   const initialRef = useRef(EMPTY);
 
@@ -101,6 +103,10 @@ export function CustomerForm({
   const set = (key: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
   const nameMissing = !form.name.trim();
+
+  const issues: FieldIssue[] = [];
+  if (nameMissing) issues.push({ id: 'customer-name', label: t.customer.name });
+
   const dirty = JSON.stringify(form) !== JSON.stringify(initialRef.current);
 
   return (
@@ -112,13 +118,22 @@ export function CustomerForm({
       footer={
         <FormModalActions
           onCancel={onClose}
-          onSubmit={() => save.mutate()}
+          onSubmit={() => {
+            if (!validate(issues)) return;
+            save.mutate();
+          }}
           pending={save.isPending}
-          disabled={nameMissing}
         />
       }
     >
       <FormError error={save.error} />
+      {submitted && issues.length > 0 && (
+        <FormError
+          takeFocus={false}
+          error={new Error('Chưa lưu được — còn trường bắt buộc chưa điền.')}
+          fields={issues}
+        />
+      )}
 
       {duplicates.length > 0 && (
         <div className="mb-3 flex gap-2 rounded-panel border border-tr-border bg-tr-hover p-3 text-sm">
@@ -144,9 +159,10 @@ export function CustomerForm({
           <Field
             label={t.customer.name}
             required
-            error={touchedName && nameMissing ? t.common.required : undefined}
+            error={(touchedName || submitted) && nameMissing ? t.common.required : undefined}
           >
             <Input
+              id="customer-name"
               autoFocus
               value={form.name}
               onBlur={() => setTouchedName(true)}

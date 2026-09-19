@@ -29,6 +29,7 @@ import {
 import { LOST_REASON_ORDER, t } from '../i18n/vi';
 import { FACTOR_LABELS, VETO_LABELS } from '../i18n/scoring';
 import { formatVND, todayStr } from '../lib/format';
+import { useUiStore } from '../stores/uiStore';
 import type { Deal, Factor, Stage, VetoCode } from '../types';
 
 /** Phần chi tiết server gửi kèm lỗi 409 STAGE_GATE_BLOCKED. */
@@ -44,6 +45,13 @@ type MoveVars = {
   stage: Stage;
   beforeId: number | null;
   afterId: number | null;
+  /**
+   * Vi tri truoc khi chuyen — chi phuc vu nut "Hoàn tác" tren toast.
+   * Khong truyen thi van chuyen duoc, chi la khong chao duoc undo.
+   */
+  prevStage?: Stage;
+  prevBeforeId?: number | null;
+  prevAfterId?: number | null;
 };
 
 export function useDealStageMove(opts: {
@@ -55,6 +63,7 @@ export function useDealStageMove(opts: {
   onMoveError?: () => void;
 }) {
   const navigate = useNavigate();
+  const pushToast = useUiStore((state) => state.pushToast);
   const [pendingLost, setPendingLost] = useState<MoveVars | null>(null);
   const [lostReason, setLostReason] = useState('');
   const [lostNote, setLostNote] = useState('');
@@ -81,7 +90,30 @@ export function useDealStageMove(opts: {
     onSuccess: (deal, vars) => {
       opts.onMoveSuccess?.(deal, vars);
       opts.invalidate();
-      if (vars.stage === 'won') setWonDeal(deal);
+      if (vars.stage === 'won') {
+        setWonDeal(deal);
+        return;
+      }
+      /* Doi giai doan la su kien quan trong nhat trong doi mot deal va cung la
+         thao tac de keo nham nhat: xac suat bi ghi de theo STAGE_PROBABILITY nen
+         keo nguoc lai bang tay khong tra lai duoc trang thai cu. Goi thang
+         endpoint thay vi `move.mutate` de khong tu tham chieu chinh minh, va vi
+         lui giai doan thi khong can chay lai cong BANT. */
+      if (!vars.prevStage || vars.prevStage === vars.stage) return;
+      const back = vars.prevStage;
+      pushToast(`Đã chuyển sang “${t.stage[vars.stage]}”`, 'success', {
+        label: 'Hoàn tác',
+        run: () => {
+          void api
+            .patch(`/api/deals/${vars.dealId}/move`, {
+              stage: back,
+              beforeId: vars.prevBeforeId ?? null,
+              afterId: vars.prevAfterId ?? null,
+            })
+            .then(() => opts.invalidate())
+            .catch(() => pushToast('Không hoàn tác được — hãy chuyển lại bằng tay.'));
+        },
+      });
     },
     onError: (error, vars) => {
       opts.onMoveError?.();

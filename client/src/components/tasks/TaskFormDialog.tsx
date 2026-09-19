@@ -6,6 +6,7 @@ import { TASK_LINK_KEYS, type TaskAssistResult, type TaskLinkKey } from '../../a
 import { Combobox, type ComboboxOption } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '../common/ui';
+import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
@@ -100,7 +101,7 @@ export function TaskFormDialog() {
   const [projectId, setProjectId] = useState<number | null>(null);
   /** Khoa duoc mo dau vao: hien dang khoa cho toi khi nguoi dung bam "Đổi". */
   const [anchors, setAnchors] = useState<LinkKey[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const { submitted, validate, reset: resetErrors } = useFormErrors();
   /** Nguoi dung da tu chon danh sach thi khong de goi y cua server ghi de nua. */
   const [listTouched, setListTouched] = useState(false);
   /** Nguoi dung da tu doi nguoi phu trach thi khong de mac dinh "tôi" ghi de nua. */
@@ -148,7 +149,7 @@ export function TaskFormDialog() {
     setAssigneeTouched(false);
     setProjectId(composer?.projectId ?? null);
     setAnchors(composer ? LINK_KEYS.filter((key) => composer.context[key] != null) : []);
-    setSubmitted(false);
+    resetErrors();
     setAiFilled(aiFilledFromDraft);
     setAiMeta(
       draft?.aiRequestId ? { requestId: draft.aiRequestId, warnings: draft.aiWarnings ?? [] } : null
@@ -187,7 +188,9 @@ export function TaskFormDialog() {
    * Khong giao cho ai thi mac dinh la minh (khop voi mac dinh o createCard phia
    * may chu) — chi ap dung khi nguoi dung chua tu doi va composer khong chi dinh san.
    */
-  const { data: assignees } = useAssignees();
+  // Hop thoai nay mount vo dieu kien trong App.tsx — khong gate thi danh ba
+  // duoc tai tren moi trang du form chua bao gio mo.
+  const { data: assignees } = useAssignees(open);
   useEffect(() => {
     if (assigneeTouched || composer?.assigneeContactId != null) return;
     const me = assignees?.find((a) => a.is_me);
@@ -329,6 +332,14 @@ export function TaskFormDialog() {
   const noBoards = context != null && context.boards.length === 0;
   const listRequired = !openedWithContext || !canAutoResolveList;
   const listMissing = listId === '' && listRequired;
+
+  const issues: FieldIssue[] = [];
+  if (titleMissing) issues.push({ id: 'task-title', label: 'Tiêu đề' });
+  if (listMissing)
+    issues.push({
+      id: 'task-list',
+      label: noBoards ? 'Danh sách (chưa có bảng nào)' : 'Danh sách',
+    });
   const suggestedList = context?.lists.find((l) => l.id === context.suggested_list_id) ?? null;
   const suggestedBoardName =
     context?.boards.find((b) => b.id === suggestedList?.board_id)?.name ?? null;
@@ -355,9 +366,9 @@ export function TaskFormDialog() {
           <Button onClick={close}>{t.common.cancel}</Button>
           <Button
             variant="primary"
-            disabled={titleMissing || listMissing || save.isPending}
+            disabled={save.isPending}
             onClick={() => {
-              setSubmitted(true);
+              if (!validate(issues)) return;
               save.mutate();
             }}
           >
@@ -368,6 +379,13 @@ export function TaskFormDialog() {
     >
       <FormError error={save.error} />
       <FormError error={assist.error} />
+      {submitted && issues.length > 0 && (
+        <FormError
+          takeFocus={false}
+          error={new Error('Chưa tạo được — còn trường bắt buộc chưa điền.')}
+          fields={issues}
+        />
+      )}
 
       {aiFilled.length > 0 && (
         <div className="mb-3 rounded-control border border-tr-border bg-tr-hover px-3 py-2 text-xs text-tr-subtle">
@@ -413,6 +431,7 @@ export function TaskFormDialog() {
             error={submitted && titleMissing ? t.common.required : undefined}
           >
             <Input
+              id="task-title"
               autoFocus
               value={title}
               onChange={(e) => {
@@ -494,6 +513,7 @@ export function TaskFormDialog() {
           }
         >
           <Select
+            id="task-list"
             value={listId}
             onChange={(e) => {
               setListTouched(true);

@@ -1,4 +1,4 @@
-import { addDays as addDaysFn, format, parseISO } from 'date-fns';
+import { addDays as addDaysFn, format, isValid, parseISO } from 'date-fns';
 
 const vndFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -12,7 +12,18 @@ export function formatVND(value: number | null | undefined): string {
   return vndFormatter.format(value ?? 0);
 }
 
-/** Rut gon cho truc bieu do / thanh tong: 1,5 tỷ · 250 tr · 900 ng. */
+/**
+ * Rut gon cho truc bieu do / thanh tong: 1,5 tỷ · 250 tr · 900 ng.
+ *
+ * QUY TAC CHON GIUA `formatVND` VA `formatVNDShort`:
+ *  - `formatVNDShort` cho o hep: chip, chan cot Kanban, o trong bang, nhan truc
+ *    bieu do.
+ *  - `formatVND` cho KPI va trang chi tiet, noi con so LA noi dung chinh.
+ *  - KHONG BAO GIO de hai dang canh nhau trong cung mot khung nhin. Neu mot khung
+ *    vua co o hep vua co KPI (vd bang Kanban: chi so dau trang + chan tung cot)
+ *    thi ca khung dung dang RUT GON, va dat gia tri day du vao `title` de ai can
+ *    con so chinh xac van tra cuu duoc — xem CustomersPage va PipelinePage.
+ */
 export function formatVNDShort(value: number | null | undefined): string {
   const n = value ?? 0;
   if (n === 0) return '0';
@@ -134,4 +145,53 @@ export function contrastInk(hex: string): string {
 export function foldText(s: string | null | undefined): string {
   if (!s) return '';
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+}
+
+/* ---------- Nhap ngay theo dd/MM/yyyy ----------
+ * `<input type="date">` hien thi theo locale cua TRINH DUYET, khong theo
+ * `<html lang="vi">`. Tren Chrome cai dat tieng Anh, nguoi dung go mm/dd trong
+ * khi ca ung dung hien thi dd/MM (`formatDate`) — go ngay ky 03/04 hieu la 3
+ * thang 4 thi he thong luu 4 thang 3, va nhac gia han 90/60/30/7 ngay lech han
+ * mot thang. Hai ham duoi day cho phep tu ve o nhap dd/MM/yyyy, khong phu thuoc
+ * locale trinh duyet. */
+
+/** Che dan khi go: "2512" -> "25/12", "25122026" -> "25/12/2026". */
+export function maskDateInput(text: string): string {
+  const digits = text.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+/**
+ * 'dd/MM/yyyy' -> 'YYYY-MM-DD'; tra ve null neu chua du hoac khong co that.
+ * Kiem lai ngay/thang sau khi dung de loai 31/02 — `parseISO('2026-02-31')`
+ * khong nem loi ma tu cuon sang 03/03.
+ */
+export function parseDateInput(text: string): string | null {
+  const digits = text.replace(/\D/g, '');
+  if (digits.length !== 8) return null;
+  const day = Number(digits.slice(0, 2));
+  const month = Number(digits.slice(2, 4));
+  const year = Number(digits.slice(4, 8));
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1000) return null;
+  const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const parsed = parseISO(iso);
+  if (!isValid(parsed) || parsed.getDate() !== day || parsed.getMonth() + 1 !== month) return null;
+  return iso;
+}
+
+/** Tach 'YYYY-MM-DDTHH:mm' thanh hai phan cho DateTimeInput. */
+export function splitDateTime(value: string | null | undefined): {
+  date: string | null;
+  time: string;
+} {
+  if (!value) return { date: null, time: '' };
+  return { date: value.slice(0, 10) || null, time: value.slice(11, 16) };
+}
+
+/** Ghep lai 'YYYY-MM-DD' + 'HH:mm'; thieu ngay thi coi nhu chua chon. */
+export function joinDateTime(date: string | null, time: string): string | null {
+  if (!date) return null;
+  return `${date}T${time || '00:00'}`;
 }

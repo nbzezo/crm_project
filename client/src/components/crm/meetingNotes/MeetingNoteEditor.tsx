@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, ListChecks, Sparkles, Trash2 } from 'lucide-react';
 import { api } from '../../../api/client';
-import { Button, focusRing, IconButton, Input } from '../../common/ui';
+import { Button, DateTimeInput, focusRing, IconButton } from '../../common/ui';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { useUiStore } from '../../../stores/uiStore';
 import type { AiActionProposal } from '../../../ai/types';
@@ -153,15 +153,14 @@ export function MeetingNoteEditor({
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        {/* Boc trong div co chieu rong co dinh — Input luon tu ep w-full (xem
-            inputBase o ui.tsx), truyen w-56 thang vao Input se bi w-full de
-            (hai class Tailwind cung sua width, thu tu trong CSS bien dich
-            quyet dinh chu khong phai thu tu viet trong className). */}
-        <div className="w-56">
-          <Input
-            type="datetime-local"
-            value={meetingAt}
-            onChange={(e) => setMeetingAt(e.target.value)}
+        {/* Boc trong div co chieu rong co dinh — o nhap ben trong luon tu ep
+            w-full (xem inputBase o ui.tsx), truyen chieu rong thang vao no se bi
+            w-full de (hai class Tailwind cung sua width, thu tu trong CSS bien
+            dich quyet dinh chu khong phai thu tu viet trong className). */}
+        <div className="w-72">
+          <DateTimeInput
+            value={meetingAt || null}
+            onChange={(value) => setMeetingAt(value ?? '')}
             aria-label="Thời gian họp"
           />
         </div>

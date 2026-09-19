@@ -20,6 +20,7 @@ import { Combobox } from '../common/Combobox';
 import {
   Button,
   DateInput,
+  DateTimeInput,
   EmptyState,
   Field,
   FormError,
@@ -174,10 +175,9 @@ export function InteractionTimeline({
             </Select>
           </Field>
           <Field label={t.interaction.occurredAt}>
-            <Input
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
+            <DateTimeInput
+              value={occurredAt || null}
+              onChange={(value) => setOccurredAt(value ?? '')}
             />
           </Field>
           <Field label={t.interaction.relatedContact}>

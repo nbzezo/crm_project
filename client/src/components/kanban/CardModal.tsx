@@ -31,7 +31,14 @@ import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { useDialog } from '../common/useDialog';
-import { Button, Field as FormField, focusRing, selectOptionContrast } from '../common/ui';
+import {
+  Button,
+  DateInput,
+  DateTimeInput,
+  Field as FormField,
+  focusRing,
+  selectOptionContrast,
+} from '../common/ui';
 import { AttachmentSection } from './AttachmentSection';
 import { ChecklistSection } from './ChecklistSection';
 import { CustomFieldsSection } from './CustomFieldsSection';
@@ -972,20 +979,16 @@ function DatesPopover({
           <span className="mb-1 block text-xs font-semibold text-tr-subtle">
             {t.card.startDate}
           </span>
-          <input
-            type="date"
-            value={card.start_date ?? ''}
-            onChange={(e) => onChange({ start_date: e.target.value || null })}
-            className={POPOVER_INPUT}
+          <DateInput
+            value={card.start_date ?? null}
+            onChange={(value) => onChange({ start_date: value })}
           />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-tr-subtle">{t.card.dueDate}</span>
-          <input
-            type="date"
-            value={card.due_date ?? ''}
-            onChange={(e) => onChange({ due_date: e.target.value || null })}
-            className={POPOVER_INPUT}
+          <DateInput
+            value={card.due_date ?? null}
+            onChange={(value) => onChange({ due_date: value })}
           />
         </label>
         <button
@@ -1428,12 +1431,7 @@ function ReminderPopover({ card, pop }: { card: CardDetail; pop: Pop }) {
           <span className="mb-1 block text-xs font-semibold text-tr-subtle">
             {t.reminder.dueAt}
           </span>
-          <input
-            type="datetime-local"
-            value={dueAt}
-            onChange={(e) => setDueAt(e.target.value)}
-            className={POPOVER_INPUT}
-          />
+          <DateTimeInput value={dueAt || null} onChange={(value) => setDueAt(value ?? '')} />
         </label>
         <button
           onClick={() => create.mutate()}

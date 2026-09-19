@@ -10,6 +10,13 @@ interface Props {
   title: string;
   children: ReactNode;
   width?: number;
+  /**
+   * Noi rong popover cho BANG it nhat o kich hoat. Dung cho Combobox: truoc day
+   * popover luon rong dung 288px trong khi o kich hoat la `w-full`, nen ten dai
+   * (vd "CÔNG TY CỔ PHẦN TẬP ĐOÀN GOLDEN GATE") bi cat giua chung dropdown du
+   * ben ngoai con thua cho.
+   */
+  matchAnchorWidth?: boolean;
   onBack?: () => void;
 }
 
@@ -17,7 +24,16 @@ interface Props {
  * Popover neo vao nut bam — dung chung cho moi menu kieu Trello
  * (menu danh sach, chon nhan, chon ngay, doi nen bang…).
  */
-export function Popover({ open, onClose, anchor, title, children, width = 304, onBack }: Props) {
+export function Popover({
+  open,
+  onClose,
+  anchor,
+  title,
+  children,
+  width: widthProp = 304,
+  matchAnchorWidth = false,
+  onBack,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({
     left: 0,
@@ -32,10 +48,14 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
    * "..." nam trong QuickNoteEditorModal co the o gan day man hinh, neu luon co
    * dinh phia duoi popover se bi cat mat (khong co overflow-x-auto de cuu).
    */
+  const [resolvedWidth, setResolvedWidth] = useState(widthProp);
+
   useLayoutEffect(() => {
     if (!open || !anchor) return;
     const rect = anchor.getBoundingClientRect();
     const margin = 8;
+    const width = matchAnchorWidth ? Math.max(widthProp, rect.width) : widthProp;
+    setResolvedWidth(width);
     let left = rect.left;
     if (left + width + margin > window.innerWidth) left = window.innerWidth - width - margin;
     if (left < margin) left = margin;
@@ -54,7 +74,7 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
     } else {
       setPos({ left, top: rect.bottom + 6, bottom: null, maxHeight: Math.max(160, spaceBelow) });
     }
-  }, [open, anchor, width]);
+  }, [open, anchor, widthProp, matchAnchorWidth]);
 
   useEffect(() => {
     if (!open) return;
@@ -93,7 +113,7 @@ export function Popover({ open, onClose, anchor, title, children, width = 304, o
         left: pos.left,
         top: pos.bottom == null ? pos.top : undefined,
         bottom: pos.bottom ?? undefined,
-        width: Math.min(width, window.innerWidth - 16),
+        width: Math.min(resolvedWidth, window.innerWidth - 16),
         maxHeight: pos.maxHeight,
       }}
     >
@@ -128,15 +148,23 @@ export function PopoverItem({
   children,
   onClick,
   danger,
+  role,
+  checked,
 }: {
   icon?: ReactNode;
   children: ReactNode;
   onClick: () => void;
   danger?: boolean;
+  /** Vd `menuitemradio` cho danh sach chi chon duoc MOT muc (chon giao dien). */
+  role?: 'menuitem' | 'menuitemradio';
+  /** Di kem `role="menuitemradio"` — noi ra muc nao dang duoc chon. */
+  checked?: boolean;
 }) {
   return (
     <button
       type="button"
+      role={role}
+      aria-checked={role === 'menuitemradio' ? checked : undefined}
       onClick={onClick}
       className={`tr-popover-item -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary fine:py-1.5 ${
         danger ? 'text-tr-danger' : 'text-tr-text'

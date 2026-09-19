@@ -13,7 +13,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Button, Field, focusRing } from '../common/ui';
+import { Button, DateTimeInput, Field, focusRing } from '../common/ui';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Popover, usePopover } from '../common/Popover';
@@ -202,13 +202,13 @@ function MoreMenu({
           Reminder
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="datetime-local"
-            value={reminderAt}
-            onChange={(e) => saveReminder(e.target.value)}
-            aria-label="Thời gian nhắc"
-            className={`rounded-control border border-tr-border bg-tr-list px-2 py-1 text-xs text-tr-text outline-none focus:border-tr-primary ${focusRing}`}
-          />
+          <div className="w-64">
+            <DateTimeInput
+              value={reminderAt || null}
+              onChange={(value) => saveReminder(value ?? '')}
+              aria-label="Thời gian nhắc"
+            />
+          </div>
           {reminderAt && (
             <Button size="sm" onClick={() => saveReminder('')}>
               Huỷ nhắc

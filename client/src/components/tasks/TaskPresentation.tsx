@@ -3,7 +3,7 @@ import { useQueries } from '@tanstack/react-query';
 import { Check, Circle, Ellipsis, PanelRightOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
-import { formatDate } from '../../lib/format';
+import { formatDate, maskDateInput, parseDateInput } from '../../lib/format';
 import type { BoardFull, Label, List, Priority, TaskRow } from '../../types';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { focusRing } from '../common/ui';
@@ -157,18 +157,29 @@ export function SmartDeadline({
   disabled?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
   const presentation = getDeadlinePresentation(value, isDone);
 
   if (editing) {
     return (
       <input
-        type="date"
+        type="text"
+        inputMode="numeric"
         autoFocus
-        value={value ?? ''}
+        autoComplete="off"
+        placeholder="dd/mm/yyyy"
+        value={draft}
         disabled={disabled}
         onChange={(event) => {
-          onChange(event.target.value || null);
-          setEditing(false);
+          const masked = maskDateInput(event.target.value);
+          setDraft(masked);
+          const parsed = parseDateInput(masked);
+          if (parsed) {
+            onChange(parsed);
+            setEditing(false);
+          } else if (masked === '') {
+            onChange(null);
+          }
         }}
         onBlur={() => setEditing(false)}
         onKeyDown={(event) => event.key === 'Escape' && setEditing(false)}
@@ -182,7 +193,10 @@ export function SmartDeadline({
     <button
       type="button"
       disabled={disabled}
-      onClick={() => setEditing(true)}
+      onClick={() => {
+        setDraft(formatDate(value));
+        setEditing(true);
+      }}
       title={
         value ? `Hạn hoàn thành: ${formatDate(value)}. Bấm để thay đổi.` : 'Thêm hạn hoàn thành'
       }

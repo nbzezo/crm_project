@@ -19,11 +19,12 @@ const ORG_TONE: Record<OrgKind, string> = {
  * Dùng chung một truy vấn cho mọi ô chọn — `staleTime` dài vì danh bạ đổi rất
  * hiếm so với số lần mở form.
  */
-export function useAssignees() {
+export function useAssignees(enabled = true) {
   return useQuery({
     queryKey: ['assignees'],
     queryFn: () => api.get<Assignee[]>('/api/contacts/assignable'),
     staleTime: 5 * 60_000,
+    enabled,
   });
 }
 

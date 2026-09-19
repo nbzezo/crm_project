@@ -8,10 +8,21 @@ import type {
   ReactNode,
   SelectHTMLAttributes,
 } from 'react';
-import { AlertCircle, Inbox } from 'lucide-react';
+import { AlertCircle, CalendarDays, Inbox } from 'lucide-react';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import type { Priority } from '../../types';
-import { contrastInk, formatDate, formatVNDInput, parseVNDInput } from '../../lib/format';
+import {
+  contrastInk,
+  formatDate,
+  formatVNDInput,
+  joinDateTime,
+  maskDateInput,
+  parseDateInput,
+  parseVNDInput,
+  splitDateTime,
+} from '../../lib/format';
+import { DatePicker } from './DatePicker';
+import { Popover, usePopover } from './Popover';
 
 /* ---------- Button ---------- */
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -169,14 +180,19 @@ export function Field({
   error?: ReactNode;
   required?: boolean;
 }) {
-  const id = useId();
+  const autoId = useId();
+  /* Khi noi goi tu dat `id` cho o nhap (de bang tom tat loi co the focus thang
+     toi no), `htmlFor` phai bam theo CHINH id do. Ban truoc luon dung `useId()`
+     cho nhan trong khi o nhap giu id rieng — nhan tro vao mot id khong ton tai. */
+  const childId = isValidElement(children) ? (children.props as { id?: string }).id : undefined;
+  const id = childId ?? autoId;
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ');
 
   const control = isValidElement(children)
     ? cloneElement(children as ReactElement<Record<string, unknown>>, {
-        id: (children.props as { id?: string }).id ?? id,
+        id,
         'aria-describedby': describedBy || undefined,
         'aria-invalid': error ? true : undefined,
         'aria-required': required || undefined,
@@ -228,8 +244,19 @@ export function Input({ className = '', ...props }: ComponentProps<'input'>) {
  */
 export const selectOptionContrast = '[&>option]:bg-tr-panel [&>option]:text-tr-text';
 
-export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${inputBase} ${selectOptionContrast} ${className}`} />;
+/**
+ * `fullWidth={false}` bo han `w-full` khoi class thay vi de noi goi chong them
+ * `w-auto`: hai class Tailwind cung sua width thi thang thua do THU TU TRONG CSS
+ * BIEN DICH quyet dinh, khong phai thu tu viet trong className — nen chong len
+ * nhau cho ket qua khong doan truoc duoc (xem cung van de o MeetingNoteEditor).
+ */
+export function Select({
+  className = '',
+  fullWidth = true,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { fullWidth?: boolean }) {
+  const base = fullWidth ? inputBase : inputBase.replace('w-full ', '');
+  return <select {...props} className={`${base} ${selectOptionContrast} ${className}`} />;
 }
 
 export function Textarea({
@@ -244,7 +271,17 @@ export function Textarea({
   );
 }
 
-/* ---------- DateInput (chuoi 'YYYY-MM-DD', khong dung Date) ---------- */
+/* ---------- DateInput (chuoi 'YYYY-MM-DD', khong dung Date) ----------
+ *
+ * Truoc day la `<input type="date">` thuan. Chrome ve o do theo locale cua
+ * TRINH DUYET chu khong theo `<html lang="vi">`, nen tren may cai tieng Anh
+ * nguoi dung go mm/dd trong khi ca ung dung hien thi dd/MM: go ngay ky 03/04
+ * hieu la 3 thang 4 thi he thong luu 4 thang 3, keo theo nhac gia han hop dong
+ * 90/60/30/7 ngay lech han mot thang.
+ *
+ * Gio la o text go dd/MM/yyyy co che dan + nut mo lich tu ve. Chu ky
+ * (`value` la chuoi ISO 'YYYY-MM-DD', `onChange` tra null khi de trong) giu
+ * nguyen nen moi noi dang dung khong phai sua. */
 export function DateInput({
   value,
   onChange,
@@ -254,14 +291,95 @@ export function DateInput({
   value: string | null;
   onChange: (value: string | null) => void;
 }) {
+  const picker = usePopover();
+  const [text, setText] = useState(() => formatDate(value));
+
+  // Dong bo khi gia tri doi tu ben ngoai (chon tu lich, reset form).
+  useEffect(() => {
+    setText(formatDate(value));
+  }, [value]);
+
   return (
-    <Input
-      {...props}
-      type="date"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
-      className={className}
-    />
+    <div className="relative">
+      <Input
+        {...props}
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="dd/mm/yyyy"
+        value={text}
+        onChange={(e) => {
+          const masked = maskDateInput(e.target.value);
+          setText(masked);
+          const parsed = parseDateInput(masked);
+          if (parsed) onChange(parsed);
+          else if (masked === '') onChange(null);
+        }}
+        onBlur={(e) => {
+          // Go do dang thi tra o ve gia tri hop le gan nhat, khong de ket o
+          // trang thai nua voi ma nguoi dung tuong da nhap xong.
+          setText(formatDate(value));
+          props.onBlur?.(e);
+        }}
+        className={`pr-10 ${className}`}
+      />
+      <button
+        type="button"
+        onClick={picker.toggle}
+        aria-label="Mở lịch chọn ngày"
+        aria-haspopup="dialog"
+        aria-expanded={picker.open}
+        className={`absolute top-1/2 right-1 -translate-y-1/2 rounded-control p-2 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
+      >
+        <CalendarDays size={15} aria-hidden="true" />
+      </button>
+      <Popover
+        open={picker.open}
+        onClose={picker.close}
+        anchor={picker.anchor}
+        title="Chọn ngày"
+        width={288}
+      >
+        <DatePicker
+          value={value}
+          onSelect={(next) => {
+            onChange(next);
+            picker.close();
+          }}
+        />
+      </Popover>
+    </div>
+  );
+}
+
+/* ---------- DateTimeInput (chuoi 'YYYY-MM-DDTHH:mm') ----------
+ * Ghep DateInput voi mot o gio. Gio giu `type="time"` cua trinh duyet: 12h hay
+ * 24h deu hien AM/PM ro rang nen khong co kieu nham lan nhu ngay/thang. */
+export function DateTimeInput({
+  value,
+  onChange,
+  className = '',
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
+  value: string | null;
+  onChange: (value: string | null) => void;
+}) {
+  const { date, time } = splitDateTime(value);
+  return (
+    <div className={`flex gap-2 ${className}`}>
+      <DateInput
+        {...props}
+        value={date}
+        onChange={(next) => onChange(joinDateTime(next, time))}
+        className="min-w-0 flex-1"
+      />
+      <Input
+        type="time"
+        aria-label="Giờ"
+        value={time}
+        onChange={(e) => onChange(joinDateTime(date, e.target.value))}
+        className="w-28 shrink-0"
+      />
+    </div>
   );
 }
 
@@ -274,32 +392,48 @@ export function InlineDate({
   onChange,
   highlight,
   placeholder = '—',
-}: {
+  ...props
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value' | 'onChange'> & {
   value: string | null;
   onChange: (value: string | null) => void;
   highlight?: boolean;
   placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
 
   if (editing) {
     return (
       <input
-        type="date"
+        type="text"
+        inputMode="numeric"
         autoFocus
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
+        autoComplete="off"
+        aria-label="Ngày, dạng ngày/tháng/năm"
+        placeholder="dd/mm/yyyy"
+        value={text}
+        onChange={(e) => {
+          const masked = maskDateInput(e.target.value);
+          setText(masked);
+          const parsed = parseDateInput(masked);
+          if (parsed) onChange(parsed);
+          else if (masked === '') onChange(null);
+        }}
         onBlur={() => setEditing(false)}
         onKeyDown={(e) => e.key === 'Enter' && setEditing(false)}
-        className="rounded-control border border-tr-border bg-tr-panel px-1 py-0.5 text-xs text-tr-text"
+        className="w-24 rounded-control border border-tr-border bg-tr-panel px-1 py-0.5 text-xs tabular-nums text-tr-text"
       />
     );
   }
 
   return (
     <button
+      {...props}
       type="button"
-      onClick={() => setEditing(true)}
+      onClick={() => {
+        setText(formatDate(value));
+        setEditing(true);
+      }}
       className={`rounded-control border border-transparent px-1.5 py-0.5 text-xs tabular-nums hover:border-tr-border ${focusRing} ${
         highlight ? 'font-semibold text-tr-danger' : value ? 'text-tr-subtle' : 'text-tr-muted'
       }`}
@@ -309,19 +443,22 @@ export function InlineDate({
   );
 }
 
-/* ---------- MoneyInput (VND, cho phep go 1.500.000) ---------- */
+/* ---------- MoneyInput (VND, cho phep go 1.500.000) ----------
+ * `...props` bat buoc phai co: `Field` bom id/aria-* vao con bang cloneElement,
+ * khong chuyen tiep thi nhan va loi khong noi duoc voi o nhap. */
 export function MoneyInput({
   value,
   onChange,
   className = '',
-}: {
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
   value: number;
   onChange: (value: number) => void;
-  className?: string;
 }) {
   return (
     <div className="relative">
       <Input
+        {...props}
         inputMode="numeric"
         value={formatVNDInput(value)}
         onChange={(e) => onChange(parseVNDInput(e.target.value))}
@@ -404,9 +541,15 @@ export function EmptyState({
 export function FormError({
   error,
   fields,
+  takeFocus = true,
 }: {
   error: unknown;
   fields?: { id: string; label: string }[];
+  /**
+   * Dat false khi bang nay dung lam tom tat loi validation: luc do focus da
+   * duoc dua ve o nhap dau tien bi loi, keo nguoc len day se cuop mat.
+   */
+  takeFocus?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // Bam theo noi dung loi chu khong phai chinh `error`: mot doi tuong Error moi
@@ -414,8 +557,8 @@ export function FormError({
   const message = error ? (error instanceof Error ? error.message : t.common.saveError) : null;
 
   useEffect(() => {
-    if (message) ref.current?.focus({ preventScroll: false });
-  }, [message]);
+    if (message && takeFocus) ref.current?.focus({ preventScroll: false });
+  }, [message, takeFocus]);
 
   if (!message) return null;
 
@@ -430,14 +573,16 @@ export function FormError({
         <AlertCircle size={16} className="mt-0.5 shrink-0 text-tr-danger" aria-hidden="true" />
         <span>{message}</span>
       </div>
+      {/* `min-h-6` + khoang cach dong: WCAG 2.2 doi vung cham it nhat 24x24px.
+          Cac muc nay von chi cao 21px va cach nhau 2px nen axe bao target-size. */}
       {fields && fields.length > 0 && (
-        <ul className="mt-2 ml-6 list-disc space-y-0.5">
+        <ul className="mt-2 ml-6 list-disc space-y-1">
           {fields.map((field) => (
             <li key={field.id}>
               <button
                 type="button"
                 onClick={() => document.getElementById(field.id)?.focus()}
-                className={`underline underline-offset-2 hover:text-tr-danger ${focusRing}`}
+                className={`inline-flex min-h-6 items-center underline underline-offset-2 hover:text-tr-danger ${focusRing}`}
               >
                 {field.label}
               </button>
@@ -513,9 +658,13 @@ export function Panel({
     <section
       className={`tr-bento-card rounded-panel border border-tr-border bg-tr-panel p-3.5 sm:p-4 ${className}`}
     >
+      {/* flex-wrap + min-w-0: tieu de va cum nut/loc phai duoc xuong dong khi chat
+          thay vi ep nhau. Khong co hai thu nay thi cum `action` bi don thanh cot
+          hep o mep phai roi tran ra ngoai vien card — thay ro nhat o bo loc "Ma
+          tran co hoi" tren /pipeline-health. */}
       {(title || action) && (
-        <header className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold tracking-[-0.01em] text-tr-text">{title}</h2>
+        <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="min-w-0 text-sm font-bold tracking-[-0.01em] text-tr-text">{title}</h2>
           {action}
         </header>
       )}
