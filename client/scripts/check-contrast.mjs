@@ -49,6 +49,10 @@ const LAYERED = [{ fg: '--tr-nav-text', over: ['--tr-nav-panel'], base: '--tr-sh
  * ro"). Day la cap de lot nhat: nhin rieng token thi dat, nhung nen lai chinh la
  * no nen ty le that thap hon han.
  */
+/* Mau uu tien KHONG nam trong danh sach nay: chung chi duoc dung lam nen DAC kem
+   `contrastInk` (ColorBadge, PrioritySelect, chip Lich), khong bao gio lam muc
+   chu tren nen tint cua chinh no. Bai quet axe tren /tasks se bat neu ai do dua
+   kieu dung do tro lai. */
 const TINTED = ['--tr-danger', '--tr-success', '--tr-warning', '--tr-primary'];
 /* Hai muc pha loang that su duoc dung trong ma nguon: `/10` va `/15`. Muc `/15`
    nhat hon nen kho hon o theme toi — phai kiem ca hai. */
@@ -56,7 +60,9 @@ const TINT_ALPHAS = [0.1, 0.15];
 
 function parseBlocks(css) {
   const blocks = new Map();
-  for (const { selector } of THEMES) {
+  /* `@theme` (Tailwind v4) cung la mot nguon khai bao token. Khong doc no thi
+     moi token dat o day bi bo qua IM LANG — guard bao OK ma that ra chua do gi. */
+  for (const { selector } of [...THEMES, { selector: '@theme' }]) {
     // Lay khoi dau tien mo bang selector nay.
     const at = css.indexOf(`${selector} {`);
     if (at === -1) continue;
@@ -74,7 +80,11 @@ function parseBlocks(css) {
 }
 
 function tokenValue(blocks, selector, token) {
-  return blocks.get(selector)?.get(token) ?? blocks.get(':root')?.get(token);
+  return (
+    blocks.get(selector)?.get(token) ??
+    blocks.get(':root')?.get(token) ??
+    blocks.get('@theme')?.get(token)
+  );
 }
 
 /** '#rgb' | '#rrggbb' | 'rgba(r,g,b,a)' -> {r,g,b,a} */
@@ -149,6 +159,14 @@ function check(themeName, label, fg, bg) {
   const value = ratio(fg, bg);
   if (value < AA_NORMAL) {
     findings.push(`${themeName} · ${label} — ${value.toFixed(2)}:1 (cần ≥ ${AA_NORMAL})`);
+  }
+}
+
+/* Bao loi thay vi bo qua: mot token doi ten hay go sai se lam guard "xanh" ma
+   khong do gi — dung kieu hong ma chinh guard nay sinh ra de ngan. */
+for (const token of [...TEXT_TOKENS, ...SOLID_SURFACES, ...TINTED]) {
+  if (!tokenValue(parseBlocks(css), ':root', token)) {
+    findings.push(`Khong tra cuu duoc token ${token} — kiem tra lai ten trong index.css`);
   }
 }
 

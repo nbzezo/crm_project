@@ -30,6 +30,7 @@ import {
   Segmented,
   Select,
   Textarea,
+  focusRing,
 } from '../components/common/ui';
 import { PageShell } from '../components/common/PageShell';
 import { t } from '../i18n/vi';
@@ -90,6 +91,9 @@ interface UsageData {
   }[];
 }
 
+/** Hai y dinh dung chung mot o nhap tren trang Tro ly AI. */
+type Intent = 'ask' | 'task';
+
 export default function AiWorkspacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
@@ -142,6 +146,9 @@ function AssistantTab() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
   const openTaskComposer = useUiStore((state) => state.openTaskComposer);
+  /* Mot o nhap, hai y dinh. Khong de AI tu doan: doan sai thi nguoi dung mat
+     cong vua go, ma hai chip thi ro rang va khong ton them thao tac nao. */
+  const [intent, setIntent] = useState<Intent>('ask');
   const [quickTaskText, setQuickTaskText] = useState('');
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<'crm' | 'documents' | 'all'>('all');
@@ -205,6 +212,20 @@ function AssistantTab() {
     if (value.length >= 3 && !ask.isPending) ask.mutate(value);
   };
 
+  /** Gui theo y dinh dang chon — cung mot o nhap, cung mot nut. */
+  const submitComposer = () => {
+    if (intent === 'ask') {
+      submitQuestion();
+      return;
+    }
+    if (quickTaskText.trim().length >= 3 && !quickTask.isPending) quickTask.mutate();
+  };
+
+  const composerBusy =
+    intent === 'ask'
+      ? question.trim().length < 3 || ask.isPending
+      : quickTaskText.trim().length < 3 || quickTask.isPending;
+
   const reviewQuickTask = () => {
     const result = quickTask.data;
     if (!result) return;
@@ -229,63 +250,168 @@ function AssistantTab() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-12">
-      <Panel
-        title={
-          <span className="flex items-center gap-2">
-            <Sparkles size={16} className="text-tr-primary" /> Tạo task nhanh bằng AI
-          </span>
-        }
-        className="lg:col-span-12"
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div>
-            <Field label="Dán hoặc gõ nhanh nội dung task">
-              <Textarea
-                rows={6}
-                value={quickTaskText}
-                onChange={(event) => {
-                  setQuickTaskText(event.target.value);
-                  if (quickTask.data || quickTask.error) quickTask.reset();
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    (event.ctrlKey || event.metaKey) &&
-                    quickTaskText.trim().length >= 3 &&
-                    !quickTask.isPending
-                  ) {
-                    event.preventDefault();
-                    quickTask.mutate();
-                  }
-                }}
-                placeholder="Ví dụ: Thứ sáu gọi lại chị Lan về báo giá VPBank, ưu tiên cao, chuẩn bị trước các câu hỏi về KYC…"
-              />
-            </Field>
-            <p className="mt-1 text-xs text-tr-muted">
-              AI sẽ viết lại tiêu đề, mô tả, ưu tiên, thời hạn và checklist. Nhấn Ctrl + Enter để
-              phân tích nhanh.
-            </p>
-            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-              <Field label="Chế độ model">
+      <Panel title="Trợ lý AI" className="lg:col-span-8">
+        {conversation.length > 0 && (
+          <div className="mb-4 max-h-[34rem] space-y-4 overflow-y-auto border-b border-tr-border pb-4">
+            {conversation.map((turn, index) => (
+              <div key={`${index}-${turn.result.meta.requestId}`} className="space-y-2">
+                <div className="ml-auto max-w-[85%] rounded-panel bg-tr-primary px-3 py-2 text-sm text-white">
+                  {turn.question}
+                </div>
+                <div className="max-w-[92%] rounded-panel border border-tr-border bg-tr-list p-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-tr-primary">
+                    <Sparkles size={14} /> {turn.result.meta.provider} · {turn.result.meta.model}
+                  </div>
+                  <p className="mt-2 text-sm leading-7 whitespace-pre-wrap text-tr-text">
+                    {turn.result.answer}
+                  </p>
+                  {turn.result.sources.length > 0 && (
+                    <details className="mt-2 text-xs text-tr-muted">
+                      <summary className="cursor-pointer font-medium">Nguồn đã dùng</summary>
+                      <ul className="mt-1 space-y-1 pl-3">
+                        {turn.result.sources.map((source) => (
+                          <li key={source}>• {source}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  {turn.result.proposal && (
+                    <div className="mt-3">
+                      <ProposalCard
+                        proposal={turn.result.proposal}
+                        onDecide={(decision) =>
+                          decide.mutate({ id: turn.result.proposal!.id, decision })
+                        }
+                        pending={decide.isPending}
+                      />
+                    </div>
+                  )}
+                  {turn.result.follow_up_questions.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {turn.result.follow_up_questions.map((followUp) => (
+                        <button
+                          key={followUp}
+                          type="button"
+                          onClick={() => setQuestion(followUp)}
+                          className="rounded-full border border-tr-border px-2.5 py-1 text-left text-xs text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text"
+                        >
+                          {followUp}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* MOT o nhap duy nhat.
+            Truoc day trang co hai khoi gan nhu giong het nhau — hai textarea,
+            hai nut gui, hai dropdown "Chế độ model" — nen rat de go cau hoi vao
+            o tao task. Y dinh gio chon bang hai chip ngay tren o nhap, ro rang
+            va khong ton them thao tac nao. */}
+        <div role="group" aria-label="Bạn muốn làm gì" className="mb-2 flex flex-wrap gap-1.5">
+          {(
+            [
+              ['ask', 'Hỏi dữ liệu', <Bot key="a" size={13} />],
+              ['task', 'Tạo việc', <Sparkles key="t" size={13} />],
+            ] as [Intent, string, React.ReactNode][]
+          ).map(([value, label, icon]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={intent === value}
+              onClick={() => setIntent(value)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${focusRing} ${
+                intent === value
+                  ? 'border-tr-primary/40 bg-tr-primary/15 text-tr-primary'
+                  : 'border-tr-border text-tr-subtle hover:bg-tr-hover'
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <Field label={intent === 'ask' ? 'Câu hỏi' : 'Nội dung việc'}>
+          <Textarea
+            rows={4}
+            value={intent === 'ask' ? question : quickTaskText}
+            onChange={(event) => {
+              if (intent === 'ask') {
+                setQuestion(event.target.value);
+              } else {
+                setQuickTaskText(event.target.value);
+                if (quickTask.data || quickTask.error) quickTask.reset();
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+              event.preventDefault();
+              submitComposer();
+            }}
+            placeholder={
+              intent === 'ask'
+                ? 'Ví dụ: Cơ hội nào giá trị lớn đang thiếu tương tác và tôi nên làm gì tiếp theo?'
+                : 'Ví dụ: Thứ sáu gọi lại chị Lan về báo giá VPBank, ưu tiên cao, chuẩn bị trước các câu hỏi về KYC…'
+            }
+          />
+        </Field>
+        <p className="mt-1 text-xs text-tr-muted">
+          {intent === 'ask'
+            ? 'Trợ lý chỉ đọc dữ liệu, không tự thay đổi gì. Nhấn Ctrl + Enter để gửi.'
+            : 'AI sẽ viết lại tiêu đề, mô tả, ưu tiên, thời hạn và checklist. Nhấn Ctrl + Enter để phân tích nhanh.'}
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            {intent === 'ask' && (
+              <div className="w-44">
+                <Field label="Phạm vi">
+                  <Select
+                    value={scope}
+                    onChange={(event) => setScope(event.target.value as typeof scope)}
+                  >
+                    <option value="all">CRM + tài liệu</option>
+                    <option value="crm">Chỉ CRM</option>
+                    <option value="documents">Chỉ tài liệu</option>
+                  </Select>
+                </Field>
+              </div>
+            )}
+            {/* "Chế độ model" la thuat ngu ky thuat lot ra giao dien nguoi dung
+                — xem docs/GLOSSARY.md. Mot o duy nhat cho ca hai y dinh. */}
+            <div className="w-44">
+              <Field label="Mức độ chi tiết">
                 <Select value={mode} onChange={(event) => setMode(event.target.value as AiMode)}>
                   <option value="fast">Nhanh</option>
                   <option value="balanced">Cân bằng</option>
                   <option value="reasoning">Suy luận</option>
                 </Select>
               </Field>
-              <Button
-                variant="primary"
-                disabled={quickTaskText.trim().length < 3 || quickTask.isPending}
-                onClick={() => quickTask.mutate()}
-              >
-                <Sparkles size={15} />
-                {quickTask.isPending ? 'Đang viết lại…' : 'Viết lại thành task'}
-              </Button>
             </div>
-            <FormError error={quickTask.error} />
           </div>
+          <Button variant="primary" disabled={composerBusy} onClick={submitComposer}>
+            {intent === 'ask' ? (
+              <>
+                <Send size={15} /> {ask.isPending ? 'Đang phân tích…' : 'Gửi câu hỏi'}
+              </>
+            ) : (
+              <>
+                <Sparkles size={15} />{' '}
+                {quickTask.isPending ? 'Đang viết lại…' : 'Viết lại thành task'}
+              </>
+            )}
+          </Button>
+        </div>
+        <FormError error={intent === 'ask' ? (ask.error ?? decide.error) : quickTask.error} />
 
-          {quickTask.data ? (
+        {/* Ban nhap chi xuat hien khi CO ket qua — truoc day mot the rong
+            "Bản task sẽ xuất hiện ở đây" chiem nua chieu ngang suot thoi gian. */}
+        {intent === 'task' && quickTask.data && (
+          <div className="mt-4">
             <div
               aria-live="polite"
               className="rounded-panel border border-tr-primary/30 bg-tr-primary/5 p-4"
@@ -345,119 +471,8 @@ function AssistantTab() {
                 <Check size={15} /> Kiểm tra & tạo công việc
               </Button>
             </div>
-          ) : (
-            <div className="flex min-h-52 items-center justify-center rounded-panel border border-dashed border-tr-border bg-tr-hover/40 p-6 text-center">
-              <div>
-                <Sparkles size={24} className="mx-auto text-tr-primary" />
-                <p className="mt-2 text-sm font-medium text-tr-text">Bản task sẽ xuất hiện ở đây</p>
-                <p className="mt-1 max-w-sm text-xs leading-relaxed text-tr-muted">
-                  Bạn có thể dán ghi chú rời rạc, nội dung chat hoặc gõ tắt. AI chỉ tạo bản nháp và
-                  không tự lưu thay đổi.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </Panel>
-
-      <Panel title="Trò chuyện với trợ lý" className="lg:col-span-8">
-        {conversation.length > 0 && (
-          <div className="mb-4 max-h-[34rem] space-y-4 overflow-y-auto border-b border-tr-border pb-4">
-            {conversation.map((turn, index) => (
-              <div key={`${index}-${turn.result.meta.requestId}`} className="space-y-2">
-                <div className="ml-auto max-w-[85%] rounded-panel bg-tr-primary px-3 py-2 text-sm text-white">
-                  {turn.question}
-                </div>
-                <div className="max-w-[92%] rounded-panel border border-tr-border bg-tr-list p-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-tr-primary">
-                    <Sparkles size={14} /> {turn.result.meta.provider} · {turn.result.meta.model}
-                  </div>
-                  <p className="mt-2 text-sm leading-7 whitespace-pre-wrap text-tr-text">
-                    {turn.result.answer}
-                  </p>
-                  {turn.result.sources.length > 0 && (
-                    <details className="mt-2 text-xs text-tr-muted">
-                      <summary className="cursor-pointer font-medium">Nguồn đã dùng</summary>
-                      <ul className="mt-1 space-y-1 pl-3">
-                        {turn.result.sources.map((source) => (
-                          <li key={source}>• {source}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                  {turn.result.proposal && (
-                    <div className="mt-3">
-                      <ProposalCard
-                        proposal={turn.result.proposal}
-                        onDecide={(decision) =>
-                          decide.mutate({ id: turn.result.proposal!.id, decision })
-                        }
-                        pending={decide.isPending}
-                      />
-                    </div>
-                  )}
-                  {turn.result.follow_up_questions.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {turn.result.follow_up_questions.map((followUp) => (
-                        <button
-                          key={followUp}
-                          type="button"
-                          onClick={() => setQuestion(followUp)}
-                          className="rounded-full border border-tr-border px-2.5 py-1 text-left text-xs text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text"
-                        >
-                          {followUp}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         )}
-        <div className="grid gap-3 sm:grid-cols-[1fr_180px_160px] sm:items-end">
-          <Field label="Câu hỏi">
-            <Textarea
-              rows={4}
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                  event.preventDefault();
-                  submitQuestion();
-                }
-              }}
-              placeholder="Ví dụ: Cơ hội nào giá trị lớn đang thiếu tương tác và tôi nên làm gì tiếp theo?"
-            />
-          </Field>
-          <Field label="Phạm vi">
-            <Select
-              value={scope}
-              onChange={(event) => setScope(event.target.value as typeof scope)}
-            >
-              <option value="all">CRM + tài liệu</option>
-              <option value="crm">Chỉ CRM</option>
-              <option value="documents">Chỉ tài liệu</option>
-            </Select>
-          </Field>
-          <Field label="Chế độ model">
-            <Select value={mode} onChange={(event) => setMode(event.target.value as AiMode)}>
-              <option value="fast">Nhanh</option>
-              <option value="balanced">Cân bằng</option>
-              <option value="reasoning">Suy luận</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="mt-3 flex justify-end">
-          <Button
-            variant="primary"
-            disabled={question.trim().length < 3 || ask.isPending}
-            onClick={submitQuestion}
-          >
-            <Send size={15} /> {ask.isPending ? 'Đang phân tích…' : 'Gửi câu hỏi'}
-          </Button>
-        </div>
-        <FormError error={ask.error ?? decide.error} />
       </Panel>
 
       <div className="space-y-4 lg:col-span-4">

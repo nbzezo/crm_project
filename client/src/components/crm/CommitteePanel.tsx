@@ -308,7 +308,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
     <Panel title="Sự kiện bắt buộc">
       <p className="mb-2 text-xs text-tr-muted">
         Ràng buộc <strong>của khách</strong> — dời được thì không phải sự kiện bắt buộc. Khác với
-        Hành động tiếp theo, vốn là việc của ta.
+        Next Action, vốn là việc của ta.
       </p>
 
       {closeAfterEvent && (

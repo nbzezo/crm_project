@@ -491,14 +491,14 @@ export const t = {
     list: 'Danh sách',
     /** Chu giai — mo ta tung nguon su kien dang hien tren lich. */
     legendTasks: 'Công việc (màu theo mức ưu tiên)',
-    legendNextAction: 'Hành động tiếp theo của cơ hội',
+    legendNextAction: 'Next Action của cơ hội',
     legendDealClose: 'Cơ hội — dự kiến chốt',
     legendContractEnd: 'Hợp đồng — ngày hết hạn',
     moreEvents: 'lịch khác',
     /** Nhan loai cho tung nguon su kien. */
     sourceCard: 'Công việc',
     sourceReminder: 'Nhắc hẹn',
-    sourceNextAction: 'Hành động tiếp theo',
+    sourceNextAction: 'Next Action',
     sourceDealClose: 'Cơ hội — dự kiến chốt',
     sourceContractEnd: 'Hợp đồng — hết hạn',
     /** Ngan keo chi tiet. */

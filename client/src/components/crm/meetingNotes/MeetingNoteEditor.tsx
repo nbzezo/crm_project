@@ -68,6 +68,18 @@ export function MeetingNoteEditor({
       return;
     }
     const id = setTimeout(() => {
+      /* Tu dat tieu de tu cau dau cua noi dung khi nguoi dung chua tu dat.
+         Truoc day moi ghi chu deu mang ten mac dinh, nen danh sach hien ra ba,
+         bon dong "Ghi chú mới" chi khac nhau o dau thoi gian — phai mo tung cai
+         ra moi biet cai nao la cai minh can.
+         Chi ap dung khi tieu de VAN DANG la mot trong cac ten mac dinh: khong
+         bao gio de len ten nguoi dung tu go. `setTitle` lam effect chay lai va
+         lan do moi that su luu, nen khong ton hai lan ghi. */
+      const derived = deriveTitle(title, bodyRef.current.contentText);
+      if (derived) {
+        setTitle(derived);
+        return;
+      }
       save.mutate({
         title: title.trim() || 'Ghi chú không tiêu đề',
         meeting_at: meetingAt || null,
@@ -261,4 +273,20 @@ export function MeetingNoteEditor({
       />
     </div>
   );
+}
+
+/** Ten he thong tu dat khi tao ghi chu — coi nhu "chua co tieu de". */
+const DEFAULT_NOTE_TITLES = ['Ghi chú mới', 'Ghi chú họp mới', 'Ghi chú không tiêu đề'];
+
+/**
+ * Tieu de suy ra tu cau dau cua noi dung, hoac '' neu khong nen doi.
+ * Tra ve '' khi nguoi dung da tu dat ten, khi noi dung con rong, hoac khi ten
+ * suy ra trung voi ten hien tai (tranh vong lap effect).
+ */
+export function deriveTitle(current: string, contentText: string): string {
+  if (!DEFAULT_NOTE_TITLES.includes(current.trim())) return '';
+  const first = contentText.trim().split('\n')[0]?.trim() ?? '';
+  if (!first) return '';
+  const derived = first.length > 80 ? `${first.slice(0, 80)}…` : first;
+  return derived === current.trim() ? '' : derived;
 }

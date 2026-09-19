@@ -278,7 +278,10 @@ test('tro ly AI viet lai noi dung tho va chuyen day du sang form tao cong viec',
   });
 
   await page.goto('/ai');
-  await page.getByLabel('Dán hoặc gõ nhanh nội dung task').fill(roughTask);
+  /* Trang AI gio chi co MOT o nhap; y dinh chon bang chip. Truoc day co hai khoi
+     gan nhu giong het nhau nen rat de go cau hoi vao o tao task. */
+  await page.getByRole('button', { name: 'Tạo việc' }).click();
+  await page.getByLabel('Nội dung việc').fill(roughTask);
   await page.getByRole('button', { name: 'Viết lại thành task' }).click();
 
   await expect(page.getByText('AI đã viết lại')).toBeVisible();
@@ -965,6 +968,10 @@ test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
  *    cham 24px cua cac icon hanh dong trong bang.
  */
 const A11Y_ROUTES = [
+  /* '/' va '/tasks' o day de rule target-size (WCAG 2.2) do duoc cac nut nho
+     tren Dashboard va trang Cong viec — tim bang cong cu thay vi ra bang mat. */
+  '/',
+  '/tasks',
   '/customers',
   '/pipeline',
   '/pipeline-health',

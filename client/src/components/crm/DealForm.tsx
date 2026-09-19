@@ -318,7 +318,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
           <DateInput value={expected} onChange={setExpected} />
         </Field>
 
-        <Field label="Hành động tiếp theo" hint="Giúp không quên follow-up">
+        <Field label="Next Action" hint="Việc tiếp theo phải làm để cơ hội không dừng lại">
           <Input
             list="next-action-suggestions"
             value={nextAction}

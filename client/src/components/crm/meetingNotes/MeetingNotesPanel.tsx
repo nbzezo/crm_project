@@ -129,6 +129,13 @@ export function MeetingNotesPanel({
                   <div className="truncate font-medium text-tr-text">
                     {note.title || 'Ghi chú không tiêu đề'}
                   </div>
+                  {/* Trich noi dung: tieu de thoi khong du de phan biet hai ghi
+                      chu cung chu de. */}
+                  {note.content_text.trim() && (
+                    <div className="truncate text-xs text-tr-subtle">
+                      {note.content_text.trim().replace(/\s+/g, ' ').slice(0, 120)}
+                    </div>
+                  )}
                   <div className="truncate text-xs text-tr-muted">
                     {note.meeting_at
                       ? formatDateTime(note.meeting_at)
