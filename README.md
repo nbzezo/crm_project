@@ -195,6 +195,11 @@ Khi triển khai production, nên cấp `WORKFLOW_AI_MASTER_KEY` bằng secret m
 tạo khóa riêng cho lần cài đặt trong thư mục dữ liệu. Xem thiết kế và giới hạn tại
 [docs/AI-COPILOT.md](docs/AI-COPILOT.md).
 
+Riêng phần ghi âm thành văn bản: chọn model trong **Cài đặt → Ghi âm → văn bản**. Khi tính năng này
+báo lỗi, đọc `error_code` trong bảng usage ở trang *Trợ lý AI* trước — mọi lỗi phía nhà cung cấp đều
+hiện ra ngoài thành cùng một mã 502. Bảng tra cứu ở
+[docs/VOICE-TO-TEXT-502.md](docs/VOICE-TO-TEXT-502.md).
+
 ## Dữ liệu và sao lưu
 
 - Toàn bộ dữ liệu nằm trong một file SQLite: `server/data/app.db`.

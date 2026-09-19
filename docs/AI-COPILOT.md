@@ -34,6 +34,18 @@
 - Automation pipeline risk, Next Action quá hạn, hợp đồng sắp hết hạn và daily brief chạy định kỳ,
   chỉ tạo notification; không tự sửa dữ liệu CRM.
 
+### Giai đoạn 4 — ghi âm thành văn bản
+
+- Ghi âm ngay trong Ghi chú hộp và Ghi chú nhanh, chuyển nguyên văn hoặc tóm tắt theo mẫu prompt
+  tự cấu hình.
+- Model dùng cho tác vụ này chọn riêng trong Cài đặt (`app_settings.ai.voice_model`). Để trống thì
+  gateway tự lọc theo năng lực `audioInput`; chọn tay thì ghim cứng provider + model, không fallback
+  và không lọc năng lực — bảng năng lực chỉ suy đoán từ tên model nên từng chặn nhầm.
+- Tệp đính kèm gửi được qua cả bốn adapter: `inline_data` (Gemini), `source.base64` (Claude) và
+  content part `image_url`/`input_audio`/`file` (OpenAI-compatible). DeepSeek vẫn từ chối vì
+  không có API đa phương thức.
+- Sự cố 502 của tính năng này và cách chẩn đoán: [VOICE-TO-TEXT-502.md](VOICE-TO-TEXT-502.md).
+
 ## Luồng bảo mật
 
 ```mermaid
@@ -62,4 +74,6 @@ flowchart LR
   sung đăng nhập, CSRF/rate limit và phân quyền admin cho cấu hình provider.
 - Chi phí chỉ là ước tính khi đã cấu hình đơn giá trên mỗi triệu token.
 - PDF scan / ảnh không tách được chữ: chỉ khi đó tệp mới được gửi thẳng cho model đọc được tài liệu
-  (Gemini, Claude — DeepSeek không hỗ trợ) và chỉ với tệp ≤ 10 MB.
+  (Gemini, Claude, 9Router — DeepSeek không hỗ trợ) và chỉ với tệp ≤ 10 MB.
+- Ghi âm gửi cho model tối đa 18 MB mỗi lần chuyển, do Gemini giới hạn ~20 MB cho toàn bộ request
+  chứa `inline_data`. Bản ghi dài hơn phải chia đoạn.
