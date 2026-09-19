@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import {
@@ -14,9 +14,6 @@ import {
 import { Check, Download, Info, Plus, Settings2 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ChartDataTable } from '../components/common/ChartDataTable';
-import { RevenueLineForm } from '../components/crm/RevenueLineForm';
-import { MonthlyRevenueModal } from '../components/crm/MonthlyRevenueModal';
-import { ServiceCatalog } from '../components/crm/ServiceCatalog';
 import { RevenueLineActions } from '../components/crm/RevenueLineActions';
 import { RevenueFunnelCards } from '../components/crm/RevenueFunnelCards';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -51,6 +48,22 @@ import type {
   RevenueSummary,
   Service,
 } from '../types';
+
+/* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
+   trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
+const RevenueLineForm = lazy(() =>
+  import('../components/crm/RevenueLineForm').then((module) => ({
+    default: module.RevenueLineForm,
+  }))
+);
+const MonthlyRevenueModal = lazy(() =>
+  import('../components/crm/MonthlyRevenueModal').then((module) => ({
+    default: module.MonthlyRevenueModal,
+  }))
+);
+const ServiceCatalog = lazy(() =>
+  import('../components/crm/ServiceCatalog').then((module) => ({ default: module.ServiceCatalog }))
+);
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -577,18 +590,20 @@ export default function RevenuePage() {
         ))}
       </Popover>
 
-      <RevenueLineForm
-        open={lineForm.open}
-        line={lineForm.line}
-        onClose={() => setLineForm({ open: false })}
-      />
-      <MonthlyRevenueModal
-        open={monthsFor !== null}
-        line={monthsFor}
-        year={year}
-        onClose={() => setMonthsFor(null)}
-      />
-      <ServiceCatalog open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+      <Suspense fallback={null}>
+        {lineForm.open && (
+          <RevenueLineForm open line={lineForm.line} onClose={() => setLineForm({ open: false })} />
+        )}
+        {monthsFor !== null && (
+          <MonthlyRevenueModal
+            open
+            line={monthsFor}
+            year={year}
+            onClose={() => setMonthsFor(null)}
+          />
+        )}
+        {catalogOpen && <ServiceCatalog open onClose={() => setCatalogOpen(false)} />}
+      </Suspense>
       <ConfirmDialog
         open={deleteId !== null}
         message="Xóa dòng dịch vụ này? Toàn bộ doanh thu đã nhập của dòng sẽ bị xóa theo."

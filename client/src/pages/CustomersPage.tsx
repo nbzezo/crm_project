@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownUp,
@@ -21,8 +21,6 @@ import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
 import { CustomerDrawer } from '../components/crm/CustomerDrawer';
 import { Modal } from '../components/common/Modal';
 import { PageHeader, PageShell } from '../components/common/PageShell';
-import { CustomerForm } from '../components/crm/CustomerForm';
-import { DealForm } from '../components/crm/DealForm';
 import {
   customerInactiveDays,
   formatActionDate,
@@ -56,6 +54,15 @@ import {
 import { ACCOUNT_STATUS_COLORS, t } from '../i18n/vi';
 import { foldText, formatVND, formatVNDShort } from '../lib/format';
 import type { Customer } from '../types';
+
+/* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
+   trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
+const CustomerForm = lazy(() =>
+  import('../components/crm/CustomerForm').then((module) => ({ default: module.CustomerForm }))
+);
+const DealForm = lazy(() =>
+  import('../components/crm/DealForm').then((module) => ({ default: module.DealForm }))
+);
 
 type SortKey = 'name' | 'attention' | 'last-activity' | 'opportunities' | 'won';
 
@@ -458,16 +465,18 @@ export default function CustomersPage() {
         onEdit={setEditing}
         onCreateDeal={setDealCustomerId}
       />
-      <CustomerForm
-        open={creating || Boolean(editing)}
-        onClose={closeCustomerForm}
-        customer={editing ?? undefined}
-      />
-      <DealForm
-        open={dealCustomerId !== null}
-        onClose={() => setDealCustomerId(null)}
-        defaultCustomerId={dealCustomerId ?? undefined}
-      />
+      <Suspense fallback={null}>
+        {(creating || Boolean(editing)) && (
+          <CustomerForm open onClose={closeCustomerForm} customer={editing ?? undefined} />
+        )}
+        {dealCustomerId !== null && (
+          <DealForm
+            open
+            onClose={() => setDealCustomerId(null)}
+            defaultCustomerId={dealCustomerId}
+          />
+        )}
+      </Suspense>
 
       <Modal
         open={deleteTarget !== null}

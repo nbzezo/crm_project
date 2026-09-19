@@ -109,6 +109,7 @@
 /* ---------- Che do sang ---------- */
 :root {
   color-scheme: light;
+  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2368665f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --tr-page-bg: #a7adb8;
   --tr-shell-gradient: linear-gradient(120deg, #e5e5e6 0%, #faf8f0 58%, #f3e8b8 100%);
   --tr-shell-border: rgba(48, 48, 47, 0.08);
@@ -126,8 +127,15 @@
   --tr-subtle: #5f5d58;
   --tr-muted: #68665f;
   --tr-border: rgba(48, 48, 47, 0.1);
-  --tr-primary: #30302f;
-  --tr-primary-hover: #1f1f1e;
+  /* Mau nhan giu CUNG MOT HUE o ca hai che do (215, xanh).
+     Truoc day che do Sang dung den #30302f con che do Toi dung xanh — doi theme
+     la doi luon nhan dien, nguoi dung thay nhu dang dung hai phan mem khac nhau.
+     Den chi nen dung cho van ban, khong lam mau thuong hieu.
+     #0055cc von da co san trong bang mau sang (--interaction-zalo-fg) nen day
+     khong phai mot mau la. Do duoc: 6,26:1 lam muc chu tren panel, 6,26:1 cho
+     chu trang tren nut, 5,36:1 tren nen tint /10 va 4,95:1 tren /15. */
+  --tr-primary: #0055cc;
+  --tr-primary-hover: #004db8;
   --tr-on-primary: #fbf9f1;
   /* Ba muc ngu nghia duoi day tung truot AA khi lam MAU CHU tren be mat sang
      nhat (`--tr-surface`): success 3,86:1, danger 3,80:1, warning 4,37:1. Loi co
@@ -186,7 +194,7 @@
   --tr-nav-text: #5f5d58;
   --tr-nav-border: rgba(48, 48, 47, 0.08);
   --tr-nav-hover: rgba(48, 48, 47, 0.07);
-  --tr-nav-active-bg: #30302f;
+  --tr-nav-active-bg: #0055cc;
   --tr-nav-active-text: #fbf9f1;
 
   /* Lop phu tren anh nen bang Kanban (BoardPage). Nen bang do nguoi dung chon
@@ -219,6 +227,7 @@
 /* ---------- Che do toi (giong Trello dark) ---------- */
 [data-theme='dark'] {
   color-scheme: dark;
+  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238995a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --tr-page-bg: #0e0e10;
   --tr-shell-gradient: linear-gradient(120deg, #202022 0%, #19191b 58%, #211f16 100%);
   --tr-shell-border: rgba(255, 255, 255, 0.09);
@@ -306,6 +315,7 @@
    toi thieu. Day la theme thuong hieu duy nhat con lai ben canh sang/toi. */
 [data-theme='zoho'] {
   color-scheme: light;
+  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235b6a67' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --radius-compact: 4px;
@@ -396,6 +406,7 @@
    duoc giu lai cho favicon, noi no nam tren nen aubergine. */
 [data-theme='ubuntu'] {
   color-scheme: dark;
+  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23b0a1a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   /* CO Y KHONG doi `--font-sans` sang font Ubuntu. Ca 'Ubuntu' lan 'Ubuntu Sans'
      tren Google Fonts deu khong co subset tieng Viet: latin-ext cua chung dung o
      U+1E00-1E9F roi nhay sang U+1EF2, bo trong U+1EA0-1EF1 — tuc phan lon chu co
@@ -681,6 +692,47 @@ body {
   }
 }
 
+/* `<select>` gốc và Combobox tự vẽ phải trông như MỘT loại control.
+   Trước đây chúng khác cả chiều cao (Combobox cứng 14px trong khi select theo
+   `.tr-field-control` là 16px trên cảm ứng) lẫn mũi tên (mũi tên hệ điều hành
+   vs icon lucide). Nay cùng dùng `.tr-field-control`, và select tự vẽ mũi tên
+   giống hệt icon ChevronDown của Combobox.
+
+   Mũi tên phải là data URI riêng cho từng theme: `url()` không nội suy được
+   biến CSS, nên màu được nhúng thẳng (lấy đúng `--tr-muted` của theme đó). */
+select.tr-field-control {
+  appearance: none;
+  padding-right: 2.25rem;
+  background-image: var(--tr-select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 15px 15px;
+}
+
+/* Thanh ben cao hon man hinh thi muc cuoi bi cat ma khong co dau hieu gi —
+   nguoi dung khong biet la con cuon duoc. Lam mo dan 24px o mep duoi, va CHI
+   khi thuc su con noi dung: `animation-timeline: scroll()` cho phep tat hieu
+   ung khi da cuon toi day, khong can JavaScript.
+
+   Trinh duyet chua ho tro scroll-driven animation thi bo qua ca khoi — mep duoi
+   tro lai sac net nhu cu, khong hong gi. */
+@supports (animation-timeline: scroll()) {
+  .tr-nav-scroll {
+    animation: tr-nav-fade linear both;
+    animation-timeline: scroll(self block);
+    animation-range: contain;
+  }
+
+  @keyframes tr-nav-fade {
+    from {
+      mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+    }
+    to {
+      mask-image: linear-gradient(to bottom, #000 100%, transparent);
+    }
+  }
+}
+
 /* ---------- App shell: phu kin cua so, khong con kieu "the noi" bo goc ---------- */
 .tr-app-stage {
   height: 100%;
@@ -692,14 +744,6 @@ body {
   width: 100%;
   overflow: hidden;
   background: var(--tr-shell-gradient);
-}
-
-.tr-bento-hero {
-  background: linear-gradient(
-    135deg,
-    var(--tr-panel),
-    color-mix(in srgb, var(--tr-yellow) 30%, var(--tr-panel))
-  );
 }
 
 .tr-bento-card {

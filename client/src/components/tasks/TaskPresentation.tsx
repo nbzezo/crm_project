@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Check, Circle, Ellipsis, PanelRightOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api/client';
-import { PRIORITY_ORDER, t } from '../../i18n/vi';
-import { formatDate, maskDateInput, parseDateInput } from '../../lib/format';
+import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
+import { contrastInk, formatDate, maskDateInput, parseDateInput } from '../../lib/format';
 import type { BoardFull, Label, List, Priority, TaskRow } from '../../types';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { focusRing } from '../common/ui';
@@ -34,13 +34,6 @@ export function daysFromToday(value?: string | null): number | null {
  * từ `card.status` và không còn gì để đoán.
  */
 
-const priorityClasses: Record<Priority, string> = {
-  urgent: 'border-priority-urgent/35 bg-priority-urgent/15 text-priority-urgent',
-  high: 'border-priority-high/35 bg-priority-high/15 text-priority-high',
-  medium: 'border-priority-medium/35 bg-priority-medium/15 text-priority-medium',
-  low: 'border-priority-low/35 bg-priority-low/15 text-priority-low',
-};
-
 export function PrioritySelect({
   value,
   onChange,
@@ -58,7 +51,15 @@ export function PrioritySelect({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value as Priority)}
       aria-label={`${t.card.priority}: ${taskTitle}`}
-      className={`min-h-6 max-w-28 cursor-pointer rounded-full border px-2 text-xs font-semibold outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-wait disabled:opacity-60 ${priorityClasses[value]}`}
+      /* Nen DAC + `contrastInk`, khong phai `bg-.../15 text-...`: dung mau ngu
+         nghia lam MUC CHU tren chinh nen tint cua no chi dat 1,84-3,68:1 (axe do
+         tren /tasks). Day cung la cach ColorBadge/PriorityBadge da lam, nen huy
+         hieu uu tien gio trong nhu nhau o moi noi. */
+      style={{
+        backgroundColor: PRIORITY_COLORS[value],
+        color: contrastInk(PRIORITY_COLORS[value]),
+      }}
+      className="min-h-6 max-w-28 cursor-pointer rounded-full border border-transparent px-2 text-xs font-semibold outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-tr-primary disabled:cursor-wait disabled:opacity-60"
     >
       {PRIORITY_ORDER.map((priority) => (
         <option key={priority} value={priority} className="bg-tr-panel text-tr-text">

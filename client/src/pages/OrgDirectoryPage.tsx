@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, Fragment, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,7 +18,6 @@ import {
   RELATIONSHIP_BADGE_CLASS,
   type ContactListHandle,
 } from '../components/crm/ContactList';
-import { CustomerForm } from '../components/crm/CustomerForm';
 import { Modal } from '../components/common/Modal';
 import { Popover, PopoverItem } from '../components/common/Popover';
 import { Tabs } from '../components/common/Tabs';
@@ -38,6 +37,12 @@ import {
 import { t } from '../i18n/vi';
 import { formatDate } from '../lib/format';
 import type { Contact, Customer, OrgKind } from '../types';
+
+/* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
+   trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
+const CustomerForm = lazy(() =>
+  import('../components/crm/CustomerForm').then((module) => ({ default: module.CustomerForm }))
+);
 
 /** Nhóm nào hiện ở đây — khách hàng đã có trang riêng với pipeline, hợp đồng, doanh thu. */
 const DIRECTORY_KINDS: OrgKind[] = ['own', 'partner', 'vendor'];
@@ -472,18 +477,19 @@ export default function OrgDirectoryPage() {
         </Tabs>
       </Panel>
 
-      <CustomerForm
-        open={creating !== null}
-        onClose={() => setCreating(null)}
-        defaultOrgKind={creating ?? 'partner'}
-        showOrgKind
-      />
-      <CustomerForm
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        customer={editing ?? undefined}
-        showOrgKind
-      />
+      <Suspense fallback={null}>
+        {creating !== null && (
+          <CustomerForm
+            open
+            onClose={() => setCreating(null)}
+            defaultOrgKind={creating}
+            showOrgKind
+          />
+        )}
+        {editing !== null && (
+          <CustomerForm open onClose={() => setEditing(null)} customer={editing} showOrgKind />
+        )}
+      </Suspense>
 
       {newMenuAnchor && (
         <Popover

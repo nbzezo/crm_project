@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import {
@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
-import { ContractForm } from '../components/crm/ContractForm';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Popover, PopoverItem } from '../components/common/Popover';
 import {
@@ -34,6 +33,12 @@ import { formatDate, formatVND, formatVNDShort } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type { Contract } from '../types';
 import { PageHeader } from '../components/common/PageShell';
+
+/* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
+   trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
+const ContractForm = lazy(() =>
+  import('../components/crm/ContractForm').then((module) => ({ default: module.ContractForm }))
+);
 
 /** Màu cảnh báo theo số ngày còn lại (FR-CTR-04). Đỏ chỉ dùng cho hợp đồng đã quá hạn. */
 function urgencyClass(days: number | null | undefined): string {
@@ -444,11 +449,11 @@ export default function ContractsPage() {
         </div>
       )}
 
-      <ContractForm
-        open={form.open}
-        contract={form.contract}
-        onClose={() => setForm({ open: false })}
-      />
+      <Suspense fallback={null}>
+        {form.open && (
+          <ContractForm open contract={form.contract} onClose={() => setForm({ open: false })} />
+        )}
+      </Suspense>
       <ConfirmDialog
         open={deleteId !== null}
         message="Xóa hợp đồng này? Tài liệu đính kèm sẽ mất liên kết."

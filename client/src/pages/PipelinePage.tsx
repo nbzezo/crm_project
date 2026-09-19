@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -24,7 +24,6 @@ import { useNavigate } from 'react-router';
 import { LayoutGrid, List as ListIcon, Plus } from 'lucide-react';
 import { api } from '../api/client';
 import { DealCardBody, SortableDealCard } from '../components/crm/DealCard';
-import { DealForm } from '../components/crm/DealForm';
 import {
   Button,
   ColorBadge,
@@ -49,6 +48,12 @@ import { buildDndAnnouncements } from '../lib/dnd/announcements';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useDealStageMove } from '../hooks/useDealStageMove';
 import type { Deal, DealsResponse, Label, Stage } from '../types';
+
+/* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
+   trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
+const DealForm = lazy(() =>
+  import('../components/crm/DealForm').then((module) => ({ default: module.DealForm }))
+);
 
 export default function PipelinePage() {
   const queryClient = useQueryClient();
@@ -392,12 +397,16 @@ export default function PipelinePage() {
         />
       )}
 
-      <DealForm
-        open={form.open}
-        deal={form.deal}
-        defaultStage={form.stage}
-        onClose={() => setForm({ open: false })}
-      />
+      <Suspense fallback={null}>
+        {form.open && (
+          <DealForm
+            open
+            deal={form.deal}
+            defaultStage={form.stage}
+            onClose={() => setForm({ open: false })}
+          />
+        )}
+      </Suspense>
 
       {stageMoveDialogs}
     </div>
@@ -477,7 +486,7 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
                   Giá trị
                 </th>
                 <th scope="col" className="px-3 py-2">
-                  Hành động tiếp theo
+                  Next Action
                 </th>
               </tr>
             </thead>

@@ -686,7 +686,7 @@ function NavDrawer({ order, onOrderChange }: Omit<SidebarNavProps, 'onNavigate'>
         role="dialog"
         aria-modal="true"
         aria-label={t.nav.dashboard}
-        className="tr-anim-slide-left tr-scroll flex h-full w-[min(17rem,85vw)] flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-tr-panel text-[var(--tr-nav-text)] shadow-2xl"
+        className="tr-anim-slide-left tr-scroll tr-nav-scroll flex h-full w-[min(17rem,85vw)] flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-tr-panel text-[var(--tr-nav-text)] shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-[var(--tr-nav-border)] px-4 py-2">
           <span className="text-sm font-semibold">{t.app.name}</span>
@@ -732,7 +732,7 @@ export function Sidebar() {
       <NavDrawer order={navOrder} onOrderChange={updateNavOrder} />
 
       {collapsed ? (
-        <aside className="tr-scroll hidden w-14 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
+        <aside className="tr-scroll tr-nav-scroll hidden w-14 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
           <button
             type="button"
             onClick={() => updateCollapsed(false)}
@@ -745,7 +745,7 @@ export function Sidebar() {
           <CollapsedNav order={navOrder} />
         </aside>
       ) : (
-        <aside className="tr-scroll relative z-sticky hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
+        <aside className="tr-scroll tr-nav-scroll relative z-sticky hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
           <button
             type="button"
             onClick={() => updateCollapsed(true)}

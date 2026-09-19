@@ -130,7 +130,7 @@ export function Combobox({
         aria-required={ariaRequired}
         className={
           triggerClassName ??
-          `flex w-full items-center justify-between gap-1.5 rounded-control border border-tr-border bg-tr-list px-3 py-2 text-left text-sm outline-none transition hover:border-tr-primary/20 focus-visible:border-tr-primary disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted disabled:hover:border-tr-border ${focusRing} ${className}`
+          `tr-field-control flex w-full items-center justify-between gap-1.5 rounded-control border border-tr-border bg-tr-list px-3 py-2 text-left outline-none transition hover:border-tr-primary/20 focus-visible:border-tr-primary disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted disabled:hover:border-tr-border ${focusRing} ${className}`
         }
       >
         <span className={`truncate ${selected ? 'text-tr-text' : 'text-tr-muted'}`}>

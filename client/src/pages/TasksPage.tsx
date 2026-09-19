@@ -514,26 +514,36 @@ function TaskSummaryBar() {
       <span className="px-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase">
         Cần chú ý
       </span>
-      {summary.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          onClick={() => setFilters({ ...emptyTaskFilters, ...item.patch })}
-          aria-pressed={item.active}
-          aria-label={`${item.label}: ${isLoading ? 'đang tải' : item.count}`}
-          className={`inline-flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-xs transition ${focusRing} ${
-            item.active
-              ? 'border-tr-primary/40 bg-tr-primary/15 text-tr-primary'
-              : 'border-transparent text-tr-subtle hover:border-tr-border hover:bg-tr-hover hover:text-tr-text'
-          } ${!item.active && !isLoading && item.count === 0 ? 'opacity-55' : ''}`}
-        >
-          <span className={item.tone}>{item.icon}</span>
-          <span className="font-semibold tabular-nums text-tr-text">
-            {isLoading ? '—' : item.count}
-          </span>
-          <span>{item.label}</span>
-        </button>
-      ))}
+      {summary.map((item) => {
+        /* Chip dem 0 phai TRONG nhat hon, nhung khong duoc lam bang `opacity`:
+           `--tr-subtle` von chi vua du AA, ha 55% la rot xuong 2,39:1 (axe do
+           tren /tasks). Dung mot bac token that — `--tr-muted` van dat 5,45:1. */
+        const quiet = !item.active && !isLoading && item.count === 0;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setFilters({ ...emptyTaskFilters, ...item.patch })}
+            aria-pressed={item.active}
+            aria-label={`${item.label}: ${isLoading ? 'đang tải' : item.count}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-xs transition ${focusRing} ${
+              item.active
+                ? 'border-tr-primary/40 bg-tr-primary/15 text-tr-primary'
+                : quiet
+                  ? 'border-transparent text-tr-muted hover:border-tr-border hover:bg-tr-hover'
+                  : 'border-transparent text-tr-subtle hover:border-tr-border hover:bg-tr-hover hover:text-tr-text'
+            }`}
+          >
+            <span className={quiet ? 'text-tr-muted' : item.tone}>{item.icon}</span>
+            <span
+              className={`font-semibold tabular-nums ${quiet ? 'text-tr-muted' : 'text-tr-text'}`}
+            >
+              {isLoading ? '—' : item.count}
+            </span>
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
     </section>
   );
 }
