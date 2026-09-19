@@ -5,6 +5,7 @@ import { createTaskInputSchema, TASK_LINK_KEYS } from '@workflow/contracts/schem
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import {
   assertParentListCompatible,
@@ -45,7 +46,9 @@ type CardRow = {
 };
 
 router.post('/', (req, res) => {
-  res.status(201).json(createCard(parseBody(createTaskInputSchema, req)));
+  res.status(201).json(
+    createCard(parseBody(createTaskInputSchema, req), { actorContactId: actorContactId(req) })
+  );
 });
 
 /**

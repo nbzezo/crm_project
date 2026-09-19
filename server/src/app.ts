@@ -7,8 +7,11 @@ import helmet from 'helmet';
 import { db } from './db/connection.ts';
 import { HttpError } from './lib/validate.ts';
 import { requireAuth } from './middleware/requireAuth.ts';
+import { attachCurrentUser } from './middleware/currentUser.ts';
 import { SqliteSessionStore } from './services/auth/SqliteSessionStore.ts';
 import auth from './routes/auth.ts';
+import users from './routes/users.ts';
+import email from './routes/email.ts';
 import boards from './routes/boards.ts';
 import lists from './routes/lists.ts';
 import cards from './routes/cards.ts';
@@ -92,6 +95,14 @@ export function createApp(options: AppOptions = {}): Express {
     app.use('/api/auth', auth);
     app.use('/api', requireAuth);
   }
+
+  /* Gan `req.currentUser` cho MOI route nghiep vu — ke ca khi tat xac thuc,
+     luc do no lui ve contacts.is_me de cac integration test giu nguyen hanh vi.
+     Phai nam sau requireAuth va truoc tat ca router ben duoi. */
+  app.use('/api', attachCurrentUser);
+
+  app.use('/api/users', users);
+  app.use('/api/email', email);
 
   app.use('/api/boards', boards);
   app.use('/api/lists', lists);

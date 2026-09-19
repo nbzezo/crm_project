@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { PROJECT_STATUSES, RISK_KINDS, RISK_SEVERITIES, RISK_STATUSES } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
-import { auditFromQuery, listChanges, recordChanges } from '../lib/changeLog.ts';
+import { auditFromRequest, listChanges, recordChanges } from '../lib/changeLog.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { assertProjectCustomerChange, resolveAssignee } from '../lib/entityRelations.ts';
 import { listTasksByProject } from '../services/cardService.ts';
@@ -277,7 +277,7 @@ router.patch('/:id', (req, res) => {
    * ngan sach la nhung con so ma sau nay se co nguoi hoi "bao gio no thanh ra
    * the nay". Ghi cung transaction voi ban cap nhat.
    */
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
 
   db.transaction(() => {
     db.prepare(
@@ -346,7 +346,7 @@ router.put('/:id/model', (req, res) => {
     db.prepare(`SELECT delivery_model FROM projects WHERE id = ?`).get(id),
     'Khong tim thay du an'
   ) as Record<string, unknown>;
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
 
   const result = chooseDeliveryModel(db, id, body.model, body.reason ?? null);
   recordChanges(db, 'project', id, current, { delivery_model: body.model }, audit);

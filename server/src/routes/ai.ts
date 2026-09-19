@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { DOC_TYPES, PRIORITIES } from '@workflow/contracts';
 import { taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { deriveTaskLinks } from '../lib/entityRelations.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
@@ -905,7 +906,7 @@ router.get('/actions', (req, res) => {
   res.json(listActionProposals(db, status));
 });
 router.post('/actions/:id/approve', (req, res) =>
-  res.json(approveActionProposal(db, intParam(req.params.id)))
+  res.json(approveActionProposal(db, intParam(req.params.id), actorContactId(req)))
 );
 router.post('/actions/:id/reject', (req, res) =>
   res.json(rejectActionProposal(db, intParam(req.params.id)))

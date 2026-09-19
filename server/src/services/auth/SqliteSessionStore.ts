@@ -10,6 +10,10 @@ import { db } from '../../db/connection.ts';
  * `id` cua bang sessions la sha256(session id): neu ban xuat / ro ri CSDL thi
  * ke tan cong van khong dung lai duoc cookie. better-sqlite3 chay dong bo nen
  * moi callback duoc goi ngay trong tick hien tai.
+ *
+ * `user_id` (v37) duoc rut ra khoi blob JSON de "khoa tai khoan" cat duoc phien
+ * dang mo — khong co cot nay thi phai quet va parse toan bo bang moi biet phien
+ * nao cua ai.
  */
 
 type DoneErr = (err?: unknown) => void;
@@ -28,9 +32,10 @@ export class SqliteSessionStore extends Store {
   private readonly getStmt = db.prepare<[string], { data: string; expires_at: number }>(
     'SELECT data, expires_at FROM sessions WHERE id = ?'
   );
-  private readonly upsertStmt = db.prepare<[string, string, number]>(
-    `INSERT INTO sessions (id, data, expires_at) VALUES (?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET data = excluded.data, expires_at = excluded.expires_at`
+  private readonly upsertStmt = db.prepare<[string, string, number, number | null]>(
+    `INSERT INTO sessions (id, data, expires_at, user_id) VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET data = excluded.data, expires_at = excluded.expires_at,
+                                     user_id = excluded.user_id`
   );
   private readonly touchStmt = db.prepare<[number, string]>(
     'UPDATE sessions SET expires_at = ? WHERE id = ?'
@@ -55,7 +60,12 @@ export class SqliteSessionStore extends Store {
   set(sid: string, session: SessionData, done: DoneErr): void {
     try {
       this.purgeStmt.run(Date.now());
-      this.upsertStmt.run(hashSid(sid), JSON.stringify(session), expiryMs(session));
+      this.upsertStmt.run(
+        hashSid(sid),
+        JSON.stringify(session),
+        expiryMs(session),
+        session.userId ?? null
+      );
       done();
     } catch (err) {
       done(err);

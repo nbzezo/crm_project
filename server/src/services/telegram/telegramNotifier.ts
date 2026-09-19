@@ -28,18 +28,39 @@ function markSent(db: Database, key: string): void {
   db.prepare(`INSERT OR IGNORE INTO telegram_sent_log (dedupe_key) VALUES (?)`).run(key);
 }
 
+/**
+ * Nguoi ma bot Telegram dang nhac viec giup.
+ *
+ * `telegram_settings` co dung MOT chat_id cho ca he thong, nen bot chi phuc vu
+ * duoc mot nguoi. Truoc v37 nguoi do la co `contacts.is_me`; nay la tai khoan
+ * dau tien con hoat dong — cung chinh nguoi ay sau khi v37 backfill, nhung
+ * khong con phu thuoc vao mot co sap bi bo.
+ *
+ * Dinh tuyen thong bao theo tung nguoi can mot chat_id tren moi tai khoan; do
+ * la viec cua dot phan quyen du lieu, khong phai cua buoc nay.
+ */
+function recipientContactId(db: Database): number | null {
+  const row = db
+    .prepare(
+      `SELECT contact_id FROM users
+        WHERE is_active = 1 AND contact_id IS NOT NULL
+        ORDER BY id LIMIT 1`
+    )
+    .get() as { contact_id: number } | undefined;
+  return row?.contact_id ?? null;
+}
+
 async function notifyDueCards(db: Database): Promise<void> {
   const cards = db
     .prepare(
       `SELECT k.id, k.title, k.due_date
          FROM cards k
-         LEFT JOIN contacts a ON a.id = k.assignee_contact_id
         WHERE k.is_done = 0 AND k.is_archived = 0
           AND k.due_date IS NOT NULL AND k.due_date <= date('now','localtime')
-          AND (k.assignee_contact_id IS NULL OR a.is_me = 1)
+          AND (k.assignee_contact_id IS NULL OR k.assignee_contact_id = ?)
         ORDER BY k.due_date LIMIT 50`
     )
-    .all() as DueCardRow[];
+    .all(recipientContactId(db)) as DueCardRow[];
 
   for (const card of cards) {
     const key = `task-${card.id}-${card.due_date}`;
@@ -133,15 +154,12 @@ export function notifyAssigneeChangeTelegram(db: Database, cardId: number): void
       if (!config.enabled || !config.has_token || !config.chat_id || !config.notify_assignee) {
         return;
       }
+      const recipient = recipientContactId(db);
+      if (recipient == null) return;
       const card = db
-        .prepare(
-          `SELECT k.title, a.is_me AS assignee_is_me
-             FROM cards k
-             LEFT JOIN contacts a ON a.id = k.assignee_contact_id
-            WHERE k.id = ?`
-        )
-        .get(cardId) as { title: string; assignee_is_me: number | null } | undefined;
-      if (!card || card.assignee_is_me !== 1) return;
+        .prepare(`SELECT title, assignee_contact_id FROM cards WHERE id = ?`)
+        .get(cardId) as { title: string; assignee_contact_id: number | null } | undefined;
+      if (!card || card.assignee_contact_id !== recipient) return;
       await sendTelegramMessage(db, `📌 Bạn vừa được giao việc: ${card.title}`);
     } catch (error) {
       console.error('[telegram] Gui thong bao giao viec that bai:', cardId, error);

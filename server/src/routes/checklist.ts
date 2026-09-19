@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition } from '../lib/position.ts';
 import { createCard, reloadCard, setCardStatus } from '../services/cardService.ts';
@@ -64,11 +65,14 @@ router.post('/:id/promote', (req, res) => {
 
   // createCard tu ke thua danh sach va toan bo lien ket CRM cua the cha.
   const created = db.transaction(() => {
-    const card = createCard({
-      parent_id: item.card_id,
-      title: item.content,
-      priority: parent.priority as 'low' | 'medium' | 'high' | 'urgent',
-    });
+    const card = createCard(
+      {
+        parent_id: item.card_id,
+        title: item.content,
+        priority: parent.priority as 'low' | 'medium' | 'high' | 'urgent',
+      },
+      { actorContactId: actorContactId(req) }
+    );
     const cardId = card.id as number;
     // Qua setCardStatus de `status` khong tut lai 'todo' trong khi is_done = 1.
     if (item.is_done) setCardStatus(cardId, 'done');

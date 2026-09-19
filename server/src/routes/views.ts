@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/connection.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { fold } from '../lib/viSearch.ts';
 import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
@@ -95,8 +96,17 @@ router.get('/tasks', (req, res) => {
     where.push(`k.assignee_org_id = ?`);
     params.push(Number(req.query.assignee_org_id));
   }
-  /* "Viec cua toi" doc tu contacts.is_me thay vi bat client nho id — mot cho khai bao. */
-  if (req.query.mine === '1') where.push(`ac.is_me = 1`);
+  /* "Viec cua toi" = nguoi dang dang nhap, lay tu phien chu khong bat client nho id.
+     Tai khoan chua gan vao so danh ba thi khong co viec nao la "cua toi" — tra ve
+     rong con hon tra ve viec cua nguoi khac. */
+  if (req.query.mine === '1') {
+    const me = actorContactId(req);
+    if (me == null) where.push('1 = 0');
+    else {
+      where.push(`k.assignee_contact_id = ?`);
+      params.push(me);
+    }
+  }
   if (req.query.unassigned === '1') where.push(`k.assignee_contact_id IS NULL`);
   if (req.query.done === '1') where.push(`k.is_done = 1`);
   if (req.query.done === '0') where.push(`k.is_done = 0`);
@@ -359,7 +369,7 @@ router.get('/timeline', (req, res) => {
 });
 
 /** Dashboard ca nhan theo FR-DSH-01..06. */
-router.get('/dashboard', (_req, res) => {
+router.get('/dashboard', (req, res) => {
   const taskCounts = db
     .prepare(
       `SELECT
@@ -538,7 +548,7 @@ router.get('/dashboard', (_req, res) => {
    */
   const workload = db
     .prepare(
-      `SELECT k.assignee_contact_id, ac.full_name AS assignee_name, ac.is_me,
+      `SELECT k.assignee_contact_id, ac.full_name AS assignee_name, (ac.id = ?) AS is_me,
               ac.phone AS assignee_phone, ac.zalo AS assignee_zalo, ac.email AS assignee_email,
               k.assignee_org_id, ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
               COUNT(*) AS open_count,
@@ -556,7 +566,7 @@ router.get('/dashboard', (_req, res) => {
         GROUP BY k.assignee_contact_id
         ORDER BY overdue_count DESC, open_count DESC`
     )
-    .all();
+    .all(actorContactId(req));
 
   res.json({
     kpi: {
@@ -909,7 +919,7 @@ router.get('/reports', (req, res) => {
    */
   const by_assignee = db
     .prepare(
-      `SELECT k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name, ac.is_me,
+      `SELECT k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name, (ac.id = ?) AS is_me,
               ao.name AS org_name, ao.org_kind,
               SUM(CASE WHEN k.is_done = 1 AND k.completed_at IS NOT NULL
                         AND date(k.completed_at) BETWEEN ? AND ? THEN 1 ELSE 0 END) AS completed,
@@ -934,7 +944,7 @@ router.get('/reports', (req, res) => {
        HAVING completed > 0 OR open_count > 0
         ORDER BY overdue_count DESC, open_count DESC`
     )
-    .all(from, to);
+    .all(actorContactId(req), from, to);
 
   /** Phan bo so lan doi han — duoi cang dai thi ke hoach cang khong dang tin. */
   const slip_distribution = db

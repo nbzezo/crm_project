@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { CARD_STATUSES, type CardStatus } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { HttpError, parseBody, required } from '../lib/validate.ts';
 import { setCardStatus } from '../services/cardService.ts';
 
@@ -100,7 +101,7 @@ function notificationLink(row: SourceRow, source: 'reminder' | 'event' | 'task' 
   return row.link;
 }
 
-router.get('/', (_req, res) => {
+router.get('/', (req, res) => {
   const reminders = db
     .prepare(
       `SELECT r.id, r.title,
@@ -156,10 +157,13 @@ router.get('/', (_req, res) => {
         WHERE k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0
           AND k.due_date IS NOT NULL
           AND k.due_date <= date('now','localtime','+7 days')
-          AND (k.assignee_contact_id IS NULL OR a.is_me = 1)
+          /* Hop thu la CUA TOI: viec minh phu trach, cong voi viec chua giao cho ai
+             (deo ai nhan thi khong ai thay no den han). Truoc v37 "toi" la co
+             contacts.is_me dung chung cho ca he thong. */
+          AND (k.assignee_contact_id IS NULL OR k.assignee_contact_id = ?)
         ORDER BY k.due_date, k.priority DESC LIMIT 100`
     )
-    .all() as SourceRow[];
+    .all(actorContactId(req)) as SourceRow[];
 
   const ai = db
     .prepare(

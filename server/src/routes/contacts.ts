@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 
 const router = Router();
@@ -31,20 +32,25 @@ const contactSchema = z.object({
  * vi do la lien ket "viec nay VE ai". O day la "AI LAM", nen nhan su cong ty minh
  * va doi tac deu phai co mat.
  */
-router.get('/assignable', (_req, res) => {
+router.get('/assignable', (req, res) => {
+  /* `is_me` o day la "dong nay co phai chinh nguoi dang dang nhap khong" — dung
+     de dua ho len dau danh sach va gan nhan (toi). Tu v37 no tinh theo phien,
+     khong con doc co contacts.is_me dung chung cho ca he thong. */
+  const me = actorContactId(req);
   res.json(
     db
       .prepare(
-        `SELECT ct.id, ct.full_name, ct.title, ct.phone, ct.email, ct.zalo, ct.is_me,
+        `SELECT ct.id, ct.full_name, ct.title, ct.phone, ct.email, ct.zalo,
+                (ct.id = ?) AS is_me,
                 ct.customer_id AS org_id, c.name AS org_name, c.org_kind
            FROM contacts ct JOIN customers c ON c.id = ct.customer_id
           WHERE ct.is_active = 1
-          ORDER BY ct.is_me DESC,
+          ORDER BY is_me DESC,
                    CASE c.org_kind WHEN 'own' THEN 0 WHEN 'partner' THEN 1
                                    WHEN 'vendor' THEN 2 ELSE 3 END,
                    c.name, ct.is_primary DESC, ct.full_name`
       )
-      .all()
+      .all(me)
   );
 });
 

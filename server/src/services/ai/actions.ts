@@ -117,10 +117,15 @@ export function listActionProposals(db: Database, status?: string) {
   return ids.map(({ id }) => getActionProposal(db, id));
 }
 
-function execute(db: Database, type: string, rawPayload: unknown) {
+function execute(
+  db: Database,
+  type: string,
+  rawPayload: unknown,
+  actorContactId: number | null
+) {
   if (type === 'create_task') {
     // Di qua createCard nen de xuat cua AI cung phai qua assertEntityLinks nhu moi duong khac.
-    const card = createCard(createTaskSchema.parse(rawPayload));
+    const card = createCard(createTaskSchema.parse(rawPayload), { actorContactId });
     return { entity: 'task', id: card.id as number };
   }
   if (type === 'create_reminder') {
@@ -185,7 +190,16 @@ function execute(db: Database, type: string, rawPayload: unknown) {
   throw new HttpError(400, 'Loại hành động AI không được hỗ trợ');
 }
 
-export function approveActionProposal(db: Database, id: number) {
+/*
+ * `actorContactId` la nguoi BAM DUYET, khong phai AI. De xuat cua AI chi thanh
+ * hanh dong sau khi co nguoi duyet, nen viec sinh ra phai mang ten nguoi do —
+ * neu khong, moi cong viec do AI de xuat se do dung mot nguoi "so huu".
+ */
+export function approveActionProposal(
+  db: Database,
+  id: number,
+  actorContactId: number | null = null
+) {
   const proposal = required(
     db.prepare(`SELECT * FROM ai_action_proposals WHERE id = ?`).get(id) as
       Record<string, unknown> | undefined,
@@ -201,7 +215,8 @@ export function approveActionProposal(db: Database, id: number) {
       const executed = execute(
         db,
         String(proposal.action_type),
-        JSON.parse(String(proposal.payload_json))
+        JSON.parse(String(proposal.payload_json)),
+        actorContactId
       );
       db.prepare(
         `UPDATE ai_action_proposals

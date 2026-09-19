@@ -210,6 +210,17 @@ export function resolveDefaultList(
   return row?.id ?? null;
 }
 
+export interface CreateCardOptions {
+  /**
+   * Contact cua nguoi dang tao — dung lam nguoi phu trach mac dinh.
+   *
+   * Truoc v37 ham nay tu tim `contacts.is_me`, tuc la moi cong viec khong giao
+   * cho ai deu roi vao dung mot nguoi bat ke ai bam nut. Gio nguoi goi (route)
+   * truyen vao tu phien dang nhap.
+   */
+  actorContactId?: number | null;
+}
+
 /**
  * Duong ghi `cards` duy nhat.
  *
@@ -218,7 +229,7 @@ export function resolveDefaultList(
  * moi cong viec — du tao tu module nao — deu duoc suy dien lien ket, kiem tra rang
  * buoc va lap chi muc tim kiem giong nhau.
  */
-export function createCard(input: CreateTaskInput) {
+export function createCard(input: CreateTaskInput, options: CreateCardOptions = {}) {
   let listId = input.list_id ?? null;
   const links: EntityLinks = {
     customer_id: input.customer_id ?? null,
@@ -253,10 +264,13 @@ export function createCard(input: CreateTaskInput) {
     }
   }
 
-  // Khong giao cho ai thi mac dinh giao cho minh (contacts.is_me) thay vi de trong.
-  if (assigneeContactId == null) {
-    const me = db.prepare(`SELECT id FROM contacts WHERE is_me = 1 AND is_active = 1`).get() as
-      { id: number } | undefined;
+  /* Khong giao cho ai thi mac dinh giao cho chinh nguoi dang tao, thay vi de trong.
+     Bo qua neu nguoi do da nghi viec (is_active = 0) — giao viec cho mot nguoi da
+     bien khoi moi o chon la cach chac chan nhat de viec do khong ai thay. */
+  if (assigneeContactId == null && options.actorContactId != null) {
+    const me = db
+      .prepare(`SELECT id FROM contacts WHERE id = ? AND is_active = 1`)
+      .get(options.actorContactId) as { id: number } | undefined;
     if (me) assigneeContactId = me.id;
   }
 

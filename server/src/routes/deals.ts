@@ -7,7 +7,7 @@ import { buildSearchText } from '../lib/viSearch.ts';
 import { LOST_REASONS, STAGES, STAGE_PROBABILITY, isClosed } from '../lib/crm.ts';
 import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
 import {
-  auditFromQuery,
+  auditFromRequest,
   listChanges,
   recordChanges,
   type RecordOptions,
@@ -422,7 +422,7 @@ router.patch('/:id', (req, res) => {
    * moi dong nhat ky cua lan luu nay — dac ta 7.4 doi thay doi sau baseline phai
    * co dau vet, va day la o nhap ly do DUY NHAT dang co san.
    */
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
 
   db.transaction(() => {
     if (fields.length > 0) {
@@ -461,7 +461,7 @@ router.patch('/:id/move', (req, res) => {
   // F-04: kiem tra truoc khi mo giao dich de khong ghi nua chung
   const overrideHistory = evaluateStageGate(id, body.stage, current.stage as string, req.query);
 
-  const moveAudit = auditFromQuery(db, req.query);
+  const moveAudit = auditFromRequest(req);
 
   db.transaction(() => {
     if (body.stage !== current.stage) {
@@ -536,7 +536,7 @@ router.get('/:id/handover', (req, res) => {
 router.post('/:id/handover/template', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(z.object({ key: z.string().trim().min(1).optional() }), req);
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
   applyHandoverTemplate(db, id, body.key ?? 'default');
   res.status(201).json(commitHandover(id, () => {}, audit));
 });
@@ -551,7 +551,7 @@ router.post('/:id/handover', (req, res) => {
     req
   );
   required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(id), 'Khong tim thay co hoi');
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
 
   res.status(201).json(
     commitHandover(
@@ -588,7 +588,7 @@ router.patch('/:id/handover/:itemId', (req, res) => {
     db.prepare(`SELECT * FROM deal_handover_items WHERE id = ? AND deal_id = ?`).get(itemId, id),
     'Khong tim thay muc ban giao'
   ) as Record<string, unknown>;
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
 
   res.json(
     commitHandover(
@@ -618,7 +618,7 @@ router.patch('/:id/handover/:itemId', (req, res) => {
 router.delete('/:id/handover/:itemId', (req, res) => {
   const id = intParam(req.params.id);
   const itemId = intParam(req.params.itemId, 'itemId');
-  const audit = auditFromQuery(db, req.query);
+  const audit = auditFromRequest(req);
   res.json(
     commitHandover(
       id,

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
@@ -87,15 +88,18 @@ router.post('/', (req, res) => {
       // Chua co bang nao thi bo qua viec tao Task — ban ghi tuong tac van phai duoc luu.
       const listId = body.task_list_id ?? resolveDefaultList({ customer_id: body.customer_id });
       if (listId) {
-        const task = createCard({
-          list_id: listId,
-          title: body.next_action,
-          priority: 'high',
-          due_date: body.next_action_date ?? null,
-          customer_id: body.customer_id,
-          contact_id: body.contact_id ?? null,
-          deal_id: body.deal_id ?? null,
-        });
+        const task = createCard(
+          {
+            list_id: listId,
+            title: body.next_action,
+            priority: 'high',
+            due_date: body.next_action_date ?? null,
+            customer_id: body.customer_id,
+            contact_id: body.contact_id ?? null,
+            deal_id: body.deal_id ?? null,
+          },
+          { actorContactId: actorContactId(req) }
+        );
         taskId = task.id as number;
       }
     }
