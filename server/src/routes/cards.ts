@@ -46,9 +46,11 @@ type CardRow = {
 };
 
 router.post('/', (req, res) => {
-  res.status(201).json(
-    createCard(parseBody(createTaskInputSchema, req), { actorContactId: actorContactId(req) })
-  );
+  res
+    .status(201)
+    .json(
+      createCard(parseBody(createTaskInputSchema, req), { actorContactId: actorContactId(req) })
+    );
 });
 
 /**

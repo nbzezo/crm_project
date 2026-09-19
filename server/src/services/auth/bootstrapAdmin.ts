@@ -39,6 +39,8 @@ export async function ensureAdminUser(): Promise<void> {
   await createUser({ username, email, password });
   console.log(
     `[auth] Da tao tai khoan dang nhap dau tien: ${email ?? username}` +
-      (email ? '' : ' (chua co email — dat WORKFLOW_ADMIN_EMAIL de dung duoc chuc nang quen mat khau)')
+      (email
+        ? ''
+        : ' (chua co email — dat WORKFLOW_ADMIN_EMAIL de dung duoc chuc nang quen mat khau)')
   );
 }

@@ -67,7 +67,13 @@ export function resolveToken(token: string): ResolvedToken | null {
         WHERE t.token_hash = ?`
     )
     .get(hashToken(token)) as
-    | { user_id: number; kind: TokenKind; expires_at: number; used_at: string | null; is_active: number }
+    | {
+        user_id: number;
+        kind: TokenKind;
+        expires_at: number;
+        used_at: string | null;
+        is_active: number;
+      }
     | undefined;
 
   if (!rowData) return null;

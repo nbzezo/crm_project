@@ -155,7 +155,14 @@ export async function createUser(input: CreateUserInput): Promise<number> {
       `INSERT INTO users (username, password_hash, password_salt, email, full_name, contact_id)
        VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .run(input.username.trim(), hash, salt, email, input.fullName?.trim() || null, input.contactId ?? null);
+    .run(
+      input.username.trim(),
+      hash,
+      salt,
+      email,
+      input.fullName?.trim() || null,
+      input.contactId ?? null
+    );
   return Number(info.lastInsertRowid);
 }
 
@@ -209,8 +216,7 @@ function assertContactFree(contactId: number, exceptUserId: number | null): void
   if (!contact) throw new HttpError(404, 'Không tìm thấy người trong sổ danh bạ');
 
   const holder = db.prepare('SELECT id FROM users WHERE contact_id = ?').get(contactId) as
-    | { id: number }
-    | undefined;
+    { id: number } | undefined;
   if (holder && holder.id !== exceptUserId) {
     throw new HttpError(409, 'Người này đã gắn với một tài khoản khác');
   }
@@ -240,7 +246,6 @@ export function deleteUserSessions(userId: number): void {
 /** Contact cua nguoi dang dang nhap — thay cho `contacts.is_me` tu v37. */
 export function contactIdOfUser(userId: number): number | null {
   const row = db.prepare('SELECT contact_id FROM users WHERE id = ?').get(userId) as
-    | { contact_id: number | null }
-    | undefined;
+    { contact_id: number | null } | undefined;
   return row?.contact_id ?? null;
 }

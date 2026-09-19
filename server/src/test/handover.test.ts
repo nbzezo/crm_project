@@ -268,7 +268,17 @@ test('co ban giao doi vi checklist duoc ghi vao nhat ky kem nguoi thuc hien', as
   assert.equal(changes.filter((c) => c.field === 'handover_ready').length, 1);
 });
 
-test('nguoi thuc hien chi dinh tuong minh thang mac dinh, id sai bi tu choi', async () => {
+/*
+ * Truoc v38, route nhan `?actor_contact_id=` de client TU KHAI minh la ai.
+ * Voi mot nguoi dung duy nhat thi do chi la mot tham so tien loi; voi nhieu
+ * nguoi dung thi no la mot lo hong: bat ky ai cung ky duoc mot thay doi duoi
+ * ten nguoi khac, va nhat ky "ai doi cai gi" mat sach gia tri lam bang chung.
+ *
+ * Nay actor luon lay tu phien dang nhap. Test khang dinh dung dieu do: tham so
+ * kia bi BO QUA chu khong phai bi tu choi — tu choi se bien no thanh mot cong
+ * cu do xem contact id nao co that.
+ */
+test('nguoi thuc hien lay tu phien, khong nhan tu query string', async () => {
   const customer = await json('POST', '/api/customers', { name: 'Doi tac X' });
   const otherId = Number(
     db
@@ -284,12 +294,28 @@ test('nguoi thuc hien chi dinh tuong minh thang mac dinh, id sai bi tu choi', as
   const detail = await json('GET', `/api/deals/${dealId}`);
   const changes = detail.data.changes as { field: string; actor_name: string | null }[];
   const entry = changes.find((c) => c.field === 'value_vnd');
-  assert.equal(entry?.actor_name, 'Tran Thi Khac');
+  assert.equal(
+    entry?.actor_name,
+    'Nguyen Van Toi',
+    'phai la nguoi cua phien hien tai, khong phai nguoi client chi dinh'
+  );
 
-  const bad = await json('PATCH', `/api/deals/${dealId}?actor_contact_id=999999`, {
+  // Id bia dat cung bi bo qua, khong phai 404 — no khong con la dau vao nua.
+  const bogus = await json('PATCH', `/api/deals/${dealId}?actor_contact_id=999999`, {
     value_vnd: 1_000_000,
   });
-  assert.equal(bad.status, 404);
+  assert.equal(bogus.status, 200);
+
+  // Ly do (`?reason=`) thi VAN doc tu query string: do la y kien cua nguoi dung,
+  // khong phai mot khang dinh ve danh tinh, nen khong co gi de gia mao.
+  await json('PATCH', `/api/deals/${dealId}?reason=${encodeURIComponent('Khach chot lai')}`, {
+    value_vnd: 2_000_000,
+  });
+  const after = await json('GET', `/api/deals/${dealId}`);
+  const withReason = (after.data.changes as { field: string; note: string | null }[]).find(
+    (c) => c.note === 'Khach chot lai'
+  );
+  assert.ok(withReason, 'ly do nguoi dung nhap phai duoc ghi vao nhat ky');
 });
 
 /* ---------- Automation canh bao qua han SLA ---------- */

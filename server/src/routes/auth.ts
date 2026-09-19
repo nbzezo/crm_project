@@ -11,7 +11,12 @@ import {
   touchLastLogin,
 } from '../services/auth/users.ts';
 import { verifyPassword } from '../services/auth/passwords.ts';
-import { consumeToken, issueToken, purgeExpiredTokens, resolveToken } from '../services/auth/tokens.ts';
+import {
+  consumeToken,
+  issueToken,
+  purgeExpiredTokens,
+  resolveToken,
+} from '../services/auth/tokens.ts';
 import { appBaseUrl, sendMail } from '../services/email/emailService.ts';
 import { resetEmail } from '../services/email/templates.ts';
 

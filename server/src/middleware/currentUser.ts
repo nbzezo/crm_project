@@ -28,8 +28,7 @@ export interface CurrentUser {
 
 function fallbackContactId(): number | null {
   const me = db.prepare(`SELECT id FROM contacts WHERE is_me = 1 AND is_active = 1`).get() as
-    | { id: number }
-    | undefined;
+    { id: number } | undefined;
   return me?.id ?? null;
 }
 
@@ -37,8 +36,7 @@ export function attachCurrentUser(req: Request, _res: Response, next: NextFuncti
   const userId = req.session?.userId;
   if (userId) {
     const row = db.prepare('SELECT contact_id FROM users WHERE id = ?').get(userId) as
-      | { contact_id: number | null }
-      | undefined;
+      { contact_id: number | null } | undefined;
     req.currentUser = { userId, contactId: row?.contact_id ?? null };
   } else {
     req.currentUser = { userId: 0, contactId: fallbackContactId() };

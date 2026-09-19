@@ -91,7 +91,9 @@ function safeBaseUrl(value: string): string {
   } catch {
     throw new HttpError(400, 'API Base URL không hợp lệ');
   }
-  const localhost = ['localhost', '127.0.0.1', '::1', 'host.docker.internal'].includes(url.hostname);
+  const localhost = ['localhost', '127.0.0.1', '::1', 'host.docker.internal'].includes(
+    url.hostname
+  );
   if (url.protocol !== 'https:' && !(localhost && url.protocol === 'http:')) {
     throw new HttpError(400, 'API Base URL phải dùng HTTPS (trừ localhost)');
   }

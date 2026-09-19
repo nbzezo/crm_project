@@ -185,7 +185,10 @@ function fromAddress(config: EmailSettingsRow): string {
  * Loi SMTP that su duoc ghi vao `last_error` roi nem tiep — nguoi goi quyet dinh
  * nuot hay tra loi. `/forgot-password` nuot; nut "gui thu thu" thi khong.
  */
-export async function sendMail(db: Database, message: MailMessage): Promise<{ delivered: boolean }> {
+export async function sendMail(
+  db: Database,
+  message: MailMessage
+): Promise<{ delivered: boolean }> {
   const config = row(db);
   if (!isReady(config)) {
     console.log(

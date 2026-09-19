@@ -117,12 +117,7 @@ export function listActionProposals(db: Database, status?: string) {
   return ids.map(({ id }) => getActionProposal(db, id));
 }
 
-function execute(
-  db: Database,
-  type: string,
-  rawPayload: unknown,
-  actorContactId: number | null
-) {
+function execute(db: Database, type: string, rawPayload: unknown, actorContactId: number | null) {
   if (type === 'create_task') {
     // Di qua createCard nen de xuat cua AI cung phai qua assertEntityLinks nhu moi duong khac.
     const card = createCard(createTaskSchema.parse(rawPayload), { actorContactId });

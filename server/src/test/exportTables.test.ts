@@ -28,9 +28,14 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     )
     .all() as { name: string }[];
 
-  /* `users` va `sessions` (v35) la du lieu dang nhap / phien, KHONG phai du lieu
-     nghiep vu — co y khong nam trong ban xuat JSON. */
-  const NON_BUSINESS = new Set(['users', 'sessions']);
+  /* Du lieu DANG NHAP / PHIEN, khong phai du lieu nghiep vu — co y khong nam
+     trong ban xuat JSON. Mot ban xuat bi lo khong duoc phep tro thanh mot bo
+     mat khau bam san, mot phien con song hay mot lien ket dat lai mat khau con
+     hieu luc. `email_settings` chua mat khau SMTP (da ma hoa) nen cung o ngoai.
+
+     Them bang vao day la mot QUYET DINH, khong phai cach lam cho test xanh:
+     mac dinh moi bang moi deu phai vao EXPORT_TABLES. */
+  const NON_BUSINESS = new Set(['users', 'sessions', 'password_reset_tokens', 'email_settings']);
   const exportSet = new Set<string>(EXPORT_TABLES);
   const missing = tables
     .map((row) => row.name)
