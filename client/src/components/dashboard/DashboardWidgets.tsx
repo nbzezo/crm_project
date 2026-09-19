@@ -116,7 +116,6 @@ interface MetricItem {
   value: string;
   hint?: string;
   tone: MetricTone;
-  featured?: boolean;
   to?: string;
   onClick?: () => void;
 }
@@ -135,7 +134,6 @@ export function KpiSummary({
       value: formatVNDShort(data.kpi.pipeline_vnd),
       hint: `${data.kpi.open_opportunity_count} cơ hội đang mở`,
       tone: 'business',
-      featured: true,
       to: '/pipeline',
     },
     {
@@ -180,13 +178,22 @@ export function KpiSummary({
     },
   ];
 
+  /*
+   * Dien tich phai theo TINH HANH DONG, khong theo do to cua con so.
+   *
+   * Truoc day "Tổng pipeline" chiem mot o ~790x180px cho dung mot con so, con
+   * "Công việc quá hạn" — thu thuc su doi nguoi dung lam gi do — bi don thanh o
+   * nho ben canh. Nay sau o bang nhau, va chi so nao dang canh bao thi len dau.
+   */
+  const ordered = [...metrics].sort((a, b) => Number(alerting(b)) - Number(alerting(a)));
+
   return (
     <section aria-labelledby="kpi-summary-title">
       <h2 id="kpi-summary-title" className="sr-only">
         Tình hình kinh doanh và cảnh báo chính
       </h2>
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-12">
-        {metrics.map((metric) => (
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-6">
+        {ordered.map((metric) => (
           <Metric key={metric.label} {...metric} />
         ))}
       </div>
@@ -194,52 +201,35 @@ export function KpiSummary({
   );
 }
 
-function Metric({ icon: Icon, label, value, hint, tone, featured, to, onClick }: MetricItem) {
-  const toneClass = featured
-    ? 'tr-bento-hero text-tr-text'
-    : tone === 'danger'
+/** Chi so dang o trang thai can hanh dong (qua han, sap het han). */
+function alerting(metric: MetricItem): boolean {
+  return metric.tone === 'danger' || metric.tone === 'warning';
+}
+
+function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricItem) {
+  const toneClass =
+    tone === 'danger'
       ? 'bg-tr-danger/10 text-tr-danger hover:bg-tr-danger/15'
       : tone === 'warning'
         ? 'bg-tr-warning/10 text-tr-warning hover:bg-tr-warning/15'
         : 'bg-tr-panel text-tr-text hover:bg-tr-hover';
-  const gridClass = featured ? 'col-span-2 md:col-span-8 md:row-span-2' : 'md:col-span-4';
-  const className = `tr-bento-card group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border text-left ${
-    featured ? 'min-h-[156px] p-4 sm:p-5' : 'min-h-[76px] p-3'
-  } ${gridClass} ${toneClass} ${focusRing}`;
+  const className = `tr-bento-card group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border p-3 text-left min-h-[88px] md:col-span-1 ${toneClass} ${focusRing}`;
   const supportingTextClass = tone === 'business' ? 'text-tr-muted' : 'text-tr-subtle';
   const content = (
     <>
       <span
-        className={`flex min-w-0 items-center gap-1.5 font-medium ${featured ? 'text-sm' : 'text-xs'} ${supportingTextClass}`}
+        className={`flex min-w-0 items-center gap-1.5 text-xs font-medium ${supportingTextClass}`}
         title={label}
       >
-        <span
-          className={`flex shrink-0 items-center justify-center rounded-full ${
-            featured ? 'h-8 w-8 bg-tr-primary text-tr-on-primary' : 'h-6 w-6 bg-tr-hover'
-          }`}
-        >
-          <Icon size={featured ? 16 : 13} aria-hidden="true" />
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tr-hover">
+          <Icon size={13} aria-hidden="true" />
         </span>
         <span className="truncate">{label}</span>
       </span>
-      <span
-        className={`flex min-w-0 gap-1.5 ${featured ? 'mt-4 flex-col items-start' : 'mt-1.5 items-end justify-between'}`}
-      >
-        <span
-          className={`truncate font-bold tracking-[-0.035em] tabular-nums ${
-            featured ? 'text-3xl sm:text-4xl' : 'text-xl'
-          }`}
-        >
-          {value}
-        </span>
+      <span className="mt-1.5 flex min-w-0 items-end justify-between gap-1.5">
+        <span className="truncate text-xl font-bold tracking-[-0.035em] tabular-nums">{value}</span>
         {hint && (
-          <span
-            className={`truncate text-xs font-medium ${
-              featured
-                ? 'rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-[var(--tr-on-yellow)]'
-                : `pb-0.5 ${supportingTextClass}`
-            }`}
-          >
+          <span className={`truncate pb-0.5 text-xs font-medium ${supportingTextClass}`}>
             {hint}
           </span>
         )}
