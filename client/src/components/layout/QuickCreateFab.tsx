@@ -1,7 +1,7 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { Building2, ListTodo, NotebookPen, NotebookText, Target, X } from 'lucide-react';
+import { Building2, ListTodo, Plus, Target, Users, Zap } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
 
@@ -14,29 +14,6 @@ const CustomerForm = lazy(() =>
 );
 import { useUiStore } from '../../stores/uiStore';
 import type { MeetingNote } from '../../types';
-
-/**
- * The huy hieu dau tick chong hai vong tron — theo mau nguoi dung gui, nhung
- * doi mau de hop voi nen: nut FAB da la gradient tr-primary nen mang xanh
- * nguyen ban se chim; doi sang trang (tr-on-primary) cho vong tron + dau tick
- * mau tr-primary de noi tren nen do, giu dung bo cuc hai vong tron lech nhau.
- */
-function CheckBadgeIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <circle cx="15.5" cy="8.5" r="7" className="fill-tr-on-primary/45" />
-      <circle cx="9.5" cy="13.5" r="8" className="fill-tr-on-primary" />
-      <path
-        d="M6 14l3 3 7-7.5"
-        className="stroke-tr-primary"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
-}
 
 /**
  * Nut hanh dong noi (FAB) — luon noi tren moi trang, bam vao xoe ra ba lua
@@ -98,9 +75,13 @@ export function QuickCreateFab() {
       )}
       <div className="fixed right-5 bottom-5 z-nav-overlay flex flex-col items-end gap-2 sm:right-8 sm:bottom-8">
         {open && (
-          /* `role="menu"` + Escape + dua focus vao muc dau: truoc day day chi la
-             mot <div> chua cac nut roi, khong khai bao gi va khong dong duoc bang
-             ban phim. */
+          /*
+           * MOT the menu thay vi nam pill roi.
+           *
+           * Nam pill rong khac nhau ma can phai nen mep trai thanh bac thang,
+           * va khong co cho nao dat tieu de nhom hay phim tat. Gop lai thanh mot
+           * the: mep thang, chia duoc hai nhom, va hien duoc phim tat dang co.
+           */
           <div
             ref={menuRef}
             role="menu"
@@ -111,68 +92,53 @@ export function QuickCreateFab() {
                 setOpen(false);
               }
             }}
-            className="tr-anim-pop flex flex-col items-end gap-2"
+            className="tr-anim-pop w-60 overflow-hidden rounded-panel border border-tr-border bg-tr-panel py-1.5 shadow-2xl"
           >
-            {/* Hai thu can tao nhanh nhat trong mot CRM lai la hai thu truoc day
-                khong co mat trong menu nay. */}
-            <button
-              type="button"
-              role="menuitem"
+            <MenuGroup label="Bán hàng" />
+            <MenuItem
+              icon={<Target size={16} aria-hidden="true" />}
+              label="Cơ hội"
               onClick={() => {
                 setOpen(false);
                 setDealOpen(true);
               }}
-              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
-            >
-              <Target size={16} className="text-tr-primary" aria-hidden="true" />
-              Cơ hội
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            />
+            <MenuItem
+              icon={<Building2 size={16} aria-hidden="true" />}
+              label="Khách hàng"
               onClick={() => {
                 setOpen(false);
                 setCustomerOpen(true);
               }}
-              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
-            >
-              <Building2 size={16} className="text-tr-primary" aria-hidden="true" />
-              Khách hàng
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            />
+
+            <MenuGroup label="Việc & ghi chú" divider />
+            <MenuItem
+              icon={<ListTodo size={16} aria-hidden="true" />}
+              label="Công việc"
               onClick={() => {
                 setOpen(false);
                 openTaskComposer();
               }}
-              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
-            >
-              <ListTodo size={16} className="text-tr-primary" aria-hidden="true" />
-              Công việc
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            />
+            {/* `Zap` chu khong phai hinh quyen so: o 16px, NotebookPen va
+                NotebookText gan nhu khong phan biet noi — hai muc ghi chu phai
+                khac nhau o CA nhan lan hinh. */}
+            <MenuItem
+              icon={<Zap size={16} aria-hidden="true" />}
+              label="Ghi chú nhanh"
+              shortcut="Ctrl ⇧ N"
               onClick={() => {
                 setOpen(false);
                 openQuickNotesBoard({ createNew: true });
               }}
-              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover ${focusRing}`}
-            >
-              <NotebookPen size={16} className="text-tr-primary" aria-hidden="true" />
-              Ghi chú nhanh
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            />
+            <MenuItem
+              icon={<Users size={16} aria-hidden="true" />}
+              label={createNote.isPending ? 'Đang tạo…' : 'Ghi chú họp'}
               disabled={createNote.isPending}
               onClick={() => createNote.mutate()}
-              className={`flex items-center gap-2 rounded-full bg-tr-panel py-2 pr-4 pl-3 text-sm font-medium text-tr-text shadow-lg ring-1 ring-tr-border transition hover:bg-tr-hover disabled:opacity-60 ${focusRing}`}
-            >
-              <NotebookText size={16} className="text-tr-primary" aria-hidden="true" />
-              {createNote.isPending ? 'Đang tạo…' : 'Ghi chú họp'}
-            </button>
+            />
           </div>
         )}
         <button
@@ -180,15 +146,16 @@ export function QuickCreateFab() {
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Đóng menu tạo nhanh' : 'Tạo nhanh'}
           aria-expanded={open}
-          className={`group relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-tr-primary to-tr-primary-hover text-tr-on-primary shadow-lg shadow-tr-primary/40 transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-tr-primary/50 active:scale-95 ${focusRing}`}
+          aria-haspopup="menu"
+          className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-tr-primary to-tr-primary-hover text-tr-on-primary shadow-lg shadow-tr-primary/40 transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-tr-primary/50 active:scale-95 ${focusRing}`}
         >
-          <CheckBadgeIcon
-            className={`absolute h-6 w-6 transition-all duration-200 ${open ? 'scale-50 opacity-0' : 'scale-100 opacity-100 group-hover:scale-110'}`}
-          />
-          <X
+          {/* Mot dau cong xoay 45 do thanh dau X — mot icon, mot chuyen dong.
+              Truoc day la huy hieu DAU TICK, ma dau tick nghia la "xong/da duyet"
+              chu khong phai "tao moi". */}
+          <Plus
             size={26}
             aria-hidden="true"
-            className={`absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}
+            className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}
           />
         </button>
       </div>
@@ -197,5 +164,54 @@ export function QuickCreateFab() {
         {customerOpen && <CustomerForm open onClose={() => setCustomerOpen(false)} />}
       </Suspense>
     </>
+  );
+}
+
+/** Tieu de nhom trong menu — thuan trang tri nen an khoi cay a11y. */
+function MenuGroup({ label, divider }: { label: string; divider?: boolean }) {
+  return (
+    <p
+      aria-hidden="true"
+      className={`px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-tr-muted uppercase ${
+        divider ? 'mt-1 border-t border-tr-border' : ''
+      }`}
+    >
+      {label}
+    </p>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  shortcut,
+  disabled,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  /** Phim tat da ton tai — hien ra de nguoi dung khoi phai tu mo. */
+  shortcut?: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-tr-text transition hover:bg-tr-hover disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
+    >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-control bg-tr-primary/10 text-tr-primary">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+      {shortcut && (
+        <kbd className="shrink-0 rounded border border-tr-border px-1.5 py-0.5 text-[10px] text-tr-muted">
+          {shortcut}
+        </kbd>
+      )}
+    </button>
   );
 }

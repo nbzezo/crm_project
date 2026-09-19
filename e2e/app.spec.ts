@@ -983,6 +983,20 @@ const A11Y_ROUTES = [
 ];
 
 async function expectNoViolations(page: import('@playwright/test').Page, label: string) {
+  /* Cho animation chay xong TRUOC khi do.
+     `.tr-anim-pop` fade opacity 0 -> 1 trong 180ms; quet giua chung se doc duoc
+     mau da bi tong hop voi nen va bao sai tuong phan — dung kieu loi do ma ban
+     ra soat 18/09/2026 mac phai. Bo qua animation lap vo han (spinner) vi chung
+     khong bao gio `finished`. */
+  await page.evaluate(
+    () =>
+      Promise.race([
+        Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+        // Tran cung: mot so animation (lap vo han, hoac bi huy giua chung) khong
+        // bao gio `finished`, doi mai se treo ca bai test.
+        new Promise((resolve) => setTimeout(resolve, 400)),
+      ]) as Promise<unknown>
+  );
   const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   expect(
     scan.violations.map(({ id, impact, nodes }) => ({
@@ -1067,4 +1081,31 @@ test('o nhap ngay doc dd/MM/yyyy chu khong phai mm/dd/yyyy', async ({ page }) =>
   await signDate.fill('');
   await signDate.pressSequentially('03042027');
   await expect(signDate).toHaveValue('03/04/2027');
+});
+
+test('menu Tạo nhanh: nhóm, phím tắt, bàn phím và a11y', async ({ page }) => {
+  const fab = page.getByRole('button', { name: 'Tạo nhanh' });
+  await expect(fab).toBeVisible();
+  await expect(fab).toHaveAttribute('aria-expanded', 'false');
+  await fab.click();
+
+  const menu = page.getByRole('menu', { name: 'Tạo nhanh' });
+  await expect(menu).toBeVisible();
+
+  /* Hai thu can tao nhanh nhat trong mot CRM phai co mat, va hai muc ghi chu
+     phai doc ra khac nhau — truoc day ca hai deu ten "Ghi chú" va deu dung hinh
+     quyen so nen khong phan biet noi. */
+  for (const name of ['Cơ hội', 'Khách hàng', 'Công việc', 'Ghi chú nhanh', 'Ghi chú họp']) {
+    await expect(menu.getByRole('menuitem', { name: new RegExp(name) })).toBeVisible();
+  }
+
+  // Phim tat da ton tai tu truoc nhung khong hien ra o dau.
+  await expect(menu.getByText('Ctrl ⇧ N')).toBeVisible();
+
+  await expectNoViolations(page, 'menu Tạo nhanh đang mở');
+
+  // Escape phai dong duoc — truoc day menu chi la mot <div> khong xu ly ban phim.
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(fab).toHaveAttribute('aria-expanded', 'false');
 });
