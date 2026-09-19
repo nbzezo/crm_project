@@ -106,6 +106,37 @@ export interface AiAskResult {
   meta: AiMeta;
 }
 
+/* ---------- Phiên chat với Trợ lý AI (v37) ---------- */
+
+/** Một phiên trong danh sách bên phải — không kèm tin nhắn. */
+export interface AiChatSession {
+  id: number;
+  /** Rỗng cho tới lượt hỏi đầu tiên; server tự lấy câu hỏi đó làm tiêu đề. */
+  title: string;
+  scope: 'crm' | 'documents' | 'all';
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+/**
+ * Tin nhắn đã lưu. `meta` giữ nguyên phần phụ của câu trả lời (nguồn, gợi ý
+ * tiếp theo, đề xuất hành động, provider/model) để mở lại phiên cũ hiện đúng
+ * như lúc vừa trả lời.
+ */
+export interface AiChatMessage {
+  id: number;
+  session_id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  meta: Omit<AiAskResult, 'answer'> | null;
+  created_at: string;
+}
+
+export interface AiChatDetail extends AiChatSession {
+  messages: AiChatMessage[];
+}
+
 /** Bản nháp công việc có cấu trúc do AI chuẩn hóa từ câu nhập tự nhiên. */
 export interface TaskAssistResult {
   title: string;

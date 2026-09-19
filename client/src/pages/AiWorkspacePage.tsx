@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import {
@@ -8,9 +8,11 @@ import {
   Check,
   DatabaseZap,
   Play,
+  Plus,
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   X,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -18,6 +20,9 @@ import {
   TASK_LINK_KEYS,
   type AiActionProposal,
   type AiAskResult,
+  type AiChatDetail,
+  type AiChatMessage,
+  type AiChatSession,
   type AiMode,
   type TaskAssistResult,
 } from '../ai/types';
@@ -26,12 +31,15 @@ import {
   EmptyState,
   Field,
   FormError,
+  IconButton,
   Panel,
   Segmented,
   Select,
+  SkeletonRows,
   Textarea,
   focusRing,
 } from '../components/common/ui';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { PageShell } from '../components/common/PageShell';
 import { t } from '../i18n/vi';
 import { formatDate, formatDateTime } from '../lib/format';
@@ -90,6 +98,37 @@ interface UsageData {
     created_at: string;
   }[];
 }
+
+/**
+ * Ghep danh sach tin nhan phang thanh cac luot hoi-dap de ve.
+ *
+ * May chu luu tung tin nhan mot (role user / assistant) vi do la don vi that
+ * cua mot hoi thoai; giao dien lai ve theo CAP. Ghep o day de phan render
+ * khong phai biet gi ve cach luu tru.
+ */
+function turnsOf(messages: AiChatMessage[]): { question: string; result: AiAskResult }[] {
+  const turns: { question: string; result: AiAskResult }[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const current = messages[i];
+    if (current.role !== 'user') continue;
+    const reply = messages[i + 1];
+    if (!reply || reply.role !== 'assistant') continue;
+    turns.push({
+      question: current.content,
+      result: {
+        answer: reply.content,
+        sources: reply.meta?.sources ?? [],
+        follow_up_questions: reply.meta?.follow_up_questions ?? [],
+        proposal: reply.meta?.proposal ?? null,
+        meta: reply.meta?.meta ?? { requestId: String(reply.id), provider: '', model: '' },
+      } as AiAskResult,
+    });
+  }
+  return turns;
+}
+
+/** Giu dong bo voi MAX_SESSIONS o server/src/services/ai/chatSessions.ts. */
+const MAX_CHAT_SESSIONS = 20;
 
 /** Hai y dinh dung chung mot o nhap tren trang Tro ly AI. */
 type Intent = 'ask' | 'task';
@@ -153,23 +192,73 @@ function AssistantTab() {
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<'crm' | 'documents' | 'all'>('all');
   const [mode, setMode] = useState<AiMode>('balanced');
-  const [conversation, setConversation] = useState<{ question: string; result: AiAskResult }[]>([]);
+  /* Phien dang mo. `null` = chua chon phien nao; luot hoi dau tien se tu tao. */
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AiChatSession | null>(null);
+
+  const chats = useQuery({
+    queryKey: ['ai', 'chats'],
+    queryFn: () => api.get<AiChatSession[]>('/api/ai/chats'),
+  });
+
+  const activeChat = useQuery({
+    queryKey: ['ai', 'chat', sessionId],
+    queryFn: () => api.get<AiChatDetail>(`/api/ai/chats/${sessionId}`),
+    enabled: sessionId !== null,
+  });
+
+  /* Hoi thoai doc TU MAY CHU chu khong giu ban sao trong RAM: tai lai trang,
+     doi phien hay mo tren may khac deu thay cung mot thu. */
+  const conversation = useMemo(() => turnsOf(activeChat.data?.messages ?? []), [activeChat.data]);
+
+  const refreshChats = () => {
+    void queryClient.invalidateQueries({ queryKey: ['ai', 'chats'] });
+    void queryClient.invalidateQueries({ queryKey: ['ai', 'chat'] });
+  };
+
+  const newChat = useMutation({
+    mutationFn: () => api.post<AiChatSession>('/api/ai/chats', { scope }),
+    onSuccess: (session) => {
+      setSessionId(session.id);
+      setQuestion('');
+      refreshChats();
+    },
+  });
+
+  const removeChat = useMutation({
+    mutationFn: (id: number) => api.del(`/api/ai/chats/${id}`),
+    onSuccess: (_data, id) => {
+      if (id === sessionId) setSessionId(null);
+      refreshChats();
+    },
+  });
+
   const ask = useMutation({
-    mutationFn: (submittedQuestion: string) =>
-      api.post<AiAskResult>('/api/ai/ask', {
+    mutationFn: async (submittedQuestion: string) => {
+      /* Hoi khi chua co phien thi tu mo mot phien moi — nguoi dung khong phai
+         bam "Phiên mới" truoc roi moi go duoc. */
+      let target = sessionId;
+      if (target === null) {
+        const created = await api.post<AiChatSession>('/api/ai/chats', { scope });
+        target = created.id;
+        setSessionId(target);
+      }
+      return api.post<AiAskResult>('/api/ai/ask', {
         question: submittedQuestion,
         scope,
         mode,
+        session_id: target,
         history: conversation
           .flatMap((turn) => [
             { role: 'user', content: turn.question },
             { role: 'assistant', content: turn.result.answer },
           ])
           .slice(-10),
-      }),
-    onSuccess: (result, submittedQuestion) => {
-      setConversation((current) => [...current, { question: submittedQuestion, result }]);
+      });
+    },
+    onSuccess: () => {
       setQuestion('');
+      refreshChats();
     },
   });
   const quickTask = useMutation({
@@ -188,22 +277,10 @@ function AssistantTab() {
         variables.decision === 'approve' ? 'Đã thực thi hành động AI' : 'Đã từ chối đề xuất',
         'success'
       );
-      setConversation((current) =>
-        current.map((turn) =>
-          turn.result.proposal?.id === variables.id
-            ? {
-                ...turn,
-                result: {
-                  ...turn.result,
-                  proposal: {
-                    ...turn.result.proposal,
-                    status: variables.decision === 'approve' ? 'executed' : 'rejected',
-                  },
-                },
-              }
-            : turn
-        )
-      );
+      /* Trang thai de xuat nam trong `meta_json` cua tin nhan da luu, nen doc
+         lai tu may chu thay vi vá tay ban sao trong RAM — mo lai phien cu cung
+         phai thay dung trang thai nay. */
+      void queryClient.invalidateQueries({ queryKey: ['ai', 'chat'] });
     },
   });
 
@@ -250,7 +327,15 @@ function AssistantTab() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-12">
-      <Panel title="Trợ lý AI" className="lg:col-span-8">
+      <Panel
+        title="Trợ lý AI"
+        className="lg:col-span-8"
+        action={
+          <Button onClick={() => newChat.mutate()} disabled={newChat.isPending}>
+            <Plus size={15} aria-hidden="true" /> Phiên mới
+          </Button>
+        }
+      >
         {conversation.length > 0 && (
           <div className="mb-4 max-h-[34rem] space-y-4 overflow-y-auto border-b border-tr-border pb-4">
             {conversation.map((turn, index) => (
@@ -476,6 +561,56 @@ function AssistantTab() {
       </Panel>
 
       <div className="space-y-4 lg:col-span-4">
+        <Panel
+          title="Phiên trò chuyện"
+          action={
+            <span className="text-xs font-normal text-tr-muted">
+              giữ {MAX_CHAT_SESSIONS} phiên gần nhất
+            </span>
+          }
+        >
+          {chats.isLoading ? (
+            <SkeletonRows rows={4} cols={1} />
+          ) : (chats.data ?? []).length === 0 ? (
+            <EmptyState
+              message="Chưa có phiên nào."
+              hint="Gõ câu hỏi bên trái là phiên đầu tiên được tạo tự động."
+            />
+          ) : (
+            <ul className="-mx-1 max-h-80 space-y-0.5 overflow-y-auto">
+              {(chats.data ?? []).map((session) => (
+                <li key={session.id} className="group flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSessionId(session.id)}
+                    aria-current={session.id === sessionId ? 'true' : undefined}
+                    className={`min-w-0 flex-1 rounded-control px-2 py-1.5 text-left transition ${focusRing} ${
+                      session.id === sessionId
+                        ? 'bg-tr-primary/15 text-tr-primary'
+                        : 'text-tr-text hover:bg-tr-hover'
+                    }`}
+                  >
+                    <span className="block truncate text-sm font-medium">
+                      {session.title || 'Phiên mới'}
+                    </span>
+                    <span className="block truncate text-xs text-tr-muted">
+                      {formatDateTime(session.updated_at)} · {session.message_count / 2} lượt
+                    </span>
+                  </button>
+                  <IconButton
+                    label={`Xoá phiên: ${session.title || 'Phiên mới'}`}
+                    tone="danger"
+                    onClick={() => setPendingDelete(session)}
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                  >
+                    <Trash2 size={15} aria-hidden="true" />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
         <Panel title="Câu hỏi gợi ý">
           <div className="space-y-2">
             {[
@@ -497,6 +632,18 @@ function AssistantTab() {
         </Panel>
         <RagStatus />
       </div>
+
+      {/* Xoa phien la mat han lich su trao doi — khong de mot cu bam la xong. */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Xoá phiên trò chuyện"
+        message={`Xoá "${pendingDelete?.title || 'Phiên mới'}"? Toàn bộ nội dung trao đổi trong phiên sẽ mất.`}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) removeChat.mutate(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 }

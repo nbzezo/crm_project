@@ -17,6 +17,15 @@ import {
 import { getMeetingNote, saveAiSummary } from '../services/meetingNoteService.ts';
 import { runAutomation } from '../services/ai/automations.ts';
 import {
+  appendTurn,
+  createSession,
+  deleteSession,
+  getSession,
+  listMessages,
+  listSessions,
+  renameSession,
+} from '../services/ai/chatSessions.ts';
+import {
   listProviderConfigs,
   syncProviderModels,
   updateProviderConfig,
@@ -761,6 +770,9 @@ const askSchema = z.object({
   scope: z.enum(['crm', 'documents', 'all']).default('all'),
   mode: z.enum(['fast', 'balanced', 'reasoning']).optional(),
   history: z.array(askHistoryItemSchema).max(10).default([]),
+  /* Co thi luot hoi-dap duoc ghi vao phien do. Bo trong van hoi duoc — cac noi
+     goi khac (vd o nhap nhanh) khong bat buoc phai co phien. */
+  session_id: z.number().int().positive().optional(),
 });
 const askResponseSchema = z.object({
   answer: z.string().min(1),
@@ -819,16 +831,58 @@ router.post('/ask', async (req, res) => {
     const proposal = parsed.proposed_action
       ? saveActionProposal(db, result.requestId, parsed.proposed_action)
       : null;
-    res.json({
+    const payload = {
       answer: parsed.answer,
       sources: parsed.sources,
       follow_up_questions: parsed.follow_up_questions,
       proposal,
       meta: result,
-    });
+    };
+    /* Ghi sau khi da co cau tra loi: hoi that bai thi khong de lai mot cau hoi
+       treo lo lung trong lich su. */
+    if (body.session_id && getSession(db, body.session_id)) {
+      appendTurn(db, body.session_id, body.question, parsed.answer, {
+        sources: payload.sources,
+        follow_up_questions: payload.follow_up_questions,
+        proposal: payload.proposal,
+        meta: payload.meta,
+      });
+    }
+    res.json(payload);
   } catch (error) {
     asHttpError(error);
   }
+});
+
+/* ---------- Phien chat voi Tro ly AI (v37) ---------- */
+
+router.get('/chats', (_req, res) => res.json(listSessions(db)));
+
+router.post('/chats', (req, res) => {
+  const body = parseBody(z.object({ scope: z.enum(['crm', 'documents', 'all']).optional() }), req);
+  res.status(201).json(createSession(db, body.scope ?? 'all'));
+});
+
+router.get('/chats/:id', (req, res) => {
+  const id = intParam(req.params.id);
+  const session = getSession(db, id);
+  if (!session) throw new HttpError(404, 'Khong tim thay phien chat');
+  res.json({ ...session, messages: listMessages(db, id) });
+});
+
+router.patch('/chats/:id', (req, res) => {
+  const id = intParam(req.params.id);
+  if (!getSession(db, id)) throw new HttpError(404, 'Khong tim thay phien chat');
+  const body = parseBody(z.object({ title: z.string().trim().min(1).max(80) }), req);
+  renameSession(db, id, body.title);
+  res.json(getSession(db, id));
+});
+
+router.delete('/chats/:id', (req, res) => {
+  const id = intParam(req.params.id);
+  if (!getSession(db, id)) throw new HttpError(404, 'Khong tim thay phien chat');
+  deleteSession(db, id);
+  res.status(204).end();
 });
 
 router.post('/feedback', (req, res) => {

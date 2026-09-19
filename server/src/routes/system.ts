@@ -84,6 +84,9 @@ export const EXPORT_TABLES = [
   // v32 — Ghi chu nhanh (Quick Notes)
   'quick_notes',
   'quick_note_relations',
+  // v37 — phien chat voi Tro ly AI
+  'ai_chat_sessions',
+  'ai_chat_messages',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
