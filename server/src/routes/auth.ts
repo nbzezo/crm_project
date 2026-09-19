@@ -11,6 +11,7 @@ import {
   touchLastLogin,
 } from '../services/auth/users.ts';
 import { verifyPassword } from '../services/auth/passwords.ts';
+import { loadPermissions, permissionsVersion } from '../services/auth/access.ts';
 import {
   consumeToken,
   issueToken,
@@ -113,6 +114,16 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+/**
+ * Ho so + quyen cua nguoi dang dang nhap.
+ *
+ * `/api/auth` nam TRUOC attachCurrentUser trong app.ts (no phai mo cho nguoi chua
+ * dang nhap), nen o day tu goi loadPermissions thay vi doc req.currentUser.
+ *
+ * Quyen duoc TINH LAI moi lan goi, khong cache: doi mot o trong ma tran la lan
+ * /me ke tiep da thay doi. `permissions_version` de client biet khi nao can goi
+ * lai ma khong phai hoi lien tuc.
+ */
 router.get('/me', (req, res) => {
   const userId = req.session?.userId;
   if (!userId) throw new HttpError(401, 'Chua dang nhap');
@@ -120,7 +131,32 @@ router.get('/me', (req, res) => {
   /* Phien con song nhung tai khoan da bi xoa hoac khoa giua chung: coi nhu chua
      dang nhap, de client dua ve man dang nhap thay vi hien mot vo rong. */
   if (!user || !user.is_active) throw new HttpError(401, 'Chua dang nhap');
-  res.json(user);
+  res.json({
+    ...user,
+    permissions: loadPermissions(userId),
+    permissions_version: permissionsVersion(),
+    positions: db
+      .prepare(
+        `SELECT p.id, p.name, p.code, up.scope_unit_id, o.name AS scope_unit_name
+           FROM user_positions up
+           JOIN positions p ON p.id = up.position_id
+           LEFT JOIN org_units o ON o.id = up.scope_unit_id
+          WHERE up.user_id = ?
+          ORDER BY up.is_primary DESC, p.position`
+      )
+      .all(userId),
+    org_unit:
+      db
+        .prepare(
+          `SELECT o.id, o.name, k.name AS kind_name
+           FROM users u
+           JOIN contacts c ON c.id = u.contact_id
+           JOIN org_units o ON o.id = c.org_unit_id
+           LEFT JOIN org_unit_kinds k ON k.id = o.kind_id
+          WHERE u.id = ?`
+        )
+        .get(userId) ?? null,
+  });
 });
 
 router.post('/logout', async (req, res, next) => {

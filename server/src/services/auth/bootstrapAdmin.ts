@@ -1,3 +1,4 @@
+import { db } from '../../db/connection.ts';
 import { countUsers, createUser, findUserByUsername } from './users.ts';
 
 /*
@@ -10,10 +11,30 @@ import { countUsers, createUser, findUserByUsername } from './users.ts';
  * Thieu env ma bang con rong => tu choi khoi dong. Tha khong chay con hon chay
  * mot API CRM khong co xac thuc tren internet cong khai.
  *
- * v37: nhan them WORKFLOW_ADMIN_EMAIL. Khong bat buoc — nhung thieu email thi
+ * v38: nhan them WORKFLOW_ADMIN_EMAIL. Khong bat buoc — nhung thieu email thi
  * tai khoan dau tien khong tu lay lai mat khau duoc va phai dung duong dong
  * lenh, nen canh bao ro khi vang.
+ *
+ * v39: gan luon vi tri Quan tri he thong. Migration cung lam viec nay, nhung
+ * chi cho CSDL DA CO nguoi dung — voi mot CSDL moi tinh thi migrate chay khi
+ * bang users con rong, roi ham nay moi tao tai khoan. Thieu doan duoi day,
+ * tai khoan dau tien se ton tai ma khong co mot quyen nao: dang nhap duoc
+ * nhung khong lam duoc gi, ke ca tu cap quyen cho chinh minh.
  */
+/**
+ * Gan vi tri Quan tri he thong cho tai khoan dau tien.
+ *
+ * `INSERT OR IGNORE`: neu migration da gan roi thi khong ghi de gi ca.
+ */
+function grantSystemAdmin(userId: number): void {
+  const position = db.prepare(`SELECT id FROM positions WHERE code = 'system_admin'`).get() as
+    { id: number } | undefined;
+  if (!position) return;
+  db.prepare(
+    `INSERT OR IGNORE INTO user_positions (user_id, position_id, is_primary) VALUES (?, ?, 1)`
+  ).run(userId, position.id);
+}
+
 export async function ensureAdminUser(): Promise<void> {
   if (countUsers() > 0) return;
 
@@ -36,7 +57,8 @@ export async function ensureAdminUser(): Promise<void> {
   // Chong dua: neu mot tien trinh khac vua tao, bo qua.
   if (findUserByUsername(username)) return;
 
-  await createUser({ username, email, password });
+  const userId = await createUser({ username, email, password });
+  grantSystemAdmin(userId);
   console.log(
     `[auth] Da tao tai khoan dang nhap dau tien: ${email ?? username}` +
       (email

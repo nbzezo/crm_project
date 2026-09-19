@@ -1,7 +1,8 @@
-import { Router, type NextFunction, type Request, type Response } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
+import { requirePermission } from '../middleware/currentUser.ts';
 import {
   createUser,
   deleteUserSessions,
@@ -25,26 +26,13 @@ const router = Router();
  * khi chu nhan mo lien ket do.
  */
 
-/* ---------- Rao chan tam thoi ----------
-
-   Dot nay chua co he phan quyen (no la viec cua buoc ke tiep: cay don vi + vi
-   tri + ma tran quyen). Neu de ngo, bat ky ai dang nhap duoc cung tu tao them
-   tai khoan — tuc la moi nhan vien deu thanh quan tri.
-
-   Cho toi khi requirePermission('admin.users') thay the, chi tai khoan DAU TIEN
-   (id nho nhat, la tai khoan bootstrap tu bien moi truong) duoc dung nhung
-   endpoint nay. Tho nhung dung huong: mac dinh la cam. */
-function requireBootstrapAdmin(req: Request, _res: Response, next: NextFunction): void {
-  const userId = req.session?.userId;
-  const first = db.prepare('SELECT MIN(id) AS id FROM users').get() as { id: number | null };
-  if (!userId || first.id == null || userId !== first.id) {
-    next(new HttpError(403, 'Chỉ tài khoản quản trị mới quản lý được người dùng'));
-    return;
-  }
-  next();
-}
-
-router.use(requireBootstrapAdmin);
+/* v39 thay rao chan tam thoi cua dot truoc (chi tai khoan id nho nhat) bang
+   quyen that. `read` de xem danh sach, `update` cho moi thao tac ghi — tao,
+   khoa, moi lai, dang xuat ho deu la thao tac tren mot tai khoan khac. */
+router.use((req, res, next) => {
+  const action = req.method === 'GET' ? 'read' : 'update';
+  requirePermission('admin.users', action)(req, res, next);
+});
 
 /** Gui thu moi va tra ve lien ket khi chua cau hinh SMTP, de con kich hoat tay duoc. */
 async function sendInvite(req: Request, userId: number): Promise<{ invite_link: string | null }> {
@@ -108,7 +96,7 @@ router.patch('/:id', (req, res) => {
 
   /* Tu khoa chinh minh la mot cua khong mo lai duoc: khoa xong la mat phien, ma
      mo khoa thi chi tai khoan nay lam duoc. */
-  if (body.is_active === false && id === req.session?.userId) {
+  if (body.is_active === false && id === req.currentUser?.userId) {
     throw new HttpError(400, 'Không thể tự khoá tài khoản đang đăng nhập');
   }
 

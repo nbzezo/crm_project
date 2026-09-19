@@ -1,3 +1,9 @@
+/* Danh muc quyen (v39). Tach ra tep rieng vi no dai va co logic rieng (thu tu
+   pham vi, action hop le theo tung resource), nhung van xuat qua cung mot
+   entry: client va server chi can nho MOT duong import cho moi hang so dung
+   chung. Khong keo theo zod nen nhe nhu phan con lai cua tep nay. */
+export * from './permissions.js';
+
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 

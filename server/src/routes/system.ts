@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { BACKUP_DIR, db } from '../db/connection.ts';
 import { createBackupFile } from '../lib/backup.ts';
 import { HttpError } from '../lib/validate.ts';
+import { requirePermission } from '../middleware/currentUser.ts';
 import { fold } from '../lib/viSearch.ts';
 
 const router = Router();
@@ -87,6 +88,15 @@ export const EXPORT_TABLES = [
   // v37 — phien chat voi Tro ly AI
   'ai_chat_sessions',
   'ai_chat_messages',
+  /* v39 — so do to chuc va phan quyen. La du lieu NGHIEP VU, khong phai du lieu
+     dang nhap: mat cay don vi va ma tran quyen thi khoi phuc xong van phai dung
+     lai ca cau hinh bang tay. `users` / `sessions` / token / SMTP thi van o
+     ngoai (xem NON_BUSINESS trong exportTables.test.ts). */
+  'org_unit_kinds',
+  'org_units',
+  'positions',
+  'position_permissions',
+  'user_positions',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
@@ -181,7 +191,7 @@ router.get('/search', (req, res) => {
   res.json({ cards, customers, contacts, deals, contracts, documents, quickNotes });
 });
 
-router.get('/backups', (_req, res) => {
+router.get('/backups', requirePermission('data.export', 'export'), (_req, res) => {
   const files = fs
     .readdirSync(BACKUP_DIR)
     .filter((f) => f.endsWith('.db'))
@@ -193,7 +203,7 @@ router.get('/backups', (_req, res) => {
   res.json(files);
 });
 
-router.post('/backup', async (_req, res, next) => {
+router.post('/backup', requirePermission('data.export', 'export'), async (_req, res, next) => {
   try {
     const file = await createBackupFile(db);
     res.json(file);
@@ -204,7 +214,7 @@ router.post('/backup', async (_req, res, next) => {
 
 const SAFE_BACKUP_NAME = /^[\w.-]+\.db$/;
 
-router.get('/backups/:name/download', (req, res) => {
+router.get('/backups/:name/download', requirePermission('data.export', 'export'), (req, res) => {
   const name = String(req.params.name);
   if (!SAFE_BACKUP_NAME.test(name)) throw new HttpError(400, 'Ten file khong hop le');
   const file = path.join(BACKUP_DIR, name);
@@ -212,7 +222,7 @@ router.get('/backups/:name/download', (req, res) => {
   res.download(file, name);
 });
 
-router.get('/export', (_req, res) => {
+router.get('/export', requirePermission('data.export', 'export'), (_req, res) => {
   const dump: Record<string, unknown[]> = {};
   for (const table of EXPORT_TABLES) dump[table] = db.prepare(`SELECT * FROM ${table}`).all();
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -332,7 +342,7 @@ function toCsv(rows: Record<string, unknown>[]): string {
   ].join('\r\n');
 }
 
-router.get('/export/:entity.csv', (req, res) => {
+router.get('/export/:entity.csv', requirePermission('data.export', 'export'), (req, res) => {
   const entity = String(req.params.entity);
   const query = CSV_QUERIES[entity];
   if (!query) throw new HttpError(404, 'Khong ho tro xuat du lieu nay');

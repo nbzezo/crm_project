@@ -7,10 +7,12 @@ import helmet from 'helmet';
 import { db } from './db/connection.ts';
 import { HttpError } from './lib/validate.ts';
 import { requireAuth } from './middleware/requireAuth.ts';
-import { attachCurrentUser } from './middleware/currentUser.ts';
+import { attachCurrentUser, requireResource } from './middleware/currentUser.ts';
 import { SqliteSessionStore } from './services/auth/SqliteSessionStore.ts';
 import auth from './routes/auth.ts';
 import users from './routes/users.ts';
+import orgUnits from './routes/orgUnits.ts';
+import positions from './routes/positions.ts';
 import email from './routes/email.ts';
 import boards from './routes/boards.ts';
 import lists from './routes/lists.ts';
@@ -101,38 +103,48 @@ export function createApp(options: AppOptions = {}): Express {
      Phai nam sau requireAuth va truoc tat ca router ben duoi. */
   app.use('/api', attachCurrentUser);
 
+  /* Quan tri — tu bao ve bang requirePermission ben trong tung router, vi chung
+     tron nhieu resource (vd /api/org-units doc ca danh ba). */
   app.use('/api/users', users);
-  app.use('/api/email', email);
+  app.use('/api/org-units', orgUnits);
+  app.use('/api/positions', positions);
+  app.use('/api/email', requireResource('settings.email'), email);
 
-  app.use('/api/boards', boards);
-  app.use('/api/lists', lists);
-  app.use('/api/cards', cards);
-  app.use('/api/checklist', checklist);
-  app.use('/api/card-fields', cardFields);
-  app.use('/api/comments', comments);
+  /* Chan TINH NANG theo resource: GET can `read`, POST can `create`, ... Dat o
+     day chu khong rai vao tung route de mot route them sau nay khong the lot
+     luoi — day la cho duy nhat phai nho, va no nam ngay canh danh sach mount.
+
+     Day CHUA phai chan du lieu: ai thay ban ghi cua ai la viec cua dot ke tiep
+     (`visibleContactIds`). Mot endpoint mo khong co nghia la moi dong hien ra. */
+  app.use('/api/boards', requireResource('boards'), boards);
+  app.use('/api/lists', requireResource('boards'), lists);
+  app.use('/api/cards', requireResource('tasks'), cards);
+  app.use('/api/checklist', requireResource('tasks'), checklist);
+  app.use('/api/card-fields', requireResource('boards'), cardFields);
+  app.use('/api/comments', requireResource('tasks'), comments);
   app.use('/api/labels', labels);
-  app.use('/api/customers', customers);
-  app.use('/api/contacts', contacts);
-  app.use('/api/deals', deals);
-  app.use('/api/contracts', contracts);
-  app.use('/api/quotations', quotations);
-  app.use('/api/documents', documents);
-  app.use('/api/services', services);
-  app.use('/api/revenues', revenues);
-  app.use('/api/interactions', interactions);
-  app.use('/api/meeting-notes', meetingNotes);
-  app.use('/api/quick-notes', quickNotes);
-  app.use('/api/reminders', reminders);
+  app.use('/api/customers', requireResource('customers'), customers);
+  app.use('/api/contacts', requireResource('contacts'), contacts);
+  app.use('/api/deals', requireResource('deals'), deals);
+  app.use('/api/contracts', requireResource('contracts'), contracts);
+  app.use('/api/quotations', requireResource('quotations'), quotations);
+  app.use('/api/documents', requireResource('documents'), documents);
+  app.use('/api/services', requireResource('services'), services);
+  app.use('/api/revenues', requireResource('revenues'), revenues);
+  app.use('/api/interactions', requireResource('interactions'), interactions);
+  app.use('/api/meeting-notes', requireResource('notes'), meetingNotes);
+  app.use('/api/quick-notes', requireResource('notes'), quickNotes);
+  app.use('/api/reminders', requireResource('tasks'), reminders);
   app.use('/api/notifications', notifications);
-  app.use('/api/telegram', telegram);
-  app.use('/api/nudges', nudges);
-  app.use('/api/projects', projects);
-  app.use('/api/calendar', calendarEvents);
+  app.use('/api/telegram', requireResource('settings.telegram'), telegram);
+  app.use('/api/nudges', requireResource('tasks'), nudges);
+  app.use('/api/projects', requireResource('projects'), projects);
+  app.use('/api/calendar', requireResource('tasks'), calendarEvents);
   app.use('/api/views', views);
-  app.use('/api/settings', settings);
-  app.use('/api', scoring);
+  app.use('/api/settings', requireResource('settings.app'), settings);
+  app.use('/api', requireResource('deals'), scoring);
   app.use('/api', system);
-  app.use('/api/ai', ai);
+  app.use('/api/ai', requireResource('ai'), ai);
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Khong tim thay endpoint' });
