@@ -32,6 +32,20 @@ export const emptyTaskFilters: TaskFilters = {
   assignee: '',
 };
 
+/**
+ * So bo loc nguoi dung da DOI so voi mac dinh.
+ *
+ * Dung de chon dung trang thai rong: khong co bo loc nao bi doi ma danh sach van
+ * trong nghia la he thong CHUA CO du lieu — luc do bao "khong khop bo loc" va moi
+ * nguoi dung xoa loc la sai, vi xoa xong van trong.
+ */
+export function countActiveTaskFilters(f: TaskFilters): number {
+  return (Object.keys(emptyTaskFilters) as (keyof TaskFilters)[]).reduce(
+    (total, key) => total + (f[key] !== emptyTaskFilters[key] ? 1 : 0),
+    0
+  );
+}
+
 /** Bo loc the ngay tren bang (giong nut "Bộ lọc" cua Trello). */
 export interface BoardFilters {
   q: string;

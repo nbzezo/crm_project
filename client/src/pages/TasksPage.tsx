@@ -32,7 +32,12 @@ import {
 } from '../components/common/ui';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../i18n/vi';
 import { invalidateCardViews } from '../lib/queryKeys';
-import { emptyTaskFilters, useUiStore, type TaskFilters } from '../stores/uiStore';
+import {
+  countActiveTaskFilters,
+  emptyTaskFilters,
+  useUiStore,
+  type TaskFilters,
+} from '../stores/uiStore';
 import { useAssignees } from '../components/tasks/AssigneePicker';
 import { isWaitingStatus } from '../components/tasks/CardStatusControl';
 import { parseAssigneeFilter } from '../components/kanban/BoardFilter';
@@ -538,6 +543,23 @@ type GroupBy = 'none' | 'priority' | 'customer' | 'board' | 'assignee';
 export default function TasksPage() {
   const { data: tasks = [], isLoading, error, refetch } = useTaskQuery();
   const resetFilters = useUiStore((s) => s.resetTaskFilters);
+  /* Hai trang thai rong khac han nhau: chua co viec nao (giai thich + moi tao)
+     va co viec nhung khong khop bo loc (moi xoa loc). Truoc day trang luon bao
+     "khong khop bo loc" ke ca khi he thong co dung 0 cong viec — xoa loc xong
+     van trong, nen loi khuyen do dan nguoi dung vao ngo cut. */
+  const hasFilters = useUiStore((s) => countActiveTaskFilters(s.taskFilters) > 0);
+  const emptyProps = hasFilters
+    ? {
+        emptyMessage: 'Không có công việc nào khớp bộ lọc.',
+        emptyHint: 'Thử nới bộ lọc hoặc thêm công việc mới.',
+        emptyAction: <Button onClick={resetFilters}>{t.common.clearFilter}</Button>,
+      }
+    : {
+        emptyMessage: 'Chưa có công việc nào.',
+        emptyHint:
+          'Công việc gom mọi đầu việc trên các bảng, dự án và khách hàng về một chỗ để bạn theo dõi hạn và mức ưu tiên.',
+        emptyAction: <Button onClick={() => setAdding(true)}>Thêm công việc đầu tiên</Button>,
+      };
   const [mode, setMode] = useState<'tree' | 'table'>('tree');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [adding, setAdding] = useState(false);
@@ -634,7 +656,7 @@ export default function TasksPage() {
       ) : error ? (
         <ErrorState onRetry={() => refetch()} />
       ) : mode === 'table' ? (
-        <TaskTable tasks={tasks} onClearFilters={resetFilters} />
+        <TaskTable tasks={tasks} onClearFilters={hasFilters ? resetFilters : undefined} />
       ) : (
         <div className="space-y-5">
           {groups.map((group) => (
@@ -649,12 +671,7 @@ export default function TasksPage() {
                   </span>
                 </h3>
               )}
-              <TaskTree
-                tasks={group.tasks}
-                emptyMessage="Không có công việc nào khớp bộ lọc."
-                emptyHint="Thử nới bộ lọc hoặc thêm công việc mới."
-                emptyAction={<Button onClick={resetFilters}>{t.common.clearFilter}</Button>}
-              />
+              <TaskTree tasks={group.tasks} {...emptyProps} />
             </section>
           ))}
         </div>

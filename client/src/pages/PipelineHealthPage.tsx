@@ -27,6 +27,7 @@ import { STAGE_ORDER, t } from '../i18n/vi';
 import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS, VETO_LABELS } from '../i18n/scoring';
 import { formatDate, formatPercent, formatVND, formatVNDShort } from '../lib/format';
 import type { Factor, Quadrant, Stage, VetoCode } from '../types';
+import { PageHeader } from '../components/common/PageShell';
 
 interface HealthData {
   stage_weighted_vnd: number;
@@ -94,10 +95,11 @@ export default function PipelineHealthPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold text-tr-text">Sức khỏe pipeline</h2>
-        <ReviewSession />
-      </div>
+      <PageHeader
+        description="Forecast sau khi loại các cơ hội chưa đủ điều kiện."
+        actions={<ReviewSession />}
+        align="center"
+      />
 
       {/* Ba con số: truyền thống, đã lọc, và chênh lệch */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -151,12 +153,13 @@ export default function PipelineHealthPage() {
       <Panel
         title="Ma trận cơ hội"
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Select
               value={stage}
               aria-label="Lọc theo giai đoạn"
               onChange={(e) => setStage(e.target.value)}
-              className="h-8 w-auto py-0 text-xs"
+              fullWidth={false}
+              className="min-h-8 w-auto py-1 text-xs leading-[1.4]"
             >
               <option value="">Mọi giai đoạn</option>
               {STAGE_ORDER.filter((s) => s !== 'won' && s !== 'lost').map((s) => (
@@ -169,7 +172,8 @@ export default function PipelineHealthPage() {
               value={industry}
               aria-label="Lọc theo ngành"
               onChange={(e) => setIndustry(e.target.value)}
-              className="h-8 w-auto py-0 text-xs"
+              fullWidth={false}
+              className="min-h-8 w-auto py-1 text-xs leading-[1.4]"
             >
               <option value="">Mọi ngành</option>
               {(matrix?.industries ?? []).map((name) => (
@@ -182,7 +186,8 @@ export default function PipelineHealthPage() {
               value={minValue}
               aria-label="Lọc theo quy mô deal"
               onChange={(e) => setMinValue(e.target.value)}
-              className="h-8 w-auto py-0 text-xs"
+              fullWidth={false}
+              className="min-h-8 w-auto py-1 text-xs leading-[1.4]"
             >
               <option value="">Mọi quy mô</option>
               <option value="100000000">Từ 100 triệu</option>
@@ -202,7 +207,10 @@ export default function PipelineHealthPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Panel title="Bị loại khỏi forecast đã lọc">
           {health.excluded.length === 0 ? (
-            <p className="text-sm text-tr-muted">Không có cơ hội nào bị loại.</p>
+            <EmptyState
+              message="Không có cơ hội nào bị loại."
+              hint="Mọi cơ hội đang mở đều đã qua điều kiện veto và còn hạn chấm điểm."
+            />
           ) : (
             <ul className="space-y-1.5">
               {health.excluded.map((deal) => (
@@ -234,7 +242,7 @@ export default function PipelineHealthPage() {
 
         <Panel title="Đang tụt điểm (30 ngày gần nhất)">
           {health.declining.length === 0 ? (
-            <p className="text-sm text-tr-muted">Không có yếu tố nào bị hạ điểm gần đây.</p>
+            <EmptyState message="Không có yếu tố nào bị hạ điểm gần đây." />
           ) : (
             <ul className="space-y-1.5">
               {health.declining.map((row, index) => (

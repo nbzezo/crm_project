@@ -94,7 +94,7 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     label: t.nav.groupDaily,
     items: [
       { to: '/tasks', label: t.nav.tasks, icon: ListChecks },
-      { to: '/follow-up', label: t.nav.followUpShort, icon: BellRing },
+      { to: '/follow-up', label: t.nav.followUp, icon: BellRing },
       { to: '/calendar', label: t.nav.calendar, icon: CalendarDays },
     ],
   },
@@ -248,6 +248,9 @@ function useNavBadges() {
   const { data: tasks } = useQuery({
     queryKey: ['tasks', 'follow-up'],
     queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
+    // Chi de dem badge canh "Cần theo dõi": tai lai toan bo danh sach viec dang
+    // mo tren moi lan doi route la phi. Con so nay khong can tuoi tung giay.
+    staleTime: 60_000,
   });
 
   return {

@@ -16,7 +16,14 @@ import {
 } from 'recharts';
 import { format, startOfMonth, startOfQuarter, subMonths } from 'date-fns';
 import { api, qs } from '../api/client';
-import { ErrorState, Panel, Skeleton, focusRing } from '../components/common/ui';
+import {
+  DateInput,
+  EmptyState,
+  ErrorState,
+  Panel,
+  Skeleton,
+  focusRing,
+} from '../components/common/ui';
 import { ChartDataTable } from '../components/common/ChartDataTable';
 import {
   CATEGORICAL_COLORS,
@@ -37,6 +44,7 @@ import {
 import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { AssigneeChip } from '../components/tasks/AssigneePicker';
 import type { Factor, InteractionType, OrgKind, Priority, Quadrant, Stage } from '../types';
+import { PageHeader } from '../components/common/PageShell';
 
 interface ReportsData {
   from: string;
@@ -152,8 +160,23 @@ export default function ReportsPage() {
 
   const winTotal = data.win_rate.won + data.win_rate.lost;
 
+  /* Khoang thoi gian khong co gi: truoc day moi the tu ve mot dong "Chưa có dữ
+     liệu trong khoảng này" — tam lan tren cung mot trang, khien trang trong nhin
+     nhu bi loi. Mot thong bao o CAP TRANG dung mot lan, kem loi khuyen doi
+     khoang, la du. */
+  const hasAnyData =
+    assigneeRows.length > 0 ||
+    slipRows.length > 0 ||
+    weekData.length > 0 ||
+    monthData.length > 0 ||
+    priorityData.length > 0 ||
+    interactionData.length > 0 ||
+    data.top_customers.length > 0 ||
+    stageData.some((row) => row.sum_vnd !== 0 || row.count !== 0);
+
   return (
     <div className="space-y-4 p-6">
+      <PageHeader description="Số liệu bán hàng và giao hàng theo khoảng thời gian đã chọn." />
       <div className="flex flex-wrap items-center gap-2">
         {(
           [
@@ -179,23 +202,23 @@ export default function ReportsPage() {
         ))}
         {rangeKey === 'custom' && (
           <div className="flex items-center gap-2 text-sm">
-            <input
-              type="date"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-              aria-label="Từ ngày"
-              className="rounded-panel border border-tr-border bg-tr-panel px-2 py-1 text-tr-text"
-            />
+            <div className="w-40">
+              <DateInput
+                value={customFrom || null}
+                onChange={(value) => setCustomFrom(value ?? '')}
+                aria-label="Từ ngày"
+              />
+            </div>
             <span className="text-tr-muted" aria-hidden="true">
               →
             </span>
-            <input
-              type="date"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-              aria-label="Đến ngày"
-              className="rounded-panel border border-tr-border bg-tr-panel px-2 py-1 text-tr-text"
-            />
+            <div className="w-40">
+              <DateInput
+                value={customTo || null}
+                onChange={(value) => setCustomTo(value ?? '')}
+                aria-label="Đến ngày"
+              />
+            </div>
           </div>
         )}
       </div>
@@ -216,14 +239,26 @@ export default function ReportsPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {!hasAnyData && (
+        <EmptyState
+          message="Chưa có dữ liệu trong khoảng này."
+          hint="Chọn một khoảng thời gian rộng hơn, hoặc ghi nhận thêm cơ hội và công việc rồi quay lại."
+        />
+      )}
+
+      <div className={`grid grid-cols-1 gap-4 lg:grid-cols-2 ${hasAnyData ? '' : 'hidden'}`}>
         {/* Ai đang gánh gì — đặt đầu tiên vì đây là câu hỏi hay được hỏi nhất khi
             mở trang Báo cáo với mục đích quản lý tiến độ, chứ không phải bán hàng. */}
         <Panel title="Công việc theo người phụ trách" className="lg:col-span-2">
           {assigneeRows.length === 0 ? (
             <NoData />
           ) : (
-            <div className="tr-scroll overflow-x-auto">
+            <div
+              className="tr-scroll overflow-x-auto"
+              /* Vung cuon ngang phai cuon duoc bang ban phim (WCAG 2.1.1) —
+                 bang rong thi ben trong khong con gi focus duoc. */
+              tabIndex={0}
+            >
               <table className="w-full min-w-[640px] text-sm">
                 <caption className="sr-only">
                   Thông lượng và khối lượng theo người phụ trách
@@ -621,29 +656,38 @@ function DonutWithLegend({
   const total = data.reduce((sum, row) => sum + row.count, 0);
   return (
     <div className="flex items-center gap-4">
-      <ResponsiveContainer width="55%" height={190}>
-        <PieChart>
-          {/* Duong tach giua cac lat lay mau be mat tu token (index.css,
+      {/* `inert` (kem `aria-hidden`): recharts dat `role="img"` len tung lat banh
+          ma khong kem ten nen axe bao svg-img-alt. Rieng `aria-hidden` thi chua
+          du — ben trong van con phan tu focus duoc, thanh ra loi aria-hidden-focus
+          (phan tu Tab toi duoc nhung trinh doc man hinh khong thay). `inert` go
+          han ca kha nang focus lan su hien dien tren cay a11y, dung y do: danh
+          sach <ul> ngay ben phai da liet ke du ten + so luong + phan tram cua
+          tung lat, nen vung ve chi con la trang tri. */}
+      <div className="w-[55%]" inert aria-hidden="true">
+        <ResponsiveContainer width="100%" height={190}>
+          <PieChart>
+            {/* Duong tach giua cac lat lay mau be mat tu token (index.css,
               `.recharts-sector`) — truoc day la stroke trang cung, sai tren nen toi. */}
-          <Pie
-            data={data}
-            dataKey="count"
-            nameKey="name"
-            innerRadius={45}
-            outerRadius={72}
-            paddingAngle={2}
-            strokeWidth={2}
-          >
-            {data.map((_, index) => (
-              <Cell key={index} fill={colors[index]} />
-            ))}
-          </Pie>
-          <Tooltip
-            contentStyle={TOOLTIP_STYLE}
-            formatter={(value, name) => [`${value} ${unit}`, name as string]}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+            <Pie
+              data={data}
+              dataKey="count"
+              nameKey="name"
+              innerRadius={45}
+              outerRadius={72}
+              paddingAngle={2}
+              strokeWidth={2}
+            >
+              {data.map((_, index) => (
+                <Cell key={index} fill={colors[index]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
+              formatter={(value, name) => [`${value} ${unit}`, name as string]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
       <ul className="flex-1 space-y-1.5">
         {data.map((row, index) => (
           <li key={row.name} className="flex items-center gap-2 text-sm">

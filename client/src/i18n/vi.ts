@@ -31,12 +31,14 @@ export const t = {
     timeline: 'Dòng thời gian',
     reports: 'Báo cáo',
     tasks: 'Công việc',
-    followUp: 'Theo dõi tiến độ',
-    followUpShort: 'Cần theo dõi',
+    /* MOT ten cho moi man hinh, dung chung cho sidebar, tieu de trang va
+       document.title (xem ROUTE_TITLES trong main.tsx). Truoc day moi cho mot
+       ten: bam "Cần theo dõi" o sidebar thi trang mo ra ten "Theo dõi tiến độ",
+       va noi bo goi hai ten khac nhau cho cung mot man. */
+    followUp: 'Cần theo dõi',
     orgDirectory: 'Tổ chức & nhân sự',
     ai: 'Trợ lý AI',
-    notes: 'Ghi chú',
-    meetingNotes: 'Ghi chú họp',
+    notes: 'Ghi chú họp',
     quickNotes: 'Ghi nhanh',
     settings: 'Cài đặt',
     groupDaily: 'Công việc hôm nay',

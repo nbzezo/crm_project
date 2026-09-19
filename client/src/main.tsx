@@ -6,6 +6,7 @@ import App from './App';
 import { AuthGate } from './components/auth/AuthGate';
 import { NotFoundPage, RouteErrorPage } from './components/common/RouteError';
 import { useUiStore } from './stores/uiStore';
+import { t } from './i18n/vi';
 import { initTheme } from './stores/themeStore';
 import './index.css';
 
@@ -54,44 +55,44 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
-        handle: { title: 'Tổng quan', visibleHeading: true },
+        handle: { title: t.nav.dashboard, visibleHeading: true },
       },
-      { path: 'boards', element: <BoardsPage />, handle: { title: 'Bảng công việc' } },
+      { path: 'boards', element: <BoardsPage />, handle: { title: t.nav.boards } },
       { path: 'boards/:boardId', element: <BoardPage />, handle: { title: 'Chi tiết bảng' } },
       {
         path: 'customers',
         element: <CustomersPage />,
-        handle: { title: 'Khách hàng', visibleHeading: true },
+        handle: { title: t.nav.customers, visibleHeading: true },
       },
       {
         path: 'customers/:customerId',
         element: <CustomerDetailPage />,
         handle: { title: 'Hồ sơ khách hàng' },
       },
-      { path: 'pipeline', element: <PipelinePage />, handle: { title: 'Pipeline bán hàng' } },
+      { path: 'pipeline', element: <PipelinePage />, handle: { title: t.nav.pipeline } },
       { path: 'deals/:dealId', element: <DealDetailPage />, handle: { title: 'Chi tiết cơ hội' } },
       {
         path: 'pipeline-health',
         element: <PipelineHealthPage />,
-        handle: { title: 'Sức khỏe pipeline' },
+        handle: { title: t.nav.pipelineHealth },
       },
-      { path: 'contracts', element: <ContractsPage />, handle: { title: 'Hợp đồng' } },
-      { path: 'revenue', element: <RevenuePage />, handle: { title: 'Doanh thu' } },
-      { path: 'documents', element: <DocumentsPage />, handle: { title: 'Tài liệu' } },
-      { path: 'calendar', element: <CalendarPage />, handle: { title: 'Lịch' } },
-      { path: 'timeline', element: <TimelinePage />, handle: { title: 'Dòng thời gian' } },
+      { path: 'contracts', element: <ContractsPage />, handle: { title: t.nav.contracts } },
+      { path: 'revenue', element: <RevenuePage />, handle: { title: t.nav.revenue } },
+      { path: 'documents', element: <DocumentsPage />, handle: { title: t.nav.documents } },
+      { path: 'calendar', element: <CalendarPage />, handle: { title: t.nav.calendar } },
+      { path: 'timeline', element: <TimelinePage />, handle: { title: t.nav.timeline } },
       // Bảng tính đã gộp vào trang Công việc — giữ đường dẫn cũ để link cũ không hỏng
       { path: 'table', element: <Navigate to="/tasks" replace /> },
-      { path: 'reports', element: <ReportsPage />, handle: { title: 'Báo cáo' } },
+      { path: 'reports', element: <ReportsPage />, handle: { title: t.nav.reports } },
       {
         path: 'tasks',
         element: <TasksPage />,
-        handle: { title: 'Công việc', visibleHeading: true },
+        handle: { title: t.nav.tasks, visibleHeading: true },
       },
       {
         path: 'projects',
         element: <ProjectsPage />,
-        handle: { title: 'Dự án', visibleHeading: true },
+        handle: { title: t.nav.projects, visibleHeading: true },
       },
       {
         path: 'projects/:projectId',
@@ -101,20 +102,20 @@ const router = createBrowserRouter([
       {
         path: 'follow-up',
         element: <FollowUpPage />,
-        handle: { title: 'Theo dõi tiến độ', visibleHeading: true },
+        handle: { title: t.nav.followUp, visibleHeading: true },
       },
       {
         path: 'org-directory',
         element: <OrgDirectoryPage />,
-        handle: { title: 'Tổ chức & nhân sự' },
+        handle: { title: t.nav.orgDirectory },
       },
-      { path: 'ai', element: <AiWorkspacePage />, handle: { title: 'Trợ lý AI' } },
+      { path: 'ai', element: <AiWorkspacePage />, handle: { title: t.nav.ai } },
       {
         path: 'notes',
         element: <NotesPage />,
-        handle: { title: 'Ghi chú họp', visibleHeading: true },
+        handle: { title: t.nav.notes, visibleHeading: true },
       },
-      { path: 'settings', element: <SettingsPage />, handle: { title: 'Cài đặt' } },
+      { path: 'settings', element: <SettingsPage />, handle: { title: t.nav.settings } },
       /* URL khong khop: dat lam route con de van nam trong khung app — nguoi dung
          lac duong khong bi mat luon thanh dieu huong de tim duong ra. */
       { path: '*', element: <NotFoundPage />, handle: { title: 'Không tìm thấy trang' } },

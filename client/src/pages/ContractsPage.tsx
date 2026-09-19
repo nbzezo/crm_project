@@ -33,6 +33,7 @@ import { CONTRACT_STATUS_COLORS, CONTRACT_STATUS_ORDER, t } from '../i18n/vi';
 import { formatDate, formatVND, formatVNDShort } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type { Contract } from '../types';
+import { PageHeader } from '../components/common/PageShell';
 
 /** Màu cảnh báo theo số ngày còn lại (FR-CTR-04). Đỏ chỉ dùng cho hợp đồng đã quá hạn. */
 function urgencyClass(days: number | null | undefined): string {
@@ -143,22 +144,22 @@ export default function ContractsPage() {
 
   return (
     <div className="space-y-4 p-6">
-      {/* FR-REN-01: danh sách hợp đồng sắp hết hạn theo 3 mốc — panel gọn, ưu tiên mật độ thông tin */}
-      <Panel
-        title="Sắp hết hạn — cần gia hạn"
-        action={
-          expiring.length > 0 ? (
+      <PageHeader description="Hợp đồng đã ký, giá trị và lịch gia hạn." />
+      {/* FR-REN-01: danh sách hợp đồng sắp hết hạn theo 3 mốc — panel gọn, ưu tiên mật độ thông tin.
+          Khi KHONG co hop dong nao sap het han, khoi nay thu thanh mot dong chu
+          nho thay vi giu nguyen mot the cao ~100px chi de noi "khong co gi":
+          dau trang nen danh cho thong tin co that. */}
+      {expiring.length === 0 ? (
+        <p className="text-xs text-tr-muted">Không có hợp đồng sắp hết hạn trong 90 ngày tới.</p>
+      ) : (
+        <Panel
+          title="Sắp hết hạn — cần gia hạn"
+          action={
             <span className="text-xs font-normal text-tr-muted">
               {expiring.length} hợp đồng cần theo dõi
             </span>
-          ) : undefined
-        }
-      >
-        {expiring.length === 0 ? (
-          <p className="py-2 text-center text-sm text-tr-muted">
-            Không có hợp đồng nào hết hạn trong 90 ngày tới.
-          </p>
-        ) : (
+          }
+        >
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {buckets.map((bucket) => (
@@ -188,8 +189,8 @@ export default function ContractsPage() {
               ))}
             </div>
           </div>
-        )}
-      </Panel>
+        </Panel>
+      )}
 
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-base font-bold text-tr-text">Hợp đồng</p>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import { Outlet, useMatches } from 'react-router';
 import { useRouteViewport } from './lib/useRouteViewport';
 import { Sidebar } from './components/layout/Sidebar';
@@ -30,6 +30,13 @@ export default function App() {
     .find((handle) => handle?.title);
   const pageTitle = pageHandle?.title ?? 'WorkFlow';
 
+  /* Tieu de tab trinh duyet lay cung mot nguon voi sidebar va tieu de trang
+     (handle.title -> t.nav.*), nen ba cho khong the goi mot man hinh bang ba
+     ten khac nhau nua. */
+  useEffect(() => {
+    document.title = pageTitle === 'WorkFlow' ? 'WorkFlow' : `${pageTitle} · WorkFlow`;
+  }, [pageTitle]);
+
   return (
     <div className="tr-app-stage">
       <a
@@ -48,7 +55,12 @@ export default function App() {
           <main
             ref={mainRef}
             id="main-content"
-            tabIndex={-1}
+            /* tabIndex 0 chu khong phai -1: day la vung CUON that (overflow-auto),
+               nen WCAG 2.1.1 doi no phai cuon duoc bang ban phim. Voi -1 thi chi
+               focus bang code duoc, va khi trang chua co phan tu nao focus duoc
+               ben trong — vd mot bang Kanban con rong — nguoi dung ban phim khong
+               cach nao cuon noi dung. Skip-link van hoat dong y nguyen. */
+            tabIndex={0}
             className="relative min-w-0 flex-1 overflow-auto bg-transparent outline-none"
           >
             {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}

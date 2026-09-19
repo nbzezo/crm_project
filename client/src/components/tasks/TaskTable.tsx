@@ -350,11 +350,19 @@ export function TaskTable({
   };
 
   if (tasks.length === 0) {
-    return (
+    /* `onClearFilters` chi duoc truyen khi THUC SU co bo loc dang bat — xem
+       TasksPage. Khong co thi day la he thong chua co viec nao, va loi khuyen
+       "noi bo loc" se dan nguoi dung vao ngo cut. */
+    return onClearFilters ? (
       <EmptyState
         message="Không có công việc nào khớp bộ lọc."
         hint="Thử nới bộ lọc hoặc thêm công việc mới từ bảng Kanban."
-        action={onClearFilters && <Button onClick={onClearFilters}>{t.common.clearFilter}</Button>}
+        action={<Button onClick={onClearFilters}>{t.common.clearFilter}</Button>}
+      />
+    ) : (
+      <EmptyState
+        message="Chưa có công việc nào."
+        hint="Công việc gom mọi đầu việc trên các bảng, dự án và khách hàng về một chỗ để bạn theo dõi hạn và mức ưu tiên."
       />
     );
   }

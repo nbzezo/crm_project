@@ -15,6 +15,7 @@ import { Button, EmptyState, ErrorState, Skeleton, focusRing } from '../componen
 import { t } from '../i18n/vi';
 import { STAR_COLOR } from '../theme/palettes';
 import type { Board, Customer } from '../types';
+import { PageHeader } from '../components/common/PageShell';
 
 export default function BoardsPage() {
   const queryClient = useQueryClient();
@@ -87,6 +88,7 @@ export default function BoardsPage() {
 
   return (
     <div className="p-6">
+      <PageHeader className="mb-5" description="Bảng Kanban theo nhóm việc." />
       <div className="mb-5 flex items-center justify-between">
         <label className="flex items-center gap-2 text-sm text-tr-subtle">
           <input

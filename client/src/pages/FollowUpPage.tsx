@@ -24,7 +24,7 @@ import {
   Textarea,
   focusRing,
 } from '../components/common/ui';
-import { PageShell } from '../components/common/PageShell';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { AssigneeChip } from '../components/tasks/AssigneePicker';
 import { CardStatusChip } from '../components/tasks/CardStatusControl';
 import { daysFromToday } from '../components/tasks/TaskPresentation';
@@ -89,12 +89,12 @@ export default function FollowUpPage() {
    */
   return (
     <PageShell>
-      <h1 className="text-2xl font-semibold tracking-tight text-tr-text">{t.nav.followUp}</h1>
-      <p className="max-w-3xl text-sm text-tr-subtle">
-        Việc quá hạn, sắp đến hạn trong {NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn / chờ khách
-        phản hồi — gom theo người phụ trách. Ứng dụng không tự gửi tin: nó soạn sẵn nội dung để bạn
-        copy hoặc mở Zalo / email, rồi ghi lại là đã nhắc.
-      </p>
+      {/* Mo ta rut con MOT cau. Doan huong dan su dung dai truoc day (app khong
+          tu gui tin, chi soan san noi dung de copy) da chuyen xuong empty state
+          — dung luc nguoi dung can biet, thay vi chan dau moi lan vao trang. */}
+      <PageHeader
+        description={`Việc quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn — gom theo người phụ trách.`}
+      />
 
       {isLoading ? (
         <div className="rounded-panel border border-tr-border bg-tr-panel">
@@ -105,7 +105,7 @@ export default function FollowUpPage() {
       ) : groups.length === 0 ? (
         <EmptyState
           message="Không có việc nào cần nhắc."
-          hint={`Mọi việc đang mở đều còn hơn ${NUDGE_HORIZON_DAYS} ngày và không có việc nào bị chặn.`}
+          hint={`Mọi việc đang mở đều còn hơn ${NUDGE_HORIZON_DAYS} ngày và không có việc nào bị chặn. Khi có việc cần nhắc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">

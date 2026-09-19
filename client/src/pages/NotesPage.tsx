@@ -1,7 +1,6 @@
 import { useSearchParams } from 'react-router';
-import { PageShell } from '../components/common/PageShell';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPanel';
-import { t } from '../i18n/vi';
 
 /**
  * Trang "Ghi chú" o muc Phan tich & cong cu — liet ke TAT CA ghi chu (moi Co
@@ -18,11 +17,7 @@ export default function NotesPage() {
 
   return (
     <PageShell width="content">
-      <h1 className="text-2xl font-semibold tracking-tight text-tr-text">{t.nav.meetingNotes}</h1>
-      <p className="max-w-3xl text-sm text-tr-subtle">
-        Toàn bộ ghi chú của mọi Cơ hội và Dự án ở một nơi — kể cả ghi chú riêng chưa gắn vào đâu.
-        Ghi chú theo từng Cơ hội/Dự án vẫn mở được như cũ ở tab "Ghi chú họp" trong trang chi tiết.
-      </p>
+      <PageHeader description="Toàn bộ ghi chú của mọi Cơ hội và Dự án ở một nơi." />
 
       <MeetingNotesPanel links={{}} customerId={null} showContext initialSelectedId={openId} />
     </PageShell>
