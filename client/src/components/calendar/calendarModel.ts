@@ -13,7 +13,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { addDays, format, parseISO } from 'date-fns';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
-import { formatVNDShort } from '../../lib/format';
+import { contrastInk, formatVNDShort } from '../../lib/format';
 import type { CalEventType, CalendarEventRow, CalendarItem } from '../../types';
 
 /** Nguon sinh ra su kien. 'event' la lich ca nhan tu tao, con lai la dan xuat. */
@@ -191,7 +191,10 @@ export function toCalEvent(event: CalendarItem, today: string): CalEvent {
       time: null,
       Icon: CheckSquare,
       bg: PRIORITY_COLORS[event.priority],
-      fg: '#fff',
+      /* `contrastInk` chu khong phai '#fff' cung: muc uu tien "Cao" la mau ho
+         phach (#eda100) — chu trang tren do chi dat 2,16:1. Ham nay tu chon den
+         hay trang tuy nen, va da co san trong lib/format. */
+      fg: contrastInk(PRIORITY_COLORS[event.priority]),
       done: event.is_done === 1,
       typeLabel: t.calendar.sourceCard,
       // The la nguon dan xuat duy nhat keo doi ngay duoc — `PATCH /api/cards/:id`

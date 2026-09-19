@@ -16,22 +16,30 @@ export interface QuickNoteFilters {
   updated_to?: string;
 }
 
-export function useQuickNotesList(filters: QuickNoteFilters) {
+/**
+ * `enabled`: QuickNotesBoard duoc mount VO DIEU KIEN trong App.tsx va chi tra ve
+ * null o cuoi than ham, nghia la hook nay da chay truoc do — danh sach ghi chu
+ * nhanh bi tai tren MOI trang du bang chua bao gio mo. Noi goi phai truyen
+ * trang thai mo vao day.
+ */
+export function useQuickNotesList(filters: QuickNoteFilters, enabled = true) {
   return useQuery({
     queryKey: ['quick-notes', 'list', filters],
     queryFn: () =>
       api.get<QuickNote[]>(
         `/api/quick-notes${qs(filters as Record<string, string | number | boolean | null | undefined>)}`
       ),
+    enabled,
   });
 }
 
 /** Danh sach tag khong trung — dung cho popup Lọc theo tag. */
-export function useQuickNoteTags() {
+export function useQuickNoteTags(enabled = true) {
   return useQuery({
     queryKey: ['quick-notes', 'tags'],
     queryFn: () => api.get<string[]>('/api/quick-notes/tags'),
     staleTime: 30_000,
+    enabled,
   });
 }
 

@@ -58,8 +58,14 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
   return (
     <div className="w-full">
       {/* Chieu cao co dinh chi ap cho vung ve; bang so lieu nam ngoai de khong
-          bi cat khi mo ra. */}
-      <div className="h-[26rem] w-full">
+          bi cat khi mo ra.
+
+          `aria-hidden`: recharts tu dat `role="img"` len tung nhom diem ma khong
+          kem ten, nen axe bao svg-img-alt. Vung ve nay von da la duong CHET voi
+          trinh doc man hinh — cac diem la <path> khong Tab toi duoc, tooltip chi
+          bat khi re chuot — nen duong doc that la ChartDataTable ngay ben duoi.
+          An han vung ve khoi cay a11y dung voi y do do va bo luon canh bao. */}
+      <div className="h-[26rem] w-full" inert aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 12, right: 16, bottom: 28, left: 8 }}>
             {/* Bốn ô nền theo đúng quy ước màu của toàn hệ thống */}

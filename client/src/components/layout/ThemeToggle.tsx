@@ -101,8 +101,14 @@ export function ThemeToggle() {
         width={286}
       >
         {OPTIONS.map(({ mode: value, label, description, icon: Icon, colors }) => (
+          /* `menuitemradio` + `aria-checked`: day la mot lua chon LOAI TRU NHAU
+             (chi mot giao dien duoc bat). Truoc day chung chi la cac nut thuong,
+             nen trinh doc man hinh khong biet chung thuoc cung mot nhom, cung
+             khong biet muc nao dang duoc chon — dau tich chi la mot icon. */
           <PopoverItem
             key={value}
+            role="menuitemradio"
+            checked={value === mode}
             icon={<Icon size={15} />}
             onClick={() => {
               setMode(value);

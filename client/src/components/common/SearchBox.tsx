@@ -114,6 +114,18 @@ export function SearchBox() {
               <input
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
+                onKeyDown={(event) => {
+                  /* ArrowDown/Up tu o nhap di thang xuong danh sach ket qua.
+                     Truoc day chi Tab moi xuong duoc, va cac hang deu bi gan cung
+                     `aria-selected={false}` nen trinh doc man hinh khong bao gio
+                     biet dang o muc nao. */
+                  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+                  const rows =
+                    panelRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]');
+                  if (!rows?.length) return;
+                  event.preventDefault();
+                  (event.key === 'ArrowDown' ? rows[0] : rows[rows.length - 1]).focus();
+                }}
                 placeholder={t.search.placeholder}
                 aria-label={t.search.placeholder}
                 className="w-full bg-transparent py-3.5 text-sm text-tr-text outline-none"
@@ -245,6 +257,20 @@ export function SearchBox() {
                 </Group>
               )}
             </div>
+            {/* Goi y phim: truoc day khong co dau hieu nao cho biet dieu huong
+                duoc bang ban phim, nguoi dung nang phai tu mo. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-tr-border px-4 py-2 text-xs text-tr-muted">
+              <span>
+                <kbd className="rounded border border-tr-border px-1">↑</kbd>{' '}
+                <kbd className="rounded border border-tr-border px-1">↓</kbd> chọn
+              </span>
+              <span>
+                <kbd className="rounded border border-tr-border px-1">↵</kbd> mở
+              </span>
+              <span>
+                <kbd className="rounded border border-tr-border px-1">esc</kbd> đóng
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -272,11 +298,27 @@ function Row({
   secondary?: string;
   onClick: () => void;
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <button
       type="button"
       role="option"
-      aria-selected={false}
+      aria-selected={focused}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+        event.preventDefault();
+        const rows = Array.from(
+          event.currentTarget
+            .closest('[role="listbox"]')
+            ?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []
+        );
+        const at = rows.indexOf(event.currentTarget);
+        const next = event.key === 'ArrowDown' ? at + 1 : at - 1;
+        rows[(next + rows.length) % rows.length]?.focus();
+      }}
       onClick={onClick}
       className="flex w-full flex-col items-start px-4 py-2 text-left transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary"
     >

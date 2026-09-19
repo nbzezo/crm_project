@@ -205,7 +205,7 @@ export function QuickNotesBoard() {
     tag: activeTag ?? undefined,
   };
   const queryKey = ['quick-notes', 'list', filters] as const;
-  const { data: notes, isLoading } = useQuickNotesList(filters);
+  const { data: notes, isLoading } = useQuickNotesList(filters, open);
   const activeNote = notes?.find((n) => n.id === activeId) ?? null;
   const pinnedNotes = notes?.filter((n) => n.is_pinned) ?? [];
   const otherNotes = notes?.filter((n) => !n.is_pinned) ?? [];

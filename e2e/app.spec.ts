@@ -101,9 +101,17 @@ test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
     await page.getByRole('button', { name: /^Giao diện:/ }).click();
     const picker = page.getByRole('dialog', { name: 'Giao diện' });
     await expect(picker).toBeVisible();
-    await picker.getByRole('button', { name: new RegExp(`^${theme.label}`) }).click();
+    /* `menuitemradio` chu khong con la `button`: chon giao dien la mot lua chon
+       loai tru nhau nen cac muc gio khai bao dung vai tro do (xem ThemeToggle). */
+    const option = picker.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) });
+    await option.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.value);
     await expect(page.getByRole('button', { name: `Giao diện: ${theme.label}` })).toBeVisible();
+    await page.getByRole('button', { name: /^Giao diện:/ }).click();
+    await expect(
+      picker.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) })
+    ).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
     const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
     expect(
       scan.violations.map(({ id, impact, nodes }) => ({
@@ -288,8 +296,11 @@ test('tro ly AI viet lai noi dung tho va chuyen day du sang form tao cong viec',
     'Trao đổi các điểm còn vướng trong báo giá và xác nhận yêu cầu KYC.'
   );
   await expect(dialog.getByLabel('Mức độ ưu tiên')).toHaveValue('high');
-  await expect(dialog.getByLabel('Ngày bắt đầu')).toHaveValue('2026-08-19');
-  await expect(dialog.getByLabel('Hạn hoàn thành')).toHaveValue('2026-08-21');
+  /* O ngay hien dd/MM/yyyy chu khong phai chuoi ISO: `<input type="date">` ve
+     theo locale trinh duyet nen noi nhap la mm/dd trong khi ca app hien dd/MM
+     — nay da thay bang o text tu ve (xem DateInput trong ui.tsx). */
+  await expect(dialog.getByLabel('Ngày bắt đầu')).toHaveValue('19/08/2026');
+  await expect(dialog.getByLabel('Hạn hoàn thành')).toHaveValue('21/08/2026');
   await expect(dialog.getByLabel('Việc cần làm')).toHaveValue(
     'Chuẩn bị câu hỏi KYC\nXác nhận bước tiếp theo'
   );
@@ -487,14 +498,16 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
 
   // Loc theo dung nguoi do — viec phai con lai.
   await page.getByRole('button', { name: 'Bộ lọc nâng cao' }).click();
+  /* `exact: true`: `name` cua getByRole so khop theo CHUOI CON, ma AssigneePicker
+     (role="combobox" — xem Combobox.tsx) co nhan dang "Người phụ trách: <ten viec>"
+     nen khong exact thi `.first()` bat nham no thay vi o loc. */
   await page
-    .getByRole('combobox', { name: 'Người phụ trách' })
-    .first()
+    .getByRole('combobox', { name: 'Người phụ trách', exact: true })
     .selectOption(String(staff.id));
   await expect(taskRow).toBeVisible();
 
   // Loc "Chua giao" — viec da co nguoi nen phai bien mat.
-  await page.getByRole('combobox', { name: 'Người phụ trách' }).first().selectOption('none');
+  await page.getByRole('combobox', { name: 'Người phụ trách', exact: true }).selectOption('none');
   await expect(taskRow).toHaveCount(0);
 
   /* Man "Theo doi tien do": viec qua han cua nguoi do phai hien ra, va ghi mot lan nhac
@@ -512,7 +525,7 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
   const overdueCard = (await overdue.json()) as { id: number };
 
   await page.goto('/follow-up');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Theo dõi tiến độ');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cần theo dõi');
   await expect(page.getByText(overdueTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(`trễ 2 ngày`).first()).toBeVisible();
 
@@ -607,7 +620,7 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
     .getByRole('dialog', { name: 'Dạng xem' })
     .getByRole('button', { name: /Bảng tính/ })
     .click();
-  const assigneePicker = page.getByRole('button', {
+  const assigneePicker = page.getByRole('combobox', {
     name: `Người phụ trách: ${taskTitle}`,
   });
   await assigneePicker.click();
@@ -622,7 +635,7 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
   await page.getByRole('button', { name: taskTitle, exact: true }).click();
   const drawer = page.getByRole('dialog', { name: taskTitle });
   await drawer.getByRole('button', { name: `Dự án: ${projectName}` }).click();
-  await page.getByRole('button', { name: 'Chọn dự án cho công việc' }).click();
+  await page.getByRole('combobox', { name: 'Chọn dự án cho công việc' }).click();
   await page
     .getByRole('dialog', { name: 'Chọn dự án cho công việc' })
     .getByRole('button', { name: new RegExp(escapeRegex(targetProjectName)) })
@@ -631,7 +644,7 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
 
   // Tra lai du an goc de phan con lai cua ca kiem thu tiep tuc tren cung ngu canh.
   await drawer.getByRole('button', { name: `Dự án: ${targetProjectName}` }).click();
-  await page.getByRole('button', { name: 'Chọn dự án cho công việc' }).click();
+  await page.getByRole('combobox', { name: 'Chọn dự án cho công việc' }).click();
   await page
     .getByRole('dialog', { name: 'Chọn dự án cho công việc' })
     .getByRole('button', { name: new RegExp(escapeRegex(projectName)) })
@@ -938,4 +951,113 @@ test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
   }
 
   expect(errors).toEqual([]);
+});
+
+/**
+ * Quet a11y tren dien rong hon bai "chon va luu giao dien".
+ *
+ * Bai kia chi quet DASHBOARD qua bon theme, va khong bai nao mo mot form/modal
+ * ra roi quet — nen toan bo DealForm/ContractForm/khoi tai tai lieu chua tung
+ * duoc axe nhin thay. Bo sung o day de:
+ *  - cac route chinh deu duoc do (khong chi trang chu),
+ *  - modal bieu mau duoc quet khi DANG MO,
+ *  - va vi WCAG_TAGS da gom wcag22aa nen bai nay cung bat luon kich thuoc vung
+ *    cham 24px cua cac icon hanh dong trong bang.
+ */
+const A11Y_ROUTES = [
+  '/customers',
+  '/pipeline',
+  '/pipeline-health',
+  '/contracts',
+  '/documents',
+  '/reports',
+  '/calendar',
+  '/revenue',
+];
+
+async function expectNoViolations(page: import('@playwright/test').Page, label: string) {
+  const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+  expect(
+    scan.violations.map(({ id, impact, nodes }) => ({
+      where: label,
+      id,
+      impact,
+      nodes: nodes.map(({ target, html, failureSummary }) => ({ target, html, failureSummary })),
+    }))
+  ).toEqual([]);
+}
+
+test('quet a11y tren cac route chinh o ca theme sang va toi', async ({ page }) => {
+  // 8 route x 2 theme = 16 lan tai trang kem 16 lan quet axe — vuot xa han 30s
+  // mac dinh cua Playwright.
+  test.setTimeout(240_000);
+
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => {
+      window.localStorage.setItem('workflow-theme', value);
+    }, theme);
+
+    for (const pathname of A11Y_ROUTES) {
+      await page.goto(pathname);
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expectNoViolations(page, `${theme} ${pathname}`);
+    }
+  }
+});
+
+test('quet a11y khi bieu mau dang mo va nut Luu khong bi khoa am tham', async ({ page }) => {
+  // --- Form co hoi ---
+  await page.goto('/pipeline');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Thêm cơ hội' }).first().click();
+  const dealDialog = page.getByRole('dialog', { name: /Thêm cơ hội/ });
+  await expect(dealDialog).toBeVisible();
+  await expectNoViolations(page, 'DealForm mo');
+
+  /* Nut Luu phai BAM DUOC khi con thieu truong. Truoc day no bi `disabled` nen
+     bam khong co gi xay ra: khong bao loi, khong nhay focus — va vi nut bi khoa
+     nen co `submitted` khong bao gio bat len, khien moi loi inline ben duoi tro
+     thanh code chet. */
+  const save = dealDialog.getByRole('button', { name: 'Lưu' });
+  await expect(save).toBeEnabled();
+  await save.click();
+
+  // Bang tom tat loi + loi inline duoi tung o phai xuat hien.
+  await expect(dealDialog.getByRole('alert')).toContainText('còn trường bắt buộc chưa điền');
+  await expect(dealDialog.getByText('Trường này là bắt buộc').first()).toBeVisible();
+  // Va focus phai nhay ve o dau tien bi loi, khong de nguoi dung tu di tim.
+  await expect(dealDialog.locator('#deal-title')).toBeFocused();
+  await expectNoViolations(page, 'DealForm sau khi submit thieu truong');
+
+  await dealDialog.getByRole('button', { name: 'Hủy' }).click();
+
+  // --- Form hop dong ---
+  await page.goto('/contracts');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Thêm hợp đồng' }).first().click();
+  const contractDialog = page.getByRole('dialog', { name: /Thêm hợp đồng/ });
+  await expect(contractDialog).toBeVisible();
+  await expectNoViolations(page, 'ContractForm mo');
+
+  // --- Khoi tai tai lieu ---
+  await page.goto('/documents');
+  await page.waitForLoadState('networkidle');
+  await expectNoViolations(page, 'Trang tai lieu');
+});
+
+test('o nhap ngay doc dd/MM/yyyy chu khong phai mm/dd/yyyy', async ({ page }) => {
+  await page.goto('/contracts');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Thêm hợp đồng' }).first().click();
+  const dialog = page.getByRole('dialog', { name: /Thêm hợp đồng/ });
+  await expect(dialog).toBeVisible();
+
+  /* Ca gay hong trong ban ra soat: go ngay ky 03/04 hieu la 3 thang 4, nhung
+     `<input type="date">` cua Chrome doc theo locale trinh duyet nen luu thanh
+     4 thang 3 — lech mot thang cho toan bo nhac gia han 90/60/30/7 ngay. */
+  const signDate = dialog.getByLabel('Ngày ký');
+  await signDate.fill('');
+  await signDate.pressSequentially('03042027');
+  await expect(signDate).toHaveValue('03/04/2027');
 });

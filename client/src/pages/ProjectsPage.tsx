@@ -22,25 +22,8 @@ import { AssigneePicker } from '../components/tasks/AssigneePicker';
 import { PROJECT_STATUSES } from '@workflow/contracts';
 import { t } from '../i18n/vi';
 import { formatDateShort, formatVNDShort } from '../lib/format';
-import type { Customer, Project, ProjectHealth, ProjectStatus } from '../types';
-
-/** Màu sức khỏe — đỏ/vàng/xanh, đọc được trong một cái liếc mắt qua danh sách. */
-const HEALTH_TONE: Record<ProjectHealth, string> = {
-  unknown: 'bg-tr-hover-strong text-tr-muted',
-  green: 'bg-tr-success/15 text-tr-success',
-  amber: 'bg-tr-warning/15 text-tr-warning',
-  red: 'bg-tr-danger/15 text-tr-danger',
-};
-
-export function HealthBadge({ health }: { health: ProjectHealth }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold ${HEALTH_TONE[health]}`}
-    >
-      {t.projectHealth[health]}
-    </span>
-  );
-}
+import type { Customer, Project, ProjectStatus } from '../types';
+import { HealthBadge } from '../components/crm/ProjectHealthBadge';
 
 export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
