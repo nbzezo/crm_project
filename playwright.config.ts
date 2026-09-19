@@ -30,6 +30,7 @@ export default defineConfig({
         WORKFLOW_DB_PATH: path.join(e2eData, 'app.db'),
         WORKFLOW_SESSION_SECRET: 'e2e-session-secret-value-at-least-32-characters',
         WORKFLOW_ADMIN_USER: 'e2e',
+        WORKFLOW_ADMIN_EMAIL: 'e2e@workflow.test',
         WORKFLOW_ADMIN_PASSWORD: 'e2e-password-123',
       },
     },

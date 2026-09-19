@@ -1,6 +1,7 @@
 # WorkFlow — Quản lý công việc cá nhân + CRM khách hàng B2B
 
-Ứng dụng web một người dùng: một tài khoản đăng nhập duy nhất, không có tính năng cộng tác nhiều người.
+Ứng dụng web **nhiều người dùng**: đăng nhập bằng email, quản trị tạo tài khoản và gửi thư mời, ai quên mật khẩu tự lấy lại qua email.
+Phân cấp quản lý và phân quyền theo vị trí đang được làm theo từng đợt — hiện mọi người đăng nhập đều thấy cùng một tập dữ liệu.
 Chạy được cả trên máy local lẫn triển khai thật trên server (Docker) — xem [Build và chạy production](#build-và-chạy-production).
 Kết hợp bảng Kanban kiểu Trello với CRM bán hàng B2B, giao diện tiếng Việt.
 
@@ -112,6 +113,23 @@ Từ v35, mọi route `/api` (trừ `/api/health` và `/api/auth`) đòi đăng 
 được `client/dist` trên cùng origin (chạy Node thuần), còn bản Docker đặt nginx phía trước để phục
 vụ tĩnh và reverse-proxy `/api` — không cần CORS ở cả hai kiểu.
 
+### Tài khoản và đăng nhập
+
+Đăng nhập bằng **email**. Tài khoản tạo trước v38 vẫn vào được bằng tên đăng nhập cũ cho tới khi
+được gán email.
+
+- **Cài đặt → Người dùng** (chỉ tài khoản quản trị): tạo tài khoản, gắn vào một người trong sổ danh
+  bạ, khoá/mở khoá, gửi lại thư mời, đăng xuất khỏi mọi thiết bị. Không có ô nhập mật khẩu — người
+  được tạo tự đặt mật khẩu qua liên kết trong thư mời, nên **không ai biết mật khẩu của người khác**.
+- **Cài đặt → Email**: khai báo SMTP để gửi thư mời và liên kết đặt lại mật khẩu. Mật khẩu SMTP được
+  mã hoá như API key AI. *Chưa cấu hình thì hệ thống in liên kết ra log của server* và màn Người dùng
+  hiện liên kết để gửi tay — chạy local không cần SMTP.
+- **Quên mật khẩu** ở màn đăng nhập: liên kết dùng một lần, hiệu lực 60 phút. Màn hình luôn trả về
+  cùng một câu trả lời dù email có tồn tại hay không, để không ai dùng nó dò xem địa chỉ nào có tài khoản.
+
+> Chạy sau proxy/tên miền riêng thì khai báo **Địa chỉ ứng dụng** trong *Cài đặt → Email*; để trống
+> thì liên kết trong thư suy từ header của request và có thể trỏ vào tên container.
+
 ### Biến môi trường
 
 | Biến | Bắt buộc | Mặc định | Ý nghĩa |
@@ -119,6 +137,7 @@ vụ tĩnh và reverse-proxy `/api` — không cần CORS ở cả hai kiểu.
 | `WORKFLOW_SESSION_SECRET` | ✅ | — | Bí mật ký cookie phiên. Sinh: `openssl rand -base64 48` |
 | `WORKFLOW_ADMIN_USER` | ✅ (lần đầu) | — | Tên đăng nhập, **chỉ đọc một lần** khi bảng `users` còn rỗng |
 | `WORKFLOW_ADMIN_PASSWORD` | ✅ (lần đầu) | — | Mật khẩu ban đầu (≥ 8 ký tự), cũng chỉ đọc một lần |
+| `WORKFLOW_ADMIN_EMAIL` | nên có (lần đầu) | — | Email của tài khoản đầu tiên. Thiếu thì tài khoản này **không tự lấy lại mật khẩu được** |
 | `WORKFLOW_AI_MASTER_KEY` | nên có | Khóa tự sinh trong `<WORKFLOW_DATA_DIR>/.ai-master.key` | Khóa AES-256 mã hóa API key AI; production nên cấp secret 32 byte base64/hex |
 | `PORT` | | `3001` | Cổng HTTP của API |
 | `WORKFLOW_DATA_DIR` | | `server/data` | Thư mục chứa DB, file tải lên và backup |

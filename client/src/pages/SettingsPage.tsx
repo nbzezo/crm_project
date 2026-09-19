@@ -6,11 +6,13 @@ import {
   Download,
   GanttChartSquare,
   HardDriveDownload,
+  Mail,
   PackageOpen,
   Send,
   Tag,
   Target,
   UserCog,
+  Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
@@ -29,6 +31,8 @@ import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
 import { AccountSettings } from '../components/settings/AccountSettings';
+import { EmailSettings } from '../components/settings/EmailSettings';
+import { UserSettings } from '../components/settings/UserSettings';
 
 interface BackupFile {
   name: string;
@@ -46,7 +50,16 @@ const CSV_EXPORTS: [string, string][] = [
 ];
 
 type SettingsTab =
-  'labels' | 'scoring' | 'handover' | 'delivery' | 'ai' | 'telegram' | 'data' | 'account';
+  | 'labels'
+  | 'scoring'
+  | 'handover'
+  | 'delivery'
+  | 'ai'
+  | 'telegram'
+  | 'email'
+  | 'data'
+  | 'account'
+  | 'users';
 
 const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: 'labels', label: t.settings.tabLabels, icon: Tag },
@@ -55,8 +68,10 @@ const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
   { key: 'delivery', label: t.settings.tabDelivery, icon: GanttChartSquare },
   { key: 'ai', label: t.settings.tabAi, icon: Bot },
   { key: 'telegram', label: t.settings.tabTelegram, icon: Send },
+  { key: 'email', label: t.settings.tabEmail, icon: Mail },
   { key: 'data', label: t.settings.tabData, icon: Database },
   { key: 'account', label: t.settings.tabAccount, icon: UserCog },
+  { key: 'users', label: t.settings.tabUsers, icon: Users },
 ];
 
 function DataSettings() {
@@ -216,8 +231,10 @@ export default function SettingsPage() {
         {tab === 'delivery' && <DeliverySettings />}
         {tab === 'ai' && <AiSettings />}
         {tab === 'telegram' && <TelegramSettings />}
+        {tab === 'email' && <EmailSettings />}
         {tab === 'data' && <DataSettings />}
         {tab === 'account' && <AccountSettings />}
+        {tab === 'users' && <UserSettings />}
       </Tabs>
     </PageShell>
   );

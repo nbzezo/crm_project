@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
 import { LATEST_VERSION, migrate } from '../db/migrate.ts';
 
-for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
+for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18, 35, 37]) {
   test(`nang cap fixture v${sourceVersion} len v${LATEST_VERSION} khong mat du lieu`, () => {
     const db = new Database(':memory:');
     db.pragma('foreign_keys = ON');
@@ -37,6 +37,25 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
         `INSERT INTO cards (list_id, title, position, customer_id, search_text) VALUES (?, ?, ?, ?, ?)`
       ).run(listId, 'Cong viec cu', 1024, customerId, 'cong viec cu');
 
+      /* Dau vao cho v38: mot nguoi duoc danh dau "toi" va mot tai khoan dang nhap
+         cu. Hai thu nay truoc v38 khong he noi voi nhau — migration phai noi duoc. */
+      let meContactId: number | null = null;
+      if (sourceVersion >= 15) {
+        meContactId = Number(
+          db
+            .prepare(
+              `INSERT INTO contacts (customer_id, full_name, email, is_me, is_active)
+               VALUES (?, ?, ?, 1, 1)`
+            )
+            .run(customerId, 'Nguoi Dung Cu', 'toi@congty.vn').lastInsertRowid
+        );
+      }
+      if (sourceVersion >= 35) {
+        db.prepare(
+          `INSERT INTO users (username, password_hash, password_salt) VALUES (?, ?, ?)`
+        ).run('nguoi-dung-cu', 'hash-cu', 'salt-cu');
+      }
+
       migrate(db);
 
       assert.equal(db.pragma('user_version', { simple: true }), LATEST_VERSION);
@@ -68,13 +87,20 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
       );
 
       /* v19: cot doan duoc nghia thi mang anh xa, cot ten tu do de NULL — doan
-         bua se lam keo the vao do am tham doi trang thai khong dung y nguoi dung. */
-      const mappings = db.prepare(`SELECT id, status_mapping FROM lists`).all() as {
-        id: number;
-        status_mapping: string | null;
-      }[];
-      assert.equal(mappings.find((l) => l.id === doneListId)?.status_mapping, 'done');
-      assert.equal(mappings.find((l) => l.id === listId)?.status_mapping, null);
+         bua se lam keo the vao do am tham doi trang thai khong dung y nguoi dung.
+
+         Chi kiem tra voi fixture CU HON v19. Tu v19 tro di, backfill da chay xong
+         truoc khi test chen cot vao, nen cot moi nay dung ra phai mang NULL: mot
+         cot tao sau khong co gi de backfill ca. Khang dinh no bang 'done' se la
+         doi migration lam mot viec no khong he hua. */
+      if (sourceVersion < 19) {
+        const mappings = db.prepare(`SELECT id, status_mapping FROM lists`).all() as {
+          id: number;
+          status_mapping: string | null;
+        }[];
+        assert.equal(mappings.find((l) => l.id === doneListId)?.status_mapping, 'done');
+        assert.equal(mappings.find((l) => l.id === listId)?.status_mapping, null);
+      }
 
       // `cards.project_id` phai bien mat cung voi chi muc cua no.
       const cardColumns = db.prepare(`PRAGMA table_info(cards)`).all() as { name: string }[];
@@ -112,6 +138,33 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18]) {
         display_name: '9Router',
         base_url: 'http://127.0.0.1:20128/v1',
       });
+
+      /* v38: tai khoan cu duoc noi voi so danh ba va giu nguyen mat khau.
+         Chi kiem tra tu v35 tro di — truoc do chua co bang `users` de ma noi. */
+      if (sourceVersion >= 35) {
+        const user = db
+          .prepare(`SELECT username, password_hash, email, contact_id, is_active FROM users`)
+          .get() as
+          | {
+              username: string;
+              password_hash: string;
+              email: string | null;
+              contact_id: number | null;
+              is_active: number;
+            }
+          | undefined;
+        assert.ok(user, 'tai khoan cu phai con nguyen sau khi nang cap');
+        assert.equal(user.username, 'nguoi-dung-cu');
+        assert.equal(user.password_hash, 'hash-cu', 'khong duoc dung toi mat khau da bam');
+        assert.equal(user.is_active, 1, 'tai khoan cu mac dinh van hoat dong');
+        assert.equal(user.contact_id, meContactId, 'phai noi voi contact dang la "toi"');
+        assert.equal(user.email, 'toi@congty.vn', 'email suy tu contact do');
+
+        const emailSettings = db.prepare(`SELECT COUNT(*) AS n FROM email_settings`).get() as {
+          n: number;
+        };
+        assert.equal(emailSettings.n, 1, 'phai co dung mot dong cau hinh email');
+      }
 
       assert.deepEqual(db.pragma('foreign_key_check'), []);
       assert.equal((db.pragma('integrity_check', { simple: true }) as string).toLowerCase(), 'ok');

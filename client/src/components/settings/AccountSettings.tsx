@@ -8,7 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 export function AccountSettings() {
   const pushToast = useUiStore((s) => s.pushToast);
-  const username = useAuthStore((s) => s.username);
+  const user = useAuthStore((s) => s.user);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
 
@@ -24,9 +24,18 @@ export function AccountSettings() {
 
   return (
     <Panel title={t.auth.changePassword}>
-      <p className="mb-3 text-sm text-tr-subtle">
-        {t.auth.username}: <span className="font-medium text-tr-text">{username}</span>
-      </p>
+      <dl className="mb-4 space-y-1 text-sm text-tr-subtle">
+        <div className="flex gap-2">
+          <dt>{t.auth.email}:</dt>
+          <dd className="font-medium text-tr-text">{user?.email ?? user?.username}</dd>
+        </div>
+        {user?.full_name ? (
+          <div className="flex gap-2">
+            <dt>{t.users.fullName}:</dt>
+            <dd className="font-medium text-tr-text">{user.full_name}</dd>
+          </div>
+        ) : null}
+      </dl>
       <FormError error={change.error} />
       <div className="max-w-sm space-y-3">
         <Field label={t.auth.currentPassword} required>

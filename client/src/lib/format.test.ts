@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatDate,
-  joinDateTime,
-  maskDateInput,
-  parseDateInput,
-  splitDateTime,
-} from './format';
+import { formatDate, joinDateTime, maskDateInput, parseDateInput, splitDateTime } from './format';
 
 /**
  * Cac o ngay truoc day la `<input type="date">` thuan nen Chrome ve theo locale
