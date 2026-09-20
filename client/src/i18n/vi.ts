@@ -537,6 +537,10 @@ export const t = {
     vendor: 'Nhà cung cấp',
   } as Record<string, string>,
   customer: {
+    owner: 'Người phụ trách',
+    ownerHint:
+      'Quyết định ai nhìn thấy hồ sơ này: người phụ trách và cấp trên của họ. Đổi ô này là bàn giao.',
+
     newCustomer: 'Thêm khách hàng',
     name: 'Tên công ty',
     taxCode: 'Mã số thuế',
@@ -572,6 +576,8 @@ export const t = {
     addContact: 'Thêm người liên hệ',
   },
   deal: {
+    ownerHint: 'Cơ hội hiện ra với người phụ trách và cấp trên của họ. Mặc định là người tạo.',
+
     newDeal: 'Thêm cơ hội',
     title: 'Tên cơ hội',
     value: 'Giá trị (VNĐ)',

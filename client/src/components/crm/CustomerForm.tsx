@@ -9,6 +9,7 @@ import { invalidateCrmViews } from '../../lib/queryKeys';
 import { ORG_KINDS } from '@workflow/contracts';
 import type { Customer, OrgKind } from '../../types';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
+import { AssigneePicker } from '../tasks/AssigneePicker';
 
 const EMPTY = {
   name: '',
@@ -24,6 +25,9 @@ const EMPTY = {
   status: 'prospect' as 'prospect' | 'customer' | 'inactive',
   org_kind: 'customer' as OrgKind,
   notes: '',
+  /* Ai phu trach ho so nay. Quyet dinh ho so hien ra voi AI — cap tren cua nguoi
+     phu trach thay duoc, nguoi o don vi khac thi khong. Doi o nay la BAN GIAO. */
+  owner_contact_id: null as number | null,
 };
 
 type Duplicate = { id: number; name: string; tax_code: string | null; website: string | null };
@@ -71,6 +75,7 @@ export function CustomerForm({
           status: customer.status,
           org_kind: customer.org_kind ?? 'customer',
           notes: customer.notes ?? '',
+          owner_contact_id: customer.owner_contact_id ?? null,
         }
       : { ...EMPTY, org_kind: defaultOrgKind };
     setForm(next);
@@ -100,7 +105,10 @@ export function CustomerForm({
     },
   });
 
-  const set = (key: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  /* `value` khong con chi la chuoi: `owner_contact_id` la so hoac null. Dung
+     kieu cua chinh truong do thay vi noi long thanh `unknown`. */
+  const set = <K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const nameMissing = !form.name.trim();
 
@@ -225,7 +233,10 @@ export function CustomerForm({
             label="Loại tổ chức"
             hint="Chỉ “Khách hàng” mới nằm trong pipeline, doanh thu và báo cáo CRM."
           >
-            <Select value={form.org_kind} onChange={(e) => set('org_kind', e.target.value)}>
+            <Select
+              value={form.org_kind}
+              onChange={(e) => set('org_kind', e.target.value as OrgKind)}
+            >
               {ORG_KINDS.map((kind) => (
                 <option key={kind} value={kind}>
                   {t.orgKind[kind]}
@@ -236,7 +247,10 @@ export function CustomerForm({
         )}
         {form.org_kind === 'customer' ? (
           <Field label={t.customer.status}>
-            <Select value={form.status} onChange={(e) => set('status', e.target.value)}>
+            <Select
+              value={form.status}
+              onChange={(e) => set('status', e.target.value as (typeof EMPTY)['status'])}
+            >
               {Object.entries(t.accountStatus).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -249,6 +263,14 @@ export function CustomerForm({
             Trạng thái CRM không áp dụng cho {t.orgKind[form.org_kind].toLocaleLowerCase('vi')}.
           </div>
         )}
+        <div className="sm:col-span-2">
+          <AssigneePicker
+            label={t.customer.owner}
+            hint={t.customer.ownerHint}
+            value={form.owner_contact_id}
+            onChange={(value) => set('owner_contact_id', value)}
+          />
+        </div>
         <div className="sm:col-span-2">
           <Field label={t.customer.address}>
             <Input value={form.address} onChange={(e) => set('address', e.target.value)} />

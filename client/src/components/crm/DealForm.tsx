@@ -22,6 +22,7 @@ import {
   STAGE_PROBABILITY,
   t,
 } from '../../i18n/vi';
+import { AssigneePicker } from '../tasks/AssigneePicker';
 import { formatVND } from '../../lib/format';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { invalidateCrmViews } from '../../lib/queryKeys';
@@ -67,6 +68,8 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
   const [onHold, setOnHold] = useState(false);
   const [onHoldReason, setOnHoldReason] = useState('');
   const [onHoldReview, setOnHoldReview] = useState<string | null>(null);
+  /* Ai phu trach co hoi nay — truc phan quyen du lieu (v40). Doi o nay la ban giao. */
+  const [ownerContactId, setOwnerContactId] = useState<number | null>(null);
   /** Chi hien loi sau lan bam Luu dau tien — khong mang chu do khi vua mo form. */
   const { submitted, validate, reset: resetErrors } = useFormErrors();
 
@@ -109,6 +112,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
     setOnHold(Boolean(deal?.on_hold));
     setOnHoldReason(deal?.on_hold_reason ?? '');
     setOnHoldReview(deal?.on_hold_review_date ?? null);
+    setOwnerContactId(deal?.owner_contact_id ?? null);
     resetErrors();
     save.reset();
   }, [open, deal?.id]);
@@ -139,6 +143,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
         lost_note: stage === 'lost' ? lostNote || null : null,
         notes,
         project_id: projectId === '' ? null : Number(projectId),
+        owner_contact_id: ownerContactId,
         ...(handoverManaged ? {} : { handover_ready: handoverReady }),
       };
       if (!deal) return api.post('/api/deals', payload);
@@ -334,6 +339,15 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
         <Field label="Ngày thực hiện">
           <DateInput value={nextActionDate} onChange={setNextActionDate} />
         </Field>
+
+        <div className="sm:col-span-2">
+          <AssigneePicker
+            label={t.customer.owner}
+            hint={t.deal.ownerHint}
+            value={ownerContactId}
+            onChange={setOwnerContactId}
+          />
+        </div>
 
         <div className="sm:col-span-2">
           <Field label="Nhu cầu khách hàng">

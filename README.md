@@ -2,7 +2,7 @@
 
 Ứng dụng web **nhiều người dùng**: đăng nhập bằng email, quản trị tạo tài khoản và gửi thư mời, ai quên mật khẩu tự lấy lại qua email.
 **Phân cấp quản lý tuỳ biến**: cây đơn vị sâu bao nhiêu cấp cũng được, vị trí và ma trận phân quyền tạo/sửa ngay trên giao diện.
-Lọc dữ liệu theo phạm vi đang được làm ở đợt tiếp theo — hiện quyền chặn theo *tính năng*, chưa chặn theo *từng bản ghi*.
+Quyền có hai lớp: chặn theo **tính năng** (vào được màn hình nào) và theo **từng bản ghi** (trong đó thấy những dòng nào).
 Chạy được cả trên máy local lẫn triển khai thật trên server (Docker) — xem [Build và chạy production](#build-và-chạy-production).
 Kết hợp bảng Kanban kiểu Trello với CRM bán hàng B2B, giao diện tiếng Việt.
 
@@ -136,8 +136,21 @@ tên gọi. Thêm cấp thứ năm chỉ là thêm một nhánh, không sửa m�
 - **Hai rào chắn**: không thể bỏ quyền của người quản trị cuối cùng, và không xoá được vị trí đang có
   người giữ hay đơn vị còn người.
 
-> Đợt này quyền chặn theo **tính năng** (vào được màn hình nào). Lọc **từng bản ghi** theo phạm vi là
-> đợt kế tiếp; hiện người vào được một màn hình vẫn thấy toàn bộ dữ liệu của màn hình đó.
+**Phân quyền dữ liệu** — mỗi khách hàng, cơ hội, bảng công việc và dòng doanh thu có một **người phụ
+trách**. Hồ sơ hiện ra với người đó và với cấp trên của họ trong cây đơn vị; người ở đơn vị khác không
+thấy. Đổi ô *Người phụ trách* trên biểu mẫu chính là **bàn giao**.
+
+Ba luật không hiển nhiên, đều có kiểm thử:
+
+- **Việc giao cho bạn thì luôn mở được**, kể cả khi nó nằm trên bảng của người khác. Phân quyền không
+  được phép chặn đường làm việc bình thường.
+- **Ghi chú là dữ liệu cá nhân** — cấp trên không đọc được Ghi chú nhanh / Ghi chú họp của nhân viên.
+  Đó là mặc định, đổi lại được trên giao diện nếu tổ chức của bạn thực sự muốn vậy.
+- **Bản ghi ngoài phạm vi trả về "không tìm thấy"**, không phải "không có quyền". Phân biệt hai thứ đó
+  sẽ biến việc dò id thành cách xem ai đang có dữ liệu gì.
+
+Trợ lý AI cũng chỉ đọc trong phạm vi của người đang hỏi — không có lớp này thì một câu hỏi thường là
+moi được dữ liệu phòng khác, và không màn hình nào làm lộ ra.
 
 ### Tài khoản và đăng nhập
 

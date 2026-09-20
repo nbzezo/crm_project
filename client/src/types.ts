@@ -283,6 +283,13 @@ export interface Customer {
   status: 'prospect' | 'customer' | 'inactive';
   /** Chỉ `customer` là đối tượng của pipeline / doanh thu / báo cáo CRM. */
   org_kind: OrgKind;
+  /**
+   * Ai phụ trách hồ sơ này — trục phân quyền dữ liệu (v40).
+   *
+   * Người phụ trách và cấp trên của họ trong cây đơn vị nhìn thấy hồ sơ; người ở
+   * đơn vị khác thì không. Đổi ô này là bàn giao.
+   */
+  owner_contact_id: number | null;
   notes: string;
   deal_count?: number;
   open_deal_count?: number;
@@ -325,6 +332,8 @@ export interface Contact {
 }
 
 export interface Deal {
+  /** Ai phụ trách — trục phân quyền dữ liệu (v40). Đổi ô này là bàn giao. */
+  owner_contact_id: number | null;
   id: number;
   customer_id: number;
   customer_name?: string;
