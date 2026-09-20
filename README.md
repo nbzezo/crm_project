@@ -1,7 +1,8 @@
 # WorkFlow — Quản lý công việc cá nhân + CRM khách hàng B2B
 
 Ứng dụng web **nhiều người dùng**: đăng nhập bằng email, quản trị tạo tài khoản và gửi thư mời, ai quên mật khẩu tự lấy lại qua email.
-Phân cấp quản lý và phân quyền theo vị trí đang được làm theo từng đợt — hiện mọi người đăng nhập đều thấy cùng một tập dữ liệu.
+**Phân cấp quản lý tuỳ biến**: cây đơn vị sâu bao nhiêu cấp cũng được, vị trí và ma trận phân quyền tạo/sửa ngay trên giao diện.
+Lọc dữ liệu theo phạm vi đang được làm ở đợt tiếp theo — hiện quyền chặn theo *tính năng*, chưa chặn theo *từng bản ghi*.
 Chạy được cả trên máy local lẫn triển khai thật trên server (Docker) — xem [Build và chạy production](#build-và-chạy-production).
 Kết hợp bảng Kanban kiểu Trello với CRM bán hàng B2B, giao diện tiếng Việt.
 
@@ -113,12 +114,37 @@ Từ v35, mọi route `/api` (trừ `/api/health` và `/api/auth`) đòi đăng 
 được `client/dist` trên cùng origin (chạy Node thuần), còn bản Docker đặt nginx phía trước để phục
 vụ tĩnh và reverse-proxy `/api` — không cần CORS ở cả hai kiểu.
 
+### Phân cấp quản lý và phân quyền
+
+**CEO / Giám đốc Trung tâm / Giám đốc Khối / Trưởng phòng không phải bốn loại vị trí khác nhau.**
+Chúng là *cùng một* loại — "quản lý đơn vị" — đặt ở *độ sâu khác nhau* trong cây đơn vị. Ba vị trí
+quản lý được cài sẵn có bộ quyền **giống hệt nhau**; chúng khác nhau ở chỗ ngồi trong cây, không ở
+tên gọi. Thêm cấp thứ năm chỉ là thêm một nhánh, không sửa một dòng mã nào.
+
+- **Cài đặt → Sơ đồ tổ chức**: cây đơn vị `Công ty → Trung tâm → Khối → Phòng → Tổ → …`, độ sâu tuỳ
+  ý. *Loại đơn vị* chỉ là nhãn hiển thị và cũng tự thêm được — nó **không** quyết định quyền.
+- **Cài đặt → Vị trí & phân quyền**: thêm / nhân bản / xoá loại vị trí, và ma trận
+  **nhóm chức năng × thao tác → phạm vi**. Bảy vị trí cài sẵn chỉ là mẫu, sửa và xoá được hết.
+- **Phạm vi** có năm mức: *Không · Của mình · Đơn vị · Cả cây đơn vị · Toàn công ty*. "Cả cây đơn vị"
+  chính là thứ tạo nên phân cấp — một Trưởng phòng và một Giám đốc Khối dùng chung luật đó, chỉ khác
+  điểm xuất phát.
+- **Gán nhiều vị trí** cho một người thì phạm vi lấy mức **rộng hơn** — giữ thêm một vị trí không bao
+  giờ làm ai mất quyền. Ô *kiêm nhiệm* cho phép phụ trách thêm một đơn vị khác mà vẫn giữ đơn vị gốc;
+  đây cũng là cách uỷ quyền khi sếp nghỉ.
+- **Hiệu lực ngay**: đổi một ô là request kế tiếp của người đó đã theo quyền mới — không cần đăng
+  xuất, không chờ hết phiên. Hệ thống cố ý không cache quyền.
+- **Hai rào chắn**: không thể bỏ quyền của người quản trị cuối cùng, và không xoá được vị trí đang có
+  người giữ hay đơn vị còn người.
+
+> Đợt này quyền chặn theo **tính năng** (vào được màn hình nào). Lọc **từng bản ghi** theo phạm vi là
+> đợt kế tiếp; hiện người vào được một màn hình vẫn thấy toàn bộ dữ liệu của màn hình đó.
+
 ### Tài khoản và đăng nhập
 
 Đăng nhập bằng **email**. Tài khoản tạo trước v38 vẫn vào được bằng tên đăng nhập cũ cho tới khi
 được gán email.
 
-- **Cài đặt → Người dùng** (chỉ tài khoản quản trị): tạo tài khoản, gắn vào một người trong sổ danh
+- **Cài đặt → Người dùng** (cần quyền *Quản trị người dùng*): tạo tài khoản, gắn vào một người trong sổ danh
   bạ, khoá/mở khoá, gửi lại thư mời, đăng xuất khỏi mọi thiết bị. Không có ô nhập mật khẩu — người
   được tạo tự đặt mật khẩu qua liên kết trong thư mời, nên **không ai biết mật khẩu của người khác**.
 - **Cài đặt → Email**: khai báo SMTP để gửi thư mời và liên kết đặt lại mật khẩu. Mật khẩu SMTP được

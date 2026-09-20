@@ -128,6 +128,59 @@ export const t = {
     resetDone: 'Đã đặt mật khẩu mới. Đang đưa bạn vào ứng dụng…',
   },
 
+  permissions: {
+    noAccessTitle: 'Bạn không có quyền xem trang này',
+    noAccessHint: 'Nếu bạn cần dùng chức năng này, hãy liên hệ người quản trị để được cấp quyền.',
+    tabPositions: 'Vị trí & phân quyền',
+    tabOrg: 'Sơ đồ tổ chức',
+  },
+
+  positions: {
+    title: 'Vị trí & phân quyền',
+    subtitle:
+      'Vị trí là dữ liệu, không phải mã nguồn: tạo loại vị trí mới, nhân bản rồi sửa, đổi phạm vi từng ô — tất cả có hiệu lực ngay, không cần cài đặt lại.',
+    add: 'Thêm vị trí',
+    name: 'Tên vị trí',
+    clone: 'Nhân bản',
+    cloneFrom: 'Sao chép quyền từ',
+    cloneNone: 'Không sao chép — bắt đầu từ trống',
+    cloneHint: 'Cách nhanh nhất để đẻ một cấp mới: nhân bản Trưởng phòng rồi đổi tên.',
+    holders: '{n} người đang giữ',
+    feature: 'Nhóm chức năng',
+    setWholeRow: 'Đặt cả hàng',
+    saved: 'Đã lưu phân quyền',
+    confirmDeleteTitle: 'Xoá vị trí',
+    confirmDelete:
+      'Xoá vị trí "{name}"? Không xoá được nếu còn người giữ — hãy chuyển họ sang vị trí khác trước.',
+  },
+
+  orgChart: {
+    title: 'Sơ đồ tổ chức',
+    subtitle:
+      'Đơn vị mà một quản lý phụ trách chính là đơn vị họ ngồi. Thêm một cấp mới chỉ là thêm một nhánh — không cần sửa mã nguồn.',
+    addUnit: 'Thêm đơn vị',
+    addRoot: 'Thêm đơn vị gốc',
+    addChild: 'Thêm đơn vị con',
+    unitName: 'Tên đơn vị',
+    unitKind: 'Loại đơn vị',
+    unitCode: 'Mã',
+    parent: 'Thuộc đơn vị',
+    noParent: 'Không thuộc đơn vị nào (cấp cao nhất)',
+    head: 'Trưởng đơn vị',
+    noHead: 'Chưa có',
+    members: '{n} người',
+    kinds: 'Loại đơn vị',
+    kindsHint:
+      'Chỉ là nhãn hiển thị. Loại đơn vị KHÔNG quyết định quyền — quyền đến từ vị trí, phạm vi đến từ chỗ ngồi trong cây.',
+    kindName: 'Tên loại',
+    kindOrder: 'Thứ tự cấp',
+    confirmDeleteUnit: 'Xoá đơn vị "{name}"?',
+    confirmDeleteUnitTitle: 'Xoá đơn vị',
+    saved: 'Đã lưu sơ đồ tổ chức',
+    moveMembers: 'Chuyển người sang đơn vị',
+    movedMembers: 'Đã chuyển người sang đơn vị mới',
+  },
+
   users: {
     title: 'Người dùng',
     subtitle: 'Tạo tài khoản, gắn vào sổ danh bạ và khoá khi ai đó nghỉ việc.',

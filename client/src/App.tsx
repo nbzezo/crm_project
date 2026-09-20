@@ -5,6 +5,9 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
 import { Toasts } from './components/common/Toasts';
+import { usePermissionCheck, type PermissionKey } from './lib/permissions';
+import { EmptyState } from './components/common/ui';
+import { t } from './i18n/vi';
 
 const CardModal = lazy(() =>
   import('./components/kanban/CardModal').then((module) => ({ default: module.CardModal }))
@@ -26,9 +29,22 @@ export default function App() {
   const matches = useMatches();
   const pageHandle = [...matches]
     .reverse()
-    .map((match) => match.handle as { title?: string; visibleHeading?: boolean } | undefined)
+    .map(
+      (match) =>
+        match.handle as
+          { title?: string; visibleHeading?: boolean; permission?: PermissionKey } | undefined
+    )
     .find((handle) => handle?.title);
   const pageTitle = pageHandle?.title ?? 'WorkFlow';
+
+  /* Chan route theo quyen. Day chi la lop giao dien — may chu van chan that o
+     requireResource(); muc dich o day la hien mot cau giai thich doc duoc thay
+     vi de trang tu goi API roi bao 403 rai rac khap noi.
+
+     Doc tu chinh `handle` cua route dang khop, nen them mot route moi la khai
+     bao quyen ngay tai cho do, khong phai nho cap nhat mot danh sach o noi khac. */
+  const allowed = usePermissionCheck();
+  const blocked = !allowed(pageHandle?.permission);
 
   /* Tieu de tab trinh duyet lay cung mot nguon voi sidebar va tieu de trang
      (handle.title -> t.nav.*), nen ba cho khong the goi mot man hinh bang ba
@@ -64,15 +80,19 @@ export default function App() {
             className="relative min-w-0 flex-1 overflow-auto bg-transparent outline-none"
           >
             {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}
-            <Suspense
-              fallback={
-                <div role="status" className="p-6 text-sm text-tr-muted">
-                  Đang tải trang…
-                </div>
-              }
-            >
-              <Outlet />
-            </Suspense>
+            {blocked ? (
+              <NoPermission />
+            ) : (
+              <Suspense
+                fallback={
+                  <div role="status" className="p-6 text-sm text-tr-muted">
+                    Đang tải trang…
+                  </div>
+                }
+              >
+                <Outlet />
+              </Suspense>
+            )}
           </main>
         </div>
       </div>
@@ -83,6 +103,15 @@ export default function App() {
       </Suspense>
       <QuickCreateFab />
       <Toasts />
+    </div>
+  );
+}
+
+/** Man hinh thay the khi nguoi dung mo mot trang ho khong co quyen. */
+function NoPermission() {
+  return (
+    <div className="p-6">
+      <EmptyState message={t.permissions.noAccessTitle} hint={t.permissions.noAccessHint} />
     </div>
   );
 }

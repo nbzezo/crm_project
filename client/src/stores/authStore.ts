@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { PermissionMap } from '@workflow/contracts';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
@@ -21,6 +22,19 @@ export interface AuthUser {
   must_change_password: boolean;
   last_login_at: string | null;
   pending_invite: boolean;
+
+  /*
+   * Quyen da gop tu moi vi tri nguoi nay dang giu, dang { "deals:read": "subtree" }.
+   * KHONG co khoa = khong co quyen (may chu luu thua, xem migrate-v39.sql).
+   *
+   * Day chi de VE giao dien — an mot menu khong phai la chan. May chu kiem lai
+   * mọi request; hai lop nay doc lap va deu can thiet.
+   */
+  permissions?: PermissionMap;
+  /** Tang moi lan ai do doi phan quyen — client so lech de biet khi nao nap lai. */
+  permissions_version?: number;
+  positions?: { id: number; name: string; code: string | null; scope_unit_name: string | null }[];
+  org_unit?: { id: number; name: string; kind_name: string | null } | null;
 }
 
 interface AuthState {

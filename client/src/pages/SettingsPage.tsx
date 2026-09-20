@@ -7,8 +7,10 @@ import {
   GanttChartSquare,
   HardDriveDownload,
   Mail,
+  Network,
   PackageOpen,
   Send,
+  ShieldCheck,
   Tag,
   Target,
   UserCog,
@@ -33,6 +35,9 @@ import { DeliverySettings } from '../components/settings/DeliverySettings';
 import { AccountSettings } from '../components/settings/AccountSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
 import { UserSettings } from '../components/settings/UserSettings';
+import { OrgChartSettings } from '../components/settings/OrgChartSettings';
+import { PositionSettings } from '../components/settings/PositionSettings';
+import { usePermissionCheck, type PermissionKey } from '../lib/permissions';
 
 interface BackupFile {
   name: string;
@@ -59,19 +64,50 @@ type SettingsTab =
   | 'email'
   | 'data'
   | 'account'
-  | 'users';
+  | 'users'
+  | 'org'
+  | 'positions';
 
-const SETTINGS_TABS: { key: SettingsTab; label: string; icon: LucideIcon }[] = [
-  { key: 'labels', label: t.settings.tabLabels, icon: Tag },
-  { key: 'scoring', label: t.settings.tabScoring, icon: Target },
-  { key: 'handover', label: t.settings.tabHandover, icon: PackageOpen },
-  { key: 'delivery', label: t.settings.tabDelivery, icon: GanttChartSquare },
-  { key: 'ai', label: t.settings.tabAi, icon: Bot },
-  { key: 'telegram', label: t.settings.tabTelegram, icon: Send },
-  { key: 'email', label: t.settings.tabEmail, icon: Mail },
-  { key: 'data', label: t.settings.tabData, icon: Database },
+/* `permission` bo trong = ai cung thay. Tab Tai khoan luon hien: no chi chua
+   thong tin cua chinh nguoi dang dang nhap va o doi mat khau. */
+const SETTINGS_TABS: {
+  key: SettingsTab;
+  label: string;
+  icon: LucideIcon;
+  permission?: PermissionKey;
+}[] = [
+  { key: 'labels', label: t.settings.tabLabels, icon: Tag, permission: 'settings.app:read' },
+  { key: 'scoring', label: t.settings.tabScoring, icon: Target, permission: 'settings.app:read' },
+  {
+    key: 'handover',
+    label: t.settings.tabHandover,
+    icon: PackageOpen,
+    permission: 'settings.app:read',
+  },
+  {
+    key: 'delivery',
+    label: t.settings.tabDelivery,
+    icon: GanttChartSquare,
+    permission: 'settings.app:read',
+  },
+  { key: 'ai', label: t.settings.tabAi, icon: Bot, permission: 'settings.ai:read' },
+  {
+    key: 'telegram',
+    label: t.settings.tabTelegram,
+    icon: Send,
+    permission: 'settings.telegram:read',
+  },
+  { key: 'email', label: t.settings.tabEmail, icon: Mail, permission: 'settings.email:read' },
+  { key: 'data', label: t.settings.tabData, icon: Database, permission: 'data.export:export' },
   { key: 'account', label: t.settings.tabAccount, icon: UserCog },
-  { key: 'users', label: t.settings.tabUsers, icon: Users },
+  { key: 'users', label: t.settings.tabUsers, icon: Users, permission: 'admin.users:read' },
+  { key: 'org', label: t.permissions.tabOrg, icon: Network, permission: 'admin.org:read' },
+  {
+    key: 'positions',
+    label: t.permissions.tabPositions,
+    icon: ShieldCheck,
+    permission: 'admin.positions:read',
+  },
 ];
 
 function DataSettings() {
@@ -195,7 +231,17 @@ function DataSettings() {
 }
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<SettingsTab>('labels');
+  const allowed = usePermissionCheck();
+  /* Loc tab theo quyen. Nguoi khong quan tri gi van vao duoc trang Cai dat —
+     ho co tab Tai khoan de doi mat khau cua chinh minh. */
+  const visibleTabs = SETTINGS_TABS.filter((item) => allowed(item.permission));
+  const [tab, setTab] = useState<SettingsTab>(() => visibleTabs[0]?.key ?? 'account');
+
+  /* Tab dang chon co the bien mat khi quyen bi thu hoi giua chung — roi ve tab
+     dau tien con lai thay vi hien mot vung trong khong giai thich duoc. */
+  const activeTab = visibleTabs.some((item) => item.key === tab)
+    ? tab
+    : (visibleTabs[0]?.key ?? 'account');
 
   return (
     <PageShell width="narrow" spacing="none">
@@ -206,9 +252,9 @@ export default function SettingsPage() {
       />
 
       <Tabs
-        value={tab}
+        value={activeTab}
         onChange={setTab}
-        items={SETTINGS_TABS.map((item) => ({
+        items={visibleTabs.map((item) => ({
           value: item.key,
           label: item.label,
           icon: <item.icon size={15} aria-hidden="true" />,
@@ -217,24 +263,26 @@ export default function SettingsPage() {
         idPrefix="settingstab"
         className="mb-4"
       >
-        {tab === 'labels' && (
+        {activeTab === 'labels' && (
           <Panel title={t.settings.manageLabels}>
             <LabelManager />
           </Panel>
         )}
-        {tab === 'scoring' && (
+        {activeTab === 'scoring' && (
           <Panel title={t.settings.scoringTitle}>
             <ScoringSettings />
           </Panel>
         )}
-        {tab === 'handover' && <HandoverSettings />}
-        {tab === 'delivery' && <DeliverySettings />}
-        {tab === 'ai' && <AiSettings />}
-        {tab === 'telegram' && <TelegramSettings />}
-        {tab === 'email' && <EmailSettings />}
-        {tab === 'data' && <DataSettings />}
-        {tab === 'account' && <AccountSettings />}
-        {tab === 'users' && <UserSettings />}
+        {activeTab === 'handover' && <HandoverSettings />}
+        {activeTab === 'delivery' && <DeliverySettings />}
+        {activeTab === 'ai' && <AiSettings />}
+        {activeTab === 'telegram' && <TelegramSettings />}
+        {activeTab === 'email' && <EmailSettings />}
+        {activeTab === 'data' && <DataSettings />}
+        {activeTab === 'account' && <AccountSettings />}
+        {activeTab === 'users' && <UserSettings />}
+        {activeTab === 'org' && <OrgChartSettings />}
+        {activeTab === 'positions' && <PositionSettings />}
       </Tabs>
     </PageShell>
   );

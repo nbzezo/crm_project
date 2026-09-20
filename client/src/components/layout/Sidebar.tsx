@@ -53,6 +53,7 @@ import { api } from '../../api/client';
 import { backgroundStyle } from '../../lib/backgrounds';
 import { selectNeedsNudge } from '../../lib/followUp';
 import { t } from '../../i18n/vi';
+import { usePermissionCheck, type PermissionKey } from '../../lib/permissions';
 import type { Board, NotificationFeed, TaskRow } from '../../types';
 import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from '../common/useDialog';
@@ -70,6 +71,13 @@ interface NavItem {
    * cho sap xep/badge, chi khong duoc dung lam duong dan thuc su.
    */
   isAction?: boolean;
+  /**
+   * Quyen toi thieu de THAY muc nay. Khong khai bao = ai cung thay.
+   *
+   * An menu KHONG phai la chan — may chu van kiem lai moi request. Muc dich o
+   * day la de nguoi dung khong bam vao mot thu roi nhan 403 ma khong hieu vi sao.
+   */
+  permission?: PermissionKey;
 }
 
 type NavGroupId = 'daily' | 'projects' | 'sales' | 'analytics' | 'tools';
@@ -87,55 +95,90 @@ const QUICK_NOTES_NAV: NavItem = {
   label: t.nav.quickNotes,
   icon: NotebookPen,
   isAction: true,
+  permission: 'notes:read',
 };
 const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   {
     id: 'daily',
     label: t.nav.groupDaily,
     items: [
-      { to: '/tasks', label: t.nav.tasks, icon: ListChecks },
-      { to: '/follow-up', label: t.nav.followUp, icon: BellRing },
-      { to: '/calendar', label: t.nav.calendar, icon: CalendarDays },
+      { to: '/tasks', label: t.nav.tasks, icon: ListChecks, permission: 'tasks:read' },
+      { to: '/follow-up', label: t.nav.followUp, icon: BellRing, permission: 'tasks:read' },
+      { to: '/calendar', label: t.nav.calendar, icon: CalendarDays, permission: 'tasks:read' },
     ],
   },
   {
     id: 'projects',
     label: t.nav.groupProjects,
     items: [
-      { to: '/projects', label: t.nav.projects, icon: FolderKanban },
-      { to: '/boards', label: t.nav.boards, icon: Trello },
-      { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare },
-      { to: '/documents', label: t.nav.documents, icon: FolderOpen },
+      { to: '/projects', label: t.nav.projects, icon: FolderKanban, permission: 'projects:read' },
+      { to: '/boards', label: t.nav.boards, icon: Trello, permission: 'boards:read' },
+      { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare, permission: 'tasks:read' },
+      { to: '/documents', label: t.nav.documents, icon: FolderOpen, permission: 'documents:read' },
     ],
   },
   {
     id: 'sales',
     label: t.nav.groupSales,
     items: [
-      { to: '/customers', label: t.nav.customers, icon: Users },
-      { to: '/pipeline', label: t.nav.pipeline, icon: Target },
-      { to: '/contracts', label: t.nav.contracts, icon: FileSignature },
-      { to: '/revenue', label: t.nav.revenue, icon: CircleDollarSign },
-      { to: '/org-directory', label: t.nav.orgDirectory, icon: Contact },
+      { to: '/customers', label: t.nav.customers, icon: Users, permission: 'customers:read' },
+      { to: '/pipeline', label: t.nav.pipeline, icon: Target, permission: 'deals:read' },
+      {
+        to: '/contracts',
+        label: t.nav.contracts,
+        icon: FileSignature,
+        permission: 'contracts:read',
+      },
+      { to: '/revenue', label: t.nav.revenue, icon: CircleDollarSign, permission: 'revenues:read' },
+      {
+        to: '/org-directory',
+        label: t.nav.orgDirectory,
+        icon: Contact,
+        permission: 'contacts:read',
+      },
     ],
   },
   {
     id: 'analytics',
     label: t.nav.groupAnalytics,
     items: [
-      { to: '/reports', label: t.nav.reports, icon: BarChart3 },
-      { to: '/pipeline-health', label: t.nav.pipelineHealth, icon: Activity },
+      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
+      {
+        to: '/pipeline-health',
+        label: t.nav.pipelineHealth,
+        icon: Activity,
+        permission: 'report.sales:read',
+      },
     ],
   },
   {
     id: 'tools',
     label: t.nav.groupTools,
     items: [
-      { to: '/ai', label: t.nav.ai, icon: Sparkles },
-      { to: '/notes', label: t.nav.notes, icon: NotebookText, end: true },
+      { to: '/ai', label: t.nav.ai, icon: Sparkles, permission: 'ai:read' },
+      { to: '/notes', label: t.nav.notes, icon: NotebookText, end: true, permission: 'notes:read' },
     ],
   },
 ];
+
+/**
+ * Muc menu cua mot nhom, da loc theo quyen va sap theo thu tu nguoi dung luu.
+ *
+ * Loc TRUOC khi ap thu tu, va co y KHONG dung toi DEFAULT_NAV_ORDER: thu tu da
+ * luu van giu day du moi muc, nen khi ai do duoc cap them quyen thi muc tuong
+ * ung tro lai dung cho cu thay vi nhay xuong cuoi.
+ */
+function useGroupItems(order: NavOrder): (group: (typeof NAV_GROUPS)[number]) => NavItem[] {
+  const allowed = usePermissionCheck();
+  return (group) => {
+    const itemMap = new Map(
+      group.items.filter((item) => allowed(item.permission)).map((item) => [item.to, item])
+    );
+    return order[group.id]
+      .map((to) => itemMap.get(to))
+      .filter((item): item is NavItem => item !== undefined);
+  };
+}
 
 const DEFAULT_NAV_ORDER = Object.fromEntries(
   NAV_GROUPS.map((group) => [group.id, group.items.map((item) => item.to)])
@@ -398,6 +441,7 @@ interface SidebarNavProps {
 
 /** Phan noi dung dung chung cho ca thanh ben co dinh lan ngan keo tren mobile. */
 function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }: SidebarNavProps) {
+  const groupItems = useGroupItems(order);
   const { data: boards = [] } = useBoards();
   const starred = boards.filter((board) => board.is_starred).slice(0, 5);
   const badges = useNavBadges();
@@ -486,10 +530,8 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
         )}
 
         {NAV_GROUPS.map((group) => {
-          const itemMap = new Map(group.items.map((item) => [item.to, item]));
-          const items = order[group.id]
-            .map((to) => itemMap.get(to))
-            .filter((item): item is NavItem => item !== undefined);
+          const items = groupItems(group);
+          if (items.length === 0) return null;
           const isCollapsed = collapsedGroups[group.id] === true;
 
           return (
@@ -622,16 +664,15 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
 
 /** Dai thu gon: chi hien icon, bo qua bang gan sao va keo-tha de giu don gian. */
 function CollapsedNav({ order }: { order: NavOrder }) {
+  const groupItems = useGroupItems(order);
   const badges = useNavBadges();
 
   return (
     <nav aria-label={t.app.name} className="flex flex-1 flex-col items-center gap-1 py-3">
       <CollapsedNavLink item={HOME_NAV} />
       {NAV_GROUPS.map((group) => {
-        const itemMap = new Map(group.items.map((item) => [item.to, item]));
-        const items = order[group.id]
-          .map((to) => itemMap.get(to))
-          .filter((item): item is NavItem => item !== undefined);
+        const items = groupItems(group);
+        if (items.length === 0) return null;
         return (
           <div
             key={group.id}
