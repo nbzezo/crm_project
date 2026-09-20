@@ -152,7 +152,7 @@ const router = createBrowserRouter([
       {
         path: 'ai',
         element: <AiWorkspacePage />,
-        handle: { permission: 'ai:read', title: t.nav.ai },
+        handle: { permission: 'ai:read', title: t.nav.ai, hideQuickCreate: true },
       },
       {
         path: 'notes',

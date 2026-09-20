@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { DOC_TYPES, PRIORITIES } from '@workflow/contracts';
+import { DOC_TYPES, PRIORITIES, type PermissionResource } from '@workflow/contracts';
 import { taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { accessOf, actorContactId } from '../middleware/currentUser.ts';
@@ -35,6 +35,9 @@ import {
 import {
   buildCustomerContext,
   buildDealContext,
+  buildQuickNoteContext,
+  buildSearchContext,
+  type AiScopes,
   buildTaskAssistContext,
   buildTodayContext,
   compactJson,
@@ -165,13 +168,45 @@ const briefResponseSchema = z.object({
 /**
  * Pham vi du lieu cua tro ly AI cho request hien tai.
  *
- * Dung `deals:read` lam thuoc do chung: ngu canh gui cho AI la du lieu thuong
- * mai, va mot nguoi khong doc duoc pipeline thi cung khong duoc nghe AI ke lai
- * noi dung cua no.
+ * Dung `deals:read` lam thuoc do chung cho ngu canh "hom nay": do la du lieu
+ * thuong mai, va mot nguoi khong doc duoc pipeline thi cung khong duoc nghe AI
+ * ke lai noi dung cua no.
  */
 function aiScope(req: Request): number[] | null {
-  const visible = accessOf(req).visibleContactIds('deals', 'read');
+  return scopeOf(req, 'deals');
+}
+
+function scopeOf(req: Request, resource: PermissionResource): number[] | null {
+  const visible = accessOf(req).visibleContactIds(resource, 'read');
   return visible === 'all' ? null : visible;
+}
+
+/**
+ * Pham vi rieng cho TUNG loai du lieu khi tra cuu theo tu khoa.
+ *
+ * Mot thuoc do chung se sai theo ca hai chieu: nguoi chi duoc xem hop dong se
+ * bi giau mat hop dong, con nguoi duoc xem hop dong ma khong duoc xem pipeline
+ * lai nghe ke ca pipeline. Moi truc doc mot quyen cua chinh no.
+ */
+function aiScopes(req: Request): AiScopes {
+  return {
+    customers: scopeOf(req, 'customers'),
+    deals: scopeOf(req, 'deals'),
+    contracts: scopeOf(req, 'contracts'),
+    tasks: scopeOf(req, 'tasks'),
+    notes: scopeOf(req, 'notes'),
+    me: accessOf(req).contactId,
+  };
+}
+
+/**
+ * Nguoi so huu phien chat cua request hien tai.
+ *
+ * `null` khi tat xac thuc (`createApp({ auth: false })` trong test) — luc do
+ * khong co "nguoi" nao de gan, va chatSessions.ts hieu null la khong loc.
+ */
+function chatOwner(req: Request): number | null {
+  return accessOf(req).userId || null;
 }
 
 /** Chan hoi AI ve mot khach hang / co hoi nam ngoai pham vi cua nguoi hoi. */
@@ -729,69 +764,6 @@ router.post('/assist/voice-note/convert', async (req, res) => {
   }
 });
 
-function searchCrm(query: string) {
-  const q = fold(query);
-  const like = `%${q}%`;
-  return {
-    customers: db
-      .prepare(
-        `SELECT id, name, industry, status, notes FROM customers
-          WHERE org_kind = 'customer' AND search_text LIKE ?
-          ORDER BY updated_at DESC LIMIT 8`
-      )
-      .all(like),
-    deals: db
-      .prepare(
-        `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
-                c.name AS customer_name,
-                (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.deal_id = d.id) AS last_interaction
-           FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-          WHERE d.search_text LIKE ? OR c.search_text LIKE ?
-          ORDER BY d.updated_at DESC LIMIT 12`
-      )
-      .all(like, like),
-    contracts: db
-      .prepare(
-        `SELECT k.id, k.name, k.number, k.status, k.value_vnd, k.end_date, c.name AS customer_name
-           FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
-          WHERE k.search_text LIKE ? OR c.search_text LIKE ? ORDER BY k.end_date LIMIT 8`
-      )
-      .all(like, like),
-    tasks: db
-      .prepare(
-        `SELECT k.id, k.title, k.priority, k.due_date, k.is_done, c.name AS customer_name,
-                d.title AS deal_title
-           FROM cards k LEFT JOIN customers c ON c.id = k.customer_id
-           LEFT JOIN deals d ON d.id = k.deal_id
-          WHERE k.search_text LIKE ? AND k.is_archived = 0 ORDER BY k.updated_at DESC LIMIT 12`
-      )
-      .all(like),
-    meeting_notes: db
-      .prepare(
-        `SELECT n.id, n.title, n.meeting_at, n.deal_id, n.project_id,
-                d.title AS deal_title, p.name AS project_name
-           FROM meeting_notes n
-           LEFT JOIN deals d ON d.id = n.deal_id
-           LEFT JOIN projects p ON p.id = n.project_id
-          WHERE n.deleted_at IS NULL AND n.search_text LIKE ?
-          ORDER BY n.updated_at DESC LIMIT 8`
-      )
-      .all(like),
-  };
-}
-
-function recentQuickNotes() {
-  return db
-    .prepare(
-      `SELECT id, title, substr(content_text, 1, 2000) AS content, tags, is_pinned,
-              reminder_at, reminder_status, updated_at
-         FROM quick_notes
-        WHERE deleted_at IS NULL AND archived_at IS NULL
-        ORDER BY is_pinned DESC, updated_at DESC LIMIT 12`
-    )
-    .all();
-}
-
 const askHistoryItemSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string().trim().min(1).max(4000),
@@ -831,8 +803,8 @@ router.post('/ask', async (req, res) => {
           ? null
           : {
               today: buildTodayContext(db, aiScope(req)),
-              search_matches: searchCrm(body.question),
-              recent_quick_notes: recentQuickNotes(),
+              search_matches: buildSearchContext(db, body.question, aiScopes(req)),
+              recent_quick_notes: buildQuickNoteContext(db, scopeOf(req, 'notes')),
             },
       documents:
         body.scope === 'crm'
@@ -872,7 +844,7 @@ router.post('/ask', async (req, res) => {
     };
     /* Ghi sau khi da co cau tra loi: hoi that bai thi khong de lai mot cau hoi
        treo lo lung trong lich su. */
-    if (body.session_id && getSession(db, body.session_id)) {
+    if (body.session_id && getSession(db, body.session_id, chatOwner(req))) {
       appendTurn(db, body.session_id, body.question, parsed.answer, {
         sources: payload.sources,
         follow_up_questions: payload.follow_up_questions,
@@ -888,32 +860,35 @@ router.post('/ask', async (req, res) => {
 
 /* ---------- Phien chat voi Tro ly AI (v37) ---------- */
 
-router.get('/chats', (_req, res) => res.json(listSessions(db)));
+router.get('/chats', (req, res) => res.json(listSessions(db, chatOwner(req))));
 
 router.post('/chats', (req, res) => {
   const body = parseBody(z.object({ scope: z.enum(['crm', 'documents', 'all']).optional() }), req);
-  res.status(201).json(createSession(db, body.scope ?? 'all'));
+  res.status(201).json(createSession(db, chatOwner(req), body.scope ?? 'all'));
 });
 
 router.get('/chats/:id', (req, res) => {
   const id = intParam(req.params.id);
-  const session = getSession(db, id);
+  const owner = chatOwner(req);
+  const session = getSession(db, id, owner);
   if (!session) throw new HttpError(404, 'Khong tim thay phien chat');
   res.json({ ...session, messages: listMessages(db, id) });
 });
 
 router.patch('/chats/:id', (req, res) => {
   const id = intParam(req.params.id);
-  if (!getSession(db, id)) throw new HttpError(404, 'Khong tim thay phien chat');
+  const owner = chatOwner(req);
+  if (!getSession(db, id, owner)) throw new HttpError(404, 'Khong tim thay phien chat');
   const body = parseBody(z.object({ title: z.string().trim().min(1).max(80) }), req);
-  renameSession(db, id, body.title);
-  res.json(getSession(db, id));
+  renameSession(db, id, body.title, owner);
+  res.json(getSession(db, id, owner));
 });
 
 router.delete('/chats/:id', (req, res) => {
   const id = intParam(req.params.id);
-  if (!getSession(db, id)) throw new HttpError(404, 'Khong tim thay phien chat');
-  deleteSession(db, id);
+  const owner = chatOwner(req);
+  if (!getSession(db, id, owner)) throw new HttpError(404, 'Khong tim thay phien chat');
+  deleteSession(db, id, owner);
   res.status(204).end();
 });
 

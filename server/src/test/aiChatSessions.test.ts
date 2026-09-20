@@ -119,8 +119,11 @@ test(`chi giu ${20} phien gan nhat, cat theo lan dung gan nhat`, async () => {
     revived
   );
 
-  pruneSessions(db);
-  const kept = listSessions(db);
+  /* `null` = khong loc theo nguoi dung, dung voi `createApp({ auth: false })`
+     ma file test nay dang chay. Phan loc theo nguoi dung co test rieng o
+     aiScope.test.ts, noi co phien dang nhap that. */
+  pruneSessions(db, null);
+  const kept = listSessions(db, null);
   assert.equal(kept.length, 20);
   assert.ok(
     kept.some((s) => s.id === revived),

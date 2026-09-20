@@ -23,8 +23,15 @@ import type { MeetingNote } from '../../types';
  * dang mo san) va Ghi chu (Ghi chu hop CRM, tao mot ghi chu DOC LAP — xem
  * migrate-v31.sql — roi dieu huong sang trang "Ghi chu"). Mount mot lan o
  * App.tsx, khong phu thuoc trang dang xem.
+ *
+ * `hidden` AN CAI NUT chu khong thao component ra.
+ *
+ * Mot vai trang tu co o nhap ghim o day man hinh (Tro ly AI) va nut noi nay de
+ * dung len nut Gui cua ho. Nhung go han component khoi cay thi mat luon phim
+ * tat Ctrl/Cmd+Shift+N mo Ghi chu nhanh — mot phim tat duoc hua la dung duoc "tu
+ * bat ky dau". Vi vay chi an phan nhin thay; phan lang nghe ban phim van song.
  */
-export function QuickCreateFab() {
+export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
   const [open, setOpen] = useState(false);
   const [dealOpen, setDealOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -73,7 +80,11 @@ export function QuickCreateFab() {
       {open && (
         <div className="fixed inset-0 z-sticky" onClick={() => setOpen(false)} aria-hidden="true" />
       )}
-      <div className="fixed right-5 bottom-5 z-nav-overlay flex flex-col items-end gap-2 sm:right-8 sm:bottom-8">
+      <div
+        className={`fixed right-5 bottom-5 z-nav-overlay flex-col items-end gap-2 sm:right-8 sm:bottom-8 ${
+          hidden ? 'hidden' : 'flex'
+        }`}
+      >
         {open && (
           /*
            * MOT the menu thay vi nam pill roi.

@@ -7,7 +7,11 @@ import type { Database } from 'better-sqlite3';
  * va dat dung MOT cho de sau nay doc lai con biet quy tac o dau.
  */
 
-/** So phien gan nhat duoc giu. Cu hon se bi xoa cung toan bo tin nhan. */
+/**
+ * So phien gan nhat duoc giu — TREN MOI NGUOI DUNG, khong phai tren ca he
+ * thong. Gioi han chung se lam vai nguoi dung cung luc day lich su cua nhau ra
+ * ngoai, va moi nguoi thay con so 20 co nghia khac nhau.
+ */
 export const MAX_SESSIONS = 20;
 
 /** Do dai toi da cua tieu de tu sinh tu cau hoi dau tien. */
@@ -52,26 +56,56 @@ function parseMeta(row: RawMessage): ChatMessageRow {
   return { ...rest, meta };
 }
 
-export function listSessions(db: Database): ChatSessionRow[] {
-  return db
-    .prepare(
-      `SELECT s.id, s.title, s.scope, s.created_at, s.updated_at,
-              (SELECT COUNT(*) FROM ai_chat_messages m WHERE m.session_id = s.id) AS message_count
-         FROM ai_chat_sessions s
-        ORDER BY s.updated_at DESC, s.id DESC`
-    )
-    .all() as ChatSessionRow[];
+/*
+ * MOI HAM O DAY DEU NHAN `userId` VA LOC THEO NO.
+ *
+ * Hoi thoai voi tro ly la du lieu ca nhan, va cau tra loi duoc sinh ra tu pham
+ * vi cua nguoi hoi — mot phien cua giam doc chua nhung con so ma nhan vien
+ * khong duoc thay. Vi vay khong co ham nao o day doc duoc "moi phien": dieu
+ * kien nam ngay trong SQL chu khong phai o cho goi, de mot route viet sau nay
+ * khong the quen.
+ *
+ * `userId` co the la `null` khi tat xac thuc (cac test tich hop dung
+ * `createApp({ auth: false })`) — luc do khong loc, vi khong co "nguoi" nao ca.
+ */
+function ownerClause(userId: number | null, prefix = 's'): { sql: string; params: number[] } {
+  if (userId == null) return { sql: '', params: [] };
+  return { sql: ` AND ${prefix}.user_id = ?`, params: [userId] };
 }
 
-export function getSession(db: Database, id: number): ChatSessionRow | undefined {
+export function listSessions(db: Database, userId: number | null): ChatSessionRow[] {
+  const owner = ownerClause(userId);
   return db
     .prepare(
       `SELECT s.id, s.title, s.scope, s.created_at, s.updated_at,
               (SELECT COUNT(*) FROM ai_chat_messages m WHERE m.session_id = s.id) AS message_count
          FROM ai_chat_sessions s
-        WHERE s.id = ?`
+        WHERE 1 = 1${owner.sql}
+        ORDER BY s.updated_at DESC, s.id DESC`
     )
-    .get(id) as ChatSessionRow | undefined;
+    .all(...owner.params) as ChatSessionRow[];
+}
+
+/**
+ * Tra ve `undefined` cho ca phien KHONG TON TAI lan phien CUA NGUOI KHAC — hai
+ * truong hop do phai khong phan biet duoc, neu khong thi do id la biet duoc ai
+ * dang co bao nhieu hoi thoai (cung ly do `assertInScope` nem 404 chu khong
+ * phai 403).
+ */
+export function getSession(
+  db: Database,
+  id: number,
+  userId: number | null
+): ChatSessionRow | undefined {
+  const owner = ownerClause(userId);
+  return db
+    .prepare(
+      `SELECT s.id, s.title, s.scope, s.created_at, s.updated_at,
+              (SELECT COUNT(*) FROM ai_chat_messages m WHERE m.session_id = s.id) AS message_count
+         FROM ai_chat_sessions s
+        WHERE s.id = ?${owner.sql}`
+    )
+    .get(id, ...owner.params) as ChatSessionRow | undefined;
 }
 
 export function listMessages(db: Database, sessionId: number): ChatMessageRow[] {
@@ -104,21 +138,35 @@ function refreshProposal(db: Database, message: ChatMessageRow): ChatMessageRow 
   };
 }
 
-export function createSession(db: Database, scope: ChatScope = 'all'): ChatSessionRow {
-  const info = db.prepare(`INSERT INTO ai_chat_sessions (scope) VALUES (?)`).run(scope);
-  pruneSessions(db);
-  return getSession(db, Number(info.lastInsertRowid))!;
+export function createSession(
+  db: Database,
+  userId: number | null,
+  scope: ChatScope = 'all'
+): ChatSessionRow {
+  const info = db
+    .prepare(`INSERT INTO ai_chat_sessions (scope, user_id) VALUES (?, ?)`)
+    .run(scope, userId);
+  pruneSessions(db, userId);
+  return getSession(db, Number(info.lastInsertRowid), userId)!;
 }
 
-export function renameSession(db: Database, id: number, title: string): void {
+export function renameSession(
+  db: Database,
+  id: number,
+  title: string,
+  userId: number | null
+): void {
+  const owner = ownerClause(userId, 'ai_chat_sessions');
   db.prepare(
-    `UPDATE ai_chat_sessions SET title = ?, updated_at = datetime('now','localtime') WHERE id = ?`
-  ).run(title.trim().slice(0, TITLE_MAX), id);
+    `UPDATE ai_chat_sessions SET title = ?, updated_at = datetime('now','localtime')
+      WHERE id = ?${owner.sql}`
+  ).run(title.trim().slice(0, TITLE_MAX), id, ...owner.params);
 }
 
-export function deleteSession(db: Database, id: number): void {
+export function deleteSession(db: Database, id: number, userId: number | null): void {
   // Tin nhan di theo nho ON DELETE CASCADE.
-  db.prepare(`DELETE FROM ai_chat_sessions WHERE id = ?`).run(id);
+  const owner = ownerClause(userId, 'ai_chat_sessions');
+  db.prepare(`DELETE FROM ai_chat_sessions WHERE id = ?${owner.sql}`).run(id, ...owner.params);
 }
 
 /**
@@ -157,14 +205,18 @@ export function appendTurn(
  * Chay sau moi lan tao phien moi. Xoa theo `updated_at` chu khong phai
  * `created_at`: mot phien cu nhung van duoc quay lai dung thi khong nen bi cat.
  */
-export function pruneSessions(db: Database): number {
+export function pruneSessions(db: Database, userId: number | null): number {
+  const owner = ownerClause(userId, 'ai_chat_sessions');
   const info = db
     .prepare(
       `DELETE FROM ai_chat_sessions
-        WHERE id NOT IN (
-          SELECT id FROM ai_chat_sessions ORDER BY updated_at DESC, id DESC LIMIT ?
-        )`
+        WHERE 1 = 1${owner.sql}
+          AND id NOT IN (
+            SELECT id FROM ai_chat_sessions
+             WHERE 1 = 1${owner.sql}
+             ORDER BY updated_at DESC, id DESC LIMIT ?
+          )`
     )
-    .run(MAX_SESSIONS);
+    .run(...owner.params, ...owner.params, MAX_SESSIONS);
   return info.changes;
 }

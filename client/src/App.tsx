@@ -32,7 +32,14 @@ export default function App() {
     .map(
       (match) =>
         match.handle as
-          { title?: string; visibleHeading?: boolean; permission?: PermissionKey } | undefined
+          | {
+              title?: string;
+              visibleHeading?: boolean;
+              permission?: PermissionKey;
+              /** Trang tu co o nhap ghim day man hinh — nut "Tạo nhanh" se de len no. */
+              hideQuickCreate?: boolean;
+            }
+          | undefined
     )
     .find((handle) => handle?.title);
   const pageTitle = pageHandle?.title ?? 'WorkFlow';
@@ -101,7 +108,7 @@ export default function App() {
         <TaskFormDialog />
         <QuickNotesBoard />
       </Suspense>
-      <QuickCreateFab />
+      <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
       <Toasts />
     </div>
   );

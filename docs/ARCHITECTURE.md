@@ -84,9 +84,9 @@ mặc định của v15 (khách hàng cũ vẫn là `org_kind = 'customer'`, ng�
 Đường dẫn runtime được điều khiển bằng `WORKFLOW_DATA_DIR` và `WORKFLOW_DB_PATH`; test dùng DB bộ nhớ
 hoặc thư mục tạm cách ly.
 
-Năm phiên bản gần nhất: v36 nhà cung cấp AI 9Router · v37 phiên trò chuyện với Trợ lý AI · v38 nhiều
-người dùng và đăng nhập bằng email · v39 cây đơn vị, vị trí và ma trận phân quyền · v40 chủ sở hữu bản
-ghi (phân quyền dữ liệu).
+Năm phiên bản gần nhất: v37 phiên trò chuyện với Trợ lý AI · v38 nhiều người dùng và đăng nhập bằng
+email · v39 cây đơn vị, vị trí và ma trận phân quyền · v40 chủ sở hữu bản ghi (phân quyền dữ liệu) ·
+v41 phiên trò chuyện AI thuộc về một người dùng.
 
 v19 có hai điểm cần lưu ý khi đọc migration: `DROP COLUMN` chỉ chạy được sau khi **xóa index tham
 chiếu tới cột đó** (SQLite từ chối bỏ cột còn index trỏ vào), và backfill `status_mapping` phải làm ở
@@ -140,7 +140,14 @@ Hai lớp chặn độc lập, đều cần thiết:
   cấp trên không đọc được — đọc sổ nháp của nhân viên là giám sát, không phải quản lý, và nó sẽ làm
   người ta ngừng ghi thật.
 - **`services/ai/contextBuilder.ts` phải lọc theo phạm vi người hỏi.** Đây là đường rò rỉ nguy hiểm
-  nhất: không màn hình nào làm lộ ra, nhưng một câu hỏi thường là moi được dữ liệu phòng khác.
+  nhất: không màn hình nào làm lộ ra, nhưng một câu hỏi thường là moi được dữ liệu phòng khác. Mọi
+  truy vấn dựng ngữ cảnh đều ở trong tệp đó và đều nhận `AiScopes` — **một phạm vi cho mỗi loại dữ
+  liệu**, không phải một thước đo chung: người xem được hợp đồng mà không xem được pipeline phải
+  thấy đúng như vậy khi hỏi. Lưới an toàn là `server/src/test/aiScope.test.ts`.
+- **Phiên trò chuyện với trợ lý là dữ liệu cá nhân** (`ai_chat_sessions.user_id`, v41). Nội dung trả
+  lời được sinh ra từ phạm vi của *người hỏi*, nên một phiên của giám đốc nằm trong danh sách của
+  nhân viên là rò rỉ ngay cả khi không ai bấm vào. Giới hạn 20 phiên cũng tính trên mỗi người —
+  giới hạn chung sẽ khiến vài người dùng cùng lúc đẩy lịch sử của nhau ra ngoài.
 
 Không có seam chung cho 853 câu `.prepare(` trong server, nên lưới an toàn là
 `server/src/test/dataScope.test.ts` — đếm **đúng số dòng** cho từng vị trí trên từng endpoint. Kỷ luật

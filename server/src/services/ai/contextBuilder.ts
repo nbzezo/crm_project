@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { required } from '../../lib/validate.ts';
+import { fold } from '../../lib/viSearch.ts';
 
 function rows(db: Database, sql: string, params: unknown[] = [], limit = 40): unknown[] {
   return db.prepare(`${sql} LIMIT ${Math.max(1, Math.min(limit, 100))}`).all(...params);
@@ -22,6 +23,136 @@ function scopeClause(scope: AiScope, column: string): { sql: string; params: num
   if (scope === null) return { sql: '', params: [] };
   if (scope.length === 0) return { sql: ` AND 1 = 0`, params: [] };
   return { sql: ` AND ${column} IN (${scope.map(() => '?').join(',')})`, params: [...scope] };
+}
+
+/**
+ * Pham vi cho TUNG loai du lieu, gop lai thanh mot doi tuong.
+ *
+ * Khong dung mot pham vi chung cho ca tro ly: mot nguoi co the doc duoc hop
+ * dong ma khong doc duoc pipeline, va cau tra loi cua AI phai phan anh dung
+ * dieu do. Doi tuong nay duoc dung mot lan moi request o routes/ai.ts tu
+ * `Access.visibleContactIds`, roi truyen xuong day — tang service khong biet gi
+ * ve Request, nen test goi duoc truc tiep khong can dung mot may chu.
+ */
+export interface AiScopes {
+  customers: AiScope;
+  deals: AiScope;
+  contracts: AiScope;
+  tasks: AiScope;
+  notes: AiScope;
+  /** Contact cua chinh nguoi hoi — viec giao cho ho thi luon doc duoc. */
+  me: number | null;
+}
+
+/** Khong gioi han gi — dung cho che do tat xac thuc va cho quan tri he thong. */
+export const OPEN_SCOPES: AiScopes = {
+  customers: null,
+  deals: null,
+  contracts: null,
+  tasks: null,
+  notes: null,
+  me: null,
+};
+
+/**
+ * Tra cuu CRM theo tu khoa de lam ngu canh cho mot cau hoi.
+ *
+ * MOI TRUY VAN O DAY PHAI MANG DIEU KIEN PHAM VI — xem ghi chu o `AiScope`.
+ * Tach khoi routes/ai.ts de test dem duoc so dong tra ve cho tung vi tri
+ * (server/src/test/aiScope.test.ts), thay vi phai goi that mot nha cung cap AI.
+ */
+export function buildSearchContext(db: Database, query: string, scopes: AiScopes) {
+  const like = `%${fold(query)}%`;
+  const customers = scopeClause(scopes.customers, 'c.owner_contact_id');
+  const deals = scopeClause(scopes.deals, 'd.owner_contact_id');
+  /* Hop dong va ghi chu hop khong co cot chu so huu rieng — suy tu khach hang
+     va tu co hoi qua JOIN san co, dung nguyen tac "khong co ban sao thi khong
+     the lech" da ghi trong docs/ARCHITECTURE.md. */
+  const contracts = scopeClause(scopes.contracts, 'c.owner_contact_id');
+  const notes = scopeClause(scopes.notes, 'n.owner_contact_id');
+  const tasks = taskClause(scopes);
+
+  return {
+    customers: db
+      .prepare(
+        `SELECT c.id, c.name, c.industry, c.status, c.notes FROM customers c
+          WHERE c.org_kind = 'customer' AND c.search_text LIKE ?${customers.sql}
+          ORDER BY c.updated_at DESC LIMIT 8`
+      )
+      .all(like, ...customers.params),
+    deals: db
+      .prepare(
+        `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
+                c.name AS customer_name,
+                (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.deal_id = d.id) AS last_interaction
+           FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
+          WHERE (d.search_text LIKE ? OR c.search_text LIKE ?)${deals.sql}
+          ORDER BY d.updated_at DESC LIMIT 12`
+      )
+      .all(like, like, ...deals.params),
+    contracts: db
+      .prepare(
+        `SELECT k.id, k.name, k.number, k.status, k.value_vnd, k.end_date, c.name AS customer_name
+           FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
+          WHERE (k.search_text LIKE ? OR c.search_text LIKE ?)${contracts.sql}
+          ORDER BY k.end_date LIMIT 8`
+      )
+      .all(like, like, ...contracts.params),
+    tasks: db
+      .prepare(
+        `SELECT k.id, k.title, k.priority, k.due_date, k.is_done, c.name AS customer_name,
+                d.title AS deal_title
+           FROM cards k
+           LEFT JOIN customers c ON c.id = k.customer_id
+           LEFT JOIN deals d ON d.id = k.deal_id
+           LEFT JOIN lists l ON l.id = k.list_id
+           LEFT JOIN boards b ON b.id = l.board_id
+          WHERE k.search_text LIKE ? AND k.is_archived = 0${tasks.sql}
+          ORDER BY k.updated_at DESC LIMIT 12`
+      )
+      .all(like, ...tasks.params),
+    meeting_notes: db
+      .prepare(
+        `SELECT n.id, n.title, n.meeting_at, n.deal_id, n.project_id,
+                d.title AS deal_title, p.name AS project_name
+           FROM meeting_notes n
+           LEFT JOIN deals d ON d.id = n.deal_id
+           LEFT JOIN projects p ON p.id = n.project_id
+          WHERE n.deleted_at IS NULL AND n.search_text LIKE ?${notes.sql}
+          ORDER BY n.updated_at DESC LIMIT 8`
+      )
+      .all(like, ...notes.params),
+  };
+}
+
+/**
+ * Viec: cua bang thuoc pham vi cua minh, bang chua co chu, HOAC duoc giao cho
+ * chinh minh. Giong luat cua man hinh Cong viec — mot nguoi phai luon doc duoc
+ * viec cua chinh ho, ke ca khi no nam tren bang cua phong khac.
+ */
+function taskClause(scopes: AiScopes): { sql: string; params: number[] } {
+  if (scopes.tasks === null) return { sql: '', params: [] };
+  const owned = scopeClause(scopes.tasks, 'b.owner_contact_id');
+  const body = owned.sql === ' AND 1 = 0' ? '1 = 0' : owned.sql.slice(' AND '.length);
+  const mine = scopes.me == null ? '' : ` OR k.assignee_contact_id = ?`;
+  return {
+    sql: ` AND (${body} OR b.owner_contact_id IS NULL${mine})`,
+    params: scopes.me == null ? owned.params : [...owned.params, scopes.me],
+  };
+}
+
+/** Ghi chu nhanh la du lieu CA NHAN — mac dinh chi chu so huu doc duoc. */
+export function buildQuickNoteContext(db: Database, scope: AiScope) {
+  const notes = scopeClause(scope, 'owner_contact_id');
+  return db
+    .prepare(
+      `SELECT id, title, substr(content_text, 1, 2000) AS content, tags, is_pinned,
+              reminder_at, reminder_status, updated_at
+         FROM quick_notes
+        WHERE deleted_at IS NULL AND archived_at IS NULL${notes.sql}
+        ORDER BY is_pinned DESC, updated_at DESC LIMIT 12`
+    )
+    .all(...notes.params);
 }
 
 export function buildTodayContext(db: Database, scope: AiScope = null) {
