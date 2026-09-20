@@ -18,7 +18,11 @@ import { useUiStore } from '../../stores/uiStore';
 import type { Assignee } from '../../types';
 
 /**
- * So do to chuc.
+ * So do to chuc — chi CAU TRUC, khong phai con nguoi.
+ *
+ * Viec xep nguoi vao don vi nam o man *To chuc & nhan su*: do la noi nguoi ta
+ * mo ra de xem nguoi, va mot don vi khong hien o do thi khong ai biet no anh
+ * huong gi toi minh. O day chi con cay don vi va danh sach loai don vi.
  *
  * Cay `parent_id`, do sau tuy y. Day la thu bien "phan cap quan ly" tu mot danh
  * sach cap co dinh thanh mot cau truc mo: don vi ma mot quan ly phu trach CHINH
@@ -153,18 +157,6 @@ export function OrgChartSettings() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['org-units', 'kinds'] }),
   });
 
-  const moveMembers = useMutation({
-    mutationFn: (vars: { contactId: number; unitId: number | null }) =>
-      api.post('/api/org-units/members', {
-        contact_ids: [vars.contactId],
-        org_unit_id: vars.unitId,
-      }),
-    onSuccess: () => {
-      invalidate();
-      pushToast(t.orgChart.movedMembers, 'success');
-    },
-  });
-
   function renderUnit(unit: OrgUnit, depth: number) {
     const children = childrenOf.get(unit.id) ?? [];
     return (
@@ -229,10 +221,6 @@ export function OrgChartSettings() {
       </div>
     );
   }
-
-  const unassigned = (staff.data ?? []).filter(
-    (person) => !(units.data ?? []).some((u) => u.head_contact_id === person.id) && person.org_id
-  );
 
   return (
     <Panel
@@ -399,39 +387,6 @@ export function OrgChartSettings() {
 
       {units.isPending ? <SkeletonRows rows={4} /> : null}
       {(childrenOf.get(null) ?? []).map((unit) => renderUnit(unit, 0))}
-
-      {unassigned.length > 0 ? (
-        <div className="mt-5 border-t border-tr-border pt-3">
-          <h4 className="mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-            {t.orgChart.moveMembers}
-          </h4>
-          <ul className="space-y-1">
-            {unassigned.map((person) => (
-              <li key={person.id} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-tr-text">{person.full_name}</span>
-                <Select
-                  fullWidth={false}
-                  aria-label={`${t.orgChart.moveMembers} — ${person.full_name}`}
-                  value=""
-                  onChange={(e) =>
-                    moveMembers.mutate({
-                      contactId: person.id,
-                      unitId: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                >
-                  <option value="">{t.orgChart.moveMembers}…</option>
-                  {(units.data ?? []).map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </Select>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       <ConfirmDialog
         open={confirmDelete !== null}

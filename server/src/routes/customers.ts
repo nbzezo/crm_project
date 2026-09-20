@@ -219,8 +219,28 @@ router.get('/:id/full', (req, res) => {
   ) as Record<string, unknown>;
   assertInScope(req, 'customers', 'read', customer.owner_contact_id as number | null);
 
+  /* Kem don vi va VI TRI cua tung nguoi.
+
+     Danh ba tung chi hien `contacts.title` — mot chuoi tu do go tay. Tu khi co
+     phan quyen, chuoi do trong y het ten vi tri that ("Truong phong") nhung
+     khong mang quyen gi: sua no khong doi duoc nguoi do thay gi, va khong man
+     hinh nao lam lo ra su lech do. Nguoi da co tai khoan thi VI TRI moi la su
+     that; `title` chi con dung cho nguoi chua co tai khoan (nguoi lien he ben
+     khach hang, nhan su chua duoc cap tai khoan). */
   const contacts = db
-    .prepare(`SELECT * FROM contacts WHERE customer_id = ? ORDER BY is_primary DESC, full_name`)
+    .prepare(
+      `SELECT c.*, o.name AS org_unit_name,
+              (SELECT p.name FROM users u
+                 JOIN user_positions up ON up.user_id = u.id
+                 JOIN positions p ON p.id = up.position_id
+                WHERE u.contact_id = c.id
+                ORDER BY up.is_primary DESC, p.position
+                LIMIT 1) AS position_name
+         FROM contacts c
+         LEFT JOIN org_units o ON o.id = c.org_unit_id
+        WHERE c.customer_id = ?
+        ORDER BY c.is_primary DESC, c.full_name`
+    )
     .all(id);
   const deals = db
     .prepare(

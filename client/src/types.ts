@@ -312,6 +312,17 @@ export interface Customer {
 }
 
 export interface Contact {
+  /**
+   * Vị trí trong hệ phân quyền — chỉ có với người đã được cấp tài khoản.
+   *
+   * Khác `title` (chữ tự do gõ tay): chỉ vị trí mới quyết định người đó thấy gì.
+   * Hai chuỗi thường trông giống hệt nhau nên đừng hiện cả hai — xem `roleLine`
+   * trong ContactList.
+   */
+  position_name?: string | null;
+  /** Đơn vị người này ngồi. Cùng với vị trí, nó quyết định phạm vi dữ liệu. */
+  org_unit_id?: number | null;
+  org_unit_name?: string | null;
   id: number;
   customer_id: number;
   full_name: string;

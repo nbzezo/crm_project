@@ -252,11 +252,14 @@ export default function OrgDirectoryPage() {
             {ownOrg.short_name && `${ownOrg.short_name} · `}
             {ownMemberCount} thành viên · {ownLeadCount} người phụ trách
           </p>
+          {/* `showUnit` chỉ bật cho công ty mình: người liên hệ bên khách hàng,
+              đối tác hay nhà cung cấp không nằm trong cơ cấu tổ chức của ta. */}
           <ContactList
             ref={ownMemberListRef}
             customerId={ownOrg.id}
             contacts={ownFull?.contacts ?? []}
             compact
+            showUnit
           />
         </Panel>
       )}

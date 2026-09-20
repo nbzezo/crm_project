@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Linkedin,
   ListPlus,
@@ -26,6 +26,77 @@ import {
   Textarea,
 } from '../common/ui';
 import { t } from '../../i18n/vi';
+import { useAuthStore } from '../../stores/authStore';
+import { usePermission } from '../../lib/permissions';
+
+interface OrgUnitOption {
+  id: number;
+  name: string;
+}
+
+/**
+ * Ô đổi đơn vị của một nhân sự.
+ *
+ * Đặt ở đây — nơi người ta mở ra để xem NGƯỜI — chứ không phải trong Cài đặt.
+ * Đơn vị quyết định người đó thấy dữ liệu của ai, nên nó phải hiện ngay cạnh
+ * tên họ; ai không có quyền quản trị vẫn đọc được đơn vị dưới dạng chữ (xem
+ * `roleLine`), chỉ là không đổi được.
+ */
+function UnitPicker({ contact }: { contact: Contact }) {
+  const queryClient = useQueryClient();
+  const canEdit = usePermission('admin.org', 'update');
+
+  const units = useQuery({
+    queryKey: ['org-units'],
+    queryFn: () => api.get<OrgUnitOption[]>('/api/org-units'),
+    enabled: canEdit,
+  });
+
+  const move = useMutation({
+    mutationFn: (unitId: number | null) =>
+      api.post('/api/org-units/members', { contact_ids: [contact.id], org_unit_id: unitId }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['customer'] });
+      void queryClient.invalidateQueries({ queryKey: ['org-units'] });
+    },
+  });
+
+  if (!canEdit) return null;
+
+  return (
+    <Select
+      fullWidth={false}
+      aria-label={`Đơn vị của ${contact.full_name}`}
+      className="hidden max-w-40 text-xs sm:block"
+      value={contact.org_unit_id ?? ''}
+      disabled={move.isPending}
+      onChange={(e) => move.mutate(e.target.value ? Number(e.target.value) : null)}
+    >
+      <option value="">— chưa xếp —</option>
+      {(units.data ?? []).map((unit) => (
+        <option key={unit.id} value={unit.id}>
+          {unit.name}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+/**
+ * Chức vụ hiển thị của một người.
+ *
+ * Người ĐÃ CÓ TÀI KHOẢN thì `position_name` (vị trí trong hệ phân quyền) mới là
+ * sự thật — nó quyết định họ thấy gì. `contacts.title` là chữ tự do gõ tay,
+ * thường trông y hệt tên vị trí nhưng sửa nó không đổi được quyền, nên hiện cả
+ * hai chỉ tạo ra hai nguồn sự thật cho cùng một câu hỏi.
+ *
+ * Người chưa có tài khoản (người liên hệ bên khách hàng, nhân sự chưa được cấp
+ * tài khoản) thì `title` vẫn là thứ duy nhất ta biết.
+ */
+function roleLine(c: Contact): string {
+  const role = c.position_name ?? c.title;
+  return [role, c.org_unit_name ?? c.department].filter(Boolean).join(' · ') || '—';
+}
 import { useUiStore } from '../../stores/uiStore';
 import type { Contact } from '../../types';
 
@@ -45,7 +116,6 @@ const EMPTY = {
   buying_role: '',
   relationship: '',
   is_primary: false,
-  is_me: false,
   is_active: true,
   notes: '',
 };
@@ -74,9 +144,13 @@ export const RELATIONSHIP_BADGE_CLASS: Record<string, string> = {
 
 export const ContactList = forwardRef<
   ContactListHandle,
-  { customerId: number; contacts: Contact[]; compact?: boolean }
->(function ContactList({ customerId, contacts, compact = false }, ref) {
+  { customerId: number; contacts: Contact[]; compact?: boolean; showUnit?: boolean }
+>(function ContactList({ customerId, contacts, compact = false, showUnit = false }, ref) {
   const queryClient = useQueryClient();
+  /* Ai la "toi" doc tu PHIEN dang nhap. Truoc v38 no la co `contacts.is_me` —
+     mot co duy nhat cho ca he thong, nen sau khi co nhieu nguoi dung thi moi
+     nguoi deu thay nhan "Tôi" tren cung mot nguoi la. */
+  const myContactId = useAuthStore((s) => s.user?.contact_id ?? null);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -105,7 +179,6 @@ export const ContactList = forwardRef<
             buying_role: editing.buying_role ?? '',
             relationship: editing.relationship ?? '',
             is_primary: !!editing.is_primary,
-            is_me: !!editing.is_me,
             /* Ban ghi cu (truoc v15) da duoc migration dat is_active = 1, nhung
                `?? true` giu form dung ngay ca khi API tra ve thieu cot. */
             is_active: editing.is_active == null ? true : !!editing.is_active,
@@ -166,6 +239,7 @@ export const ContactList = forwardRef<
             <CompactMemberRow
               key={c.id}
               contact={c}
+              showUnit={showUnit}
               onEdit={() => {
                 setEditing(c);
                 setOpen(true);
@@ -191,7 +265,7 @@ export const ContactList = forwardRef<
                         <Star size={10} /> {t.contact.primary}
                       </span>
                     )}
-                    {!!c.is_me && (
+                    {c.id === myContactId && (
                       <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-xs font-medium text-tr-primary">
                         Tôi
                       </span>
@@ -207,9 +281,7 @@ export const ContactList = forwardRef<
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-tr-muted">
-                    {[c.title, c.department].filter(Boolean).join(' · ') || '—'}
-                  </div>
+                  <div className="text-xs text-tr-muted">{roleLine(c)}</div>
                 </div>
                 {/* opacity-0 + group-hover khien nut vo hinh tren thiet bi cam ung
                     va khi Tab toi — nen hien lai khi nhan focus, va luon hien
@@ -382,17 +454,6 @@ export const ContactList = forwardRef<
               Đang hoạt động
               <span className="text-xs text-tr-muted">(tắt thì ẩn khỏi ô giao việc)</span>
             </label>
-            {/* "Tôi" là duy nhất toàn sổ danh bạ — bật ở đây thì bản ghi cũ tự tắt. */}
-            <label className="flex items-center gap-2 text-sm text-tr-subtle">
-              <input
-                type="checkbox"
-                checked={form.is_me}
-                onChange={(e) => set('is_me', e.target.checked)}
-                className="h-4 w-4 rounded border-tr-border"
-              />
-              Đây là tôi
-              <span className="text-xs text-tr-muted">(dùng cho bộ lọc “{t.card.mine}”)</span>
-            </label>
           </div>
           <div className="sm:col-span-2">
             <Field label={t.customer.notes}>
@@ -425,12 +486,18 @@ function CompactMemberRow({
   onEdit,
   onCreateTask,
   onDelete,
+  showUnit = false,
 }: {
   contact: Contact;
   onEdit: () => void;
   onCreateTask: () => void;
   onDelete: () => void;
+  /** Chỉ bật cho nhân sự công ty mình — người liên hệ bên ngoài không có đơn vị. */
+  showUnit?: boolean;
 }) {
+  /* Cung nguon voi ContactList — hai cho cung tra loi "ai la toi" thi phai
+     doc cung mot thu. */
+  const myContactId = useAuthStore((s) => s.user?.contact_id ?? null);
   const initials =
     c.full_name
       .trim()
@@ -448,7 +515,7 @@ function CompactMemberRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="truncate text-sm font-medium text-tr-text">{c.full_name}</span>
-          {!!c.is_me && (
+          {c.id === myContactId && (
             <span className="rounded bg-tr-primary/15 px-1.5 py-0.5 text-xs font-medium text-tr-primary">
               Tôi
             </span>
@@ -464,9 +531,7 @@ function CompactMemberRow({
             </span>
           )}
         </div>
-        <div className="truncate text-xs text-tr-muted">
-          {[c.title, c.department].filter(Boolean).join(' · ') || '—'}
-        </div>
+        <div className="truncate text-xs text-tr-muted">{roleLine(c)}</div>
       </div>
       {c.relationship && (
         <span
@@ -477,6 +542,7 @@ function CompactMemberRow({
           ● {t.relationship[c.relationship] ?? c.relationship}
         </span>
       )}
+      {showUnit && <UnitPicker contact={c} />}
       <div className="flex shrink-0 gap-0.5 opacity-100 transition group-hover:opacity-100 hoverable:opacity-0 hoverable:focus-within:opacity-100">
         <IconButton onClick={onEdit} label={`${t.common.edit}: ${c.full_name}`}>
           <Pencil size={13} aria-hidden="true" />
