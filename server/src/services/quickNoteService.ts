@@ -131,6 +131,14 @@ function deriveTitle(contentText: string): string {
 }
 
 export interface QuickNoteFilters {
+  /**
+   * Chu so huu duoc phep thay. `undefined` = khong gioi han (nguoi co pham vi
+   * toan cong ty, hoac che do tat xac thuc trong test).
+   *
+   * Ghi chu nhanh la du lieu CA NHAN: mot mau giay dan tren man hinh cua rieng
+   * mot nguoi. Mac dinh chi chu no moi thay, ke ca khi nguoi khac la cap tren.
+   */
+  owner_contact_ids?: number[];
   q?: string;
   view?: 'active' | 'archived' | 'trash';
   pinned?: boolean;
@@ -151,6 +159,13 @@ export function listQuickNotes(db: Database, filters: QuickNoteFilters) {
   if (view === 'active') where.push('q.archived_at IS NULL');
   if (view === 'archived') where.push('q.archived_at IS NOT NULL');
 
+  if (filters.owner_contact_ids) {
+    if (filters.owner_contact_ids.length === 0) where.push('1 = 0');
+    else {
+      where.push(`q.owner_contact_id IN (${filters.owner_contact_ids.map(() => '?').join(',')})`);
+      params.push(...filters.owner_contact_ids);
+    }
+  }
   if (filters.pinned) where.push('q.is_pinned = 1');
   if (filters.has_reminder) where.push(`q.reminder_at IS NOT NULL`);
   if (filters.checklist) where.push(`q.content_json LIKE '%"type":"checkListItem"%'`);
@@ -190,7 +205,11 @@ export function listQuickNotes(db: Database, filters: QuickNoteFilters) {
   return rows.map((row) => reload(db, row.id));
 }
 
-export function createQuickNote(db: Database, input: QuickNoteInput) {
+export function createQuickNote(
+  db: Database,
+  input: QuickNoteInput,
+  ownerContactId: number | null = null
+) {
   const contentText = input.content_text ?? '';
   const title = input.title?.trim() || deriveTitle(contentText);
   const tags = input.tags ?? [];
@@ -199,8 +218,9 @@ export function createQuickNote(db: Database, input: QuickNoteInput) {
   const id = db
     .prepare(
       `INSERT INTO quick_notes
-        (title, content_json, content_text, search_text, tags, position, color, reminder_at, reminder_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        (title, content_json, content_text, search_text, tags, position, color, reminder_at,
+         reminder_status, owner_contact_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       title,
@@ -211,7 +231,8 @@ export function createQuickNote(db: Database, input: QuickNoteInput) {
       position,
       input.color ?? null,
       input.reminder_at ?? null,
-      input.reminder_at ? 'pending' : null
+      input.reminder_at ? 'pending' : null,
+      ownerContactId
     ).lastInsertRowid;
   return getQuickNote(db, Number(id));
 }

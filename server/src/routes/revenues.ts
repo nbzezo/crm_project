@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { CONTRACT_KINDS, CONTRACT_TERMS, REVENUE_STAGES, SERVICE_STATUSES } from '../lib/crm.ts';
@@ -93,8 +94,16 @@ function resolveYear(value: unknown): number {
   return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : new Date().getFullYear();
 }
 
-/** Bo loc dung chung cho danh sach dong va bang tong hop. */
-function buildFilters(query: Record<string, unknown>): { sql: string; params: unknown[] } {
+/**
+ * Bo loc dung chung cho danh sach dong va bang tong hop.
+ *
+ * Nhan ca `req` chu khong chi `query`: dieu kien pham vi du lieu phai ghep o
+ * DAY, khong phai o tung endpoint. `/summary` nhung lai bo loc nay vao bon truy
+ * van tong hop khac nhau — them o mot cho ma quen ba cho kia se cho ra nhung con
+ * so khong khop voi danh sach ben canh.
+ */
+function buildFilters(req: Request): { sql: string; params: unknown[] } {
+  const query = req.query as Record<string, unknown>;
   const where: string[] = [];
   const params: unknown[] = [];
 
@@ -127,6 +136,7 @@ function buildFilters(query: Record<string, unknown>): { sql: string; params: un
     where.push('cs.am = ?');
     params.push(String(query.am));
   }
+  pushScope(where, params, scopeWhereOrUnowned(req, 'revenues', 'read', 'cs.owner_contact_id'));
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
@@ -173,7 +183,7 @@ function attachMonths(lines: Record<string, unknown>[], year: number) {
 
 router.get('/lines', (req, res) => {
   const year = resolveYear(req.query.year);
-  const { sql, params } = buildFilters(req.query as Record<string, unknown>);
+  const { sql, params } = buildFilters(req);
   const lines = db
     .prepare(
       `${LINE_SELECT} ${sql}
@@ -191,8 +201,9 @@ router.post('/lines', (req, res) => {
   const info = db
     .prepare(
       `INSERT INTO customer_services (customer_id, service_id, contract_id, am, contract_kind,
-                                      contract_term, status, start_date, end_date, notes, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                      contract_term, status, start_date, end_date, notes, search_text,
+                                      owner_contact_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.customer_id,
@@ -205,7 +216,8 @@ router.post('/lines', (req, res) => {
       body.start_date ?? null,
       body.end_date ?? null,
       body.notes ?? '',
-      buildSearchText(body.am, body.notes)
+      buildSearchText(body.am, body.notes),
+      defaultOwner(req)
     );
   res.status(201).json(reloadLine(Number(info.lastInsertRowid), new Date().getFullYear()));
 });
@@ -367,7 +379,7 @@ router.put('/period-stage', (req, res) => {
  */
 router.get('/summary', (req, res) => {
   const year = resolveYear(req.query.year);
-  const { sql, params } = buildFilters(req.query as Record<string, unknown>);
+  const { sql, params } = buildFilters(req);
   const lineFilter = `SELECT cs.id FROM customer_services cs JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer' ${sql}`;
 
   const months = db

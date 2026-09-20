@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { ORG_KINDS } from '@workflow/contracts';
@@ -128,6 +129,9 @@ router.get('/', (req, res) => {
     where.push(`c.status = ?`);
     params.push(status);
   }
+  /* Pham vi du lieu. `OrUnowned` vi so danh ba co the chua ban ghi chua ai nhan
+     — chung chi hien voi nguoi co pham vi toan cong ty. */
+  pushScope(where, params, scopeWhereOrUnowned(req, 'customers', 'read', 'c.owner_contact_id'));
   const sql = `${LIST_SQL} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY c.name COLLATE NOCASE`;
   res.json(db.prepare(sql).all(...params));
 });
@@ -174,8 +178,8 @@ router.post('/', (req, res) => {
   const info = db
     .prepare(
       `INSERT INTO customers (name, short_name, tax_code, industry, address, website, phone, email,
-                              size, source, status, org_kind, notes, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                              size, source, status, org_kind, notes, search_text, owner_contact_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.name,
@@ -199,7 +203,8 @@ router.post('/', (req, res) => {
         body.phone,
         email,
         taxCode
-      )
+      ),
+      defaultOwner(req)
     );
   res
     .status(201)
@@ -212,6 +217,7 @@ router.get('/:id/full', (req, res) => {
     db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
     'Khong tim thay khach hang'
   ) as Record<string, unknown>;
+  assertInScope(req, 'customers', 'read', customer.owner_contact_id as number | null);
 
   const contacts = db
     .prepare(`SELECT * FROM contacts WHERE customer_id = ? ORDER BY is_primary DESC, full_name`)
@@ -312,6 +318,10 @@ router.patch('/:id', (req, res) => {
     db.prepare(`SELECT * FROM customers WHERE id = ?`).get(id),
     'Khong tim thay khach hang'
   ) as Record<string, string | null>;
+  /* Chan danh sach thoi thi chua du: khong co dong nay, doan id la sua duoc ban
+     ghi cua nguoi khac. 404 chu khong 403 — ngoai pham vi thi "khong ton tai" va
+     "khong duoc xem" phai khong phan biet duoc. */
+  assertInScope(req, 'customers', 'update', current.owner_contact_id as number | null);
 
   const merged = { ...current, ...body };
   const orgKind = merged.org_kind ?? 'customer';
@@ -378,6 +388,11 @@ router.get('/:id/impact', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  const current = required(
+    db.prepare(`SELECT owner_contact_id FROM customers WHERE id = ?`).get(id),
+    'Khong tim thay khach hang'
+  ) as { owner_contact_id: number | null };
+  assertInScope(req, 'customers', 'delete', current.owner_contact_id);
   db.prepare(`DELETE FROM customers WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

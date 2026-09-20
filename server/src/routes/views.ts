@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/connection.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
+import { scopeWhereOrUnowned } from '../lib/scope.ts';
 import { fold } from '../lib/viSearch.ts';
 import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
@@ -108,6 +109,17 @@ router.get('/tasks', (req, res) => {
     }
   }
   if (req.query.unassigned === '1') where.push(`k.assignee_contact_id IS NULL`);
+  /* Pham vi cong viec: viec tren bang minh thay, CONG viec giao cho minh o bat
+     ky dau. Trung tam cua luat nay la nguoi dung phai luon mo duoc chinh viec
+     minh dang phai lam, ke ca khi no nam tren bang cua nguoi khac.
+
+     Viec CHUA GIAO cung hien: do la rui ro lon nhat tren mot bang, giau di thi
+     khong ai biet no ton tai. */
+  const taskScope = scopeWhereOrUnowned(req, 'tasks', 'read', 'b.owner_contact_id');
+  if (taskScope.sql) {
+    where.push(`(${taskScope.sql} OR k.assignee_contact_id = ? OR k.assignee_contact_id IS NULL)`);
+    params.push(...taskScope.params, actorContactId(req));
+  }
   if (req.query.done === '1') where.push(`k.is_done = 1`);
   if (req.query.done === '0') where.push(`k.is_done = 0`);
   if (req.query.card_status) {

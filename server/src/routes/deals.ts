@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { assertInScope, defaultOwner, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
@@ -115,9 +116,17 @@ function reload(id: number) {
 
 router.get('/', (req, res) => {
   const customerId = req.query.customer_id ? Number(req.query.customer_id) : null;
+  /* Dieu kien pham vi di vao WHERE NGOAI. DEAL_SELECT co INNER JOIN toi view
+     `deal_scorecard`; nhet dieu kien vao trong view hay vao menh de JOIN se doi
+     ca hinh dang ket qua chu khong chi loc bot dong. */
+  const scope = scopeWhereOrUnowned(req, 'deals', 'read', 'd.owner_contact_id');
   const rows = db
-    .prepare(`${DEAL_SELECT} WHERE (? IS NULL OR d.customer_id = ?) ORDER BY d.position, d.id`)
-    .all(customerId, customerId) as {
+    .prepare(
+      `${DEAL_SELECT} WHERE (? IS NULL OR d.customer_id = ?)` +
+        (scope.sql ? ` AND ${scope.sql}` : '') +
+        ` ORDER BY d.position, d.id`
+    )
+    .all(customerId, customerId, ...scope.params) as {
     stage: string;
     value_vnd: number;
     probability: number;
@@ -166,8 +175,8 @@ router.post('/', (req, res) => {
       `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
                           won_value_vnd, position, expected_close_date, source, need, competitor,
                           next_action, next_action_date, lost_reason, lost_note, is_renewal, notes,
-                          project_id, handover_ready, search_text, closed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          project_id, handover_ready, search_text, owner_contact_id, closed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                ${isClosed(stage) ? `datetime('now','localtime')` : 'NULL'})`
     )
     .run(
@@ -192,7 +201,10 @@ router.post('/', (req, res) => {
       body.notes ?? '',
       body.project_id ?? null,
       body.handover_ready ? 1 : 0,
-      buildSearchText(body.title, body.product, body.need, body.notes)
+      buildSearchText(body.title, body.product, body.need, body.notes),
+      /* Mac dinh chu la nguoi tao. Khong co dong nay thi co hoi vua tao se vo chu
+         va bien mat khoi chinh danh sach cua nguoi vua tao ra no. */
+      defaultOwner(req)
     );
   res.status(201).json(reload(Number(info.lastInsertRowid)));
 });
@@ -200,6 +212,13 @@ router.post('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const deal = required(reload(id), 'Khong tim thay co hoi') as Record<string, unknown>;
+  assertInScope(
+    req,
+    'deals',
+    'read',
+    deal.owner_contact_id as number | null,
+    'Khong tim thay co hoi'
+  );
   const quotations = db
     .prepare(`SELECT * FROM quotations WHERE deal_id = ? ORDER BY version DESC, id DESC`)
     .all(id);
@@ -293,6 +312,13 @@ router.patch('/:id', (req, res) => {
     db.prepare(`SELECT * FROM deals WHERE id = ?`).get(id),
     'Khong tim thay co hoi'
   ) as Record<string, unknown>;
+  assertInScope(
+    req,
+    'deals',
+    'update',
+    current.owner_contact_id as number | null,
+    'Khong tim thay co hoi'
+  );
 
   /* S08: tam dung phai co ly do va ngay xem xet lai (dac ta 5.2), neu khong no
      chi la mot co hoi bi bo quen mang mot cai nhan de chiu hon. */
@@ -632,6 +658,11 @@ router.delete('/:id/handover/:itemId', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  const current = required(
+    db.prepare(`SELECT owner_contact_id FROM deals WHERE id = ?`).get(id),
+    'Khong tim thay co hoi'
+  ) as { owner_contact_id: number | null };
+  assertInScope(req, 'deals', 'delete', current.owner_contact_id, 'Khong tim thay co hoi');
   db.prepare(`DELETE FROM deals WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

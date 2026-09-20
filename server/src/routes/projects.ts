@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { PROJECT_STATUSES, RISK_KINDS, RISK_SEVERITIES, RISK_STATUSES } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
+import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { auditFromRequest, listChanges, recordChanges } from '../lib/changeLog.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
@@ -110,6 +111,9 @@ router.get('/', (req, res) => {
     where.push(`p.search_text LIKE '%' || ? || '%'`);
     params.push(q);
   }
+  /* `projects.owner_contact_id` co tu v17 — dung lai lam truc pham vi thay vi
+     them mot cot chu so huu thu hai. Hai cot cho cung mot cau hoi se lech nhau. */
+  pushScope(where, params, scopeWhereOrUnowned(req, 'projects', 'read', 'p.owner_contact_id'));
 
   const rows = db
     .prepare(
@@ -123,12 +127,18 @@ router.get('/', (req, res) => {
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  const project = decorateProject(
-    required(
-      db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(id),
-      'Khong tim thay du an'
-    ) as Record<string, unknown>
+  const projectRow = required(
+    db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(id),
+    'Khong tim thay du an'
+  ) as Record<string, unknown>;
+  assertInScope(
+    req,
+    'projects',
+    'read',
+    projectRow.owner_contact_id as number | null,
+    'Khong tim thay du an'
   );
+  const project = decorateProject(projectRow);
 
   const boards = db
     .prepare(
@@ -205,7 +215,9 @@ router.post('/', (req, res) => {
   assertProjectDates(body);
   assertProjectCanComplete(0, body);
   // Nguoi phu trach du an chiu chung rang buoc "con hoat dong" voi nguoi phu trach viec.
-  const owner = resolveAssignee(db, body.owner_contact_id).assignee_contact_id;
+  /* Khong chon chu du an thi mac dinh la nguoi tao — mot du an vo chu se bien
+     mat khoi danh sach cua chinh nguoi vua tao ra no. */
+  const owner = resolveAssignee(db, defaultOwner(req, body.owner_contact_id)).assignee_contact_id;
   if (body.customer_id != null) {
     required(
       db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),

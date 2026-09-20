@@ -1,10 +1,11 @@
 import fs from 'node:fs';
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { DOC_TYPES, PRIORITIES } from '@workflow/contracts';
 import { taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
-import { actorContactId } from '../middleware/currentUser.ts';
+import { accessOf, actorContactId } from '../middleware/currentUser.ts';
+import { assertInScope } from '../lib/scope.ts';
 import { deriveTaskLinks } from '../lib/entityRelations.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
@@ -161,15 +162,42 @@ const briefResponseSchema = z.object({
   sources: z.array(z.string()).max(20).default([]),
 });
 
+/**
+ * Pham vi du lieu cua tro ly AI cho request hien tai.
+ *
+ * Dung `deals:read` lam thuoc do chung: ngu canh gui cho AI la du lieu thuong
+ * mai, va mot nguoi khong doc duoc pipeline thi cung khong duoc nghe AI ke lai
+ * noi dung cua no.
+ */
+function aiScope(req: Request): number[] | null {
+  const visible = accessOf(req).visibleContactIds('deals', 'read');
+  return visible === 'all' ? null : visible;
+}
+
+/** Chan hoi AI ve mot khach hang / co hoi nam ngoai pham vi cua nguoi hoi. */
+function assertContextInScope(req: Request, type: string, id: number | undefined): void {
+  if (id == null) return;
+  if (type === 'customer') {
+    const row = db.prepare('SELECT owner_contact_id FROM customers WHERE id = ?').get(id) as
+      { owner_contact_id: number | null } | undefined;
+    assertInScope(req, 'customers', 'read', row?.owner_contact_id, 'Khong tim thay khach hang');
+  } else if (type === 'deal') {
+    const row = db.prepare('SELECT owner_contact_id FROM deals WHERE id = ?').get(id) as
+      { owner_contact_id: number | null } | undefined;
+    assertInScope(req, 'deals', 'read', row?.owner_contact_id, 'Khong tim thay co hoi');
+  }
+}
+
 router.post('/brief', async (req, res) => {
   try {
     const body = parseBody(briefRequestSchema, req);
     if (body.context_type !== 'today' && !body.context_id) {
       throw new HttpError(400, 'Thiếu context_id');
     }
+    assertContextInScope(req, body.context_type, body.context_id);
     const context =
       body.context_type === 'today'
-        ? buildTodayContext(db)
+        ? buildTodayContext(db, aiScope(req))
         : body.context_type === 'customer'
           ? buildCustomerContext(db, body.context_id!)
           : buildDealContext(db, body.context_id!);
@@ -210,6 +238,7 @@ const interactionAssistResponse = z.object({
 router.post('/assist/interaction', async (req, res) => {
   try {
     const body = parseBody(interactionAssistSchema, req);
+    assertContextInScope(req, body.deal_id ? 'deal' : 'customer', body.deal_id ?? body.customer_id);
     const context = body.deal_id
       ? buildDealContext(db, body.deal_id)
       : buildCustomerContext(db, body.customer_id);
@@ -801,7 +830,7 @@ router.post('/ask', async (req, res) => {
         body.scope === 'documents'
           ? null
           : {
-              today: buildTodayContext(db),
+              today: buildTodayContext(db, aiScope(req)),
               search_matches: searchCrm(body.question),
               recent_quick_notes: recentQuickNotes(),
             },

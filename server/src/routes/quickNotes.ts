@@ -8,6 +8,7 @@ import {
   quickNoteRelationSchema,
 } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
+import { accessOf, actorContactId } from '../middleware/currentUser.ts';
 import { intParam, parseBody } from '../lib/validate.ts';
 import { createMeetingNote } from '../services/meetingNoteService.ts';
 import {
@@ -36,7 +37,9 @@ function boolQuery(value: unknown): boolean {
 
 router.get('/', (req, res) => {
   const view = req.query.view;
+  const visible = accessOf(req).visibleContactIds('notes', 'read');
   const filters: QuickNoteFilters = {
+    owner_contact_ids: visible === 'all' ? undefined : visible,
     q: typeof req.query.q === 'string' ? req.query.q : undefined,
     view: view === 'archived' || view === 'trash' ? view : 'active',
     pinned: boolQuery(req.query.pinned),
@@ -53,7 +56,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(quickNoteInputSchema, req);
-  res.status(201).json(createQuickNote(db, body));
+  res.status(201).json(createQuickNote(db, body, actorContactId(req)));
 });
 
 /** Danh sach tag khong trung — phai dung TRUOC '/:id' de khong bi intParam bat nham. */

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { QUOTATION_STATUSES } from '../lib/crm.ts';
 import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
@@ -62,6 +63,18 @@ router.get('/', (req, res) => {
     where.push('q.status = ?');
     params.push(String(req.query.status));
   }
+  /* Bao gia suy chu so huu tu co hoi, khong thi tu khach hang — cung luat voi
+     hop dong. Xem chu thich o routes/contracts.ts. */
+  pushScope(
+    where,
+    params,
+    scopeWhereOrUnowned(
+      req,
+      'quotations',
+      'read',
+      'COALESCE(d.owner_contact_id, c.owner_contact_id)'
+    )
+  );
   res.json(
     db
       .prepare(

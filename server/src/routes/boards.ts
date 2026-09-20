@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { defaultOwner, scopeWhereOrUnowned } from '../lib/scope.ts';
+import { accessOf } from '../middleware/currentUser.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
@@ -79,6 +81,17 @@ function boardCustomerForProject(
 
 router.get('/', (req, res) => {
   const includeArchived = req.query.archived === '1';
+  /* Ngoai bang minh so huu, luon thay ca bang co viec GIAO CHO MINH — neu khong,
+     mot nhan vien duoc giao viec tren bang cua truong phong se khong mo duoc
+     chinh cong viec do. Phan quyen phai khong chan duoc duong lam viec binh thuong. */
+  const scope = scopeWhereOrUnowned(req, 'boards', 'read', 'b.owner_contact_id');
+  const me = accessOf(req).contactId;
+  const scopeSql = scope.sql
+    ? ` AND (${scope.sql} OR EXISTS (
+            SELECT 1 FROM cards k JOIN lists l ON l.id = k.list_id
+             WHERE l.board_id = b.id AND k.assignee_contact_id = ?
+          ))`
+    : '';
   const rows = db
     .prepare(
       `SELECT b.*, c.name AS customer_name, p.name AS project_name,
@@ -87,10 +100,10 @@ router.get('/', (req, res) => {
          FROM boards b
          LEFT JOIN customers c ON c.id = b.customer_id
          LEFT JOIN projects p ON p.id = b.project_id
-        WHERE (? = 1 OR b.is_archived = 0)
+        WHERE (? = 1 OR b.is_archived = 0)${scopeSql}
         ORDER BY b.is_archived, b.is_starred DESC, b.updated_at DESC`
     )
-    .all(includeArchived ? 1 : 0);
+    .all(includeArchived ? 1 : 0, ...scope.params, ...(scope.sql ? [me] : []));
   res.json(rows);
 });
 
@@ -102,10 +115,17 @@ router.post('/', (req, res) => {
   const result = db.transaction(() => {
     const info = db
       .prepare(
-        `INSERT INTO boards (name, color, background, customer_id, project_id)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO boards (name, color, background, customer_id, project_id, owner_contact_id)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(body.name, background, background, customerId, body.project_id ?? null);
+      .run(
+        body.name,
+        background,
+        background,
+        customerId,
+        body.project_id ?? null,
+        defaultOwner(req)
+      );
     const boardId = Number(info.lastInsertRowid);
     const insertList = db.prepare(
       `INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`

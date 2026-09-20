@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { assertInScope, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
@@ -71,6 +72,23 @@ function reload(id: number) {
   return db.prepare(`${CONTRACT_SELECT} WHERE k.id = ?`).get(id);
 }
 
+/** Chu so huu suy ra cua mot hop dong — dung cho cac route ghi tren mot ban ghi. */
+function assertContractInScope(req: Request, id: number, action: 'update' | 'delete'): void {
+  const row = required(
+    db
+      .prepare(
+        `SELECT COALESCE(d.owner_contact_id, c.owner_contact_id) AS owner_contact_id
+           FROM contracts k
+           JOIN customers c ON c.id = k.customer_id
+           LEFT JOIN deals d ON d.id = k.deal_id
+          WHERE k.id = ?`
+      )
+      .get(id),
+    'Khong tim thay hop dong'
+  ) as { owner_contact_id: number | null };
+  assertInScope(req, 'contracts', action, row.owner_contact_id, 'Khong tim thay hop dong');
+}
+
 router.get('/', (req, res) => {
   const where: string[] = [];
   const params: unknown[] = [];
@@ -87,6 +105,20 @@ router.get('/', (req, res) => {
     where.push('k.customer_id = ?');
     params.push(Number(req.query.customer_id));
   }
+  /* Hop dong khong mang cot chu so huu rieng — no suy tu co hoi sinh ra no, hoac
+     tu khach hang khi khong gan co hoi nao. COALESCE o menh de WHERE chu khong
+     phai o JOIN: `LEFT JOIN deals` phai giu nguyen la LEFT, neu khong hop dong
+     khong gan co hoi se bien mat. */
+  pushScope(
+    where,
+    params,
+    scopeWhereOrUnowned(
+      req,
+      'contracts',
+      'read',
+      'COALESCE(d.owner_contact_id, c.owner_contact_id)'
+    )
+  );
   res.json(
     db
       .prepare(
@@ -156,6 +188,7 @@ router.get('/:id', (req, res) => {
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(contractSchema.partial(), req);
+  assertContractInScope(req, id, 'update');
   const current = required(
     db.prepare(`SELECT * FROM contracts WHERE id = ?`).get(id),
     'Khong tim thay hop dong'
@@ -271,6 +304,7 @@ router.post('/:id/renew', (req, res) => {
 /** Khong xoa hop dong con dong doanh thu gan vao, giong guard cua DELETE /api/services/:id. */
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertContractInScope(req, id, 'delete');
   const used = db
     .prepare(`SELECT COUNT(*) AS n FROM customer_services WHERE contract_id = ?`)
     .get(id) as { n: number };

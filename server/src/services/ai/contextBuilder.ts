@@ -5,7 +5,33 @@ function rows(db: Database, sql: string, params: unknown[] = [], limit = 40): un
   return db.prepare(`${sql} LIMIT ${Math.max(1, Math.min(limit, 100))}`).all(...params);
 }
 
-export function buildTodayContext(db: Database) {
+/**
+ * Pham vi du lieu ma tro ly AI duoc doc.
+ *
+ * `null` = khong gioi han. Mot mang = danh sach contact id duoc phep.
+ *
+ * DAY LA DUONG RO RI NGUY HIEM NHAT trong ca he phan quyen. Cac man hinh deu loc
+ * theo pham vi, nhung neu ngu canh gui cho AI thi khong, bat ky ai cung moi duoc
+ * du lieu cua phong khac ra chi bang mot cau hoi thuong — va khong man hinh nao
+ * lam lo ra dieu do. Moi truy van o day phai di qua `scoped()`.
+ */
+export type AiScope = number[] | null;
+
+/** Dieu kien `IN (...)` cho mot cot, hoac chuoi rong khi khong gioi han. */
+function scopeClause(scope: AiScope, column: string): { sql: string; params: number[] } {
+  if (scope === null) return { sql: '', params: [] };
+  if (scope.length === 0) return { sql: ` AND 1 = 0`, params: [] };
+  return { sql: ` AND ${column} IN (${scope.map(() => '?').join(',')})`, params: [...scope] };
+}
+
+export function buildTodayContext(db: Database, scope: AiScope = null) {
+  /* Cong viec: cua toi hoac giao cho toi. Ngu canh "hom nay" von la ve viec cua
+     chinh nguoi dang hoi, nen loc theo nguoi phu trach la dung nghia chu khong
+     chi dung ky thuat. */
+  const tasks = scopeClause(scope, 'k.assignee_contact_id');
+  const deals = scopeClause(scope, 'd.owner_contact_id');
+  const contracts = scopeClause(scope, 'c.owner_contact_id');
+  const reminders = scopeClause(scope, 'owner_contact_id');
   return {
     generated_at: new Date().toISOString(),
     overdue_tasks: rows(
@@ -14,9 +40,9 @@ export function buildTodayContext(db: Database) {
          FROM cards k
          LEFT JOIN customers c ON c.id = k.customer_id
          LEFT JOIN deals d ON d.id = k.deal_id
-        WHERE k.is_done = 0 AND k.is_archived = 0 AND k.due_date < date('now','localtime')
+        WHERE k.is_done = 0 AND k.is_archived = 0 AND k.due_date < date('now','localtime')${tasks.sql}
         ORDER BY k.due_date, CASE k.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END`,
-      [],
+      tasks.params,
       25
     ),
     tasks_today: rows(
@@ -25,9 +51,9 @@ export function buildTodayContext(db: Database) {
          FROM cards k
          LEFT JOIN customers c ON c.id = k.customer_id
          LEFT JOIN deals d ON d.id = k.deal_id
-        WHERE k.is_done = 0 AND k.is_archived = 0 AND date(k.due_date) = date('now','localtime')
+        WHERE k.is_done = 0 AND k.is_archived = 0 AND date(k.due_date) = date('now','localtime')${tasks.sql}
         ORDER BY CASE k.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END`,
-      [],
+      tasks.params,
       25
     ),
     overdue_next_actions: rows(
@@ -35,18 +61,18 @@ export function buildTodayContext(db: Database) {
       `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
               c.name AS customer_name
          FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage NOT IN ('won','lost') AND d.next_action_date < date('now','localtime')
+        WHERE d.stage NOT IN ('won','lost') AND d.next_action_date < date('now','localtime')${deals.sql}
         ORDER BY d.value_vnd DESC`,
-      [],
+      deals.params,
       20
     ),
     deals_without_next_action: rows(
       db,
       `SELECT d.id, d.title, d.stage, d.value_vnd, c.name AS customer_name
          FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage NOT IN ('won','lost') AND TRIM(COALESCE(d.next_action,'')) = ''
+        WHERE d.stage NOT IN ('won','lost') AND TRIM(COALESCE(d.next_action,'')) = ''${deals.sql}
         ORDER BY d.value_vnd DESC`,
-      [],
+      deals.params,
       20
     ),
     expiring_contracts: rows(
@@ -54,17 +80,17 @@ export function buildTodayContext(db: Database) {
       `SELECT k.id, k.name, k.number, k.end_date, k.value_vnd, c.name AS customer_name
          FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
         WHERE k.status = 'active' AND k.end_date BETWEEN date('now','localtime')
-              AND date('now','localtime','+30 days')
+              AND date('now','localtime','+30 days')${contracts.sql}
         ORDER BY k.end_date`,
-      [],
+      contracts.params,
       20
     ),
     upcoming_reminders: rows(
       db,
       `SELECT id, title, note, due_at, customer_id, deal_id FROM reminders
-        WHERE is_done = 0 AND due_at <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+7 days'))
+        WHERE is_done = 0 AND due_at <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+7 days'))${reminders.sql}
         ORDER BY due_at`,
-      [],
+      reminders.params,
       20
     ),
   };
