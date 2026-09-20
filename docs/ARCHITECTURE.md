@@ -2,8 +2,8 @@
 
 ## Tổng quan
 
-WorkFlow là ứng dụng local-first cho một người dùng. Client React giao tiếp với Express qua JSON
-API; Express lưu dữ liệu đồng bộ vào SQLite và file đính kèm trên cùng ổ đĩa.
+WorkFlow là ứng dụng nhiều người dùng có phân cấp quản lý. Client React giao tiếp với Express qua
+JSON API; Express lưu dữ liệu đồng bộ vào SQLite và file đính kèm trên cùng ổ đĩa.
 
 ```mermaid
 flowchart LR
@@ -78,15 +78,15 @@ flowchart LR
 
 ## Migration và dữ liệu runtime
 
-`server/src/db/migrate.ts` nâng tuần tự từ schema cũ lên phiên bản hiện tại (v19). Test chạy các
+`server/src/db/migrate.ts` nâng tuần tự từ schema cũ lên phiên bản hiện tại (v40). Test chạy các
 fixture v1, v4, v7, v9, v10, v14 và v18 lên phiên bản mới nhất để phát hiện mất dữ liệu, và khẳng định các
 mặc định của v15 (khách hàng cũ vẫn là `org_kind = 'customer'`, người liên hệ cũ vẫn `is_active = 1`).
 Đường dẫn runtime được điều khiển bằng `WORKFLOW_DATA_DIR` và `WORKFLOW_DB_PATH`; test dùng DB bộ nhớ
 hoặc thư mục tạm cách ly.
 
-Năm phiên bản gần nhất: v15 người phụ trách + sổ danh bạ tổ chức · v16 vòng đời trạng thái và nhật ký
-nhắc việc · v17 lớp dự án · v18 trượt hạn, khối lượng và phụ thuộc · v19 cột khai báo nghĩa vòng đời và
-dự án suy từ bảng.
+Năm phiên bản gần nhất: v36 nhà cung cấp AI 9Router · v37 phiên trò chuyện với Trợ lý AI · v38 nhiều
+người dùng và đăng nhập bằng email · v39 cây đơn vị, vị trí và ma trận phân quyền · v40 chủ sở hữu bản
+ghi (phân quyền dữ liệu).
 
 v19 có hai điểm cần lưu ý khi đọc migration: `DROP COLUMN` chỉ chạy được sau khi **xóa index tham
 chiếu tới cột đó** (SQLite từ chối bỏ cột còn index trỏ vào), và backfill `status_mapping` phải làm ở
@@ -99,6 +99,52 @@ Quality gate là `npm run check`: Prettier, ESLint, TypeScript, unit/integration
 production build, bundle budget và Playwright E2E. E2E chạy production client bằng Chromium ở
 desktop và mobile, xác minh route/deep-link/search cùng tràn ngang trên Dashboard và Board.
 
-Phần bảo mật được chủ động để ngoài phạm vi đợt nâng cấp này theo quyết định sản phẩm; cần một đợt
-threat modeling và hardening riêng trước khi thay đổi mô hình local một người dùng hoặc đưa dịch vụ
-ra mạng công cộng.
+## Phân cấp quản lý và phân quyền (v38–v40)
+
+**CEO / Giám đốc Trung tâm / Giám đốc Khối / Trưởng phòng không phải bốn loại vị trí khác nhau.**
+Chúng là *cùng một* loại — "quản lý đơn vị" — đặt ở *độ sâu khác nhau* trong `org_units`. Ba vị trí
+quản lý được seed với bộ quyền **giống hệt nhau**; đó không phải trùng lặp cần gom mà là bằng chứng
+mô hình đúng, và `server/src/test/permissions.test.ts` khẳng định nó bằng một phép so chuỗi. Mã hoá
+cứng bốn cấp thì thêm cấp thứ năm phải sửa code; với cây `parent_id` thì chỉ là thêm một node.
+
+Ba trục tách rời, cố ý không gộp:
+
+- **`org_units`** trả lời *dữ liệu của ai* — cây độ sâu tuỳ ý. `contacts.org_unit_id` là **nguồn sự
+  thật duy nhất** về chỗ ngồi; đơn vị một quản lý phụ trách *chính là* đơn vị họ ngồi, nên không nhân
+  bản cột đơn vị sang `user_positions`.
+- **`positions` + `position_permissions`** trả lời *được làm gì*. Là **dữ liệu**, sửa lúc chạy. Danh
+  mục `resource × action × scope` thì nằm trong code (`packages/contracts/src/permissions.ts`) vì một
+  resource không có màn hình và endpoint thì có tạo trong CSDL cũng vô nghĩa.
+- **`org_unit_kinds`** (Công ty/Trung tâm/Khối/Phòng/Tổ) chỉ là **nhãn hiển thị**. Trộn nó vào quyền
+  sẽ sinh ra câu hỏi vô nghĩa kiểu "Khối có nhiều quyền hơn Phòng không".
+
+Hai lớp chặn độc lập, đều cần thiết:
+
+| Lớp | Ở đâu | Trả lời |
+|---|---|---|
+| Tính năng | `requireResource()` cạnh danh sách mount trong `app.ts` | Vào được màn hình nào |
+| Dữ liệu | `lib/scope.ts`, ghép vào từng truy vấn | Trong màn hình đó thấy dòng nào |
+
+- **`position_permissions` lưu thưa**: không có dòng nghĩa là `none`. Nhờ vậy thêm một resource mới
+  trong tương lai mặc định là **cấm** với mọi vị trí cũ, không phải cho.
+- **Không cache quyền xuyên request.** `Access` tính lại mỗi request; đổi một ô là request kế tiếp đã
+  theo quyền mới. Một cache quyền là một nguồn lệch, và lệch ở đây nghĩa là ai đó nhìn thấy dữ liệu
+  không được phép.
+- **Chỉ bảng gốc mang `owner_contact_id`** (`customers`, `deals`, `boards`, `customer_services` + bốn
+  bảng cá nhân). Mọi bảng con suy phạm vi qua JOIN sẵn có — cùng lý do `cards.project_id` bị xoá hẳn ở
+  v19: không có bản sao thì không thể lệch.
+- **Ngoài phạm vi trả 404, không phải 403.** Phân biệt "không tồn tại" với "không được xem" sẽ biến
+  việc dò id thành cách xem ai đang có dữ liệu gì.
+- **Hai ngoại lệ có chủ ý, đều có test:** việc *giao cho mình* luôn mở được dù nằm trên bảng người
+  khác (phân quyền không được chặn đường làm việc bình thường), và *ghi chú là dữ liệu cá nhân* nên
+  cấp trên không đọc được — đọc sổ nháp của nhân viên là giám sát, không phải quản lý, và nó sẽ làm
+  người ta ngừng ghi thật.
+- **`services/ai/contextBuilder.ts` phải lọc theo phạm vi người hỏi.** Đây là đường rò rỉ nguy hiểm
+  nhất: không màn hình nào làm lộ ra, nhưng một câu hỏi thường là moi được dữ liệu phòng khác.
+
+Không có seam chung cho 853 câu `.prepare(` trong server, nên lưới an toàn là
+`server/src/test/dataScope.test.ts` — đếm **đúng số dòng** cho từng vị trí trên từng endpoint. Kỷ luật
+một mình đã từng không đủ: luật `org_kind = 'customer'` cùng loại và đã bị quên ở vài chỗ.
+
+Module công nợ đầy đủ (hoá đơn, phiếu thu, tuổi nợ) là nợ kỹ thuật đã thống nhất hoãn — xem
+[TECH-DEBT-CONG-NO.md](TECH-DEBT-CONG-NO.md).

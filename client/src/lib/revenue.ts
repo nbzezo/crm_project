@@ -21,6 +21,24 @@ export function funnel(totals: RevenueTotals | undefined | null) {
   return { amount: t.amount_vnd, forecast: t.forecast_vnd, reconciled, invoiced, paid };
 }
 
+/**
+ * Công nợ: tiền ĐÃ XUẤT HOÁ ĐƠN mà khách chưa trả.
+ *
+ * Khác với "còn phải thu" trên dải phễu (`amount − paid`), vốn gộp cả phần chưa
+ * xuất hoá đơn — tức là tiền mình còn chưa có quyền đòi. Chỉ phần đã xuất hoá
+ * đơn mới là khoản khách đang nợ, và đó mới là con số kế toán làm việc cùng.
+ *
+ * Đây là số suy ra từ dữ liệu sẵn có. Tuổi nợ (quá hạn bao nhiêu ngày) cần
+ * hạn thanh toán trên từng hoá đơn — xem docs/TECH-DEBT-CONG-NO.md.
+ */
+export function receivable(totals: RevenueTotals | undefined | null): number {
+  const t = totals ?? EMPTY_TOTALS;
+  /* `stage_invoiced_vnd` là phần ĐANG dừng ở bước xuất hoá đơn; tiền đã thu đã
+     chuyển sang `stage_paid_vnd` nên không còn nằm ở đây. Vì vậy chính nó đã là
+     khoản chưa thu, không phải trừ thêm lần nữa. */
+  return t.stage_invoiced_vnd;
+}
+
 /** Cong don tong cua nhieu pham vi (vi du cong tat ca cac dong dang hien). */
 export function sumTotals(list: (RevenueTotals | undefined)[]): RevenueTotals {
   const out = { ...EMPTY_TOTALS };

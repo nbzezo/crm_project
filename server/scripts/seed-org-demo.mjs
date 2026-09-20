@@ -110,7 +110,7 @@ db.transaction(() => {
   const truongPhong = upsertPerson('Trần Trưởng Phòng', 'Trưởng phòng', phong1, 'department_head', 'truongphong@congty.vn');
   const nhanVien1 = upsertPerson('Nguyễn Nhân Viên', 'Nhân viên kinh doanh', phong1, 'staff', 'nhanvien1@congty.vn');
   const nhanVien2 = upsertPerson('Hoàng Nhân Viên Hai', 'Nhân viên kinh doanh', phong2, 'staff', 'nhanvien2@congty.vn');
-  const keToan = upsertPerson('Vũ Kế Toán', 'Kế toán doanh thu', khoiVH, 'revenue_admin', 'ketoan@congty.vn');
+  upsertPerson('Vũ Kế Toán', 'Kế toán doanh thu', khoiVH, 'revenue_admin', 'ketoan@congty.vn');
 
   db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(giamDocTT.contactId, trungTam);
   db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(giamDocKhoi.contactId, khoiDN);

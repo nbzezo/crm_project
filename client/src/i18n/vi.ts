@@ -321,6 +321,10 @@ export const t = {
   } as Record<string, string>,
   /** Doanh thu khách hàng hiện hữu. */
   revenue: {
+    receivable: 'Công nợ',
+    receivableHint:
+      'Tiền đã xuất hoá đơn mà khách chưa trả. Khác với "còn phải thu" ở dải phễu — số đó gộp cả phần chưa xuất hoá đơn, tức là tiền mình chưa có quyền đòi.',
+
     title: 'Doanh thu khách hàng hiện hữu',
     subtitle: 'Theo dõi kế hoạch, đối soát, hóa đơn và thu tiền.',
     line: 'Dòng doanh thu',

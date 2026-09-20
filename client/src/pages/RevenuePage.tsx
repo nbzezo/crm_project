@@ -39,7 +39,7 @@ import {
   t,
 } from '../i18n/vi';
 import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../lib/format';
-import { funnel } from '../lib/revenue';
+import { funnel, receivable } from '../lib/revenue';
 import type {
   RevenueCell,
   RevenueLine,
@@ -449,6 +449,9 @@ export default function RevenuePage() {
                   <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
                     {t.revenue.total}
                   </th>
+                  <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
+                    {t.revenue.receivable}
+                  </th>
                   {MONTHS.map((m) => (
                     <th scope="col" key={m} className="px-2 py-2.5 text-right whitespace-nowrap">
                       <button
@@ -506,6 +509,18 @@ export default function RevenuePage() {
                       title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
                     >
                       {formatVNDInput(line.totals.amount_vnd) || '0'}
+                    </td>
+                    <td
+                      className="bg-tr-surface px-3 py-1.5 text-right tabular-nums"
+                      title={t.revenue.receivableHint}
+                    >
+                      {receivable(line.totals) > 0 ? (
+                        <span className="font-semibold text-tr-warning">
+                          {formatVNDInput(receivable(line.totals))}
+                        </span>
+                      ) : (
+                        <span className="text-tr-muted">—</span>
+                      )}
                     </td>
                     {MONTHS.map((m) => {
                       const period = periodOf(year, m);

@@ -112,3 +112,46 @@ export function defaultOwner(req: Request, explicit?: number | null): number | n
   if (explicit != null) return explicit;
   return accessOf(req).contactId;
 }
+
+/**
+ * Dieu kien pham vi duoi dang MOT MANH SQL hoan chinh, khong co tham so.
+ *
+ * Tra ve chuoi rong khi khong gioi han, hoac ` AND <cot> IN (3,7,12)` — ghep
+ * thang vao cuoi menh de WHERE.
+ *
+ * VI SAO NHUNG ID NAM THANG TRONG SQL, khong qua `?`:
+ *
+ * `routes/views.ts` co hon nam muoi truy van tong hop, phan lon goi `.get()` hay
+ * `.all()` khong tham so nao. Luon tham so qua tung cho nghia la phai dem dung
+ * thu tu cho tung cau — va mot lan dem sai se khong lam test do ma chi tra ve
+ * con so sai lang le, dung loai loi te nhat trong mot he phan quyen.
+ *
+ * An toan vi cac id nay KHONG BAO GIO den tu dau vao nguoi dung: chung la
+ * `contacts.id` do chinh may chu doc ra tu CSDL o `Access.visibleContactIds()`.
+ * Du vay van ep kieu va loc lai o day — mot khang dinh ve nguon goc du lieu chi
+ * dung duoc chung nao con co ai kiem tra no.
+ */
+export function scopeFragment(
+  req: Request,
+  resource: PermissionResource,
+  action: PermissionAction,
+  column: string
+): string {
+  const visible = accessOf(req).visibleContactIds(resource, action);
+  if (visible === 'all') return '';
+  const ids = visible.filter((id) => Number.isInteger(id) && id > 0);
+  if (ids.length === 0) return ' AND 1 = 0';
+  return ` AND ${column} IN (${ids.join(',')})`;
+}
+
+/** Nhu `scopeFragment` nhung cho ca ban ghi chua co chu (xem `scopeWhereOrUnowned`). */
+export function scopeFragmentOrUnowned(
+  req: Request,
+  resource: PermissionResource,
+  action: PermissionAction,
+  column: string
+): string {
+  const fragment = scopeFragment(req, resource, action, column);
+  if (fragment === '' || fragment === ' AND 1 = 0') return fragment;
+  return ` AND (${fragment.slice(' AND '.length)} OR ${column} IS NULL)`;
+}

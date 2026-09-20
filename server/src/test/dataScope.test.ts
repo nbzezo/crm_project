@@ -101,9 +101,10 @@ function seedDataFor(owner: Person, label: string): void {
       .run(`Khách của ${label}`, owner.contactId).lastInsertRowid
   );
   db.prepare(
-    `INSERT INTO deals (customer_id, title, stage, position, owner_contact_id)
-     VALUES (?, ?, 'lead', 1024, ?)`
-  ).run(customerId, `Cơ hội của ${label}`, owner.contactId);
+    `INSERT INTO deals (customer_id, title, stage, position, value_vnd, expected_close_date,
+                        owner_contact_id)
+     VALUES (?, ?, 'lead', 1024, ?, date('now','localtime','+10 days'), ?)`
+  ).run(customerId, `Cơ hội của ${label}`, 100_000_000, owner.contactId);
   db.prepare(`INSERT INTO boards (name, owner_contact_id) VALUES (?, ?)`).run(
     `Bảng của ${label}`,
     owner.contactId
@@ -339,4 +340,79 @@ test('xuat toan bo CSDL van chi danh cho nguoi co quyen', async () => {
 
   await signInAs('admin');
   assert.equal((await call('GET', '/api/export')).status, 200);
+});
+
+/* ---------- Bao cao va Tong quan (v40, dot 4) ---------- */
+
+test('Tong quan: pipeline cua Truong phong dung bang tong cua cap duoi', async () => {
+  const totalOf = async () => {
+    const body = (await call('GET', '/api/views/dashboard')).data as {
+      kpi: { open_opportunity_count: number; pipeline_vnd: number };
+    };
+    return body.kpi;
+  };
+
+  await signInAs(n1);
+  const a = await totalOf();
+  await signInAs(n2);
+  const b = await totalOf();
+  await signInAs(head);
+  const h = await totalOf();
+  await signInAs('admin');
+  const all = await totalOf();
+
+  assert.equal(a.open_opportunity_count, 1);
+  assert.equal(b.open_opportunity_count, 1);
+
+  /* Truong phong = chinh minh + N1, KHONG gom N2 (phong khac). Day la phep kiem
+     co gia tri nhat cua ca trang bao cao: mot con so tong hop bi ro ri khong lam
+     man hinh nao vo, no chi lam nguoi doc tin vao mot con so khong phai cua ho. */
+  assert.equal(h.open_opportunity_count, 2);
+  assert.equal(all.open_opportunity_count, 3);
+  assert.ok(h.pipeline_vnd < all.pipeline_vnd, 'tong tien cung phai hep lai theo');
+});
+
+test('Bao cao: cong viec va co hoi deu loc theo pham vi', async () => {
+  await signInAs(n1);
+  const staff = (await call('GET', '/api/views/reports')).data as {
+    by_assignee: { contact_id: number | null }[];
+    pipeline_by_stage: { count: number }[];
+  };
+  const staffDeals = staff.pipeline_by_stage.reduce((sum, row) => sum + row.count, 0);
+
+  await signInAs('admin');
+  const admin = (await call('GET', '/api/views/reports')).data as {
+    by_assignee: { contact_id: number | null }[];
+    pipeline_by_stage: { count: number }[];
+  };
+  const adminDeals = admin.pipeline_by_stage.reduce((sum, row) => sum + row.count, 0);
+
+  assert.ok(staffDeals < adminDeals, 'bang bao cao cua nhan vien phai hep hon cua quan tri');
+});
+
+test('Suc khoe pipeline chi dem co hoi trong pham vi', async () => {
+  await signInAs(n1);
+  const staff = (await call('GET', '/api/views/pipeline-health')).data as { open_count: number };
+
+  await signInAs('admin');
+  const admin = (await call('GET', '/api/views/pipeline-health')).data as { open_count: number };
+
+  assert.equal(staff.open_count, 1);
+  assert.equal(admin.open_count, 3);
+});
+
+test('Lich khong hien moc cua co hoi ngoai pham vi', async () => {
+  const range = '?from=1970-01-01&to=2999-12-31';
+  /* Endpoint tra ve mot MANG PHANG gom nhieu loai muc, phan biet bang `kind`. */
+  const dealsOn = async () => {
+    const items = (await call('GET', `/api/views/calendar${range}`)).data as { kind: string }[];
+    return items.filter((item) => item.kind === 'deal_close').length;
+  };
+
+  await signInAs(n1);
+  const staff = await dealsOn();
+  await signInAs('admin');
+  const admin = await dealsOn();
+
+  assert.ok(staff < admin, 'moc chot cua co hoi tren lich cung phai theo pham vi');
 });

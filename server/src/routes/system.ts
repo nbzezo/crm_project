@@ -1,10 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { BACKUP_DIR, db } from '../db/connection.ts';
 import { createBackupFile } from '../lib/backup.ts';
 import { HttpError } from '../lib/validate.ts';
-import { requirePermission } from '../middleware/currentUser.ts';
+import { accessOf, requirePermission } from '../middleware/currentUser.ts';
+
+/**
+ * Xuat du lieu doi pham vi TOAN CONG TY, khong chi doi co quyen xuat.
+ *
+ * Ban xuat JSON va CSV la nhung cau truy van viet tay tren toan bang — chung
+ * KHONG di qua lop loc pham vi. Mot vi tri duoc cau hinh `data.export` o muc
+ * `Của mình` se nhan ve toan bo CSDL trong khi nguoi cau hinh tin rang ho vua
+ * gioi han lai. Tu choi thang con hon im lang lam sai y dinh cua ho.
+ *
+ * Muon xuat theo pham vi hep hon thi phai ghep bo loc vao tung cau CSV truoc —
+ * khi do bo dieu kien nay di.
+ */
+function requireFullExportScope(req: Request, _res: Response, next: NextFunction): void {
+  if (accessOf(req).scopeOf('data.export', 'export') === 'all') {
+    next();
+    return;
+  }
+  next(
+    new HttpError(
+      403,
+      'Xuất dữ liệu cần phạm vi Toàn công ty. Bản xuất không lọc theo đơn vị được.'
+    )
+  );
+}
 import { fold } from '../lib/viSearch.ts';
 
 const router = Router();
@@ -222,14 +246,19 @@ router.get('/backups/:name/download', requirePermission('data.export', 'export')
   res.download(file, name);
 });
 
-router.get('/export', requirePermission('data.export', 'export'), (_req, res) => {
-  const dump: Record<string, unknown[]> = {};
-  for (const table of EXPORT_TABLES) dump[table] = db.prepare(`SELECT * FROM ${table}`).all();
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename=workflow-export-${date}.json`);
-  res.send(JSON.stringify({ exported_at: new Date().toISOString(), data: dump }, null, 2));
-});
+router.get(
+  '/export',
+  requirePermission('data.export', 'export'),
+  requireFullExportScope,
+  (_req, res) => {
+    const dump: Record<string, unknown[]> = {};
+    for (const table of EXPORT_TABLES) dump[table] = db.prepare(`SELECT * FROM ${table}`).all();
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=workflow-export-${date}.json`);
+    res.send(JSON.stringify({ exported_at: new Date().toISOString(), data: dump }, null, 2));
+  }
+);
 
 /* ---------- NFR-06: xuat CSV cho Account / Contact / Opportunity / Task ---------- */
 
@@ -342,17 +371,22 @@ function toCsv(rows: Record<string, unknown>[]): string {
   ].join('\r\n');
 }
 
-router.get('/export/:entity.csv', requirePermission('data.export', 'export'), (req, res) => {
-  const entity = String(req.params.entity);
-  const query = CSV_QUERIES[entity];
-  if (!query) throw new HttpError(404, 'Khong ho tro xuat du lieu nay');
+router.get(
+  '/export/:entity.csv',
+  requirePermission('data.export', 'export'),
+  requireFullExportScope,
+  (req, res) => {
+    const entity = String(req.params.entity);
+    const query = CSV_QUERIES[entity];
+    if (!query) throw new HttpError(404, 'Khong ho tro xuat du lieu nay');
 
-  const rows = db.prepare(query.sql).all() as Record<string, unknown>[];
-  const date = new Date().toISOString().slice(0, 10);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename=${query.label}-${date}.csv`);
-  // BOM de Excel tren Windows doc dung tieng Viet
-  res.send('﻿' + toCsv(rows));
-});
+    const rows = db.prepare(query.sql).all() as Record<string, unknown>[];
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=${query.label}-${date}.csv`);
+    // BOM de Excel tren Windows doc dung tieng Viet
+    res.send('﻿' + toCsv(rows));
+  }
+);
 
 export default router;
