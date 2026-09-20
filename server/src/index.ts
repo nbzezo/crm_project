@@ -1,3 +1,6 @@
+/* PHAI dung dau: ESM chay than module phu thuoc theo thu tu viet, ma
+   db/connection.ts doc bien moi truong ngay khi duoc nap. */
+import './loadEnv.ts';
 import { createApp } from './app.ts';
 import { closeDatabase } from './db/connection.ts';
 import { db } from './db/connection.ts';
