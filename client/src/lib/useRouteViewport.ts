@@ -14,6 +14,10 @@ import { useLocation, useNavigationType } from 'react-router';
  *  - Dieu huong moi (`PUSH`/`REPLACE`): ve dau trang, va dua focus vao `<main>`
  *    de nguoi dung ban phim / trinh doc man hinh khong bi bo lai o vi tri cu
  *    trong thanh dieu huong (WCAG — focus sau khi chuyen trang).
+ *
+ * "Dieu huong moi" o day nghia la doi DUONG DAN. Doi query string trong cung mot
+ * trang (tab dang xem, bo loc) khong phai chuyen trang va khong duoc dung toi
+ * cuon lan focus.
  */
 
 /**
@@ -72,6 +76,16 @@ export function useRouteViewport(ref: RefObject<HTMLElement | null>): void {
    * chinh la ly do vi tri 600 tung bi ghi thanh 409 (chieu cao trang ke tiep).
    */
   const settling = useRef(true);
+  /**
+   * Duong dan cua lan chay truoc — de phan biet CHUYEN TRANG voi doi trang thai
+   * trong trang.
+   *
+   * `location.key` doi ca khi chi query string doi, ma mot tab hay mot bo loc
+   * ghi vao URL thi khong phai chuyen trang: keo focus ve `<main>` luc do se
+   * cuop focus khoi chinh cai tab nguoi dung vua bam, va phim End/Home trong
+   * tablist ngung hoat dong. Chi coi la chuyen trang khi `pathname` doi.
+   */
+  const lastPath = useRef<string | null>(null);
 
   /* Listener DONG GOI `location.key` cua chinh no thay vi doc tu ref: su kien
      cuon toi trong luc chuyen trang phai duoc ghi cho dung route dang so huu no,
@@ -115,6 +129,17 @@ export function useRouteViewport(ref: RefObject<HTMLElement | null>): void {
       settling.current = false;
     };
 
+    const samePage = lastPath.current === location.pathname;
+    lastPath.current = location.pathname;
+
+    /* Doi query string trong cung mot trang: khong cuon ve dau, khong doi focus.
+       Bam Back/Forward thi VAN khoi phuc cho cuon o nhanh duoi — quay lai la
+       quay lai, du chi doi mot tham so. */
+    if (samePage && navigationType !== 'POP') {
+      done();
+      return;
+    }
+
     if (navigationType === 'POP') {
       const saved = positions.current.get(location.key);
       if (saved !== undefined) {
@@ -142,5 +167,5 @@ export function useRouteViewport(ref: RefObject<HTMLElement | null>): void {
       window.clearTimeout(timer);
       done();
     };
-  }, [location.key, navigationType, ref]);
+  }, [location.key, location.pathname, navigationType, ref]);
 }

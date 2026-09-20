@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
@@ -13,13 +12,12 @@ import {
   ShieldCheck,
   Tag,
   Target,
-  UserCog,
   Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
 import type { TelegramConfig } from '../types';
-import { Button, Panel } from '../components/common/ui';
+import { Button, EmptyState, Panel } from '../components/common/ui';
 import { Tabs } from '../components/common/Tabs';
 import { PageHeader, PageShell } from '../components/common/PageShell';
 import { LabelManager } from '../components/labels/LabelManager';
@@ -32,12 +30,12 @@ import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
-import { AccountSettings } from '../components/settings/AccountSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
 import { UserSettings } from '../components/settings/UserSettings';
 import { OrgChartSettings } from '../components/settings/OrgChartSettings';
 import { PositionSettings } from '../components/settings/PositionSettings';
 import { usePermissionCheck, type PermissionKey } from '../lib/permissions';
+import { useSearchParams } from 'react-router';
 
 interface BackupFile {
   name: string;
@@ -55,58 +53,118 @@ const CSV_EXPORTS: [string, string][] = [
 ];
 
 type SettingsTab =
+  | 'users'
+  | 'org'
+  | 'positions'
   | 'labels'
   | 'scoring'
   | 'handover'
   | 'delivery'
-  | 'ai'
-  | 'telegram'
   | 'email'
-  | 'data'
-  | 'account'
-  | 'users'
-  | 'org'
-  | 'positions';
+  | 'telegram'
+  | 'ai'
+  | 'data';
 
-/* `permission` bo trong = ai cung thay. Tab Tai khoan luon hien: no chi chua
-   thong tin cua chinh nguoi dang dang nhap va o doi mat khau. */
+/*
+ * Muc Cai dat, xep theo BON NHOM.
+ *
+ * Truoc day day la mot danh sach phang muoi hai muc tren mot dai tab ngang —
+ * ma khung trang chi rong 896px nen nam muc cuoi khong bao gio hien ra. Te hon,
+ * chung tron bon loai viec khac han nhau: cau hinh quy trinh, ket noi ra ngoai,
+ * quan tri to chuc va viec ca nhan, khong co thu tu nao giai thich duoc.
+ *
+ * *Tai khoan* da chuyen ra menu avatar: no la thu duy nhat o day ma MOI nguoi
+ * deu dung, con muoi mot muc con lai deu la viec quan tri.
+ *
+ * `group` phai lien tuc theo thu tu mang — tieu de nhom chi ve o muc dau tien
+ * cua moi nhom (xem cho goi Tabs ben duoi).
+ */
 const SETTINGS_TABS: {
   key: SettingsTab;
   label: string;
   icon: LucideIcon;
+  group: string;
   permission?: PermissionKey;
 }[] = [
-  { key: 'labels', label: t.settings.tabLabels, icon: Tag, permission: 'settings.app:read' },
-  { key: 'scoring', label: t.settings.tabScoring, icon: Target, permission: 'settings.app:read' },
+  {
+    key: 'users',
+    label: t.settings.tabUsers,
+    icon: Users,
+    group: t.settings.groupOrg,
+    permission: 'admin.users:read',
+  },
+  {
+    key: 'org',
+    label: t.permissions.tabOrg,
+    icon: Network,
+    group: t.settings.groupOrg,
+    permission: 'admin.org:read',
+  },
+  {
+    key: 'positions',
+    label: t.permissions.tabPositions,
+    icon: ShieldCheck,
+    group: t.settings.groupOrg,
+    permission: 'admin.positions:read',
+  },
+
+  {
+    key: 'labels',
+    label: t.settings.tabLabels,
+    icon: Tag,
+    group: t.settings.groupProcess,
+    permission: 'settings.app:read',
+  },
+  {
+    key: 'scoring',
+    label: t.settings.tabScoring,
+    icon: Target,
+    group: t.settings.groupProcess,
+    permission: 'settings.app:read',
+  },
   {
     key: 'handover',
     label: t.settings.tabHandover,
     icon: PackageOpen,
+    group: t.settings.groupProcess,
     permission: 'settings.app:read',
   },
   {
     key: 'delivery',
     label: t.settings.tabDelivery,
     icon: GanttChartSquare,
+    group: t.settings.groupProcess,
     permission: 'settings.app:read',
   },
-  { key: 'ai', label: t.settings.tabAi, icon: Bot, permission: 'settings.ai:read' },
+
+  {
+    key: 'email',
+    label: t.settings.tabEmail,
+    icon: Mail,
+    group: t.settings.groupIntegration,
+    permission: 'settings.email:read',
+  },
   {
     key: 'telegram',
     label: t.settings.tabTelegram,
     icon: Send,
+    group: t.settings.groupIntegration,
     permission: 'settings.telegram:read',
   },
-  { key: 'email', label: t.settings.tabEmail, icon: Mail, permission: 'settings.email:read' },
-  { key: 'data', label: t.settings.tabData, icon: Database, permission: 'data.export:export' },
-  { key: 'account', label: t.settings.tabAccount, icon: UserCog },
-  { key: 'users', label: t.settings.tabUsers, icon: Users, permission: 'admin.users:read' },
-  { key: 'org', label: t.permissions.tabOrg, icon: Network, permission: 'admin.org:read' },
   {
-    key: 'positions',
-    label: t.permissions.tabPositions,
-    icon: ShieldCheck,
-    permission: 'admin.positions:read',
+    key: 'ai',
+    label: t.settings.tabAi,
+    icon: Bot,
+    group: t.settings.groupIntegration,
+    permission: 'settings.ai:read',
+  },
+
+  {
+    key: 'data',
+    label: t.settings.tabData,
+    icon: Database,
+    group: t.settings.groupData,
+    permission: 'data.export:export',
   },
 ];
 
@@ -232,36 +290,56 @@ function DataSettings() {
 
 export default function SettingsPage() {
   const allowed = usePermissionCheck();
-  /* Loc tab theo quyen. Nguoi khong quan tri gi van vao duoc trang Cai dat —
-     ho co tab Tai khoan de doi mat khau cua chinh minh. */
-  const visibleTabs = SETTINGS_TABS.filter((item) => allowed(item.permission));
-  const [tab, setTab] = useState<SettingsTab>(() => visibleTabs[0]?.key ?? 'account');
+  const [params, setParams] = useSearchParams();
 
-  /* Tab dang chon co the bien mat khi quyen bi thu hoi giua chung — roi ve tab
-     dau tien con lai thay vi hien mot vung trong khong giai thich duoc. */
-  const activeTab = visibleTabs.some((item) => item.key === tab)
-    ? tab
-    : (visibleTabs[0]?.key ?? 'account');
+  /* Moi muc con lai deu la viec quan tri — *Tai khoan* da chuyen ra menu avatar
+     vi no la thu duy nhat o day ma MOI nguoi deu dung. Nguoi khong co quyen
+     quan tri nao se khong thay muc Cai dat o thanh ben (xem Sidebar.tsx). */
+  const visibleTabs = SETTINGS_TABS.filter((item) => allowed(item.permission));
+
+  /* Tab nam trong URL chu khong phai useState: mot khu co muoi mot muc thi F5
+     mat cho dang xem, va khong gui duoc lien ket cho dong nghiep, la kho chiu
+     thay ro. */
+  const requested = params.get('tab') as SettingsTab | null;
+  const activeTab =
+    requested && visibleTabs.some((item) => item.key === requested)
+      ? requested
+      : (visibleTabs[0]?.key ?? 'users');
+
+  const setTab = (next: SettingsTab) => {
+    setParams((prev) => {
+      const copy = new URLSearchParams(prev);
+      copy.set('tab', next);
+      return copy;
+    });
+  };
+
+  if (visibleTabs.length === 0) {
+    return (
+      <PageShell width="narrow">
+        <PageHeader title={t.settings.pageTitle} className="mb-5" />
+        <EmptyState message={t.permissions.noAccessTitle} hint={t.permissions.noAccessHint} />
+      </PageShell>
+    );
+  }
 
   return (
-    <PageShell width="narrow" spacing="none">
-      <PageHeader
-        title={t.settings.pageTitle}
-        description={t.settings.pageSubtitle}
-        className="mb-5"
-      />
+    <PageShell width="wide" spacing="none">
+      <PageHeader title={t.settings.pageTitle} className="mb-5" />
 
       <Tabs
         value={activeTab}
         onChange={setTab}
-        items={visibleTabs.map((item) => ({
+        orientation="vertical"
+        items={visibleTabs.map((item, index) => ({
           value: item.key,
           label: item.label,
           icon: <item.icon size={15} aria-hidden="true" />,
+          /* Chi muc DAU TIEN cua moi nhom mang tieu de — cac muc sau nam duoi no. */
+          group: visibleTabs[index - 1]?.group === item.group ? undefined : item.group,
         }))}
         ariaLabel={t.settings.pageTitle}
         idPrefix="settingstab"
-        className="mb-4"
       >
         {activeTab === 'labels' && (
           <Panel title={t.settings.manageLabels}>
@@ -279,7 +357,6 @@ export default function SettingsPage() {
         {activeTab === 'telegram' && <TelegramSettings />}
         {activeTab === 'email' && <EmailSettings />}
         {activeTab === 'data' && <DataSettings />}
-        {activeTab === 'account' && <AccountSettings />}
         {activeTab === 'users' && <UserSettings />}
         {activeTab === 'org' && <OrgChartSettings />}
         {activeTab === 'positions' && <PositionSettings />}

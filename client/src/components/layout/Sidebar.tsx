@@ -89,7 +89,32 @@ const HOME_NAV: NavItem = {
   icon: LayoutDashboard,
   end: true,
 };
+/*
+ * Cai dat KHONG co `permission` rieng: no la mot trang gom nhieu muc, moi muc
+ * mot quyen. Hien/an no theo viec nguoi dung co it nhat MOT muc nao do hay
+ * khong — xem `canOpenSettings` ben duoi.
+ *
+ * Truoc khi *Tai khoan* chuyen ra menu avatar, ai cung co it nhat mot muc nen
+ * cau hoi nay khong ton tai. Nay mot Nhan vien khong con muc nao, va mo ra mot
+ * trang trong thi te hon la khong thay muc do.
+ */
 const SETTINGS_NAV: NavItem = { to: '/settings', label: t.nav.settings, icon: Settings };
+
+const SETTINGS_PERMISSIONS: PermissionKey[] = [
+  'settings.app:read',
+  'settings.ai:read',
+  'settings.email:read',
+  'settings.telegram:read',
+  'data.export:export',
+  'admin.users:read',
+  'admin.org:read',
+  'admin.positions:read',
+];
+
+function useCanOpenSettings(): boolean {
+  const allowed = usePermissionCheck();
+  return SETTINGS_PERMISSIONS.some((key) => allowed(key));
+}
 const QUICK_NOTES_NAV: NavItem = {
   to: '/quick-notes',
   label: t.nav.quickNotes,
@@ -442,6 +467,7 @@ interface SidebarNavProps {
 /** Phan noi dung dung chung cho ca thanh ben co dinh lan ngan keo tren mobile. */
 function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }: SidebarNavProps) {
   const groupItems = useGroupItems(order);
+  const canOpenSettings = useCanOpenSettings();
   const { data: boards = [] } = useBoards();
   const starred = boards.filter((board) => board.is_starred).slice(0, 5);
   const badges = useNavBadges();
@@ -608,7 +634,7 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
 
       <div className="mt-auto border-t border-[var(--tr-nav-border)] px-2.5 pt-2 pb-3">
         <NavItemLink item={QUICK_NOTES_NAV} onNavigate={onNavigate} />
-        <NavItemLink item={SETTINGS_NAV} onNavigate={onNavigate} />
+        {canOpenSettings && <NavItemLink item={SETTINGS_NAV} onNavigate={onNavigate} />}
         <div className="mt-2 hidden px-3 text-xs text-tr-muted sm:block">{t.search.hint}</div>
       </div>
     </>
@@ -665,6 +691,7 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
 /** Dai thu gon: chi hien icon, bo qua bang gan sao va keo-tha de giu don gian. */
 function CollapsedNav({ order }: { order: NavOrder }) {
   const groupItems = useGroupItems(order);
+  const canOpenSettings = useCanOpenSettings();
   const badges = useNavBadges();
 
   return (
@@ -693,7 +720,7 @@ function CollapsedNav({ order }: { order: NavOrder }) {
       })}
       <div className="mt-auto flex flex-col gap-1 border-t border-[var(--tr-nav-border)] pt-2">
         <CollapsedNavLink item={QUICK_NOTES_NAV} />
-        <CollapsedNavLink item={SETTINGS_NAV} />
+        {canOpenSettings && <CollapsedNavLink item={SETTINGS_NAV} />}
       </div>
     </nav>
   );

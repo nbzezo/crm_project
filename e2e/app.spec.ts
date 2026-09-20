@@ -216,6 +216,10 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
 
   await page.goto('/settings');
   const tabs = page.getByRole('tab');
+  /* Cột nhóm dọc thay dải tab ngang: mười một mục không bao giờ vừa một hàng
+     trong khung 896px, và năm mục cuối trước đây nằm ngoài màn hình mà không có
+     dấu hiệu gì. Khẳng định hướng để không ai vô tình đổi ngược lại. */
+  await expect(page.getByRole('tablist')).toHaveAttribute('aria-orientation', 'vertical');
   /*
    * Điều đang được bảo vệ là ĐIỀU HƯỚNG BÀN PHÍM của tablist, không phải số tab —
    * nên `End` bám theo tab cuối cùng thay vì một chỉ số cứng. Đếm cứng khiến mỗi
@@ -239,7 +243,38 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
   await page.keyboard.press('Home');
   await expect(tabs.nth(0)).toBeFocused();
   await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'settingstab-labels');
+  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'settingstab-users');
+
+  /* Tab nằm trong URL: F5 phải giữ đúng chỗ đang xem, và link gửi được cho
+     người khác. Trước đây nó là useState nên cả hai đều không làm được. */
+  await tabs.filter({ hasText: 'Vị trí & phân quyền' }).click();
+  await expect(page).toHaveURL(/tab=positions/);
+  await page.reload();
+  await expect(page.getByRole('tabpanel')).toHaveAttribute(
+    'aria-labelledby',
+    'settingstab-positions'
+  );
+});
+
+test('menu tai khoan tren thanh tren: ho so, vi tri, doi mat khau', async ({ page }) => {
+  await page.goto('/');
+  /* *Tài khoản* đã rời khỏi Cài đặt sang menu avatar — nó là thứ duy nhất ở đó
+     mà mọi người đều dùng, còn mười một mục còn lại đều là việc quản trị. */
+  await page.getByRole('button', { name: 'Tài khoản và đăng xuất' }).click();
+
+  const menu = page.getByRole('dialog');
+  await expect(menu).toBeVisible();
+  /* Vị trí hiện ngay trong menu: từ khi có phân quyền, "vì sao tôi không thấy
+     khách hàng này" là câu hỏi thường trực, và câu trả lời luôn là vị trí cộng
+     chỗ ngồi trong cây đơn vị.
+
+     Chỉ khẳng định VỊ TRÍ, không khẳng định đơn vị: tài khoản bootstrap chưa
+     được gắn vào sổ danh bạ nên nó chưa có đơn vị nào — đúng như thiết kế, và
+     phần `· đơn vị` chỉ hiện khi có. */
+  await expect(menu).toContainText('Quản trị hệ thống');
+
+  await menu.getByRole('button', { name: 'Tài khoản' }).click();
+  await expect(page.getByRole('dialog').getByText('Mật khẩu hiện tại')).toBeVisible();
 });
 
 test('tro ly AI viet lai noi dung tho va chuyen day du sang form tao cong viec', async ({

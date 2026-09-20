@@ -87,6 +87,11 @@ export const t = {
     openMenu: 'Mở menu điều hướng',
     closeMenu: 'Đóng menu điều hướng',
   },
+  account: {
+    title: 'Tài khoản',
+    menuLabel: 'Tài khoản và đăng xuất',
+  },
+
   auth: {
     signInTitle: 'Đăng nhập WorkFlow',
     signInSubtitle: 'Nhập tài khoản để tiếp tục',
@@ -188,6 +193,8 @@ export const t = {
     fullName: 'Họ và tên',
     email: 'Email',
     linkedContact: 'Gắn với người trong sổ danh bạ',
+    /* Ban ngan cho tieu de cot — mo ta o dau panel da noi ro y nghia. */
+    linkedContactShort: 'Sổ danh bạ',
     noContact: 'Chưa gắn',
     status: 'Trạng thái',
     active: 'Đang hoạt động',
@@ -734,6 +741,10 @@ export const t = {
     tabTelegram: 'Telegram',
     tabData: 'Dữ liệu & sao lưu',
     tabAccount: 'Tài khoản',
+    groupOrg: 'Tổ chức',
+    groupProcess: 'Quy trình',
+    groupIntegration: 'Kết nối',
+    groupData: 'Dữ liệu',
     tabEmail: 'Email',
     tabUsers: 'Người dùng',
     scoringTitle: 'Chấm điểm cơ hội (BANT + 4P)',

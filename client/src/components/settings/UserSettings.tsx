@@ -166,9 +166,13 @@ export function UserSettings() {
 
       {users.data?.length === 0 ? <EmptyState message={t.common.empty} /> : null}
 
+      {/* `min-w` tren bang de no CUON NGANG thay vi bi bop: khong co no, cot
+          "Gắn với người trong sổ danh bạ" xuong dong moi chu mot hang va dong cao
+          gap bon lan. Mot bang doc duoc va phai cuon van hon mot bang vua khung
+          ma khong doc noi. */}
       {users.data && users.data.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="tr-scroll overflow-x-auto">
+          <table className="w-full min-w-[46rem] text-sm">
             <TableHead>
               <tr>
                 <th scope="col" className="py-2 pr-3">
@@ -178,7 +182,7 @@ export function UserSettings() {
                   {t.users.email}
                 </th>
                 <th scope="col" className="py-2 pr-3">
-                  {t.users.linkedContact}
+                  {t.users.linkedContactShort}
                 </th>
                 <th scope="col" className="py-2 pr-3">
                   {t.users.status}

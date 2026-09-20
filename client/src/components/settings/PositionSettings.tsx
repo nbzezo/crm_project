@@ -209,7 +209,7 @@ export function PositionSettings() {
       {positions.isPending ? <SkeletonRows rows={4} /> : null}
 
       {positions.data && positions.data.length > 0 ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,15rem)_1fr]">
+        <div className="grid gap-4 xl:grid-cols-[15rem_minmax(0,1fr)]">
           <div className="space-y-1">
             {positions.data.map((position) => (
               <div
@@ -282,11 +282,18 @@ export function PositionSettings() {
                       <h4 className="mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
                         {RESOURCE_GROUP_LABELS[group.id] ?? group.id}
                       </h4>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                      {/* Ma tran co sau cot; tren man hep no PHAI cuon ngang chu
+                          khong duoc bop lai — ban truoc cot nhan hang con 56px va
+                          "Khách hàng" xuong dong moi chu mot hang. Cot dau dinh lai
+                          de con biet dang chinh nhom chuc nang nao khi cuon. */}
+                      <div className="tr-scroll overflow-x-auto">
+                        <table className="w-full min-w-[42rem] text-sm">
                           <thead className="text-left text-xs text-tr-subtle">
                             <tr>
-                              <th scope="col" className="py-1 pr-3 font-medium">
+                              <th
+                                scope="col"
+                                className="sticky left-0 z-10 bg-tr-panel py-1 pr-3 font-medium"
+                              >
                                 {t.positions.feature}
                               </th>
                               {(['read', 'create', 'update', 'delete', 'export'] as const).map(
@@ -308,12 +315,15 @@ export function PositionSettings() {
                           <tbody>
                             {group.resources.map((resource) => (
                               <tr key={resource} className="border-t border-tr-border align-top">
-                                <th scope="row" className="py-1.5 pr-3 text-left font-normal">
+                                <th
+                                  scope="row"
+                                  className="sticky left-0 z-10 w-48 min-w-[12rem] bg-tr-panel py-1.5 pr-3 text-left font-normal"
+                                >
                                   <span className="block text-tr-text">
                                     {RESOURCE_LABELS[resource]}
                                   </span>
                                   {RESOURCE_HINTS[resource] ? (
-                                    <span className="block max-w-xs text-xs text-tr-muted">
+                                    <span className="block text-xs text-tr-muted">
                                       {RESOURCE_HINTS[resource]}
                                     </span>
                                   ) : null}

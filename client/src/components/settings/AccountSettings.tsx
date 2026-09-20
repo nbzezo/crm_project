@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { Button, Field, FormError, Input, Panel } from '../common/ui';
+import { Button, Field, FormError, Input } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import { useAuthStore } from '../../stores/authStore';
 
+/**
+ * Hồ sơ và mật khẩu của chính người đang đăng nhập.
+ *
+ * KHÔNG tự bọc `Panel`: từ khi chuyển vào menu avatar, nó nằm trong một `Modal`
+ * vốn đã có khung và tiêu đề — bọc thêm một lớp nữa là hai viền lồng nhau.
+ */
 export function AccountSettings() {
   const pushToast = useUiStore((s) => s.pushToast);
   const user = useAuthStore((s) => s.user);
@@ -23,7 +29,7 @@ export function AccountSettings() {
   });
 
   return (
-    <Panel title={t.auth.changePassword}>
+    <div className="p-4">
       <dl className="mb-4 space-y-1 text-sm text-tr-subtle">
         <div className="flex gap-2">
           <dt>{t.auth.email}:</dt>
@@ -62,6 +68,6 @@ export function AccountSettings() {
           {change.isPending ? t.common.saving : t.auth.changePassword}
         </Button>
       </div>
-    </Panel>
+    </div>
   );
 }
