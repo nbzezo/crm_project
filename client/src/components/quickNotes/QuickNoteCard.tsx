@@ -361,7 +361,23 @@ function PreviewCard({
         className="block w-full text-left disabled:cursor-default"
         aria-label={`${note.deleted_at ? 'Xem' : 'Mở'} ghi chú: ${note.title || 'Ghi chú không tiêu đề'}`}
       >
-        <div className={`pr-28 text-sm font-semibold break-words ${isList ? 'truncate' : ''}`}>
+        <div className={`text-sm font-semibold break-words ${isList ? 'truncate pr-28' : ''}`}>
+          {/* Chua cho cum nut o goc phai bang mot o TROI, khong phai `pr-28`.
+              The hep nhat chi rong 220px, nen mot khoang chua co dinh 112px an
+              mat hon nua dong: tieu de hai chu da phai xuong dong, va moi dong
+              tiep theo van bi thut vao du khong co gi o do. O troi chi choan
+              dung DONG DAU — noi cum nut that su nam — cac dong sau lay lai
+              tron be ngang the.
+              O troi ben trai danh cho ghim, vi ghim cung la mot lop phu tuyet
+              doi nam de len ky tu dau cua tieu de. */}
+          {!isList && (
+            <>
+              <span aria-hidden="true" className="float-right h-5 w-28" />
+              {Boolean(note.is_pinned) && (
+                <span aria-hidden="true" className="float-left h-5 w-5" />
+              )}
+            </>
+          )}
           {note.title || 'Ghi chú không tiêu đề'}
         </div>
         {preview && (
@@ -400,7 +416,10 @@ function PreviewCard({
       </div>
 
       {/* Nut hover: bam duoc ma khong can mo ghi chu, giong Sticky Notes that + Google Keep. */}
-      <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+      {/* `top-1.5` chu khong phai `top-2`: cum nut cao 26px, dat o 6px thi ket
+          thuc dung trong dong dau cua tieu de (o troi ben tren da chua cho),
+          de o 8px thi met chu cua dong thu hai. */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
         {note.deleted_at ? (
           <>
             <button

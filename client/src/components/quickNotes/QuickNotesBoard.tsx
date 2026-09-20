@@ -33,6 +33,7 @@ import {
   type QuickNoteFilters,
 } from './useQuickNotes';
 import { buildDndAnnouncements } from '../../lib/dnd/announcements';
+import { useMasonrySpan } from './useMasonrySpan';
 import type { QuickNote } from '../../types';
 
 type Layout = 'grid' | 'list';
@@ -61,11 +62,19 @@ function SortableQuickNoteCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: note.id,
   });
+  const masonry = useMasonrySpan(layout === 'grid');
 
   return (
     <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      ref={(node) => {
+        setNodeRef(node);
+        masonry.ref.current = node;
+      }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        gridRowEnd: masonry.span == null ? undefined : `span ${masonry.span}`,
+      }}
       {...attributes}
       {...listeners}
       className={isDragging ? 'opacity-40' : ''}
@@ -210,10 +219,14 @@ export function QuickNotesBoard() {
   const pinnedNotes = notes?.filter((n) => n.is_pinned) ?? [];
   const otherNotes = notes?.filter((n) => !n.is_pinned) ?? [];
   const sortStrategy = layout === 'list' ? verticalListSortingStrategy : rectSortingStrategy;
+  /* Luoi masonry: `grid-auto-rows:1px` + `grid-row-end: span N` tren tung the
+     (xem useMasonrySpan). `items-start` la BAT BUOC — keo gian the cho day o
+     se lam phep do chieu cao tu an duoi chinh no. Chi co khoang cach theo cot
+     o day; khoang cach theo hang nam trong span. */
   const groupClass =
     layout === 'list'
       ? 'flex flex-col gap-2'
-      : 'grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] items-start gap-3';
+      : 'grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] items-start gap-x-3 [grid-auto-rows:1px]';
 
   const renderGroup = (items: QuickNote[]) => (
     <SortableContext items={items.map((n) => n.id)} strategy={sortStrategy}>
