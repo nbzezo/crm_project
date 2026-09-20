@@ -37,10 +37,14 @@ function hashPassword(password) {
   return { hash: derived.toString('base64'), salt: salt.toString('base64') };
 }
 
-const ownOrg = db.prepare(`SELECT id FROM customers WHERE org_kind = 'own' ORDER BY id LIMIT 1`).get();
+const ownOrg = db
+  .prepare(`SELECT id FROM customers WHERE org_kind = 'own' ORDER BY id LIMIT 1`)
+  .get();
 if (!ownOrg) throw new Error('Chua co to chuc noi bo — chay `npm run seed -w server` truoc.');
 
-const rootUnit = db.prepare(`SELECT id FROM org_units WHERE parent_id IS NULL ORDER BY id LIMIT 1`).get();
+const rootUnit = db
+  .prepare(`SELECT id FROM org_units WHERE parent_id IS NULL ORDER BY id LIMIT 1`)
+  .get();
 
 function kindId(name) {
   return db.prepare(`SELECT id FROM org_unit_kinds WHERE name = ?`).get(name)?.id ?? null;
@@ -68,7 +72,11 @@ function upsertPerson(fullName, title, unitId, positionCode, email) {
           )
           .run(ownOrg.id, fullName, title, email, unitId).lastInsertRowid
       );
-  db.prepare(`UPDATE contacts SET org_unit_id = ?, title = ? WHERE id = ?`).run(unitId, title, contactId);
+  db.prepare(`UPDATE contacts SET org_unit_id = ?, title = ? WHERE id = ?`).run(
+    unitId,
+    title,
+    contactId
+  );
 
   const { hash, salt } = hashPassword(PASSWORD);
   let user = db.prepare(`SELECT id FROM users WHERE email = ?`).get(email);
@@ -82,18 +90,16 @@ function upsertPerson(fullName, title, unitId, positionCode, email) {
           )
           .run(email.split('@')[0], hash, salt, email, fullName, contactId).lastInsertRowid
       );
-  db.prepare(`UPDATE users SET password_hash = ?, password_salt = ?, contact_id = ? WHERE id = ?`).run(
-    hash,
-    salt,
-    contactId,
-    userId
-  );
+  db.prepare(
+    `UPDATE users SET password_hash = ?, password_salt = ?, contact_id = ? WHERE id = ?`
+  ).run(hash, salt, contactId, userId);
 
   const positionId = db.prepare(`SELECT id FROM positions WHERE code = ?`).get(positionCode).id;
   db.prepare(`DELETE FROM user_positions WHERE user_id = ?`).run(userId);
-  db.prepare(
-    `INSERT INTO user_positions (user_id, position_id, is_primary) VALUES (?, ?, 1)`
-  ).run(userId, positionId);
+  db.prepare(`INSERT INTO user_positions (user_id, position_id, is_primary) VALUES (?, ?, 1)`).run(
+    userId,
+    positionId
+  );
 
   return { contactId, userId, email, fullName };
 }
@@ -105,16 +111,55 @@ db.transaction(() => {
   const phong1 = upsertUnit('Phòng Kinh doanh 1', khoiDN, 'Phòng');
   const phong2 = upsertUnit('Phòng Kinh doanh 2', khoiDN, 'Phòng');
 
-  const giamDocTT = upsertPerson('Lê Trung Tâm', 'Giám đốc Trung tâm', trungTam, 'center_director', 'trungtam@congty.vn');
-  const giamDocKhoi = upsertPerson('Phạm Khối', 'Giám đốc Khối', khoiDN, 'division_director', 'khoi@congty.vn');
-  const truongPhong = upsertPerson('Trần Trưởng Phòng', 'Trưởng phòng', phong1, 'department_head', 'truongphong@congty.vn');
-  const nhanVien1 = upsertPerson('Nguyễn Nhân Viên', 'Nhân viên kinh doanh', phong1, 'staff', 'nhanvien1@congty.vn');
-  const nhanVien2 = upsertPerson('Hoàng Nhân Viên Hai', 'Nhân viên kinh doanh', phong2, 'staff', 'nhanvien2@congty.vn');
+  const giamDocTT = upsertPerson(
+    'Lê Trung Tâm',
+    'Giám đốc Trung tâm',
+    trungTam,
+    'center_director',
+    'trungtam@congty.vn'
+  );
+  const giamDocKhoi = upsertPerson(
+    'Phạm Khối',
+    'Giám đốc Khối',
+    khoiDN,
+    'division_director',
+    'khoi@congty.vn'
+  );
+  const truongPhong = upsertPerson(
+    'Trần Trưởng Phòng',
+    'Trưởng phòng',
+    phong1,
+    'department_head',
+    'truongphong@congty.vn'
+  );
+  const nhanVien1 = upsertPerson(
+    'Nguyễn Nhân Viên',
+    'Nhân viên kinh doanh',
+    phong1,
+    'staff',
+    'nhanvien1@congty.vn'
+  );
+  const nhanVien2 = upsertPerson(
+    'Hoàng Nhân Viên Hai',
+    'Nhân viên kinh doanh',
+    phong2,
+    'staff',
+    'nhanvien2@congty.vn'
+  );
   upsertPerson('Vũ Kế Toán', 'Kế toán doanh thu', khoiVH, 'revenue_admin', 'ketoan@congty.vn');
 
-  db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(giamDocTT.contactId, trungTam);
-  db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(giamDocKhoi.contactId, khoiDN);
-  db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(truongPhong.contactId, phong1);
+  db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(
+    giamDocTT.contactId,
+    trungTam
+  );
+  db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(
+    giamDocKhoi.contactId,
+    khoiDN
+  );
+  db.prepare(`UPDATE org_units SET head_contact_id = ? WHERE id = ?`).run(
+    truongPhong.contactId,
+    phong1
+  );
 
   /* Chia lai chu so huu du lieu mau cho ba nguoi khac nhau, de moi vi tri nhin
      thay mot tap khac nhau — day moi la thu lam cho viec thu nghiem co nghia. */
@@ -126,12 +171,18 @@ db.transaction(() => {
     const owner = owners[i % owners.length];
     db.prepare(`UPDATE customers SET owner_contact_id = ? WHERE id = ?`).run(owner, row.id);
     db.prepare(`UPDATE deals SET owner_contact_id = ? WHERE customer_id = ?`).run(owner, row.id);
-    db.prepare(`UPDATE customer_services SET owner_contact_id = ? WHERE customer_id = ?`).run(owner, row.id);
+    db.prepare(`UPDATE customer_services SET owner_contact_id = ? WHERE customer_id = ?`).run(
+      owner,
+      row.id
+    );
   });
 
   const boards = db.prepare(`SELECT id FROM boards ORDER BY id`).all();
   boards.forEach((row, i) => {
-    db.prepare(`UPDATE boards SET owner_contact_id = ? WHERE id = ?`).run(owners[i % owners.length], row.id);
+    db.prepare(`UPDATE boards SET owner_contact_id = ? WHERE id = ?`).run(
+      owners[i % owners.length],
+      row.id
+    );
   });
 })();
 
