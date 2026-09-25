@@ -785,13 +785,14 @@ router.post('/assist/meeting-note/:id/summarize', async (req, res) => {
     const id = intParam(req.params.id);
     const note = getMeetingNote(db, id) as {
       title: string;
+      purpose_key: string;
       content_text: string;
       customer_id: number | null;
       deal_id: number | null;
       project_id: number | null;
     };
     if (!note.content_text.trim()) {
-      throw new HttpError(400, 'Ghi chú chưa có nội dung để tóm tắt');
+      throw new HttpError(400, 'Trang chưa có nội dung để tóm tắt');
     }
     const { data, meta } = await runStructured(
       db,
@@ -802,10 +803,10 @@ router.post('/assist/meeting-note/:id/summarize', async (req, res) => {
         contextId: note.deal_id ?? note.project_id ?? undefined,
         maxOutputTokens: 1200,
         system:
-          'Bạn tóm tắt ghi chú cuộc họp CRM tiếng Việt. Chỉ dùng nội dung đã cho, không bịa thêm sự kiện hay số liệu. Ngày phải đúng YYYY-MM-DD hoặc null.',
+          'Bạn tóm tắt tài liệu tiếng Việt theo đúng mục đích của trang. Chỉ dùng nội dung đã cho, không bịa thêm sự kiện hay số liệu. Chỉ nêu việc cần làm khi nội dung có đề cập. Ngày phải đúng YYYY-MM-DD hoặc null.',
         prompt:
           'Trả JSON {"summary":"tóm tắt 2-4 câu","action_items":[{"title":"việc cần làm, bắt đầu bằng động từ","due_date":null}]}.\n' +
-          `Tiêu đề ghi chú: ${note.title}\nNội dung:\n${note.content_text.slice(0, 20_000)}`,
+          `Mục đích: ${note.purpose_key}\nTiêu đề: ${note.title}\nNội dung:\n${note.content_text.slice(0, 20_000)}`,
       },
       meetingNoteSummarySchema
     );
@@ -866,7 +867,7 @@ router.post('/assist/meeting-note/:id/inline', async (req, res) => {
       contextId: note.deal_id ?? note.project_id ?? undefined,
       maxOutputTokens: 600,
       system:
-        'Bạn hỗ trợ soạn ghi chú cuộc họp CRM tiếng Việt. Chỉ trả về đúng đoạn văn bản được yêu cầu, không giải thích, không markdown thừa.',
+        'Bạn hỗ trợ soạn tài liệu tiếng Việt. Chỉ trả về đúng đoạn văn bản được yêu cầu, không giải thích, không markdown thừa.',
       prompt:
         `${INLINE_INSTRUCTION[body.instruction]}\n` +
         (body.surrounding_text

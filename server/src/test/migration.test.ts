@@ -56,9 +56,23 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18, 35, 37]) {
         ).run('nguoi-dung-cu', 'hash-cu', 'salt-cu');
       }
 
+      let oldNoteId: number | null = null;
+      if (sourceVersion >= 30) {
+        oldNoteId = Number(
+          db.prepare(`INSERT INTO meeting_notes (title) VALUES (?)`).run('Cuộc họp cũ')
+            .lastInsertRowid
+        );
+      }
+
       migrate(db);
 
       assert.equal(db.pragma('user_version', { simple: true }), LATEST_VERSION);
+      if (oldNoteId !== null) {
+        const oldNote = db
+          .prepare(`SELECT title, purpose_key FROM meeting_notes WHERE id = ?`)
+          .get(oldNoteId) as { title: string; purpose_key: string };
+        assert.deepEqual(oldNote, { title: 'Cuộc họp cũ', purpose_key: 'meeting' });
+      }
       const globalBoard = db
         .prepare(
           `SELECT id FROM boards WHERE name = 'Công việc chung' AND owner_contact_id IS NULL`
@@ -179,3 +193,20 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18, 35, 37]) {
     }
   });
 }
+
+test('v43 giu ghi chu cu trong nhom bien ban hop', () => {
+  const db = new Database(':memory:');
+  try {
+    migrate(db, 42);
+    const id = Number(
+      db.prepare(`INSERT INTO meeting_notes (title) VALUES (?)`).run('Cuộc họp cũ').lastInsertRowid
+    );
+    migrate(db);
+    assert.deepEqual(
+      db.prepare(`SELECT title, purpose_key FROM meeting_notes WHERE id = ?`).get(id),
+      { title: 'Cuộc họp cũ', purpose_key: 'meeting' }
+    );
+  } finally {
+    db.close();
+  }
+});

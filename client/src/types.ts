@@ -624,6 +624,7 @@ export interface MeetingNote {
   deal_id: number | null;
   project_id: number | null;
   title: string;
+  purpose_key: 'blank' | 'meeting' | 'plan' | 'proposal' | 'report' | 'process' | 'decision';
   meeting_at: string | null;
   content_json: string;
   content_text: string;

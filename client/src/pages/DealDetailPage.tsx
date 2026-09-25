@@ -123,7 +123,7 @@ export default function DealDetailPage() {
     { key: 'score', label: 'Chấm điểm' },
     { key: 'committee', label: 'Nhóm quyết định' },
     { key: 'info', label: 'Thông tin' },
-    { key: 'notes', label: 'Ghi chú họp' },
+    { key: 'notes', label: 'Trang tài liệu' },
     { key: 'handover', label: 'Bàn giao' },
   ];
 

@@ -57,14 +57,14 @@ function ConvertToCrmNoteDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title="Chuyển thành ghi chú CRM"
+      title="Chuyển thành trang tài liệu"
       width="max-w-md"
       footer={
         <>
           <Button onClick={onClose}>Huỷ</Button>
           <Button
             variant="primary"
-            disabled={pending || (customerId === '' && dealId === '' && projectId === '')}
+            disabled={pending}
             onClick={() =>
               onConfirm({
                 customer_id: customerId === '' ? null : customerId,
@@ -73,15 +73,14 @@ function ConvertToCrmNoteDialog({
               })
             }
           >
-            {pending ? 'Đang tạo…' : 'Tạo ghi chú CRM'}
+            {pending ? 'Đang tạo…' : 'Tạo trang tài liệu'}
           </Button>
         </>
       }
     >
       <div className="space-y-3">
         <p className="text-sm text-tr-subtle">
-          Chọn ít nhất một Khách hàng, Cơ hội hoặc Dự án để lưu nội dung này thành ghi chú CRM chính
-          thức. Ghi chú nhanh gốc vẫn được giữ nguyên.
+          Có thể gắn trang với Khách hàng, Cơ hội hoặc Dự án. Ghi chú nhanh gốc vẫn được giữ nguyên.
         </p>
         <Field label="Khách hàng" hint="Không bắt buộc">
           <Combobox
@@ -251,7 +250,7 @@ function MoreMenu({
           Chuyển thành Task
         </Button>
         <Button size="sm" onClick={() => setConvertOpen(true)}>
-          Chuyển thành ghi chú CRM
+          Chuyển thành trang tài liệu
         </Button>
         <Button
           size="sm"
@@ -272,7 +271,7 @@ function MoreMenu({
             Đã chuyển đổi thành{' '}
             {note.converted_to_type === 'task'
               ? `Task #${note.converted_to_id}`
-              : `Ghi chú CRM #${note.converted_to_id}`}
+              : `Trang tài liệu #${note.converted_to_id}`}
           </span>
         )}
       </div>

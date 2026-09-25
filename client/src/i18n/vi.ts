@@ -38,7 +38,7 @@ export const t = {
     followUp: 'Cần theo dõi',
     orgDirectory: 'Tổ chức & nhân sự',
     ai: 'Trợ lý AI',
-    notes: 'Ghi chú họp',
+    notes: 'Trang tài liệu',
     quickNotes: 'Ghi nhanh',
     settings: 'Cài đặt',
     groupDaily: 'Công việc hôm nay',

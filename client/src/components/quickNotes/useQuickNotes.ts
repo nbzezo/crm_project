@@ -152,7 +152,7 @@ export function useQuickNoteMutations() {
     }) => api.post<QuickNote>(`/api/quick-notes/${vars.id}/convert/crm-note`, vars.links),
     onSuccess: () => {
       invalidate();
-      pushToast('Đã tạo ghi chú CRM', 'success');
+      pushToast('Đã tạo trang tài liệu', 'success');
     },
   });
 
