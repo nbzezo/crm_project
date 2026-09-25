@@ -18,6 +18,7 @@ import { assertValidFieldValue, parseFieldOptions } from '../lib/cardFieldValues
 import {
   addDependency,
   createCard,
+  ensureCategorizedTaskList,
   listDependencies,
   moveCard,
   reloadCard,
@@ -123,7 +124,11 @@ router.get('/context', (req, res) => {
       contract_name: pick(`SELECT name FROM contracts WHERE id = ?`, links.contract_id, 'name'),
       quotation_code: pick(`SELECT code FROM quotations WHERE id = ?`, links.quotation_id, 'code'),
     },
-    suggested_list_id: resolveDefaultList(links, projectId),
+    suggested_list_id: resolveDefaultList(
+      links,
+      req.query.project_id === undefined ? undefined : projectId,
+      actorContactId(req)
+    ),
     boards,
     lists,
     contacts: scoped(
@@ -348,6 +353,30 @@ router.patch('/:id', (req, res) => {
   }
   const derived = deriveTaskLinks(db, nextLinks);
   let targetListId = body.list_id ?? card.list_id;
+  let autoCategorized = false;
+
+  if (linksTouched && body.list_id === undefined && body.project_id === undefined) {
+    const currentBoard = db
+      .prepare(`SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`)
+      .get(card.list_id) as { project_id: number | null } | undefined;
+    const suggested = ensureCategorizedTaskList(derived, undefined, actorContactId(req));
+    const destination = db
+      .prepare(
+        `SELECT l.board_id, b.project_id FROM lists l JOIN boards b ON b.id = l.board_id
+          WHERE l.id = ?`
+      )
+      .get(suggested) as { board_id: number; project_id: number | null };
+    const categoryChanged =
+      derived.customer_id !== currentLinks.customer_id ||
+      destination.project_id !== currentBoard?.project_id;
+    if (categoryChanged) {
+      const matchingStatus = db
+        .prepare(`SELECT id FROM lists WHERE board_id = ? AND status_mapping = ? LIMIT 1`)
+        .get(destination.board_id, card.status) as { id: number } | undefined;
+      targetListId = matchingStatus?.id ?? suggested;
+      autoCategorized = targetListId !== card.list_id;
+    }
+  }
 
   if (body.project_id !== undefined) {
     const current = required(
@@ -384,15 +413,21 @@ router.patch('/:id', (req, res) => {
         )
         .get(body.project_id, card.status) as { id: number } | undefined;
       if (!destination) {
-        throw new HttpError(
-          422,
-          body.project_id === null
-            ? 'Chưa có bảng công việc chung để bỏ liên kết dự án'
-            : 'Dự án chưa có bảng công việc để nhận công việc này',
-          { code: 'PROJECT_HAS_NO_BOARD' }
+        const firstListId = ensureCategorizedTaskList(
+          derived,
+          body.project_id,
+          actorContactId(req)
         );
+        const matching = db
+          .prepare(
+            `SELECT l.id FROM lists l WHERE l.board_id = (SELECT board_id FROM lists WHERE id = ?)
+               AND l.status_mapping = ? LIMIT 1`
+          )
+          .get(firstListId, card.status) as { id: number } | undefined;
+        targetListId = matching?.id ?? firstListId;
+      } else {
+        targetListId = destination.id;
       }
-      targetListId = destination.id;
     }
   }
 
@@ -479,7 +514,7 @@ router.patch('/:id', (req, res) => {
   if (body.recur_rule !== undefined) set('recur_rule = ?', body.recur_rule);
   if (body.recur_until !== undefined) set('recur_until = ?', body.recur_until);
   if (
-    (body.list_id !== undefined || body.project_id !== undefined) &&
+    (body.list_id !== undefined || body.project_id !== undefined || autoCategorized) &&
     targetListId !== card.list_id
   ) {
     required(
@@ -532,6 +567,7 @@ router.patch('/:id', (req, res) => {
     setCardStatus(id, 'blocked', { blockedReason: body.blocked_reason });
   } else if (
     (body.list_id !== undefined || body.project_id !== undefined) &&
+    !autoCategorized &&
     targetListId !== card.list_id
   ) {
     /*

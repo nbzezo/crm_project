@@ -5,7 +5,7 @@ import { actorContactId } from '../middleware/currentUser.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
-import { createCard, resolveDefaultList } from '../services/cardService.ts';
+import { createCard, ensureCategorizedTaskList } from '../services/cardService.ts';
 
 const router = Router();
 
@@ -85,8 +85,13 @@ router.post('/', (req, res) => {
 
     let taskId: number | null = null;
     if (body.create_task && body.next_action) {
-      // Chua co bang nao thi bo qua viec tao Task — ban ghi tuong tac van phai duoc luu.
-      const listId = body.task_list_id ?? resolveDefaultList({ customer_id: body.customer_id });
+      const listId =
+        body.task_list_id ??
+        ensureCategorizedTaskList(
+          { customer_id: body.customer_id },
+          undefined,
+          actorContactId(req)
+        );
       if (listId) {
         const task = createCard(
           {

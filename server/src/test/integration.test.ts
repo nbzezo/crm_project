@@ -411,6 +411,89 @@ test('cong viec chan lien ket cheo khach hang va go lien ket cap duoi khi doi kh
   assert.equal(moved.data.contact_id, null);
 });
 
+test('tao viec trong va tu phan loai khi bo sung khach hang, co hoi co du an', async () => {
+  const blank = await json('POST', '/api/cards', {});
+  assert.equal(blank.status, 201);
+  assert.equal(blank.data.title, 'Công việc chưa đặt tên');
+  const cardId = Number(blank.data.id);
+  const commonBoardId = (
+    db.prepare(`SELECT id FROM boards WHERE name = 'Công việc chung'`).get() as { id: number }
+  ).id;
+  const boardOf = (listId: unknown) =>
+    (
+      db.prepare(`SELECT board_id FROM lists WHERE id = ?`).get(Number(listId)) as {
+        board_id: number;
+      }
+    ).board_id;
+  assert.equal(boardOf(blank.data.list_id), commonBoardId);
+
+  const customerId = await createCustomer('Khach hang phan loai task');
+  const customerBoard = await json('POST', '/api/boards', {
+    name: 'Bang rieng phan loai task',
+    customer_id: customerId,
+  });
+  assert.equal(customerBoard.status, 201);
+  const byCustomer = await json('PATCH', `/api/cards/${cardId}`, { customer_id: customerId });
+  assert.equal(byCustomer.status, 200);
+  assert.equal(boardOf(byCustomer.data.list_id), Number(customerBoard.data.id));
+
+  await json('PATCH', `/api/cards/${cardId}`, { status: 'doing' });
+  const project = await json('POST', '/api/projects', {
+    name: 'Du an phan loai task',
+    customer_id: customerId,
+  });
+  assert.equal(project.status, 201);
+  const projectBoard = await json('POST', '/api/boards', {
+    name: 'Bang du an phan loai task',
+    project_id: Number(project.data.id),
+  });
+  assert.equal(projectBoard.status, 201);
+  const deal = await json('POST', '/api/deals', {
+    title: 'Co hoi phan loai task',
+    customer_id: customerId,
+    project_id: Number(project.data.id),
+  });
+  assert.equal(deal.status, 201);
+  const byProject = await json('PATCH', `/api/cards/${cardId}`, {
+    deal_id: Number(deal.data.id),
+  });
+  assert.equal(byProject.status, 200);
+  assert.equal(boardOf(byProject.data.list_id), Number(projectBoard.data.id));
+  assert.equal(byProject.data.status, 'doing');
+
+  const backToCommon = await json('PATCH', `/api/cards/${cardId}`, { customer_id: null });
+  assert.equal(backToCommon.status, 200);
+  assert.equal(boardOf(backToCommon.data.list_id), commonBoardId);
+  assert.equal(backToCommon.data.status, 'doing');
+});
+
+test('tu tao noi nhan khi khach hang va du an chua co bang cong viec', async () => {
+  const customerId = await createCustomer('Khach hang chua co bang task');
+  const created = await json('POST', '/api/cards', { customer_id: customerId });
+  assert.equal(created.status, 201);
+  const customerBoard = db
+    .prepare(
+      `SELECT b.customer_id, b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`
+    )
+    .get(created.data.list_id) as { customer_id: number; project_id: number | null };
+  assert.equal(customerBoard.customer_id, customerId);
+  assert.equal(customerBoard.project_id, null);
+
+  const project = await json('POST', '/api/projects', {
+    name: 'Du an chua co bang task',
+    customer_id: customerId,
+  });
+  assert.equal(project.status, 201);
+  const moved = await json('PATCH', `/api/cards/${created.data.id}`, {
+    project_id: Number(project.data.id),
+  });
+  assert.equal(moved.status, 200);
+  const projectBoard = db
+    .prepare(`SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`)
+    .get(moved.data.list_id) as { project_id: number };
+  assert.equal(projectBoard.project_id, Number(project.data.id));
+});
+
 test('nguoi phu trach la truc rieng, khong bi rang buoc cung khach hang', async () => {
   const ownOrg = await createCustomer('To chuc noi bo');
   await json('PATCH', `/api/customers/${ownOrg}`, { org_kind: 'own' });
@@ -915,9 +998,9 @@ test('du an suy tu bang, khong con cot rieng tren the', async () => {
   const noBoard = await json('PATCH', `/api/cards/${cardId}`, {
     project_id: Number(emptyProject.data.id),
   });
-  assert.equal(noBoard.status, 422);
-  assert.equal(noBoard.data.code, 'PROJECT_HAS_NO_BOARD');
-  assert.equal((await json('GET', `/api/cards/${cardId}`)).data.project_id, targetProjectId);
+  assert.equal(noBoard.status, 200);
+  assert.equal(noBoard.data.project_id, Number(emptyProject.data.id));
+  assert.equal(noBoard.data.status, 'doing');
 
   const switchedBack = await json('PATCH', `/api/cards/${cardId}`, { project_id: projectId });
   assert.equal(switchedBack.status, 200);

@@ -6,7 +6,6 @@ import { TASK_LINK_KEYS, type TaskAssistResult, type TaskLinkKey } from '../../a
 import { Combobox, type ComboboxOption } from '../common/Combobox';
 import { Modal } from '../common/Modal';
 import { Button, DateInput, Field, FormError, Input, Select, Textarea } from '../common/ui';
-import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
@@ -43,13 +42,6 @@ interface TaskContextResponse {
   quotations: { id: number; code: string | null; version: number; status: string }[];
 }
 
-/** Bo cac khoa rong de goi y cua AI khong xoa mat lien ket dang co. */
-function stripEmpty(links: Record<string, number | null>): TaskContext {
-  return Object.fromEntries(
-    Object.entries(links).filter(([, value]) => value != null)
-  ) as TaskContext;
-}
-
 const DISPLAY_KEY: Record<LinkKey, keyof TaskContextResponse['display']> = {
   customer_id: 'customer_name',
   contact_id: 'contact_name',
@@ -83,6 +75,9 @@ export function TaskFormDialog() {
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [listId, setListId] = useState<number | ''>('');
   const [checklistText, setChecklistText] = useState('');
+  const [aiSource, setAiSource] = useState('');
+  const [aiSuggestion, setAiSuggestion] = useState<TaskAssistResult | null>(null);
+  const [aiSelection, setAiSelection] = useState<string[]>([]);
   /** Lua chon lien ket cua nguoi dung — dau vao cho truy van ngu canh. */
   const [links, setLinks] = useState<TaskContext>({});
   /*
@@ -101,7 +96,6 @@ export function TaskFormDialog() {
   const [projectId, setProjectId] = useState<number | null>(null);
   /** Khoa duoc mo dau vao: hien dang khoa cho toi khi nguoi dung bam "Đổi". */
   const [anchors, setAnchors] = useState<LinkKey[]>([]);
-  const { submitted, validate, reset: resetErrors } = useFormErrors();
   /** Nguoi dung da tu chon danh sach thi khong de goi y cua server ghi de nua. */
   const [listTouched, setListTouched] = useState(false);
   /** Nguoi dung da tu doi nguoi phu trach thi khong de mac dinh "tôi" ghi de nua. */
@@ -141,6 +135,9 @@ export function TaskFormDialog() {
     setStartDate(draft?.startDate ?? null);
     setDueDate(draft?.dueDate ?? null);
     setChecklistText(draft?.checklist?.join('\n') ?? '');
+    setAiSource('');
+    setAiSuggestion(null);
+    setAiSelection([]);
     setListId(composer?.listId ?? '');
     setListTouched(composer?.listId !== undefined);
     // Ngu canh noi mo form la neo co dinh, nen duoc uu tien hon lien ket AI doan.
@@ -149,7 +146,6 @@ export function TaskFormDialog() {
     setAssigneeTouched(false);
     setProjectId(composer?.projectId ?? null);
     setAnchors(composer ? LINK_KEYS.filter((key) => composer.context[key] != null) : []);
-    resetErrors();
     setAiFilled(aiFilledFromDraft);
     setAiMeta(
       draft?.aiRequestId ? { requestId: draft.aiRequestId, warnings: draft.aiWarnings ?? [] } : null
@@ -181,7 +177,7 @@ export function TaskFormDialog() {
 
   // Goi y danh sach chi ap dung khi nguoi dung chua tu chon.
   useEffect(() => {
-    if (!listTouched && context?.suggested_list_id) setListId(context.suggested_list_id);
+    if (!listTouched) setListId(context?.suggested_list_id ?? '');
   }, [context?.suggested_list_id, listTouched]);
 
   /*
@@ -231,10 +227,11 @@ export function TaskFormDialog() {
    * Nguoi dung go gi thi giu nguyen cai do — mot goi y de hon la mot goi y ghi de.
    * Cac o duoc dien se deo huy hieu "AI" de ho biet cho nao can kiem lai.
    */
+  const aiDraft = aiSource.trim() || [title, description].filter(Boolean).join('\n').trim();
   const assist = useMutation({
     mutationFn: () =>
       api.post<TaskAssistResult>('/api/ai/assist/task', {
-        draft: [title, description].filter(Boolean).join('\n'),
+        draft: aiDraft,
         context: Object.fromEntries(
           LINK_KEYS.map((key) => [key, valueOf(key) === '' ? undefined : valueOf(key)]).filter(
             ([, value]) => value !== undefined
@@ -243,43 +240,49 @@ export function TaskFormDialog() {
         list_id: listId === '' ? null : listId,
       }),
     onSuccess: (result) => {
-      const filled: string[] = [];
-      const fill = (key: string, isEmpty: boolean, apply: () => void) => {
-        if (!isEmpty) return;
-        apply();
-        filled.push(key);
-      };
-      fill('title', !title.trim(), () => setTitle(result.title));
-      fill('description', !description.trim(), () => setDescription(result.description));
-      fill('priority', priority === 'medium', () => setPriority(result.priority));
-      fill('start_date', startDate === null, () => setStartDate(result.start_date));
-      fill('due_date', dueDate === null, () => setDueDate(result.due_date));
-      fill('checklist', !checklistText.trim() && result.checklist.length > 0, () =>
-        setChecklistText(result.checklist.join('\n'))
-      );
-
-      const nextLinks = stripEmpty(result.links);
-      if (Object.keys(nextLinks).length > 0) {
-        setLinks(nextLinks);
-        filled.push('liên kết');
-      }
-      setAiFilled(filled);
-      setAiMeta({ requestId: result.meta.requestId, warnings: result.warnings });
-      pushToast(
-        filled.length > 0
-          ? 'AI đã điền nháp — hãy kiểm tra trước khi lưu'
-          : 'Các trường đã có nội dung nên AI không ghi đè',
-        'success'
+      setAiSuggestion(result);
+      setAiSelection(
+        [
+          !title.trim() && result.title ? 'title' : '',
+          !description.trim() && result.description ? 'description' : '',
+          startDate === null && result.start_date ? 'start_date' : '',
+          dueDate === null && result.due_date ? 'due_date' : '',
+          !checklistText.trim() && result.checklist.length > 0 ? 'checklist' : '',
+          ...LINK_KEYS.filter((key) => result.links[key] != null && valueOf(key) === ''),
+        ].filter(Boolean)
       );
     },
   });
 
+  const applyAiSuggestion = () => {
+    if (!aiSuggestion) return;
+    const selected = new Set(aiSelection);
+    if (selected.has('title')) setTitle(aiSuggestion.title);
+    if (selected.has('description')) setDescription(aiSuggestion.description);
+    if (selected.has('priority')) setPriority(aiSuggestion.priority);
+    if (selected.has('start_date')) setStartDate(aiSuggestion.start_date);
+    if (selected.has('due_date')) setDueDate(aiSuggestion.due_date);
+    if (selected.has('checklist')) setChecklistText(aiSuggestion.checklist.join('\n'));
+    const suggestedLinks = Object.fromEntries(
+      LINK_KEYS.filter((key) => selected.has(key) && aiSuggestion.links[key] != null).map((key) => [
+        key,
+        aiSuggestion.links[key],
+      ])
+    ) as TaskContext;
+    if (Object.keys(suggestedLinks).length > 0)
+      setLinks((current) => ({ ...current, ...suggestedLinks }));
+    setAiFilled(aiSelection);
+    setAiMeta({ requestId: aiSuggestion.meta.requestId, warnings: aiSuggestion.warnings });
+    setAiSuggestion(null);
+    pushToast('Đã áp dụng các trường bạn chọn — hãy kiểm tra trước khi lưu', 'success');
+  };
+
   const save = useMutation({
     mutationFn: () =>
       api.post<Card>('/api/cards', {
-        list_id: listId === '' ? null : listId,
-        title: title.trim(),
-        description: description.trim() || undefined,
+        list_id: listTouched && listId !== '' ? listId : null,
+        title: title.trim() || undefined,
+        description: description.trim() || aiSource.trim() || undefined,
         priority,
         start_date: startDate,
         due_date: dueDate,
@@ -295,7 +298,7 @@ export function TaskFormDialog() {
           .filter(Boolean),
       }),
     onSuccess: (created) => {
-      invalidateCardViews(queryClient, boardId === '' ? undefined : boardId);
+      invalidateCardViews(queryClient);
       invalidateCrmViews(queryClient, created.customer_id ?? undefined);
       // Bao cho AI biet goi y duoc giu nguyen hay da bi sua — dung de danh gia chat luong prompt.
       if (aiMeta) {
@@ -315,35 +318,40 @@ export function TaskFormDialog() {
     },
   });
 
-  const titleMissing = !title.trim();
-  /*
-   * Đích đến (danh sách) LUÔN phải có, nhưng chỉ BẮT người dùng chọn khi máy chủ
-   * không tự suy ra được. Mở form kèm ngữ cảnh (khách hàng/cơ hội/dự án/cột) và
-   * `/api/cards/context` có `suggested_list_id` thì để `resolveDefaultList` phía
-   * server lo — form chỉ nói rõ việc sẽ rơi vào bảng nào. Mở từ nút toàn cục
-   * (không ngữ cảnh) thì gợi ý là "bảng đầu tiên" nên vẫn bắt chọn cho tường minh.
-   */
-  const openedWithContext =
-    Object.keys(composer?.context ?? {}).length > 0 ||
-    Object.keys(composer?.draft?.links ?? {}).length > 0 ||
-    composer?.projectId != null ||
-    composer?.listId !== undefined;
-  const canAutoResolveList = context?.suggested_list_id != null;
-  const noBoards = context != null && context.boards.length === 0;
-  const listRequired = !openedWithContext || !canAutoResolveList;
-  const listMissing = listId === '' && listRequired;
-
-  const issues: FieldIssue[] = [];
-  if (titleMissing) issues.push({ id: 'task-title', label: 'Tiêu đề' });
-  if (listMissing)
-    issues.push({
-      id: 'task-list',
-      label: noBoards ? 'Danh sách (chưa có bảng nào)' : 'Danh sách',
-    });
   const suggestedList = context?.lists.find((l) => l.id === context.suggested_list_id) ?? null;
   const suggestedBoardName =
     context?.boards.find((b) => b.id === suggestedList?.board_id)?.name ?? null;
-  const dirty = Boolean(title.trim() || description.trim() || checklistText.trim());
+  const dirty = Boolean(
+    title.trim() || description.trim() || checklistText.trim() || aiSource.trim()
+  );
+  const suggestedLinkName = (key: LinkKey, id: number): string => {
+    if (key === 'customer_id') return customers.find((item) => item.id === id)?.name ?? `#${id}`;
+    if (key === 'contact_id')
+      return context?.contacts.find((item) => item.id === id)?.full_name ?? `#${id}`;
+    if (key === 'deal_id') return context?.deals.find((item) => item.id === id)?.title ?? `#${id}`;
+    if (key === 'contract_id')
+      return context?.contracts.find((item) => item.id === id)?.name ?? `#${id}`;
+    return context?.quotations.find((item) => item.id === id)?.code ?? `#${id}`;
+  };
+  const suggestionFields = aiSuggestion
+    ? [
+        { key: 'title', label: 'Tiêu đề', value: aiSuggestion.title },
+        { key: 'description', label: 'Mô tả', value: aiSuggestion.description },
+        {
+          key: 'priority',
+          label: 'Ưu tiên',
+          value: aiSuggestion.priority !== priority ? t.priority[aiSuggestion.priority] : '',
+        },
+        { key: 'start_date', label: 'Bắt đầu', value: aiSuggestion.start_date ?? '' },
+        { key: 'due_date', label: 'Hạn', value: aiSuggestion.due_date ?? '' },
+        { key: 'checklist', label: 'Checklist', value: aiSuggestion.checklist.join(' · ') },
+        ...LINK_KEYS.filter((key) => aiSuggestion.links[key] != null).map((key) => ({
+          key,
+          label: LINK_LABELS[key],
+          value: suggestedLinkName(key, aiSuggestion.links[key]!),
+        })),
+      ].filter((field) => field.value)
+    : [];
 
   return (
     <Modal
@@ -355,23 +363,16 @@ export function TaskFormDialog() {
       footer={
         <>
           <Button
-            disabled={!title.trim() || assist.isPending}
+            disabled={aiDraft.length < 10 || assist.isPending}
             onClick={() => assist.mutate()}
-            title="AI đọc nội dung đang gõ và điền các trường còn trống"
+            title="AI tách đoạn nháp thành các gợi ý để bạn chọn áp dụng"
           >
             <Sparkles size={15} />
-            {assist.isPending ? 'Đang phân tích…' : 'Gợi ý bằng AI'}
+            {assist.isPending ? 'Đang phân tích…' : 'Tách nội dung bằng AI'}
           </Button>
           <span className="flex-1" />
           <Button onClick={close}>{t.common.cancel}</Button>
-          <Button
-            variant="primary"
-            disabled={save.isPending}
-            onClick={() => {
-              if (!validate(issues)) return;
-              save.mutate();
-            }}
-          >
+          <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? t.common.saving : 'Tạo công việc'}
           </Button>
         </>
@@ -379,12 +380,63 @@ export function TaskFormDialog() {
     >
       <FormError error={save.error} />
       <FormError error={assist.error} />
-      {submitted && issues.length > 0 && (
-        <FormError
-          takeFocus={false}
-          error={new Error('Chưa tạo được — còn trường bắt buộc chưa điền.')}
-          fields={issues}
-        />
+
+      <div className="mb-4 rounded-panel border border-tr-border bg-tr-list p-3">
+        <Field
+          label="Nội dung thô cho AI (tùy chọn)"
+          hint="Dán email, tin nhắn hoặc ghi chú dài. Bạn có thể lưu ngay; nội dung sẽ được giữ làm mô tả."
+        >
+          <Textarea
+            rows={3}
+            value={aiSource}
+            onChange={(event) => setAiSource(event.target.value)}
+            placeholder="Ví dụ: Thứ sáu gọi lại khách hàng về báo giá, ưu tiên cao; chuẩn bị câu hỏi KYC…"
+          />
+        </Field>
+      </div>
+
+      {aiSuggestion && (
+        <div className="mb-4 rounded-panel border border-tr-primary/30 bg-tr-primary/5 p-3">
+          <p className="text-sm font-semibold text-tr-text">
+            AI đề xuất — chọn trường muốn áp dụng
+          </p>
+          <div className="mt-2 space-y-2">
+            {suggestionFields.map((field) => (
+              <label key={field.key} className="flex items-start gap-2 text-sm text-tr-subtle">
+                <input
+                  type="checkbox"
+                  checked={aiSelection.includes(field.key)}
+                  onChange={(event) =>
+                    setAiSelection((current) =>
+                      event.target.checked
+                        ? [...current, field.key]
+                        : current.filter((key) => key !== field.key)
+                    )
+                  }
+                  className="mt-1"
+                />
+                <span>
+                  <strong className="text-tr-text">{field.label}:</strong> {field.value}
+                </span>
+              </label>
+            ))}
+          </div>
+          {aiSuggestion.warnings.map((warning) => (
+            <p key={warning} className="mt-2 text-xs text-tr-danger">
+              {warning}
+            </p>
+          ))}
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="primary"
+              disabled={aiSelection.length === 0}
+              onClick={applyAiSuggestion}
+            >
+              Áp dụng đã chọn
+            </Button>
+            <Button onClick={() => setAiSuggestion(null)}>Bỏ gợi ý</Button>
+          </div>
+        </div>
       )}
 
       {aiFilled.length > 0 && (
@@ -425,11 +477,7 @@ export function TaskFormDialog() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Field
-            label="Tiêu đề"
-            required
-            error={submitted && titleMissing ? t.common.required : undefined}
-          >
+          <Field label="Tiêu đề" hint="Để trống sẽ tạo “Công việc chưa đặt tên”.">
             <Input
               id="task-title"
               autoFocus
@@ -496,20 +544,12 @@ export function TaskFormDialog() {
         </Field>
         <Field
           label="Danh sách"
-          required={listRequired}
           hint={
-            !listRequired && listId === '' && suggestedList
-              ? `Để trống thì việc sẽ vào "${
-                  suggestedBoardName ? `${suggestedBoardName} / ` : ''
-                }${suggestedList.name}".`
-              : undefined
-          }
-          error={
-            submitted && listMissing
-              ? noBoards
-                ? 'Chưa có bảng nào — tạo bảng ở ô phía trên để có nơi thêm việc.'
-                : t.common.required
-              : undefined
+            !listTouched
+              ? suggestedList
+                ? `Tự phân loại vào "${suggestedBoardName ? `${suggestedBoardName} / ` : ''}${suggestedList.name}". Đổi liên kết CRM sẽ cập nhật nơi lưu.`
+                : 'Tự lưu vào Công việc chung; khi thêm dự án hoặc khách hàng sẽ chuyển sang nhóm phù hợp.'
+              : 'Bạn đã chọn nơi lưu thủ công.'
           }
         >
           <Select

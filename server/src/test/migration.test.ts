@@ -59,6 +59,12 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18, 35, 37]) {
       migrate(db);
 
       assert.equal(db.pragma('user_version', { simple: true }), LATEST_VERSION);
+      const globalBoard = db
+        .prepare(
+          `SELECT id FROM boards WHERE name = 'Công việc chung' AND owner_contact_id IS NULL`
+        )
+        .get();
+      assert.equal(globalBoard, undefined, 'migration khong duoc tao bang chung lo du lieu');
       assert.equal(
         (db.prepare(`SELECT name FROM customers WHERE id = ?`).get(customerId) as { name: string })
           .name,

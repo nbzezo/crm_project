@@ -41,6 +41,8 @@ const taskDate = z
  * Truoc day moi noi tu dinh nghia mot tap truong khac nhau nen `description` va
  * `contact_id` bi rot mat o route chinh trong khi cac duong ghi khac van luu.
  */
+export const UNTITLED_TASK_TITLE = 'Công việc chưa đặt tên';
+
 export const createTaskInputSchema = taskLinksSchema.extend({
   /**
    * Nguoi phu trach — TRUC RIENG, co y khong nam trong `taskLinksSchema`.
@@ -61,7 +63,12 @@ export const createTaskInputSchema = taskLinksSchema.extend({
   project_id: z.number().int().positive().nullable().optional(),
   list_id: z.number().int().positive().nullable().optional(),
   parent_id: z.number().int().positive().nullable().optional(),
-  title: z.string().trim().min(1, 'Tieu de khong duoc de trong').max(300),
+  title: z
+    .string()
+    .trim()
+    .max(300)
+    .optional()
+    .transform((value) => value || UNTITLED_TASK_TITLE),
   description: z.string().max(5000).optional(),
   priority: z.enum(PRIORITIES).optional(),
   start_date: taskDate.optional(),

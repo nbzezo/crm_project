@@ -302,6 +302,28 @@ test('danh sach cong viec: viec cua minh, viec tren bang minh thay, va viec chua
   );
 });
 
+test('cong viec chung tach theo nguoi dung va khong lo task giua tai khoan', async () => {
+  await signInAs(n1);
+  const first = await call('POST', '/api/cards', {});
+  assert.equal(first.status, 201);
+  const firstListId = Number((first.data as { list_id: number }).list_id);
+  const firstBoardId = (
+    db.prepare(`SELECT board_id FROM lists WHERE id = ?`).get(firstListId) as { board_id: number }
+  ).board_id;
+
+  await signInAs(n2);
+  const second = await call('POST', '/api/cards', {});
+  assert.equal(second.status, 201);
+  const secondListId = Number((second.data as { list_id: number }).list_id);
+  const secondBoardId = (
+    db.prepare(`SELECT board_id FROM lists WHERE id = ?`).get(secondListId) as { board_id: number }
+  ).board_id;
+  assert.notEqual(firstBoardId, secondBoardId);
+  const visibleBoards = (await call('GET', '/api/boards')).data as { id: number }[];
+  assert.ok(visibleBoards.some((board) => board.id === secondBoardId));
+  assert.ok(!visibleBoards.some((board) => board.id === firstBoardId));
+});
+
 test('tro ly AI khong ke lai du lieu ngoai pham vi nguoi hoi', async () => {
   const otherDeal = (
     db.prepare(`SELECT id FROM deals WHERE owner_contact_id = ?`).get(n2.contactId) as {

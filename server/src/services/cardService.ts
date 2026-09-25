@@ -170,44 +170,168 @@ export function listTasksByProject(projectId: number) {
     .all(projectId);
 }
 
-/**
- * Chon danh sach mac dinh khi nguoi dung tao cong viec ma khong chi ro noi tha.
- *
- * Uu tien bang rieng cua khach hang lien quan — tao viec tu ho so mot khach hang ma
- * roi vao bang cua khach hang khac la sai ngu canh. Sau do moi den bang gan sao roi
- * bang dau tien. Thay cho hai ban `defaultListId()` truoc day nam rai o
- * routes/interactions.ts va services/ai/actions.ts.
- */
+const COMMON_BOARD_KEY = 'tasks.common_board_id';
+
+function commonTaskListId(ownerContactId: number | null): number | null {
+  const key = `${COMMON_BOARD_KEY}.${ownerContactId ?? 'system'}`;
+  const saved = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(key) as
+    { value: string } | undefined;
+  const boardId = Number(saved?.value);
+  if (!Number.isInteger(boardId) || boardId <= 0) return null;
+  const list = db
+    .prepare(
+      `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
+        WHERE b.id = ? AND b.is_archived = 0 AND b.owner_contact_id IS ?
+        ORDER BY (l.status_mapping = 'todo') DESC, l.position, l.id LIMIT 1`
+    )
+    .get(boardId, ownerContactId) as { id: number } | undefined;
+  return list?.id ?? null;
+}
+
+/** Moi nguoi co noi nhan chung rieng de task chua phan loai khong lo ra ngoai pham vi. */
+export function ensureCommonTaskList(ownerContactId: number | null = null): number {
+  const existing = commonTaskListId(ownerContactId);
+  if (existing) return existing;
+  return db.transaction(() => {
+    const boardId = Number(
+      db
+        .prepare(
+          `INSERT INTO boards (name, color, background, customer_id, project_id, owner_contact_id)
+           VALUES ('Công việc chung', '#486581', '#486581', NULL, NULL, ?)`
+        )
+        .run(ownerContactId).lastInsertRowid
+    );
+    const listId = createCategoryLists(boardId);
+    db.prepare(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now','localtime'))
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    ).run(`${COMMON_BOARD_KEY}.${ownerContactId ?? 'system'}`, String(boardId));
+    return listId;
+  })();
+}
+
+function linkedProjectId(links: EntityLinks): number | null {
+  if (links.deal_id != null) {
+    const deal = db.prepare(`SELECT project_id FROM deals WHERE id = ?`).get(links.deal_id) as
+      { project_id: number | null } | undefined;
+    if (deal?.project_id != null) return deal.project_id;
+  }
+  if (links.contract_id != null) {
+    const contract = db
+      .prepare(`SELECT project_id FROM contracts WHERE id = ?`)
+      .get(links.contract_id) as { project_id: number | null } | undefined;
+    if (contract?.project_id != null) return contract.project_id;
+  }
+  return null;
+}
+
+/** Tao bang nhan viec theo phan loai neu ho so chua co bang nao. */
+export function ensureCategorizedTaskList(
+  links: EntityLinks = {},
+  projectId?: number | null,
+  ownerContactId: number | null = null
+): number {
+  const destinationProject = projectId === undefined ? linkedProjectId(links) : projectId;
+  if (destinationProject != null) {
+    const existing = resolveDefaultList(links, destinationProject, ownerContactId);
+    if (existing) return existing;
+    const project = db
+      .prepare(`SELECT name, customer_id, owner_contact_id FROM projects WHERE id = ?`)
+      .get(destinationProject) as
+      { name: string; customer_id: number | null; owner_contact_id: number | null } | undefined;
+    if (!project) throw new HttpError(404, 'Không tìm thấy dự án');
+    if (links.customer_id != null && project.customer_id !== links.customer_id) {
+      throw new HttpError(422, 'Dự án không thuộc khách hàng của công việc', {
+        code: 'PROJECT_CUSTOMER_MISMATCH',
+      });
+    }
+    const boardId = Number(
+      db
+        .prepare(
+          `INSERT INTO boards (name, color, background, customer_id, project_id, owner_contact_id)
+           VALUES (?, '#486581', '#486581', ?, ?, ?)`
+        )
+        .run(
+          project.name,
+          project.customer_id,
+          destinationProject,
+          project.owner_contact_id ?? ownerContactId
+        ).lastInsertRowid
+    );
+    return createCategoryLists(boardId);
+  }
+  if (links.customer_id != null) {
+    const existing = db
+      .prepare(
+        `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
+          WHERE b.is_archived = 0 AND b.project_id IS NULL AND b.customer_id = ?
+          ORDER BY (l.status_mapping = 'todo') DESC, b.is_starred DESC, b.id, l.position, l.id LIMIT 1`
+      )
+      .get(links.customer_id) as { id: number } | undefined;
+    if (existing) return existing.id;
+    const customer = db
+      .prepare(`SELECT name, owner_contact_id FROM customers WHERE id = ?`)
+      .get(links.customer_id) as { name: string; owner_contact_id: number | null } | undefined;
+    if (!customer) throw new HttpError(404, 'Không tìm thấy khách hàng');
+    const boardId = Number(
+      db
+        .prepare(
+          `INSERT INTO boards (name, color, background, customer_id, project_id, owner_contact_id)
+           VALUES (?, '#486581', '#486581', ?, NULL, ?)`
+        )
+        .run(customer.name, links.customer_id, customer.owner_contact_id ?? ownerContactId)
+        .lastInsertRowid
+    );
+    return createCategoryLists(boardId);
+  }
+  return ensureCommonTaskList(ownerContactId);
+}
+
+function createCategoryLists(boardId: number): number {
+  const insert = db.prepare(
+    `INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`
+  );
+  const first = Number(insert.run(boardId, 'Cần làm', 1024, 'todo').lastInsertRowid);
+  insert.run(boardId, 'Đang làm', 2048, 'doing');
+  insert.run(boardId, 'Chờ duyệt', 3072, 'review');
+  insert.run(boardId, 'Hoàn thành', 4096, 'done');
+  return first;
+}
+
+/** Du an, bang khach hang, roi den noi nhan cong viec chung. */
 export function resolveDefaultList(
   links: EntityLinks = {},
-  projectId: number | null = null
+  projectId?: number | null,
+  ownerContactId: number | null = null
 ): number | null {
   const customerId = links.customer_id ?? null;
-  const row = db
-    .prepare(
-      /*
-       * Du an la uu tien CAO NHAT, tren ca khach hang.
-       *
-       * Bam "Them cong viec" o trang mot du an ma viec roi vao bang cua du an
-       * khac la sai ngu canh nang hon — va tu v19, no con am tham doi luon du an
-       * cua viec do, vi du an suy tu bang chua the.
-       */
-      `SELECT l.id FROM lists l
-         JOIN boards b ON b.id = l.board_id
-        WHERE b.is_archived = 0
-          /* Co ngu canh du an thi khong duoc roi sang du an khac; khong co ngu
-             canh thi chi dung bang chung, tranh am tham gan task vao du an. */
-          AND ((? IS NOT NULL AND b.project_id = ?)
-            OR (? IS NULL AND b.project_id IS NULL))
-          /* Bang danh rieng cho khach A khong phai fallback cho khach B. */
-          AND (? IS NULL OR b.customer_id IS NULL OR b.customer_id = ?)
-        ORDER BY (? IS NOT NULL AND b.customer_id = ?) DESC,
-                 b.is_starred DESC, b.id, l.position
-        LIMIT 1`
-    )
-    .get(projectId, projectId, projectId, customerId, customerId, customerId, customerId) as
-    { id: number } | undefined;
-  return row?.id ?? null;
+  const preferredProject = projectId === undefined ? linkedProjectId(links) : projectId;
+  if (preferredProject != null) {
+    const projectList = db
+      .prepare(
+        `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
+          WHERE b.is_archived = 0 AND b.project_id = ?
+            AND (? IS NULL OR b.customer_id IS NULL OR b.customer_id = ?)
+          ORDER BY (l.status_mapping = 'todo') DESC, b.is_starred DESC, b.id, l.position, l.id
+          LIMIT 1`
+      )
+      .get(preferredProject, customerId, customerId) as { id: number } | undefined;
+    if (projectList) return projectList.id;
+    return null;
+  }
+  if (customerId != null) {
+    const customerList = db
+      .prepare(
+        `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
+          WHERE b.is_archived = 0 AND b.project_id IS NULL AND b.customer_id = ?
+          ORDER BY (l.status_mapping = 'todo') DESC, b.is_starred DESC, b.id, l.position, l.id
+          LIMIT 1`
+      )
+      .get(customerId) as { id: number } | undefined;
+    if (customerList) return customerList.id;
+    return null;
+  }
+  return commonTaskListId(ownerContactId);
 }
 
 export interface CreateCardOptions {
@@ -277,7 +401,8 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
   const derived = deriveTaskLinks(db, links);
   const assignee = resolveAssignee(db, assigneeContactId);
   // `project_id` khong con nam tren the — no chi dan huong chon bang mac dinh.
-  const targetList = listId ?? resolveDefaultList(derived, input.project_id ?? null);
+  const targetList =
+    listId ?? ensureCategorizedTaskList(derived, input.project_id, options.actorContactId ?? null);
   if (!targetList) throw new HttpError(400, 'Thiếu danh sách để thêm công việc');
   required(
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(targetList),

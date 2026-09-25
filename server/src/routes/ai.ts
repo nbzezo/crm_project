@@ -5,7 +5,7 @@ import { DOC_TYPES, PRIORITIES, type PermissionResource } from '@workflow/contra
 import { taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { accessOf, actorContactId } from '../middleware/currentUser.ts';
-import { assertInScope } from '../lib/scope.ts';
+import { assertInScope, scopeWhere } from '../lib/scope.ts';
 import { deriveTaskLinks } from '../lib/entityRelations.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
@@ -335,6 +335,7 @@ function keepKnownIds(
 ) {
   const kept: Record<string, number> = {};
   const sources = {
+    customer_id: 'customers',
     contact_id: 'contacts',
     deal_id: 'deals',
     contract_id: 'contracts',
@@ -364,7 +365,27 @@ router.post('/assist/task', async (req, res) => {
   try {
     const body = parseBody(taskAssistSchema, req);
     const anchor = deriveTaskLinks(db, body.context ?? {});
-    const context = buildTaskAssistContext(db, anchor);
+    assertContextInScope(req, 'customer', anchor.customer_id ?? undefined);
+    const baseContext = buildTaskAssistContext(db, anchor);
+    const customerScope = scopeWhere(req, 'customers', 'read', 'c.owner_contact_id');
+    const customerCandidates = db
+      .prepare(
+        `SELECT c.id, c.name FROM customers c WHERE 1 = 1
+          ${customerScope.sql ? `AND ${customerScope.sql}` : ''}
+          ORDER BY c.id DESC LIMIT 500`
+      )
+      .all(...customerScope.params) as { id: number; name: string }[];
+    const draftSearch = fold(body.draft);
+    const matchedCustomers =
+      anchor.customer_id != null
+        ? customerCandidates.filter((candidate) => candidate.id === anchor.customer_id)
+        : customerCandidates
+            .filter((candidate) => draftSearch.includes(fold(candidate.name)))
+            .slice(0, 20);
+    const context = {
+      ...baseContext,
+      candidates: { ...baseContext.candidates, customers: matchedCustomers },
+    };
 
     const { data, meta } = await runStructured(
       db,
@@ -382,7 +403,7 @@ router.post('/assist/task', async (req, res) => {
           'Từ bản nháp dưới đây, điền JSON ' +
           '{"title":"tiêu đề ngắn, bắt đầu bằng động từ","description":"","priority":"low|medium|high|urgent",' +
           '"start_date":null,"due_date":null,"checklist":["bước 1"],' +
-          '"links":{"contact_id":null,"deal_id":null,"contract_id":null,"quotation_id":null},' +
+          '"links":{"customer_id":null,"contact_id":null,"deal_id":null,"contract_id":null,"quotation_id":null},' +
           '"confidence":0.0,"rationale":"vì sao chọn như vậy"}.\n' +
           `Bản nháp:\n${body.draft}\n\nNgữ cảnh:\n${compactJson(context, 25_000)}`,
       },
