@@ -74,6 +74,7 @@ function parseInitialContent(json: string): PartialBlock[] | undefined {
  */
 export default function MeetingNoteBody({
   noteId,
+  autoFocus = false,
   initialContentJson,
   customerId,
   dealId,
@@ -81,6 +82,7 @@ export default function MeetingNoteBody({
   onChange,
 }: {
   noteId: number;
+  autoFocus?: boolean;
   initialContentJson: string;
   customerId: number | null;
   dealId: number | null;
@@ -92,6 +94,15 @@ export default function MeetingNoteBody({
   const initialContent = useMemo(() => parseInitialContent(initialContentJson), []);
   /* Cung ly do voi QuickNoteBody: BlockNote mac dinh chay tieng Anh. */
   const editor = useCreateBlockNote({ schema, initialContent, dictionary: vi });
+  useEffect(() => {
+    if (!autoFocus) return;
+    const frame = requestAnimationFrame(() => {
+      const firstParagraph = editor.document.find((block) => block.type === 'paragraph');
+      if (firstParagraph) editor.setTextCursorPosition(firstParagraph, 'start');
+      editor.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [autoFocus, editor]);
   const { data: contacts = [] } = useAssignees();
   const [hasSelection, setHasSelection] = useState(false);
   const [pending, setPending] = useState<Instruction | null>(null);
@@ -177,7 +188,7 @@ export default function MeetingNoteBody({
         />
       </div>
       {aiError && <p className="mb-2 text-xs text-tr-danger">{aiError}</p>}
-      <div className="meeting-note-canvas min-h-[220px] rounded-panel border border-tr-border bg-tr-list">
+      <div className="meeting-note-canvas document-editor-canvas rounded-panel border border-tr-border bg-tr-list">
         <BlockNoteView
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
@@ -198,7 +209,7 @@ export default function MeetingNoteBody({
               khoi, chen lien ket... ma khong phai tu viet lai. Can giua (thay vi
               sat le trai) de thang hang voi cot noi dung da gioi han be rong o
               tren (xem .meeting-note-canvas trong index.css). */}
-          <div className="flex justify-center border-t border-tr-border px-1 py-1">
+          <div className="document-editor-toolbar flex justify-center border-b border-tr-border px-1 py-1">
             <FormattingToolbar />
           </div>
         </BlockNoteView>

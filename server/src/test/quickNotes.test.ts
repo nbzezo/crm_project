@@ -150,10 +150,34 @@ test('Convert thanh CRM Note giu nguyen ban goc (FR16)', async () => {
   const crmNote = await json('GET', `/api/meeting-notes/${crmNoteId}`);
   assert.equal(crmNote.status, 200);
   assert.equal(crmNote.data.title, 'Ý tưởng cho khách C');
+  assert.equal(crmNote.data.purpose_key, 'blank');
 
   // Ban goc khong bi xoa (chi danh dau da chuyen doi).
   const original = await json('GET', `/api/quick-notes/${id}`);
   assert.equal(original.status, 200);
+});
+
+test('trang tai lieu luu muc dich va noi dung mau, doi muc dich khong ghi de noi dung', async () => {
+  const blocks = JSON.stringify([
+    { type: 'heading', props: { level: 2 }, content: 'Mục tiêu' },
+    { type: 'paragraph', content: '' },
+  ]);
+  const created = await json('POST', '/api/meeting-notes', {
+    title: 'Kế hoạch mới',
+    purpose_key: 'plan',
+    content_json: blocks,
+    content_text: 'Mục tiêu',
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.data.purpose_key, 'plan');
+  assert.equal(created.data.content_json, blocks);
+
+  const changed = await json('PATCH', `/api/meeting-notes/${created.data.id}`, {
+    purpose_key: 'report',
+  });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.data.purpose_key, 'report');
+  assert.equal(changed.data.content_json, blocks);
 });
 
 test('Reminder: dat gio nhac se o trang thai pending, xoa gio nhac thi tro ve null (FR14)', async () => {

@@ -17,7 +17,7 @@ export default function NotesPage() {
 
   return (
     <PageShell width="content">
-      <PageHeader description="Toàn bộ ghi chú của mọi Cơ hội và Dự án ở một nơi." />
+      <PageHeader description="Soạn và lưu các trang tài liệu cho công việc, Cơ hội và Dự án." />
 
       <MeetingNotesPanel links={{}} customerId={null} showContext initialSelectedId={openId} />
     </PageShell>

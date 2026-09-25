@@ -49,7 +49,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'people', label: 'Nhân sự' },
   { id: 'commercial', label: 'Hợp đồng & cơ hội' },
   { id: 'documents', label: 'Tài liệu' },
-  { id: 'notes', label: 'Ghi chú họp' },
+  { id: 'notes', label: 'Trang tài liệu' },
 ];
 
 export default function ProjectDetailPage() {

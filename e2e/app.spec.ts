@@ -1130,7 +1130,7 @@ test('menu Tạo nhanh: nhóm, phím tắt, bàn phím và a11y', async ({ page 
   /* Hai thu can tao nhanh nhat trong mot CRM phai co mat, va hai muc ghi chu
      phai doc ra khac nhau — truoc day ca hai deu ten "Ghi chú" va deu dung hinh
      quyen so nen khong phan biet noi. */
-  for (const name of ['Cơ hội', 'Khách hàng', 'Công việc', 'Ghi chú nhanh', 'Ghi chú họp']) {
+  for (const name of ['Cơ hội', 'Khách hàng', 'Công việc', 'Ghi chú nhanh', 'Trang tài liệu']) {
     await expect(menu.getByRole('menuitem', { name: new RegExp(name) })).toBeVisible();
   }
 
@@ -1143,4 +1143,33 @@ test('menu Tạo nhanh: nhóm, phím tắt, bàn phím và a11y', async ({ page 
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
   await expect(fab).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('tạo trang tài liệu từ mẫu và lưu nội dung khi quay lại', async ({ page }, testInfo) => {
+  await page.goto('/notes');
+  await page.getByRole('button', { name: 'Tạo trang' }).click();
+  const picker = page.getByRole('dialog', { name: 'Chọn mục đích tài liệu' });
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: /^Kế hoạch/ }).click();
+
+  const title = page.getByRole('textbox', { name: 'Tiêu đề trang' });
+  await expect(title).toHaveValue('Kế hoạch mới');
+  await expect(page.getByText('Mốc thời gian', { exact: true })).toBeVisible();
+  const canvas = page.locator('.document-editor-canvas');
+  const height = await canvas.evaluate((element) => element.getBoundingClientRect().height);
+  const viewportHeight = page.viewportSize()?.height ?? 800;
+  expect(height).toBeGreaterThanOrEqual(Math.max(320, viewportHeight - 300) - 1);
+  const canvasBox = await canvas.boundingBox();
+  const toolbarBox = await page.locator('.document-editor-toolbar').boundingBox();
+  expect(canvasBox).not.toBeNull();
+  expect(toolbarBox).not.toBeNull();
+  expect(toolbarBox!.y).toBeLessThan(canvasBox!.y + 80);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    (page.viewportSize()?.width ?? 1280) + 1
+  );
+
+  const newTitle = `Kế hoạch nghiệm thu ${testInfo.project.name}`;
+  await title.fill(newTitle);
+  await page.getByRole('button', { name: 'Quay lại danh sách trang' }).click();
+  await expect(page.getByText(newTitle, { exact: true })).toBeVisible();
 });

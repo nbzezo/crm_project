@@ -1,14 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useBlocker } from 'react-router';
 import { ArrowLeft, CheckCircle2, ListChecks, Sparkles, Trash2 } from 'lucide-react';
 import { api } from '../../../api/client';
 import { Button, DateTimeInput, focusRing, IconButton } from '../../common/ui';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
+import { Combobox } from '../../common/Combobox';
+import { useCustomerOptions, useDealOptions, useProjectOptions } from '../../../lib/useCrmOptions';
 import { useUiStore } from '../../../stores/uiStore';
 import type { AiActionProposal } from '../../../ai/types';
 import type { MeetingNote, MeetingNoteSummary } from '../../../types';
 import { AttendeesField } from './AttendeesField';
 import { LazyMeetingNoteBody } from './LazyMeetingNoteBody';
+import { DOCUMENT_TEMPLATES, type DocumentPurpose } from './documentTemplates';
 
 /**
  * `{}` (khong khoa nao) nghia la ghi chu doc lap — dung boi trang "Ghi chu"
@@ -28,20 +32,30 @@ interface SummaryState extends MeetingNoteSummary {
  */
 export function MeetingNoteEditor({
   note,
+  autoFocus = false,
   links,
   onBack,
   onDeleted,
 }: {
   note: MeetingNote;
+  autoFocus?: boolean;
   links: Links;
   onBack: () => void;
   onDeleted: () => void;
 }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
-  const queryKey = ['meeting-notes', links] as const;
+  const queryKey = useRef(['meeting-notes', links] as const);
 
   const [title, setTitle] = useState(note.title);
+  const [purpose, setPurpose] = useState<DocumentPurpose>(note.purpose_key);
+  const [customerId, setCustomerId] = useState<number | null>(note.customer_id);
+  const [dealId, setDealId] = useState<number | null>(note.deal_id);
+  const [projectId, setProjectId] = useState<number | null>(note.project_id);
+  const [linksOpen, setLinksOpen] = useState(false);
+  const { data: customers = [] } = useCustomerOptions(linksOpen);
+  const { data: deals = [] } = useDealOptions(linksOpen);
+  const { data: projects = [] } = useProjectOptions(linksOpen);
   const [meetingAt, setMeetingAt] = useState(note.meeting_at ?? '');
   const [attendeeIds, setAttendeeIds] = useState(note.attendees.map((a) => a.contact_id));
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -51,50 +65,143 @@ export function MeetingNoteEditor({
   const bodyRef = useRef({ contentJson: note.content_json, contentText: note.content_text });
   const [bodyVersion, setBodyVersion] = useState(0);
   const skipNextSave = useRef(true);
-
-  const save = useMutation({
-    mutationFn: (patch: Record<string, unknown>) =>
-      api.patch<MeetingNote>(`/api/meeting-notes/${note.id}`, patch),
-    onSuccess: (updated) => {
-      queryClient.setQueryData<MeetingNote[]>(queryKey, (old = []) =>
-        old.map((n) => (n.id === updated.id ? updated : n))
-      );
-    },
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'pending' | 'saving' | 'error'>('saved');
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlight = useRef<Promise<void> | null>(null);
+  const handlingNavigation = useRef(false);
+  const draft = useRef({
+    title: note.title,
+    purpose_key: note.purpose_key,
+    customer_id: note.customer_id,
+    deal_id: note.deal_id,
+    project_id: note.project_id,
+    meeting_at: note.meeting_at,
+    attendee_contact_ids: note.attendees.map((a) => a.contact_id),
+    content_json: note.content_json,
+    content_text: note.content_text,
   });
+  const savedSnapshot = useRef(JSON.stringify(draft.current));
+  draft.current = {
+    title: title.trim() || 'Trang không tiêu đề',
+    purpose_key: purpose,
+    customer_id: customerId,
+    deal_id: dealId,
+    project_id: projectId,
+    meeting_at: meetingAt || null,
+    attendee_contact_ids: attendeeIds,
+    content_json: bodyRef.current.contentJson,
+    content_text: bodyRef.current.contentText,
+  };
+
+  const flushSave = useCallback(async (): Promise<void> => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (inFlight.current) {
+      await inFlight.current;
+      return flushSave();
+    }
+    const snapshot = JSON.stringify(draft.current);
+    if (snapshot === savedSnapshot.current) {
+      setSaveStatus('saved');
+      return;
+    }
+    setSaveStatus('saving');
+    const request = api
+      .patch<MeetingNote>(`/api/meeting-notes/${note.id}`, draft.current)
+      .then((updated) => {
+        savedSnapshot.current = snapshot;
+        queryClient.setQueryData<MeetingNote[]>(queryKey.current, (old = []) =>
+          old
+            .map((item) => (item.id === updated.id ? updated : item))
+            .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id)
+        );
+        void queryClient.invalidateQueries({
+          queryKey: ['meeting-notes'],
+          refetchType: 'inactive',
+        });
+      });
+    inFlight.current = request;
+    try {
+      await request;
+    } catch {
+      setSaveStatus('error');
+      throw new Error('Không lưu được trang tài liệu');
+    } finally {
+      inFlight.current = null;
+    }
+    if (JSON.stringify(draft.current) !== savedSnapshot.current) return flushSave();
+    setSaveStatus('saved');
+  }, [note.id, queryClient]);
 
   useEffect(() => {
     if (skipNextSave.current) {
       skipNextSave.current = false;
       return;
     }
-    const id = setTimeout(() => {
-      /* Tu dat tieu de tu cau dau cua noi dung khi nguoi dung chua tu dat.
-         Truoc day moi ghi chu deu mang ten mac dinh, nen danh sach hien ra ba,
-         bon dong "Ghi chú mới" chi khac nhau o dau thoi gian — phai mo tung cai
-         ra moi biet cai nao la cai minh can.
-         Chi ap dung khi tieu de VAN DANG la mot trong cac ten mac dinh: khong
-         bao gio de len ten nguoi dung tu go. `setTitle` lam effect chay lai va
-         lan do moi that su luu, nen khong ton hai lan ghi. */
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (purpose === 'blank') {
       const derived = deriveTitle(title, bodyRef.current.contentText);
       if (derived) {
         setTitle(derived);
         return;
       }
-      save.mutate({
-        title: title.trim() || 'Ghi chú không tiêu đề',
-        meeting_at: meetingAt || null,
-        attendee_contact_ids: attendeeIds,
-        content_json: bodyRef.current.contentJson,
-        content_text: bodyRef.current.contentText,
-      });
+    }
+    setSaveStatus('pending');
+    saveTimer.current = setTimeout(() => {
+      void flushSave().catch(() => undefined);
     }, 800);
-    return () => clearTimeout(id);
-  }, [title, meetingAt, attendeeIds, bodyVersion]);
+  }, [
+    title,
+    purpose,
+    customerId,
+    dealId,
+    projectId,
+    meetingAt,
+    attendeeIds,
+    bodyVersion,
+    flushSave,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (JSON.stringify(draft.current) !== savedSnapshot.current) {
+        void flushSave().catch(() => undefined);
+      }
+    },
+    [flushSave]
+  );
+
+  const blocker = useBlocker(() => JSON.stringify(draft.current) !== savedSnapshot.current);
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || handlingNavigation.current) return;
+    handlingNavigation.current = true;
+    void flushSave()
+      .then(() => blocker.proceed())
+      .catch(() => blocker.reset())
+      .finally(() => {
+        handlingNavigation.current = false;
+      });
+  }, [blocker, flushSave]);
+
+  useEffect(() => {
+    const warnOnUnload = (event: BeforeUnloadEvent) => {
+      if (JSON.stringify(draft.current) === savedSnapshot.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnOnUnload);
+    return () => window.removeEventListener('beforeunload', warnOnUnload);
+  }, []);
 
   const remove = useMutation({
-    mutationFn: () => api.del(`/api/meeting-notes/${note.id}`),
+    mutationFn: async () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (inFlight.current) await inFlight.current.catch(() => undefined);
+      await api.del(`/api/meeting-notes/${note.id}`);
+    },
     onSuccess: () => {
-      queryClient.setQueryData<MeetingNote[]>(queryKey, (old = []) =>
+      savedSnapshot.current = JSON.stringify(draft.current);
+      queryClient.setQueryData<MeetingNote[]>(queryKey.current, (old = []) =>
         old.filter((n) => n.id !== note.id)
       );
       onDeleted();
@@ -137,12 +244,17 @@ export function MeetingNoteEditor({
       pushToast(error instanceof Error ? error.message : 'Không tạo được công việc'),
   });
 
-  const saveStatus = save.isPending ? 'Đang lưu…' : save.isSuccess ? 'Đã lưu' : '';
-
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
-        <IconButton label="Quay lại danh sách ghi chú" onClick={onBack}>
+        <IconButton
+          label="Quay lại danh sách trang"
+          onClick={() => {
+            void flushSave()
+              .then(onBack)
+              .catch(() => undefined);
+          }}
+        >
           <ArrowLeft size={16} />
         </IconButton>
         {/* Input thuong (khong dung component Input dung chung) — can toan
@@ -154,39 +266,116 @@ export function MeetingNoteEditor({
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Tiêu đề ghi chú"
-          aria-label="Tiêu đề ghi chú"
+          placeholder="Tiêu đề trang"
+          aria-label="Tiêu đề trang"
           className={`flex-1 rounded-control border border-transparent bg-transparent px-1.5 py-1 text-xl font-bold tracking-tight text-tr-text outline-none transition-colors placeholder:font-normal placeholder:text-tr-muted hover:border-tr-border hover:bg-tr-hover focus:border-tr-primary/50 focus:bg-tr-hover ${focusRing}`}
         />
-        <span className="shrink-0 text-xs text-tr-muted">{saveStatus}</span>
-        <IconButton label="Xoá ghi chú" tone="danger" onClick={() => setConfirmDelete(true)}>
+        {saveStatus === 'error' ? (
+          <button
+            type="button"
+            className="shrink-0 text-xs text-tr-danger underline"
+            onClick={() => {
+              void flushSave().catch(() => undefined);
+            }}
+          >
+            Lưu thất bại · Thử lại
+          </button>
+        ) : (
+          <span role="status" className="shrink-0 text-xs text-tr-muted">
+            {saveStatus === 'saved' ? 'Đã lưu' : saveStatus === 'saving' ? 'Đang lưu…' : 'Chưa lưu'}
+          </span>
+        )}
+        <IconButton label="Xoá trang" tone="danger" onClick={() => setConfirmDelete(true)}>
           <Trash2 size={16} />
         </IconButton>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        {/* Boc trong div co chieu rong co dinh — o nhap ben trong luon tu ep
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2 text-tr-subtle">
+          Mục đích
+          <select
+            value={purpose}
+            onChange={(event) => setPurpose(event.target.value as DocumentPurpose)}
+            className={`rounded-control border border-tr-border bg-tr-panel px-2 py-1 text-tr-text ${focusRing}`}
+          >
+            {DOCUMENT_TEMPLATES.map((template) => (
+              <option key={template.key} value={template.key}>
+                {template.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <details className="mb-3" onToggle={(event) => setLinksOpen(event.currentTarget.open)}>
+        <summary className="cursor-pointer text-sm text-tr-subtle">
+          Liên kết Khách hàng / Cơ hội / Dự án
+        </summary>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          <div className="text-xs text-tr-subtle">
+            Khách hàng
+            <Combobox
+              value={customerId ?? ''}
+              onChange={(value) => setCustomerId(value || null)}
+              options={customers.map((item) => ({ id: item.id, label: item.name }))}
+              ariaLabel="Khách hàng của trang"
+            />
+          </div>
+          <div className="text-xs text-tr-subtle">
+            Cơ hội
+            <Combobox
+              value={dealId ?? ''}
+              onChange={(value) => setDealId(value || null)}
+              options={deals.map((item) => ({ id: item.id, label: item.title }))}
+              ariaLabel="Cơ hội của trang"
+            />
+          </div>
+          <div className="text-xs text-tr-subtle">
+            Dự án
+            <Combobox
+              value={projectId ?? ''}
+              onChange={(value) => setProjectId(value || null)}
+              options={projects.map((item) => ({ id: item.id, label: item.name }))}
+              ariaLabel="Dự án của trang"
+            />
+          </div>
+        </div>
+      </details>
+
+      {purpose === 'meeting' && (
+        <details className="mb-3" open={note.purpose_key === 'meeting'}>
+          <summary className="cursor-pointer text-sm text-tr-subtle">Chi tiết cuộc họp</summary>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            {/* Boc trong div co chieu rong co dinh — o nhap ben trong luon tu ep
             w-full (xem inputBase o ui.tsx), truyen chieu rong thang vao no se bi
             w-full de (hai class Tailwind cung sua width, thu tu trong CSS bien
             dich quyet dinh chu khong phai thu tu viet trong className). */}
-        <div className="w-72">
-          <DateTimeInput
-            value={meetingAt || null}
-            onChange={(value) => setMeetingAt(value ?? '')}
-            aria-label="Thời gian họp"
-          />
-        </div>
-        <AttendeesField value={attendeeIds} onChange={setAttendeeIds} />
-      </div>
+            <div className="w-72">
+              <DateTimeInput
+                value={meetingAt || null}
+                onChange={(value) => setMeetingAt(value ?? '')}
+                aria-label="Thời gian họp"
+              />
+            </div>
+            <AttendeesField value={attendeeIds} onChange={setAttendeeIds} />
+          </div>
+        </details>
+      )}
 
       <LazyMeetingNoteBody
         noteId={note.id}
+        autoFocus={autoFocus}
         initialContentJson={note.content_json}
-        customerId={note.customer_id}
-        dealId={note.deal_id}
-        projectId={note.project_id}
+        customerId={customerId}
+        dealId={dealId}
+        projectId={projectId}
         onChange={(payload) => {
           bodyRef.current = payload;
+          draft.current = {
+            ...draft.current,
+            content_json: payload.contentJson,
+            content_text: payload.contentText,
+          };
           setBodyVersion((v) => v + 1);
         }}
       />
@@ -264,7 +453,7 @@ export function MeetingNoteEditor({
 
       <ConfirmDialog
         open={confirmDelete}
-        message="Xoá ghi chú họp này? Bạn có thể tạo lại nhưng không khôi phục được nội dung."
+        message="Xoá trang tài liệu này? Bạn có thể tạo lại nhưng không khôi phục được nội dung."
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
           remove.mutate();
@@ -276,7 +465,12 @@ export function MeetingNoteEditor({
 }
 
 /** Ten he thong tu dat khi tao ghi chu — coi nhu "chua co tieu de". */
-const DEFAULT_NOTE_TITLES = ['Ghi chú mới', 'Ghi chú họp mới', 'Ghi chú không tiêu đề'];
+const DEFAULT_NOTE_TITLES = [
+  'Ghi chú mới',
+  'Ghi chú họp mới',
+  'Ghi chú không tiêu đề',
+  'Trang không tiêu đề',
+];
 
 /**
  * Tieu de suy ra tu cau dau cua noi dung, hoac '' neu khong nen doi.

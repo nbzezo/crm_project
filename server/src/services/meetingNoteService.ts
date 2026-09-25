@@ -10,6 +10,7 @@ interface MeetingNoteRow {
   deal_id: number | null;
   project_id: number | null;
   title: string;
+  purpose_key: 'blank' | 'meeting' | 'plan' | 'proposal' | 'report' | 'process' | 'decision';
   meeting_at: string | null;
   content_json: string;
   content_text: string;
@@ -106,7 +107,7 @@ export function listMeetingNotes(db: Database, links: { deal_id?: number; projec
         WHERE deleted_at IS NULL
           AND (? IS NULL OR deal_id = ?)
           AND (? IS NULL OR project_id = ?)
-        ORDER BY meeting_at IS NULL, meeting_at DESC, updated_at DESC`
+        ORDER BY updated_at DESC, id DESC`
     )
     .all(
       links.deal_id ?? null,
@@ -118,7 +119,7 @@ export function listMeetingNotes(db: Database, links: { deal_id?: number; projec
 }
 
 export function getMeetingNote(db: Database, id: number) {
-  return required(reload(db, id), 'Khong tim thay ghi chu hop');
+  return required(reload(db, id), 'Khong tim thay trang tai lieu');
 }
 
 export function createMeetingNote(db: Database, input: MeetingNoteInput) {
@@ -128,14 +129,15 @@ export function createMeetingNote(db: Database, input: MeetingNoteInput) {
     const info = db
       .prepare(
         `INSERT INTO meeting_notes
-          (customer_id, deal_id, project_id, title, meeting_at, content_json, content_text, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          (customer_id, deal_id, project_id, title, purpose_key, meeting_at, content_json, content_text, search_text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.customer_id ?? null,
         input.deal_id ?? null,
         input.project_id ?? null,
         input.title,
+        input.purpose_key ?? 'blank',
         input.meeting_at ?? null,
         input.content_json ?? '[]',
         contentText,
@@ -160,7 +162,7 @@ export function updateMeetingNote(db: Database, id: number, patch: Partial<Meeti
   db.transaction(() => {
     db.prepare(
       `UPDATE meeting_notes
-          SET customer_id = ?, deal_id = ?, project_id = ?, title = ?, meeting_at = ?,
+          SET customer_id = ?, deal_id = ?, project_id = ?, title = ?, purpose_key = ?, meeting_at = ?,
               content_json = ?, content_text = ?, search_text = ?,
               updated_at = datetime('now','localtime')
         WHERE id = ?`
@@ -169,6 +171,7 @@ export function updateMeetingNote(db: Database, id: number, patch: Partial<Meeti
       merged.deal_id ?? null,
       merged.project_id ?? null,
       merged.title,
+      merged.purpose_key,
       merged.meeting_at ?? null,
       merged.content_json ?? '[]',
       merged.content_text ?? '',
@@ -188,7 +191,7 @@ export function softDeleteMeetingNote(db: Database, id: number): void {
         WHERE id = ? AND deleted_at IS NULL`
     )
     .run(id);
-  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay ghi chu hop');
+  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay trang tai lieu');
 }
 
 /** Dung boi route AI (tom tat) de cache ket qua va tranh goi lai model khong can thiet. */

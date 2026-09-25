@@ -96,6 +96,9 @@ export const meetingNoteFieldsSchema = z.object({
   deal_id: z.number().int().positive().nullable().optional(),
   project_id: z.number().int().positive().nullable().optional(),
   title: z.string().trim().min(1, 'Tieu de khong duoc de trong').max(300),
+  purpose_key: z
+    .enum(['blank', 'meeting', 'plan', 'proposal', 'report', 'process', 'decision'])
+    .optional(),
   meeting_at: z.string().min(10).max(30).nullable().optional(),
   content_json: z.string().max(2_000_000).optional(),
   content_text: z.string().max(500_000).optional(),

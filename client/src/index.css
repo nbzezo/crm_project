@@ -1125,6 +1125,30 @@ select.tr-field-control {
      mach, khong con "mieng trang nho" noi giua vung trong. */
   background-color: transparent;
 }
+.document-editor-canvas {
+  min-height: max(360px, calc(100dvh - 270px));
+}
+.document-editor-canvas .bn-container {
+  display: flex;
+  min-height: inherit;
+  flex-direction: column;
+}
+.document-editor-canvas .bn-editor {
+  flex: 1 0 auto;
+  width: 100%;
+}
+.document-editor-toolbar {
+  order: -1;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--tr-list);
+}
+@media (max-width: 640px) {
+  .document-editor-canvas {
+    min-height: max(320px, calc(100dvh - 300px));
+  }
+}
 .meeting-note-canvas [data-content-type='heading'] {
   padding-top: 12px;
 }

@@ -132,6 +132,7 @@ router.post('/:id/convert/crm-note', (req, res) => {
   );
   const crmNote = createMeetingNote(db, {
     ...links,
+    purpose_key: 'blank',
     title: note.title || 'Ghi chú không tiêu đề',
     content_json: note.content_json,
     content_text: note.content_text,

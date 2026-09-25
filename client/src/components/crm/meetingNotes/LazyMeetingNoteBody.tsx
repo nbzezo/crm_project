@@ -11,6 +11,7 @@ const MeetingNoteBody = lazy(() => import('./MeetingNoteBody'));
 
 export function LazyMeetingNoteBody(props: {
   noteId: number;
+  autoFocus?: boolean;
   initialContentJson: string;
   customerId: number | null;
   dealId: number | null;

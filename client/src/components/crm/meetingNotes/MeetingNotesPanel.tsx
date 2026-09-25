@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, FolderKanban, Plus, Target, Users } from 'lucide-react';
 import { Link } from 'react-router';
@@ -7,6 +7,12 @@ import { Button, EmptyState, Skeleton } from '../../common/ui';
 import { formatDateTime } from '../../../lib/format';
 import type { MeetingNote } from '../../../types';
 import { MeetingNoteEditor } from './MeetingNoteEditor';
+import { DocumentTemplatePicker } from './DocumentTemplatePicker';
+import {
+  createDocumentFromTemplate,
+  documentPurposeLabel,
+  type DocumentPurpose,
+} from './documentTemplates';
 
 /**
  * `{}` (khong khoa nao) nghia la liet ke TAT CA ghi chu — dung boi trang "Ghi
@@ -40,7 +46,7 @@ function NoteContextBadge({ note }: { note: MeetingNote }) {
     );
   }
   if (note.customer_name) return <span>{note.customer_name}</span>;
-  return <span className="italic">Ghi chú riêng</span>;
+  return <span className="italic">Trang riêng</span>;
 }
 
 /**
@@ -65,6 +71,13 @@ export function MeetingNotesPanel({
 }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId);
+  const [newlyCreatedId, setNewlyCreatedId] = useState<number | null>(initialSelectedId);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useEffect(() => {
+    if (initialSelectedId === null) return;
+    setSelectedId(initialSelectedId);
+    setNewlyCreatedId(initialSelectedId);
+  }, [initialSelectedId]);
   const queryKey = ['meeting-notes', links] as const;
 
   const { data: notes, isLoading } = useQuery({
@@ -74,14 +87,16 @@ export function MeetingNotesPanel({
   });
 
   const create = useMutation({
-    mutationFn: () =>
+    mutationFn: (purpose: DocumentPurpose) =>
       api.post<MeetingNote>('/api/meeting-notes', {
         ...links,
         customer_id: customerId,
-        title: 'Ghi chú họp mới',
+        ...createDocumentFromTemplate(purpose),
       }),
     onSuccess: (note) => {
       queryClient.setQueryData<MeetingNote[]>(queryKey, (old = []) => [note, ...old]);
+      setPickerOpen(false);
+      setNewlyCreatedId(note.id);
       setSelectedId(note.id);
     },
   });
@@ -94,8 +109,12 @@ export function MeetingNotesPanel({
       <MeetingNoteEditor
         key={selected.id}
         note={selected}
+        autoFocus={selected.id === newlyCreatedId}
         links={links}
-        onBack={() => setSelectedId(null)}
+        onBack={() => {
+          setSelectedId(null);
+          setNewlyCreatedId(null);
+        }}
         onDeleted={() => setSelectedId(null)}
       />
     );
@@ -104,16 +123,16 @@ export function MeetingNotesPanel({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-tr-subtle">Ghi chú họp</h3>
-        <Button variant="primary" onClick={() => create.mutate()} disabled={create.isPending}>
-          <Plus size={15} aria-hidden="true" /> {create.isPending ? 'Đang tạo…' : 'Ghi chú mới'}
+        <h3 className="text-sm font-semibold text-tr-subtle">Trang tài liệu</h3>
+        <Button variant="primary" onClick={() => setPickerOpen(true)}>
+          <Plus size={15} aria-hidden="true" /> Tạo trang
         </Button>
       </div>
 
       {!notes || notes.length === 0 ? (
         <EmptyState
-          message="Chưa có ghi chú họp nào."
-          hint="Tạo ghi chú đầu tiên để bắt đầu ghi lại nội dung cuộc họp."
+          message="Chưa có trang tài liệu nào."
+          hint="Chọn một mẫu để tạo trang đầu tiên."
         />
       ) : (
         <ul className="divide-y divide-tr-border overflow-hidden rounded-lg border border-tr-border bg-tr-panel">
@@ -127,7 +146,7 @@ export function MeetingNotesPanel({
                 <FileText size={16} className="shrink-0 text-tr-muted" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium text-tr-text">
-                    {note.title || 'Ghi chú không tiêu đề'}
+                    {note.title || 'Trang không tiêu đề'}
                   </div>
                   {/* Trich noi dung: tieu de thoi khong du de phan biet hai ghi
                       chu cung chu de. */}
@@ -137,9 +156,7 @@ export function MeetingNotesPanel({
                     </div>
                   )}
                   <div className="truncate text-xs text-tr-muted">
-                    {note.meeting_at
-                      ? formatDateTime(note.meeting_at)
-                      : formatDateTime(note.updated_at)}
+                    {documentPurposeLabel(note.purpose_key)} · {formatDateTime(note.updated_at)}
                     {note.attendees.length > 0 && (
                       <span className="ml-2 inline-flex items-center gap-1">
                         <Users size={11} aria-hidden="true" /> {note.attendees.length}
@@ -157,6 +174,24 @@ export function MeetingNotesPanel({
           ))}
         </ul>
       )}
+      <DocumentTemplatePicker
+        open={pickerOpen}
+        pending={create.isPending}
+        error={
+          create.isError
+            ? create.error instanceof Error
+              ? create.error.message
+              : 'Không tạo được trang'
+            : null
+        }
+        onClose={() => {
+          if (!create.isPending) {
+            setPickerOpen(false);
+            create.reset();
+          }
+        }}
+        onSelect={(purpose) => create.mutate(purpose)}
+      />
     </div>
   );
 }

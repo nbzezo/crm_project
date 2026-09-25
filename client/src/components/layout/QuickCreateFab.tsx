@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router';
 import { Building2, ListTodo, Plus, Target, Users, Zap } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
+import { DocumentTemplatePicker } from '../crm/meetingNotes/DocumentTemplatePicker';
+import {
+  createDocumentFromTemplate,
+  type DocumentPurpose,
+} from '../crm/meetingNotes/documentTemplates';
 
 /* Lazy: hai bieu mau nay nang, va phan lon phien lam viec khong mo toi chung. */
 const DealForm = lazy(() =>
@@ -35,6 +40,7 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
   const [open, setOpen] = useState(false);
   const [dealOpen, setDealOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Mo menu thi dua focus vao muc dau — neu khong, nguoi dung ban phim bam mo
@@ -48,13 +54,15 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
   const pushToast = useUiStore((s) => s.pushToast);
 
   const createNote = useMutation({
-    mutationFn: () => api.post<MeetingNote>('/api/meeting-notes', { title: 'Ghi chú mới' }),
+    mutationFn: (purpose: DocumentPurpose) =>
+      api.post<MeetingNote>('/api/meeting-notes', createDocumentFromTemplate(purpose)),
     onSuccess: (note) => {
       setOpen(false);
+      setTemplateOpen(false);
       navigate(`/notes?open=${note.id}`);
     },
     onError: (error) =>
-      pushToast(error instanceof Error ? error.message : 'Không tạo được ghi chú'),
+      pushToast(error instanceof Error ? error.message : 'Không tạo được trang tài liệu'),
   });
 
   /**
@@ -146,9 +154,11 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
             />
             <MenuItem
               icon={<Users size={16} aria-hidden="true" />}
-              label={createNote.isPending ? 'Đang tạo…' : 'Ghi chú họp'}
-              disabled={createNote.isPending}
-              onClick={() => createNote.mutate()}
+              label="Trang tài liệu"
+              onClick={() => {
+                setOpen(false);
+                setTemplateOpen(true);
+              }}
             />
           </div>
         )}
@@ -174,6 +184,24 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
         {dealOpen && <DealForm open onClose={() => setDealOpen(false)} />}
         {customerOpen && <CustomerForm open onClose={() => setCustomerOpen(false)} />}
       </Suspense>
+      <DocumentTemplatePicker
+        open={templateOpen}
+        pending={createNote.isPending}
+        error={
+          createNote.isError
+            ? createNote.error instanceof Error
+              ? createNote.error.message
+              : 'Không tạo được trang'
+            : null
+        }
+        onClose={() => {
+          if (!createNote.isPending) {
+            setTemplateOpen(false);
+            createNote.reset();
+          }
+        }}
+        onSelect={(purpose) => createNote.mutate(purpose)}
+      />
     </>
   );
 }
