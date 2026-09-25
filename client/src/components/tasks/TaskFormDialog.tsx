@@ -238,6 +238,8 @@ export function TaskFormDialog() {
           )
         ),
         list_id: listId === '' ? null : listId,
+        project_id: projectId,
+        assignee_contact_id: assigneeId,
       }),
     onSuccess: (result) => {
       setAiSuggestion(result);
@@ -245,9 +247,16 @@ export function TaskFormDialog() {
         [
           !title.trim() && result.title ? 'title' : '',
           !description.trim() && result.description ? 'description' : '',
+          result.priority != null && result.priority !== priority ? 'priority' : '',
           startDate === null && result.start_date ? 'start_date' : '',
           dueDate === null && result.due_date ? 'due_date' : '',
           !checklistText.trim() && result.checklist.length > 0 ? 'checklist' : '',
+          result.project_id != null && projectId === null && !listTouched ? 'project_id' : '',
+          result.assignee_contact_id != null &&
+          result.assignee_contact_id !== assigneeId &&
+          !assigneeTouched
+            ? 'assignee_contact_id'
+            : '',
           ...LINK_KEYS.filter((key) => result.links[key] != null && valueOf(key) === ''),
         ].filter(Boolean)
       );
@@ -259,10 +268,19 @@ export function TaskFormDialog() {
     const selected = new Set(aiSelection);
     if (selected.has('title')) setTitle(aiSuggestion.title);
     if (selected.has('description')) setDescription(aiSuggestion.description);
-    if (selected.has('priority')) setPriority(aiSuggestion.priority);
+    if (selected.has('priority') && aiSuggestion.priority) setPriority(aiSuggestion.priority);
     if (selected.has('start_date')) setStartDate(aiSuggestion.start_date);
     if (selected.has('due_date')) setDueDate(aiSuggestion.due_date);
     if (selected.has('checklist')) setChecklistText(aiSuggestion.checklist.join('\n'));
+    if (selected.has('project_id') && aiSuggestion.project_id != null) {
+      setProjectId(aiSuggestion.project_id);
+      setListTouched(false);
+      setListId('');
+    }
+    if (selected.has('assignee_contact_id') && aiSuggestion.assignee_contact_id != null) {
+      setAssigneeId(aiSuggestion.assignee_contact_id);
+      setAssigneeTouched(true);
+    }
     const suggestedLinks = Object.fromEntries(
       LINK_KEYS.filter((key) => selected.has(key) && aiSuggestion.links[key] != null).map((key) => [
         key,
@@ -271,7 +289,26 @@ export function TaskFormDialog() {
     ) as TaskContext;
     if (Object.keys(suggestedLinks).length > 0)
       setLinks((current) => ({ ...current, ...suggestedLinks }));
-    setAiFilled(aiSelection);
+    setAiFilled(
+      aiSelection.map((key) =>
+        key === 'project_id'
+          ? 'Dự án'
+          : key === 'assignee_contact_id'
+            ? 'Người phụ trách'
+            : LINK_KEYS.includes(key as LinkKey)
+              ? LINK_LABELS[key as LinkKey]
+              : ((
+                  {
+                    title: 'Tiêu đề',
+                    description: 'Mô tả',
+                    priority: 'Ưu tiên',
+                    start_date: 'Ngày bắt đầu',
+                    due_date: 'Ngày kết thúc / hạn',
+                    checklist: 'Checklist',
+                  } as Record<string, string>
+                )[key] ?? key)
+      )
+    );
     setAiMeta({ requestId: aiSuggestion.meta.requestId, warnings: aiSuggestion.warnings });
     setAiSuggestion(null);
     pushToast('Đã áp dụng các trường bạn chọn — hãy kiểm tra trước khi lưu', 'success');
@@ -325,6 +362,7 @@ export function TaskFormDialog() {
     title.trim() || description.trim() || checklistText.trim() || aiSource.trim()
   );
   const suggestedLinkName = (key: LinkKey, id: number): string => {
+    if (aiSuggestion?.labels[key]) return aiSuggestion.labels[key]!;
     if (key === 'customer_id') return customers.find((item) => item.id === id)?.name ?? `#${id}`;
     if (key === 'contact_id')
       return context?.contacts.find((item) => item.id === id)?.full_name ?? `#${id}`;
@@ -340,11 +378,27 @@ export function TaskFormDialog() {
         {
           key: 'priority',
           label: 'Ưu tiên',
-          value: aiSuggestion.priority !== priority ? t.priority[aiSuggestion.priority] : '',
+          value: aiSuggestion.priority ? t.priority[aiSuggestion.priority] : '',
         },
-        { key: 'start_date', label: 'Bắt đầu', value: aiSuggestion.start_date ?? '' },
-        { key: 'due_date', label: 'Hạn', value: aiSuggestion.due_date ?? '' },
+        { key: 'start_date', label: 'Ngày bắt đầu', value: aiSuggestion.start_date ?? '' },
+        { key: 'due_date', label: 'Ngày kết thúc / hạn', value: aiSuggestion.due_date ?? '' },
         { key: 'checklist', label: 'Checklist', value: aiSuggestion.checklist.join(' · ') },
+        {
+          key: 'project_id',
+          label: 'Dự án',
+          value:
+            aiSuggestion.project_id == null
+              ? ''
+              : (aiSuggestion.labels.project_id ?? `#${aiSuggestion.project_id}`),
+        },
+        {
+          key: 'assignee_contact_id',
+          label: 'Người phụ trách',
+          value:
+            aiSuggestion.assignee_contact_id == null
+              ? ''
+              : (aiSuggestion.labels.assignee_contact_id ?? `#${aiSuggestion.assignee_contact_id}`),
+        },
         ...LINK_KEYS.filter((key) => aiSuggestion.links[key] != null).map((key) => ({
           key,
           label: LINK_LABELS[key],
@@ -389,7 +443,10 @@ export function TaskFormDialog() {
           <Textarea
             rows={3}
             value={aiSource}
-            onChange={(event) => setAiSource(event.target.value)}
+            onChange={(event) => {
+              setAiSource(event.target.value);
+              setAiSuggestion(null);
+            }}
             placeholder="Ví dụ: Thứ sáu gọi lại khách hàng về báo giá, ưu tiên cao; chuẩn bị câu hỏi KYC…"
           />
         </Field>
@@ -426,6 +483,9 @@ export function TaskFormDialog() {
               {warning}
             </p>
           ))}
+          {aiSuggestion.rationale && (
+            <p className="mt-2 text-xs text-tr-subtle">Lý do: {aiSuggestion.rationale}</p>
+          )}
           <div className="mt-3 flex gap-2">
             <Button
               variant="primary"
@@ -572,7 +632,13 @@ export function TaskFormDialog() {
         </Field>
 
         <Field label={t.card.priority}>
-          <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+          <Select
+            value={priority}
+            onChange={(e) => {
+              markEdited();
+              setPriority(e.target.value as Priority);
+            }}
+          >
             {PRIORITY_ORDER.map((p) => (
               <option key={p} value={p}>
                 {t.priority[p]}
@@ -600,10 +666,22 @@ export function TaskFormDialog() {
         */}
         <div className="sm:col-span-2 grid grid-cols-2 gap-3">
           <Field label={t.card.startDate}>
-            <DateInput value={startDate} onChange={setStartDate} />
+            <DateInput
+              value={startDate}
+              onChange={(value) => {
+                markEdited();
+                setStartDate(value);
+              }}
+            />
           </Field>
           <Field label={t.card.dueDate}>
-            <DateInput value={dueDate} onChange={setDueDate} />
+            <DateInput
+              value={dueDate}
+              onChange={(value) => {
+                markEdited();
+                setDueDate(value);
+              }}
+            />
           </Field>
         </div>
 

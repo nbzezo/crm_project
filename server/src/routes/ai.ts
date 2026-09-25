@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { DOC_TYPES, PRIORITIES, type PermissionResource } from '@workflow/contracts';
-import { taskLinksSchema } from '@workflow/contracts/schemas';
+import { TASK_LINK_KEYS, taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { accessOf, actorContactId } from '../middleware/currentUser.ts';
-import { assertInScope, scopeWhere } from '../lib/scope.ts';
+import { assertInScope } from '../lib/scope.ts';
 import { deriveTaskLinks } from '../lib/entityRelations.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
@@ -38,7 +38,6 @@ import {
   buildQuickNoteContext,
   buildSearchContext,
   type AiScopes,
-  buildTaskAssistContext,
   buildTodayContext,
   compactJson,
 } from '../services/ai/contextBuilder.ts';
@@ -298,25 +297,21 @@ const taskAssistSchema = z.object({
   draft: z.string().trim().min(3).max(5000),
   context: taskLinksSchema.optional(),
   list_id: z.number().int().positive().nullable().optional(),
+  project_id: z.number().int().positive().nullable().optional(),
+  assignee_contact_id: z.number().int().positive().nullable().optional(),
   mode: z.enum(['fast', 'balanced', 'reasoning']).optional(),
 });
 
 const taskAssistResponse = z.object({
   title: z.string().trim().min(1).max(300),
   description: z.string().max(5000).default(''),
-  priority: z.enum(PRIORITIES).default('medium'),
-  start_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .default(null),
-  due_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .default(null),
+  priority: z.enum(PRIORITIES).nullable().default(null),
+  start_date: z.string().nullable().default(null),
+  due_date: z.string().nullable().default(null),
   checklist: z.array(z.string().trim().min(1).max(500)).max(20).default([]),
   links: taskLinksSchema.default({}),
+  project_id: z.number().int().positive().nullable().default(null),
+  assignee_contact_id: z.number().int().positive().nullable().default(null),
   confidence: z.number().min(0).max(1).default(0.5),
   rationale: z.string().max(1000).default(''),
 });
@@ -353,6 +348,137 @@ function keepKnownIds(
   return kept;
 }
 
+interface TaskCandidateRow {
+  id: number;
+  customer_id: number | null;
+  owner_contact_id: number | null;
+  name?: string | null;
+  short_name?: string | null;
+  full_name?: string | null;
+  title?: string | null;
+  number?: string | null;
+  code?: string | null;
+  project_id?: number | null;
+}
+
+/** Chi dua vao prompt nhung ban ghi nguoi hoi duoc xem va co kha nang lien quan. */
+function taskAssistCandidates(
+  req: Request,
+  draft: string,
+  anchor: ReturnType<typeof deriveTaskLinks>,
+  currentProjectId: number | null,
+  currentAssigneeId: number | null
+) {
+  const normalized = fold(draft);
+  const mentioned = (value: string | null | undefined) => {
+    const name = fold(value ?? '').trim();
+    return name.length >= 3 && normalized.includes(name);
+  };
+  const personMentioned = (value: string | null | undefined) => {
+    if (mentioned(value)) return true;
+    const lastName =
+      fold(value ?? '')
+        .trim()
+        .split(/\s+/)
+        .at(-1) ?? '';
+    return (
+      lastName.length >= 3 &&
+      normalized.split(/[^a-z0-9]+/).includes(lastName) &&
+      /\b(giao|phu trach|anh|chi|ban)\b/.test(normalized)
+    );
+  };
+  const visible = (resource: PermissionResource, sql: string): TaskCandidateRow[] => {
+    const records = db.prepare(sql).all() as TaskCandidateRow[];
+    const ids = scopeOf(req, resource);
+    if (ids === null) return records;
+    const allowed = new Set(ids);
+    return records.filter(
+      (row) => row.owner_contact_id != null && allowed.has(row.owner_contact_id)
+    );
+  };
+
+  const customers = visible(
+    'customers',
+    `SELECT id, id AS customer_id, name, short_name, owner_contact_id FROM customers ORDER BY id DESC`
+  );
+  const contacts = visible(
+    'contacts',
+    `SELECT ct.id, ct.customer_id, ct.full_name, c.owner_contact_id
+       FROM contacts ct JOIN customers c ON c.id = ct.customer_id
+      WHERE ct.is_active = 1 ORDER BY ct.id DESC`
+  );
+  const deals = visible(
+    'deals',
+    `SELECT id, customer_id, title, project_id, owner_contact_id FROM deals ORDER BY id DESC`
+  );
+  const contracts = visible(
+    'contracts',
+    `SELECT ct.id, ct.customer_id, ct.name, ct.number, c.owner_contact_id
+       FROM contracts ct JOIN customers c ON c.id = ct.customer_id ORDER BY ct.id DESC`
+  );
+  const quotations = visible(
+    'quotations',
+    `SELECT q.id, q.customer_id, q.code, c.owner_contact_id
+       FROM quotations q JOIN customers c ON c.id = q.customer_id ORDER BY q.id DESC`
+  );
+  const projects = visible(
+    'projects',
+    `SELECT id, customer_id, name, code, owner_contact_id FROM projects
+      WHERE is_archived = 0 ORDER BY id DESC`
+  );
+  // Giong o chon nguoi phu trach: co the giao cho nhan su cua bat ky to chuc nao.
+  const assignees = db
+    .prepare(`SELECT id, customer_id, full_name FROM contacts WHERE is_active = 1 ORDER BY id DESC`)
+    .all() as TaskCandidateRow[];
+
+  const namedContacts = contacts.filter((row) => personMentioned(row.full_name));
+  const namedDeals = deals.filter((row) => mentioned(row.title));
+  const namedContracts = contracts.filter((row) => mentioned(row.name) || mentioned(row.number));
+  const namedQuotations = quotations.filter((row) => mentioned(row.code));
+  const namedProjects = projects.filter((row) => mentioned(row.name) || mentioned(row.code));
+  const customerIds = new Set<number>(
+    [
+      anchor.customer_id,
+      ...customers
+        .filter((row) => mentioned(row.name) || mentioned(row.short_name))
+        .map((row) => row.id),
+      ...[
+        ...namedContacts,
+        ...namedDeals,
+        ...namedContracts,
+        ...namedQuotations,
+        ...namedProjects,
+      ].map((row) => row.customer_id),
+      projects.find((row) => row.id === currentProjectId)?.customer_id,
+    ].filter((id): id is number => id != null)
+  );
+  const related = (row: TaskCandidateRow) =>
+    row.customer_id != null && customerIds.has(row.customer_id);
+  return {
+    customers: customers.filter((row) => customerIds.has(row.id)).slice(0, 20),
+    contacts: contacts.filter((row) => related(row) || personMentioned(row.full_name)).slice(0, 35),
+    deals: deals.filter((row) => related(row) || mentioned(row.title)).slice(0, 35),
+    contracts: contracts
+      .filter((row) => related(row) || mentioned(row.name) || mentioned(row.number))
+      .slice(0, 25),
+    quotations: quotations.filter((row) => related(row) || mentioned(row.code)).slice(0, 25),
+    projects: projects
+      .filter(
+        (row) =>
+          row.id === currentProjectId || related(row) || mentioned(row.name) || mentioned(row.code)
+      )
+      .slice(0, 25),
+    assignees: assignees
+      .filter(
+        (row) =>
+          row.id === currentAssigneeId ||
+          row.id === actorContactId(req) ||
+          personMentioned(row.full_name)
+      )
+      .slice(0, 25),
+  };
+}
+
 /**
  * Nhap lieu thong minh: nguoi dung go noi dung cong viec, AI dien not cac truong.
  *
@@ -366,25 +492,26 @@ router.post('/assist/task', async (req, res) => {
     const body = parseBody(taskAssistSchema, req);
     const anchor = deriveTaskLinks(db, body.context ?? {});
     assertContextInScope(req, 'customer', anchor.customer_id ?? undefined);
-    const baseContext = buildTaskAssistContext(db, anchor);
-    const customerScope = scopeWhere(req, 'customers', 'read', 'c.owner_contact_id');
-    const customerCandidates = db
-      .prepare(
-        `SELECT c.id, c.name FROM customers c WHERE 1 = 1
-          ${customerScope.sql ? `AND ${customerScope.sql}` : ''}
-          ORDER BY c.id DESC LIMIT 500`
-      )
-      .all(...customerScope.params) as { id: number; name: string }[];
-    const draftSearch = fold(body.draft);
-    const matchedCustomers =
-      anchor.customer_id != null
-        ? customerCandidates.filter((candidate) => candidate.id === anchor.customer_id)
-        : customerCandidates
-            .filter((candidate) => draftSearch.includes(fold(candidate.name)))
-            .slice(0, 20);
+    assertContextInScope(req, 'deal', anchor.deal_id ?? undefined);
+    const candidates = taskAssistCandidates(
+      req,
+      body.draft,
+      anchor,
+      body.project_id ?? null,
+      body.assignee_contact_id ?? null
+    );
     const context = {
-      ...baseContext,
-      candidates: { ...baseContext.candidates, customers: matchedCustomers },
+      today: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()),
+      time_zone: 'Asia/Ho_Chi_Minh',
+      current_links: anchor,
+      current_project_id: body.project_id ?? null,
+      current_assignee_contact_id: body.assignee_contact_id ?? null,
+      candidates: Object.fromEntries(
+        Object.entries(candidates).map(([key, rows]) => [
+          key,
+          rows.map(({ owner_contact_id: _ownerContactId, ...row }) => row),
+        ])
+      ),
     };
 
     const { data, meta } = await runStructured(
@@ -394,16 +521,20 @@ router.post('/assist/task', async (req, res) => {
         mode: body.mode ?? 'fast',
         contextType: 'task',
         contextId: anchor.customer_id ?? undefined,
-        maxOutputTokens: 1200,
+        maxOutputTokens: 1800,
         system:
-          'Bạn giúp hoàn thiện phiếu công việc CRM tiếng Việt. Chỉ dùng dữ kiện có trong bản nháp và ngữ cảnh, ' +
-          'không bịa thêm sự kiện. Với các trường liên kết, chỉ được chọn id có trong candidates; không chắc thì để null. ' +
-          'Ngày phải đúng YYYY-MM-DD hoặc null.',
+          'Bạn giúp hoàn thiện phiếu công việc CRM tiếng Việt. Đề xuất mọi trường có thể suy ra chắc chắn từ bản nháp hoặc ngữ cảnh; ' +
+          'không bịa dữ kiện và không lấy một ứng viên chỉ vì nó xuất hiện trong danh sách. ' +
+          'Mọi id phải thuộc đúng tập candidates tương ứng; không chắc thì để null. ' +
+          'Ngày bắt đầu là start_date, ngày kết thúc hoặc hạn là due_date. ' +
+          'Diễn giải ngày tương đối theo today/time_zone; không có căn cứ thì để null. ' +
+          'priority chỉ đặt khi bản nháp có dấu hiệu rõ, nếu không để null.',
         prompt:
           'Từ bản nháp dưới đây, điền JSON ' +
-          '{"title":"tiêu đề ngắn, bắt đầu bằng động từ","description":"","priority":"low|medium|high|urgent",' +
+          '{"title":"tiêu đề ngắn, bắt đầu bằng động từ","description":"","priority":null,' +
           '"start_date":null,"due_date":null,"checklist":["bước 1"],' +
           '"links":{"customer_id":null,"contact_id":null,"deal_id":null,"contract_id":null,"quotation_id":null},' +
+          '"project_id":null,"assignee_contact_id":null,' +
           '"confidence":0.0,"rationale":"vì sao chọn như vậy"}.\n' +
           `Bản nháp:\n${body.draft}\n\nNgữ cảnh:\n${compactJson(context, 25_000)}`,
       },
@@ -411,16 +542,98 @@ router.post('/assist/task', async (req, res) => {
     );
 
     const warnings: string[] = [];
-    const known = keepKnownIds(data.links, context.candidates, warnings);
+    const validDate = (value: string | null, label: string): string | null => {
+      if (value == null) return null;
+      const parsed = new Date(`${value}T00:00:00Z`);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+        Number.isNaN(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== value
+      ) {
+        warnings.push(`Bỏ qua ${label} vì ngày AI đề xuất không hợp lệ.`);
+        return null;
+      }
+      return value;
+    };
+    const startDate = validDate(data.start_date, 'ngày bắt đầu');
+    let dueDate = validDate(data.due_date, 'ngày kết thúc');
+    if (startDate && dueDate && startDate > dueDate) {
+      warnings.push('Bỏ qua ngày kết thúc vì sớm hơn ngày bắt đầu.');
+      dueDate = null;
+    }
+    const known = keepKnownIds(data.links, candidates, warnings);
     // Lien ket neo cua nguoi dung luon thang goi y cua mo hinh.
     let links = anchor;
-    try {
-      links = deriveTaskLinks(db, { ...known, ...stripNull(anchor) });
-    } catch {
-      warnings.push('Bỏ qua liên kết AI đề xuất vì mâu thuẫn với ngữ cảnh đang mở.');
+    for (const key of [
+      'customer_id',
+      'contact_id',
+      'deal_id',
+      'contract_id',
+      'quotation_id',
+    ] as const) {
+      const id = known[key];
+      if (id == null || anchor[key] != null) continue;
+      try {
+        links = deriveTaskLinks(db, { ...stripNull(links), [key]: id });
+      } catch {
+        warnings.push(`Bỏ qua ${key}=${id} vì mâu thuẫn với các liên kết đã chọn.`);
+      }
     }
 
-    res.json({ ...data, links, warnings, meta });
+    const dealProject = links.deal_id
+      ? ((
+          db.prepare(`SELECT project_id FROM deals WHERE id = ?`).get(links.deal_id) as
+            { project_id: number | null } | undefined
+        )?.project_id ?? null)
+      : null;
+    const proposedProjectId = data.project_id ?? dealProject;
+    const project = candidates.projects.find((row) => row.id === proposedProjectId);
+    const projectId =
+      project &&
+      (links.customer_id == null || project.customer_id === links.customer_id) &&
+      (dealProject == null || project.id === dealProject)
+        ? project.id
+        : null;
+    if (proposedProjectId != null && projectId == null) {
+      warnings.push(
+        'Bỏ qua dự án AI đề xuất vì không thuộc ngữ cảnh công việc hoặc không có quyền xem.'
+      );
+    }
+    const assigneeId = candidates.assignees.some((row) => row.id === data.assignee_contact_id)
+      ? data.assignee_contact_id
+      : null;
+    if (data.assignee_contact_id != null && assigneeId == null) {
+      warnings.push('Bỏ qua người phụ trách AI đề xuất vì không có trong danh bạ đang hoạt động.');
+    }
+
+    const label = (rows: TaskCandidateRow[], id: number | null | undefined) => {
+      const row = rows.find((candidate) => candidate.id === id);
+      return row?.name ?? row?.full_name ?? row?.title ?? row?.number ?? row?.code ?? null;
+    };
+    const labels = {
+      customer_id: label(candidates.customers, links.customer_id),
+      contact_id: label(candidates.contacts, links.contact_id),
+      deal_id: label(candidates.deals, links.deal_id),
+      contract_id: label(candidates.contracts, links.contract_id),
+      quotation_id: label(candidates.quotations, links.quotation_id),
+      project_id: label(candidates.projects, projectId),
+      assignee_contact_id: label(candidates.assignees, assigneeId),
+    };
+    const completeLinks = Object.fromEntries(
+      TASK_LINK_KEYS.map((key) => [key, links[key] ?? null])
+    );
+
+    res.json({
+      ...data,
+      start_date: startDate,
+      due_date: dueDate,
+      links: completeLinks,
+      project_id: projectId,
+      assignee_contact_id: assigneeId,
+      labels,
+      warnings,
+      meta,
+    });
   } catch (error) {
     asHttpError(error);
   }

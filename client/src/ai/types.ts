@@ -141,11 +141,14 @@ export interface AiChatDetail extends AiChatSession {
 export interface TaskAssistResult {
   title: string;
   description: string;
-  priority: Priority;
+  priority: Priority | null;
   start_date: string | null;
   due_date: string | null;
   checklist: string[];
   links: Record<TaskLinkKey, number | null>;
+  project_id: number | null;
+  assignee_contact_id: number | null;
+  labels: Record<TaskLinkKey | 'project_id' | 'assignee_contact_id', string | null>;
   confidence: number;
   rationale: string;
   warnings: string[];

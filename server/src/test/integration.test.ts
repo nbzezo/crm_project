@@ -1247,6 +1247,145 @@ test('AI provider ma hoa API key, tu nhan dien model va tao brief', async () => 
   }
 });
 
+test('AI task goi y ngay, khach hang, co hoi, du an va nguoi phu trach tu ban nhap', async () => {
+  const customerId = await createCustomer('Khách hàng Sao Bắc');
+  const project = await json('POST', '/api/projects', {
+    name: 'Dự án Bắc Đẩu',
+    customer_id: customerId,
+  });
+  assert.equal(project.status, 201);
+  const deal = await json('POST', '/api/deals', {
+    title: 'Cơ hội Nâng cấp CRM',
+    customer_id: customerId,
+    project_id: Number(project.data.id),
+  });
+  assert.equal(deal.status, 201);
+  const contact = await json('POST', `/api/customers/${customerId}/contacts`, {
+    full_name: 'Nguyễn Thị Mai',
+  });
+  assert.equal(contact.status, 201);
+
+  let returnUnknownFields = false;
+  const mockProvider = createServer((request, response) => {
+    response.setHeader('content-type', 'application/json');
+    if (request.method === 'GET' && request.url?.startsWith('/v1beta/models')) {
+      response.end(
+        JSON.stringify({
+          models: [
+            {
+              name: 'models/gemini-test-flash',
+              displayName: 'Gemini Test Flash',
+              supportedGenerationMethods: ['generateContent'],
+              inputTokenLimit: 100000,
+              outputTokenLimit: 8000,
+            },
+          ],
+        })
+      );
+      return;
+    }
+    if (request.method === 'POST' && request.url?.includes(':generateContent')) {
+      response.end(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      title: 'Chuẩn bị hồ sơ nâng cấp CRM',
+                      description: 'Chuẩn bị hồ sơ cho khách hàng.',
+                      priority: returnUnknownFields ? null : 'high',
+                      start_date: returnUnknownFields ? '2026-13-40' : '2026-09-26',
+                      due_date: returnUnknownFields ? 'ngày mai' : '2026-09-30',
+                      checklist: ['Soạn tài liệu', 'Gửi khách hàng'],
+                      links: returnUnknownFields
+                        ? { customer_id: 999999, deal_id: 999998 }
+                        : { customer_id: customerId, deal_id: Number(deal.data.id) },
+                      project_id: returnUnknownFields ? 999997 : Number(project.data.id),
+                      assignee_contact_id: returnUnknownFields ? 999996 : Number(contact.data.id),
+                      confidence: 0.9,
+                      rationale: 'Các thông tin đều xuất hiện trong bản nháp.',
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+          usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 70 },
+        })
+      );
+      return;
+    }
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: { message: 'not found' } }));
+  });
+  mockProvider.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => mockProvider.once('listening', resolve));
+  const address = mockProvider.address();
+  assert.ok(address && typeof address !== 'string');
+  try {
+    const saved = await json('PUT', '/api/ai/providers/gemini', {
+      base_url: `http://127.0.0.1:${address.port}`,
+      api_key: 'gemini-task-test-key',
+      enabled: true,
+      daily_token_limit: 10000,
+    });
+    assert.equal(saved.status, 200);
+    assert.equal((await json('POST', '/api/ai/providers/gemini/sync')).status, 200);
+    const result = await json('POST', '/api/ai/assist/task', {
+      draft:
+        'Ngày 26/9 bắt đầu, 30/9 kết thúc hồ sơ Cơ hội Nâng cấp CRM cho Khách hàng Sao Bắc thuộc Dự án Bắc Đẩu; giao Nguyễn Thị Mai, ưu tiên cao.',
+    });
+    assert.equal(result.status, 200);
+    const proposed = result.data as {
+      start_date: string | null;
+      due_date: string | null;
+      priority: string | null;
+      links: Record<string, number | null>;
+      project_id: number | null;
+      assignee_contact_id: number | null;
+      labels: Record<string, string | null>;
+    };
+    assert.equal(proposed.start_date, '2026-09-26');
+    assert.equal(proposed.due_date, '2026-09-30');
+    assert.equal(proposed.priority, 'high');
+    assert.equal(proposed.links.customer_id, customerId);
+    assert.equal(proposed.links.deal_id, Number(deal.data.id));
+    assert.equal(proposed.project_id, Number(project.data.id));
+    assert.equal(proposed.assignee_contact_id, Number(contact.data.id));
+    assert.equal(proposed.labels.customer_id, 'Khách hàng Sao Bắc');
+    assert.equal(proposed.labels.deal_id, 'Cơ hội Nâng cấp CRM');
+    assert.equal(proposed.labels.project_id, 'Dự án Bắc Đẩu');
+    assert.equal(proposed.labels.assignee_contact_id, 'Nguyễn Thị Mai');
+
+    returnUnknownFields = true;
+    const rejected = await json('POST', '/api/ai/assist/task', {
+      draft: 'Chuẩn bị hồ sơ cho một khách hàng chưa xác định.',
+    });
+    assert.equal(rejected.status, 200);
+    const ignored = rejected.data as {
+      start_date: string | null;
+      due_date: string | null;
+      links: Record<string, number | null>;
+      project_id: number | null;
+      assignee_contact_id: number | null;
+      warnings: string[];
+    };
+    assert.equal(ignored.start_date, null);
+    assert.equal(ignored.due_date, null);
+    assert.equal(ignored.links.customer_id, null);
+    assert.equal(ignored.links.deal_id, null);
+    assert.equal(ignored.project_id, null);
+    assert.equal(ignored.assignee_contact_id, null);
+    assert.ok(ignored.warnings.length >= 4);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      mockProvider.close((error) => (error ? reject(error) : resolve()))
+    );
+  }
+});
+
 test('AI action chi ghi CRM sau khi duoc phe duyet', async () => {
   const list = db.prepare(`SELECT id FROM lists ORDER BY id LIMIT 1`).get() as { id: number };
   const info = db

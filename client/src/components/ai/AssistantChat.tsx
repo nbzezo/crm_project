@@ -332,10 +332,12 @@ export function AssistantChat() {
                       ) as TaskContext;
                       openTaskComposer({
                         context: {},
+                        projectId: result.project_id,
+                        assigneeContactId: result.assignee_contact_id,
                         draft: {
                           title: result.title,
                           description: result.description,
-                          priority: result.priority,
+                          priority: result.priority ?? undefined,
                           startDate: result.start_date,
                           dueDate: result.due_date,
                           checklist: result.checklist,
@@ -740,9 +742,11 @@ function TaskDraftCard({
         </p>
       )}
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
-          Ưu tiên: {t.priority[result.priority]}
-        </span>
+        {result.priority && (
+          <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
+            Ưu tiên: {t.priority[result.priority]}
+          </span>
+        )}
         {result.start_date && (
           <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
             Bắt đầu: {formatDate(result.start_date)}
@@ -750,8 +754,36 @@ function TaskDraftCard({
         )}
         {result.due_date && (
           <span className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
-            Hạn: {formatDate(result.due_date)}
+            Kết thúc / hạn: {formatDate(result.due_date)}
           </span>
+        )}
+        {(
+          [
+            'customer_id',
+            'contact_id',
+            'deal_id',
+            'contract_id',
+            'quotation_id',
+            'project_id',
+            'assignee_contact_id',
+          ] as const
+        ).map((key) =>
+          result.labels[key] ? (
+            <span key={key} className="rounded-full bg-tr-list px-2.5 py-1 text-tr-text">
+              {
+                {
+                  customer_id: 'Khách hàng',
+                  contact_id: 'Liên hệ',
+                  deal_id: 'Cơ hội',
+                  contract_id: 'Hợp đồng',
+                  quotation_id: 'Báo giá',
+                  project_id: 'Dự án',
+                  assignee_contact_id: 'Người phụ trách',
+                }[key]
+              }
+              : {result.labels[key]}
+            </span>
+          ) : null
         )}
       </div>
       {result.checklist.length > 0 && (
@@ -772,6 +804,7 @@ function TaskDraftCard({
           {warning}
         </p>
       ))}
+      {result.rationale && <p className="mt-2 text-xs text-tr-subtle">Lý do: {result.rationale}</p>}
       <Button className="mt-3" variant="primary" onClick={onReview}>
         <Check size={15} aria-hidden="true" /> Kiểm tra & tạo công việc
       </Button>
