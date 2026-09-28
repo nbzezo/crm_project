@@ -33,6 +33,14 @@ export function useQuickNotesList(filters: QuickNoteFilters, enabled = true) {
   });
 }
 
+/** Doc doc lap mot ghi chu cho cua so noi, khong phu thuoc bo loc cua Bang. */
+export function useQuickNote(id: number) {
+  return useQuery({
+    queryKey: ['quick-notes', 'detail', id],
+    queryFn: () => api.get<QuickNote>(`/api/quick-notes/${id}`),
+  });
+}
+
 /** Danh sach tag khong trung — dung cho popup Lọc theo tag. */
 export function useQuickNoteTags(enabled = true) {
   return useQuery({

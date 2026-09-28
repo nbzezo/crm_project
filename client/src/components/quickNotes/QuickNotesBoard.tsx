@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -25,7 +25,12 @@ import { Segmented, Skeleton, EmptyState, focusRing } from '../common/ui';
 import { Popover, usePopover } from '../common/Popover';
 import { useDialog } from '../common/useDialog';
 import { useUiStore } from '../../stores/uiStore';
-import { QuickNoteCard, QuickNoteEditorModal } from './QuickNoteCard';
+import { QuickNoteCard } from './QuickNoteCard';
+import {
+  createQuickNoteWindow,
+  QuickNoteWindowLayer,
+  type QuickNoteWindowState,
+} from './QuickNoteWindows';
 import {
   useQuickNoteMutations,
   useQuickNotesList,
@@ -185,7 +190,7 @@ export function QuickNotesBoard() {
   const clearIntent = useUiStore((s) => s.clearQuickNotesIntent);
   const queryClient = useQueryClient();
 
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [noteWindows, setNoteWindows] = useState<QuickNoteWindowState[]>([]);
   const [view, setView] = useState<ViewFilter>('active');
   const [layout, setLayout] = useState<Layout>('grid');
   const [q, setQ] = useState('');
@@ -199,6 +204,32 @@ export function QuickNotesBoard() {
   });
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const openNoteWindow = useCallback((id: number) => {
+    setNoteWindows((current) => {
+      const found = current.find((item) => item.id === id);
+      if (!found) return [...current, createQuickNoteWindow(id, current.length)];
+      return [...current.filter((item) => item.id !== id), { ...found, minimized: false }];
+    });
+  }, []);
+
+  const changeNoteWindow = useCallback((id: number, patch: Partial<QuickNoteWindowState>) => {
+    setNoteWindows((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item))
+    );
+  }, []);
+
+  const closeNoteWindow = useCallback((id: number) => {
+    setNoteWindows((current) => current.filter((item) => item.id !== id));
+  }, []);
+
+  const focusNoteWindow = useCallback((id: number) => {
+    setNoteWindows((current) => {
+      if (current.at(-1)?.id === id) return current;
+      const found = current.find((item) => item.id === id);
+      return found ? [...current.filter((item) => item.id !== id), found] : current;
+    });
+  }, []);
 
   // Cung 250ms voi SearchBox.tsx — o nhap phan hoi ngay, truy van thi cho go xong.
   useEffect(() => {
@@ -215,7 +246,6 @@ export function QuickNotesBoard() {
   };
   const queryKey = ['quick-notes', 'list', filters] as const;
   const { data: notes, isLoading } = useQuickNotesList(filters, open);
-  const activeNote = notes?.find((n) => n.id === activeId) ?? null;
   const pinnedNotes = notes?.filter((n) => n.is_pinned) ?? [];
   const otherNotes = notes?.filter((n) => !n.is_pinned) ?? [];
   const sortStrategy = layout === 'list' ? verticalListSortingStrategy : rectSortingStrategy;
@@ -236,7 +266,7 @@ export function QuickNotesBoard() {
             key={note.id}
             note={note}
             layout={layout}
-            onActivate={() => setActiveId(note.id)}
+            onActivate={() => openNoteWindow(note.id)}
           />
         ))}
       </div>
@@ -279,9 +309,9 @@ export function QuickNotesBoard() {
     if (!open) return;
     if (autoCreate) {
       setView('active');
-      create.mutate({}, { onSuccess: (note) => setActiveId(note.id) });
+      create.mutate({}, { onSuccess: (note) => openNoteWindow(note.id) });
     } else {
-      setActiveId(focusId);
+      if (focusId) openNoteWindow(focusId);
       if (focusId) setView('active');
     }
     clearIntent();
@@ -319,154 +349,163 @@ export function QuickNotesBoard() {
     });
   }
 
-  if (!open) return null;
+  if (!open && noteWindows.length === 0) return null;
 
   return createPortal(
-    <div
-      className="tr-anim-fade fixed inset-0 z-modal flex items-start justify-center bg-tr-overlay p-3 sm:p-6"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) closeBoard();
-      }}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Ghi chú nhanh"
-        className="tr-anim-pop flex h-[min(92vh,880px)] w-[min(96vw,1280px)] flex-col overflow-hidden rounded-modal bg-tr-panel shadow-2xl"
-      >
-        <div className="flex flex-wrap items-center gap-2 border-b border-tr-border px-4 py-3">
-          <StickyNote size={18} className="shrink-0 text-tr-primary" aria-hidden="true" />
-          <h2 className="mr-2 text-base font-semibold text-tr-text">Ghi chú nhanh</h2>
-
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <div className="relative w-full max-w-56">
-              <Search
-                size={14}
-                className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-tr-muted"
-                aria-hidden="true"
-              />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Tìm ghi chú nhanh…"
-                aria-label="Tìm ghi chú nhanh"
-                className={`w-full rounded-full border border-tr-border bg-tr-list py-1.5 pr-3 pl-8 text-sm text-tr-text outline-none placeholder:text-tr-muted focus:border-tr-primary ${focusRing}`}
-              />
-            </div>
-            <Segmented
-              value={view}
-              onChange={setView}
-              label="Chế độ xem"
-              options={[
-                { value: 'active', label: 'Tất cả' },
-                { value: 'archived', label: 'Lưu trữ' },
-                { value: 'trash', label: 'Thùng rác' },
-              ]}
-            />
-            {view === 'active' && (
-              <FilterPopover
-                toggles={toggles}
-                onChange={setToggles}
-                activeTag={activeTag}
-                onTagChange={setActiveTag}
-              />
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center rounded-full border border-tr-border p-0.5">
-            <button
-              type="button"
-              onClick={() => setLayout('grid')}
-              aria-label="Xem dạng lưới"
-              aria-pressed={layout === 'grid'}
-              className={`rounded-full p-1.5 transition ${
-                layout === 'grid'
-                  ? 'bg-tr-primary text-tr-on-primary'
-                  : 'text-tr-subtle hover:bg-tr-hover'
-              }`}
-            >
-              <LayoutGrid size={14} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setLayout('list')}
-              aria-label="Xem dạng danh sách"
-              aria-pressed={layout === 'list'}
-              className={`rounded-full p-1.5 transition ${
-                layout === 'list'
-                  ? 'bg-tr-primary text-tr-on-primary'
-                  : 'text-tr-subtle hover:bg-tr-hover'
-              }`}
-            >
-              <List size={14} aria-hidden="true" />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => create.mutate({}, { onSuccess: (note) => setActiveId(note.id) })}
-            disabled={create.isPending}
-            aria-label="Ghi chú mới"
-            title="Ghi chú mới"
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tr-primary text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-60 ${focusRing}`}
+    <>
+      {open && (
+        <div
+          className="tr-anim-fade fixed inset-0 z-[var(--z-index-quick-notes-board)] flex items-start justify-center bg-tr-overlay p-3 sm:p-6"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeBoard();
+          }}
+        >
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ghi chú nhanh"
+            className="tr-anim-pop flex h-[min(92vh,880px)] w-[min(96vw,1280px)] flex-col overflow-hidden rounded-modal bg-tr-panel shadow-2xl"
           >
-            <Plus size={16} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={closeBoard}
-            aria-label="Đóng"
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-tr-muted transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
-          >
-            <X size={18} aria-hidden="true" />
-          </button>
-        </div>
+            <div className="flex flex-wrap items-center gap-2 border-b border-tr-border px-4 py-3">
+              <StickyNote size={18} className="shrink-0 text-tr-primary" aria-hidden="true" />
+              <h2 className="mr-2 text-base font-semibold text-tr-text">Ghi chú nhanh</h2>
 
-        <div className="tr-scroll flex-1 overflow-y-auto p-4">
-          {isLoading ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] items-start gap-3">
-              {Array.from({ length: 6 }, (_, i) => (
-                <Skeleton key={i} className="h-32 rounded-lg" />
-              ))}
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <div className="relative w-full max-w-56">
+                  <Search
+                    size={14}
+                    className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-tr-muted"
+                    aria-hidden="true"
+                  />
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Tìm ghi chú nhanh…"
+                    aria-label="Tìm ghi chú nhanh"
+                    className={`w-full rounded-full border border-tr-border bg-tr-list py-1.5 pr-3 pl-8 text-sm text-tr-text outline-none placeholder:text-tr-muted focus:border-tr-primary ${focusRing}`}
+                  />
+                </div>
+                <Segmented
+                  value={view}
+                  onChange={setView}
+                  label="Chế độ xem"
+                  options={[
+                    { value: 'active', label: 'Tất cả' },
+                    { value: 'archived', label: 'Lưu trữ' },
+                    { value: 'trash', label: 'Thùng rác' },
+                  ]}
+                />
+                {view === 'active' && (
+                  <FilterPopover
+                    toggles={toggles}
+                    onChange={setToggles}
+                    activeTag={activeTag}
+                    onTagChange={setActiveTag}
+                  />
+                )}
+              </div>
+
+              <div className="flex shrink-0 items-center rounded-full border border-tr-border p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setLayout('grid')}
+                  aria-label="Xem dạng lưới"
+                  aria-pressed={layout === 'grid'}
+                  className={`rounded-full p-1.5 transition ${
+                    layout === 'grid'
+                      ? 'bg-tr-primary text-tr-on-primary'
+                      : 'text-tr-subtle hover:bg-tr-hover'
+                  }`}
+                >
+                  <LayoutGrid size={14} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayout('list')}
+                  aria-label="Xem dạng danh sách"
+                  aria-pressed={layout === 'list'}
+                  className={`rounded-full p-1.5 transition ${
+                    layout === 'list'
+                      ? 'bg-tr-primary text-tr-on-primary'
+                      : 'text-tr-subtle hover:bg-tr-hover'
+                  }`}
+                >
+                  <List size={14} aria-hidden="true" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => create.mutate({}, { onSuccess: (note) => openNoteWindow(note.id) })}
+                disabled={create.isPending}
+                aria-label="Ghi chú mới"
+                title="Ghi chú mới"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tr-primary text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-60 ${focusRing}`}
+              >
+                <Plus size={16} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={closeBoard}
+                aria-label="Đóng"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-tr-muted transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
             </div>
-          ) : !notes || notes.length === 0 ? (
-            <EmptyState
-              message="Chưa có ghi chú nhanh nào."
-              hint="Ghi lại ý tưởng, thông tin hoặc việc cần nhớ."
-            />
-          ) : (
-            <DndContext
-              sensors={sensors}
-              accessibility={{ announcements }}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              {pinnedNotes.length > 0 && (
-                <>
-                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-                    <Pin size={12} aria-hidden="true" /> Đã ghim
-                  </div>
-                  {renderGroup(pinnedNotes)}
-                </>
-              )}
-              {otherNotes.length > 0 && (
-                <>
+
+            <div className="tr-scroll flex-1 overflow-y-auto p-4">
+              {isLoading ? (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] items-start gap-3">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <Skeleton key={i} className="h-32 rounded-lg" />
+                  ))}
+                </div>
+              ) : !notes || notes.length === 0 ? (
+                <EmptyState
+                  message="Chưa có ghi chú nhanh nào."
+                  hint="Ghi lại ý tưởng, thông tin hoặc việc cần nhớ."
+                />
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  accessibility={{ announcements }}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
                   {pinnedNotes.length > 0 && (
-                    <div className="mt-4 mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-                      Ghi chú khác
-                    </div>
+                    <>
+                      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                        <Pin size={12} aria-hidden="true" /> Đã ghim
+                      </div>
+                      {renderGroup(pinnedNotes)}
+                    </>
                   )}
-                  {renderGroup(otherNotes)}
-                </>
+                  {otherNotes.length > 0 && (
+                    <>
+                      {pinnedNotes.length > 0 && (
+                        <div className="mt-4 mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                          Ghi chú khác
+                        </div>
+                      )}
+                      {renderGroup(otherNotes)}
+                    </>
+                  )}
+                </DndContext>
               )}
-            </DndContext>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {activeNote && <QuickNoteEditorModal note={activeNote} onClose={() => setActiveId(null)} />}
-    </div>,
+      <QuickNoteWindowLayer
+        windows={noteWindows}
+        onChange={changeNoteWindow}
+        onClose={closeNoteWindow}
+        onFocus={focusNoteWindow}
+      />
+    </>,
     document.body
   );
 }

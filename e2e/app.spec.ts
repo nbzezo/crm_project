@@ -945,8 +945,47 @@ test('ghi chu nhanh: mo trinh soan thao khong lam vo trang', async ({ page }, te
   const editor = page.locator('.bn-editor[contenteditable="true"]');
   await expect(editor).toBeVisible();
 
+  // Desktop dung kich thuoc mac dinh da chon; man hinh hep van kep theo viewport.
+  const floatingNote = page.getByRole('dialog', { name: 'Ghi chú không tiêu đề' });
+  const viewport = page.viewportSize();
+  const floatingBox = await floatingNote.boundingBox();
+  expect(floatingBox).not.toBeNull();
+  expect(Math.round(floatingBox!.width)).toBe(Math.min(528, viewport!.width - 32));
+  expect(Math.round(floatingBox!.height)).toBe(Math.min(648, viewport!.height - 48));
+
+  // Trong luc keo chi dung transform (khong render lai ca Bang o tung pixel),
+  // khi tha moi chot toa do. ResizeObserver cung khong duoc lam cua so co dan.
+  const titleBar = floatingNote.locator(':scope > div').first();
+  const titleBarBox = await titleBar.boundingBox();
+  await page.mouse.move(titleBarBox!.x + 40, titleBarBox!.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(titleBarBox!.x + 88, titleBarBox!.y + 52, { steps: 16 });
+  await expect
+    .poll(() => floatingNote.evaluate((node) => node.style.transform))
+    .toContain('translate3d');
+  await page.mouse.up();
+  await expect.poll(() => floatingNote.evaluate((node) => node.style.transform)).toBe('');
+  await page.waitForTimeout(150);
+  const stableBox = await floatingNote.boundingBox();
+  expect(Math.round(stableBox!.width)).toBe(Math.round(floatingBox!.width));
+  expect(Math.round(stableBox!.height)).toBe(Math.round(floatingBox!.height));
+
   await editor.pressSequentially('Ghi chu kiem thu');
   await expect(editor).toContainText('Ghi chu kiem thu');
+
+  // Moi ghi chu la mot cua so rieng. Thu nho khong unmount editor (autosave van
+  // chay), va nhieu ghi chu thu nho duoc gom vao cung mot khay bong bong.
+  await page.getByRole('button', { name: 'Thu nhỏ thành bong bóng' }).click();
+  await expect(page.getByRole('region', { name: '1 ghi chú đang thu nhỏ' })).toBeVisible();
+
+  await board.getByRole('button', { name: 'Ghi chú mới' }).click();
+  await expect(page.getByRole('button', { name: 'Ghim cửa sổ trên cùng' })).toBeVisible();
+  await page.getByRole('button', { name: 'Thu nhỏ thành bong bóng' }).click();
+  const bubbleTray = page.getByRole('region', { name: '2 ghi chú đang thu nhỏ' });
+  await expect(bubbleTray).toBeVisible();
+  const trayBox = await bubbleTray.boundingBox();
+  expect(trayBox).not.toBeNull();
+  expect(Math.round(viewport!.height - trayBox!.y - trayBox!.height)).toBeGreaterThanOrEqual(90);
 
   await expect(page.getByText('Trang này gặp lỗi')).toHaveCount(0);
   expect(errors).toEqual([]);

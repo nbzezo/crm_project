@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Archive,
   ArchiveRestore,
@@ -18,7 +17,6 @@ import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Popover, usePopover } from '../common/Popover';
 import { Combobox } from '../common/Combobox';
-import { useDialog } from '../common/useDialog';
 import { useCustomerOptions, useDealOptions, useProjectOptions } from '../../lib/useCrmOptions';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -524,12 +522,7 @@ function PreviewCard({
   );
 }
 
-/**
- * Noi dung ghi chu dang mo — luon hien trong QuickNoteEditorModal (phong to,
- * can giua man hinh, xem export o cuoi file), khong con nam lan trong luoi
- * nhu truoc: giong cach Google Keep phong to mot ghi chu ra giua man hinh
- * thay vi mo rong tai cho trong luoi.
- */
+/** Noi dung ghi chu dang mo, duoc nhung trong tung cua so noi doc lap. */
 function ActiveCard({
   note,
   bg,
@@ -726,37 +719,18 @@ export function QuickNoteCard({
   return <PreviewCard note={note} bg={bg} fg={fg} layout={layout} onActivate={onActivate} />;
 }
 
-/**
- * Lop overlay giong Google Keep: bam mo mot ghi chu se phong to no ra giua man
- * hinh (thay vi mo rong tai cho trong luoi nhu ban dau) — luoi ghi chu phia
- * sau van hien nhung mo di qua lop nen toi.
- */
-export function QuickNoteEditorModal({ note, onClose }: { note: QuickNote; onClose: () => void }) {
+/** Noi dung editor de nhung trong cua so noi; khong tu tao overlay hay portal. */
+export function QuickNoteEditorSurface({
+  note,
+  onClose,
+}: {
+  note: QuickNote;
+  onClose: () => void;
+}) {
   const isDark = useThemeStore((s) => s.isDark());
   const color = colorForNote(note.id, note.color);
   const bg = isDark ? color.bgDark : color.bgLight;
   const fg = isDark ? color.textDark : color.textLight;
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  useDialog({ open: true, onClose, containerRef: panelRef });
-
-  return createPortal(
-    <div
-      className="tr-anim-fade fixed inset-0 z-modal flex items-center justify-center bg-tr-overlay p-4 sm:p-8"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={note.title || 'Ghi chú không tiêu đề'}
-        className="tr-anim-pop flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-modal shadow-2xl"
-      >
-        <ActiveCard key={note.id} note={note} bg={bg} fg={fg} onDeactivate={onClose} />
-      </div>
-    </div>,
-    document.body
-  );
+  return <ActiveCard key={note.id} note={note} bg={bg} fg={fg} onDeactivate={onClose} />;
 }

@@ -88,6 +88,10 @@
      va phai de nguyen. */
   --z-index-sticky: 30;
   --z-index-nav-overlay: 40;
+  --z-index-quick-notes-board: 45;
+  --z-index-quick-note-window: 46;
+  --z-index-quick-note-window-pinned: 47;
+  --z-index-quick-note-bubbles: 48;
   --z-index-modal: 50;
   --z-index-modal-nested: 55;
   --z-index-toast: 60;
