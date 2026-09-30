@@ -115,7 +115,7 @@
 /* ---------- Che do sang ---------- */
 :root {
   color-scheme: light;
-  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2368665f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235a5852' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --tr-page-bg: #a7adb8;
   --tr-shell-gradient: linear-gradient(120deg, #e5e5e6 0%, #faf8f0 58%, #f3e8b8 100%);
   --tr-shell-border: rgba(48, 48, 47, 0.08);
@@ -130,9 +130,9 @@
   --tr-list: #f4f0de;
   --tr-card: #fbf9f1;
   --tr-text: #282827;
-  --tr-subtle: #5f5d58;
-  --tr-muted: #68665f;
-  --tr-border: rgba(48, 48, 47, 0.1);
+  --tr-subtle: #54524d;
+  --tr-muted: #5a5852;
+  --tr-border: rgba(48, 48, 47, 0.14);
   /* Mau nhan giu CUNG MOT HUE o ca hai che do (215, xanh).
      Truoc day che do Sang dung den #30302f con che do Toi dung xanh — doi theme
      la doi luon nhan dien, nguoi dung thay nhu dang dung hai phan mem khac nhau.
@@ -192,14 +192,14 @@
      nen bo mau chu cua no khong duoc doi theo theme.
      Chi khai bao o :root — khoi [data-theme='dark'] khong ghi de. */
   --tr-navfg: #282827;
-  --tr-navfg-muted: #6f6e69;
-  --tr-navfg-border: rgba(48, 48, 47, 0.12);
+  --tr-navfg-muted: #5f5e59;
+  --tr-navfg-border: rgba(48, 48, 47, 0.14);
 
   /* Thanh ben trai — sang mau trong che do sang */
   --tr-nav-panel: rgba(251, 249, 241, 0.42);
-  --tr-nav-text: #5f5d58;
-  --tr-nav-border: rgba(48, 48, 47, 0.08);
-  --tr-nav-hover: rgba(48, 48, 47, 0.07);
+  --tr-nav-text: #54524d;
+  --tr-nav-border: rgba(48, 48, 47, 0.12);
+  --tr-nav-hover: rgba(48, 48, 47, 0.09);
   --tr-nav-active-bg: #0055cc;
   --tr-nav-active-text: #fbf9f1;
 
