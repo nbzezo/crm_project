@@ -211,7 +211,7 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
 
   await page.goto('/contracts');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hợp đồng');
-  await page.goto('/documents');
+  await page.goto('/documents?tab=files');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tài liệu');
 
   await page.goto('/settings');
@@ -1021,7 +1021,7 @@ test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
   ];
 
   for (const block of blocks) {
-    await page.goto('/notes');
+    await page.goto('/documents?tab=pages');
     await page.getByRole('button', { name: 'Tạo trang' }).click();
     await page
       .getByRole('dialog', { name: 'Chọn mục đích tài liệu' })
@@ -1157,7 +1157,7 @@ test('quet a11y khi bieu mau dang mo va nut Luu khong bi khoa am tham', async ({
   await expectNoViolations(page, 'ContractForm mo');
 
   // --- Khoi tai tai lieu ---
-  await page.goto('/documents');
+  await page.goto('/documents?tab=files');
   await page.waitForLoadState('networkidle');
   await expectNoViolations(page, 'Trang tai lieu');
 });
@@ -1206,7 +1206,7 @@ test('menu Tạo nhanh: nhóm, phím tắt, bàn phím và a11y', async ({ page 
 });
 
 test('tạo trang tài liệu từ mẫu và lưu nội dung khi quay lại', async ({ page }, testInfo) => {
-  await page.goto('/notes');
+  await page.goto('/documents?tab=pages');
   await page.getByRole('button', { name: 'Tạo trang' }).click();
   const picker = page.getByRole('dialog', { name: 'Chọn mục đích tài liệu' });
   await expect(picker).toBeVisible();
@@ -1232,4 +1232,24 @@ test('tạo trang tài liệu từ mẫu và lưu nội dung khi quay lại', as
   await title.fill(newTitle);
   await page.getByRole('button', { name: 'Quay lại danh sách trang' }).click();
   await expect(page.getByText(newTitle, { exact: true })).toBeVisible();
+});
+
+/* /notes da gop vao tab "Trang tài liệu" cua /documents — link cu phai con chay. */
+test('link cũ /notes?open= chuyển sang tab Trang tài liệu', async ({ page }) => {
+  await page.goto('/notes?open=999999');
+  await expect(page).toHaveURL(/\/documents\?tab=pages&open=999999/);
+  await expect(page.getByRole('tab', { name: 'Trang tài liệu' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+});
+
+test('đổi tab Tài liệu bằng bàn phím', async ({ page }) => {
+  await page.goto('/documents?tab=pages');
+  await page.getByRole('tab', { name: 'Trang tài liệu' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page).toHaveURL(/tab=files/);
+  await expect(page.getByRole('tab', { name: 'Tệp tải lên' })).toBeFocused();
+  await expect(page.getByRole('button', { name: /Tải tài liệu/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
 });

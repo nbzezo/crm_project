@@ -38,7 +38,6 @@ export const t = {
     followUp: 'Cần theo dõi',
     orgDirectory: 'Tổ chức & nhân sự',
     ai: 'Trợ lý AI',
-    notes: 'Trang tài liệu',
     quickNotes: 'Ghi nhanh',
     settings: 'Cài đặt',
     groupDaily: 'Công việc hôm nay',
@@ -46,6 +45,16 @@ export const t = {
     groupSales: 'Khách hàng & kinh doanh',
     groupAnalytics: 'Phân tích',
     groupTools: 'Công cụ',
+  },
+  /* Trang Tai lieu gop hai tab (xem pages/DocumentsHubPage.tsx). Hai mo ta la
+     nguyen van mo ta cu cua trang /notes va /documents. */
+  documentsHub: {
+    tabsLabel: 'Loại tài liệu',
+    tabPages: 'Trang tài liệu',
+    tabFiles: 'Tệp tải lên',
+    pagesDescription: 'Soạn và lưu các trang tài liệu cho công việc, Cơ hội và Dự án.',
+    filesDescription:
+      'Quản lý hồ sơ khách hàng, liên kết bán hàng và vòng đời tài liệu tại một nơi.',
   },
   common: {
     add: 'Thêm',

@@ -59,7 +59,7 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
     onSuccess: (note) => {
       setOpen(false);
       setTemplateOpen(false);
-      navigate(`/notes?open=${note.id}`);
+      navigate(`/documents?tab=pages&open=${note.id}`);
     },
     onError: (error) =>
       pushToast(error instanceof Error ? error.message : 'Không tạo được trang tài liệu'),

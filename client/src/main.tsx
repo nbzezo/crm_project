@@ -1,6 +1,6 @@
 import { StrictMode, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Navigate, createBrowserRouter, RouterProvider } from 'react-router';
+import { Navigate, createBrowserRouter, RouterProvider, useSearchParams } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { AuthGate } from './components/auth/AuthGate';
@@ -20,7 +20,7 @@ const DealDetailPage = lazy(() => import('./pages/DealDetailPage'));
 const PipelineHealthPage = lazy(() => import('./pages/PipelineHealthPage'));
 const ContractsPage = lazy(() => import('./pages/ContractsPage'));
 const RevenuePage = lazy(() => import('./pages/RevenuePage'));
-const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
+const DocumentsHubPage = lazy(() => import('./pages/DocumentsHubPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
@@ -31,7 +31,16 @@ const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
 const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
-const NotesPage = lazy(() => import('./pages/NotesPage'));
+
+/* /notes da gop vao tab "Trang tài liệu" cua /documents. Giu duong dan cu (va
+   tham so `open`) de link da chia se, bookmark va lich su trinh duyet khong hong. */
+function NotesRedirect() {
+  const [params] = useSearchParams();
+  const next = new URLSearchParams({ tab: 'pages' });
+  const open = params.get('open');
+  if (open) next.set('open', open);
+  return <Navigate to={`/documents?${next.toString()}`} replace />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -104,8 +113,12 @@ const router = createBrowserRouter([
       },
       {
         path: 'documents',
-        element: <DocumentsPage />,
-        handle: { permission: 'documents:read', title: t.nav.documents },
+        element: <DocumentsHubPage />,
+        /* Khong dat `permission`: route mo duoc khi co MOT trong hai quyen
+           (documents:read / notes:read) — DocumentsHubPage tu kiem va an tab.
+           `visibleHeading`: PageHeader da render <h1>, thieu co nay App.tsx se
+           render them mot <h1 class="sr-only"> nua. */
+        handle: { title: t.nav.documents, visibleHeading: true },
       },
       {
         path: 'calendar',
@@ -159,11 +172,7 @@ const router = createBrowserRouter([
         element: <AiWorkspacePage />,
         handle: { permission: 'ai:read', title: t.nav.ai, hideQuickCreate: true },
       },
-      {
-        path: 'notes',
-        element: <NotesPage />,
-        handle: { permission: 'notes:read', title: t.nav.notes, visibleHeading: true },
-      },
+      { path: 'notes', element: <NotesRedirect /> },
       { path: 'settings', element: <SettingsPage />, handle: { title: t.nav.settings } },
       /* URL khong khop: dat lam route con de van nam trong khung app — nguoi dung
          lac duong khong bi mat luon thanh dieu huong de tim duong ra. */

@@ -15,8 +15,8 @@ import {
 } from './documentTemplates';
 
 /**
- * `{}` (khong khoa nao) nghia la liet ke TAT CA ghi chu — dung boi trang "Ghi
- * chu" o muc Phan tich & cong cu (xem NotesPage.tsx), khac voi tab "Ghi chú
+ * `{}` (khong khoa nao) nghia la liet ke TAT CA ghi chu — dung boi tab "Trang
+ * tài liệu" cua trang Tai lieu (xem DocumentsHubPage.tsx), khac voi tab "Ghi chú
  * họp" trong mot Co hoi/Du an cu the (luon truyen dung mot khoa).
  */
 type Links = Partial<{ deal_id: number; project_id: number }>;

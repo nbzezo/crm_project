@@ -48,7 +48,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'risks', label: 'Rủi ro & nghiệm thu' },
   { id: 'people', label: 'Nhân sự' },
   { id: 'commercial', label: 'Hợp đồng & cơ hội' },
-  { id: 'documents', label: 'Tài liệu' },
+  { id: 'documents', label: 'Tệp tải lên' },
   { id: 'notes', label: 'Trang tài liệu' },
 ];
 

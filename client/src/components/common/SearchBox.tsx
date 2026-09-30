@@ -230,7 +230,7 @@ export function SearchBox() {
                     <Row
                       key={d.id}
                       onClick={() => {
-                        navigate(`/documents?focus=${d.id}`);
+                        navigate(`/documents?tab=files&focus=${d.id}`);
                         close();
                       }}
                       primary={d.name}

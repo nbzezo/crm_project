@@ -12,11 +12,10 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-import { api, qs } from '../api/client';
-import { LG_QUERY, useMediaQuery } from '../lib/useMediaQuery';
-import { Drawer } from '../components/common/Drawer';
-import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import { PageHeader, PageShell } from '../components/common/PageShell';
+import { api, qs } from '../../api/client';
+import { LG_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
+import { Drawer } from '../../components/common/Drawer';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import {
   Button,
   EmptyState,
@@ -26,17 +25,17 @@ import {
   SkeletonRows,
   TableHead,
   focusRing,
-} from '../components/common/ui';
-import { DocumentMetadataDrawer } from '../components/documents/DocumentMetadataDrawer';
+} from '../../components/common/ui';
+import { DocumentMetadataDrawer } from '../../components/documents/DocumentMetadataDrawer';
 import {
   DocumentUploadManager,
   type DocumentOptions,
-} from '../components/documents/DocumentUploadManager';
-import { formatBytes } from '../components/crm/DocumentUpload';
-import { DOC_TYPE_ORDER, t } from '../i18n/vi';
-import { formatDate, formatDateTime } from '../lib/format';
-import { useUiStore } from '../stores/uiStore';
-import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../types';
+} from '../../components/documents/DocumentUploadManager';
+import { formatBytes } from '../../components/crm/DocumentUpload';
+import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
+import { formatDate, formatDateTime } from '../../lib/format';
+import { useUiStore } from '../../stores/uiStore';
+import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../../types';
 
 type PendingAction = { type: 'trash' | 'permanent'; ids: number[] } | null;
 
@@ -46,7 +45,12 @@ const confidentialityLabel: Record<CrmDocument['confidentiality'], string> = {
   confidential: 'Mật',
 };
 
-export default function DocumentsPage() {
+/**
+ * Kho tep tai len (truoc day la trang /documents). Nay nhung vao tab "Tệp tải
+ * lên" cua DocumentsHubPage — xem pages/DocumentsHubPage.tsx. Khong tu dung
+ * PageShell/PageHeader: khung trang do hub cap.
+ */
+export function DocumentsLibrary() {
   const isWide = useMediaQuery(LG_QUERY);
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
@@ -201,7 +205,7 @@ export default function DocumentsPage() {
   const zipHref = `/api/documents/download.zip?ids=${selected.join(',')}`;
 
   return (
-    <PageShell width="wide">
+    <div className="space-y-4">
       {/*
        * Khoi tai len nam trong Drawer chu khong con dat thang tren trang.
        *
@@ -211,16 +215,15 @@ export default function DocumentsPage() {
        * tien. Nhung phan lon luot vao trang Tai lieu la de TIM mot tep, khong
        * phai de tai len.
        */}
-      <PageHeader
-        description="Quản lý hồ sơ khách hàng, liên kết bán hàng và vòng đời tài liệu tại một nơi."
-        actions={
-          view === 'active' ? (
-            <Button variant="primary" onClick={() => setUploadOpen(true)}>
-              <Plus size={15} aria-hidden="true" /> Tải tài liệu
-            </Button>
-          ) : undefined
-        }
-      />
+      {/* Nut tai len truoc day nam o PageHeader cua trang rieng; trong hub, tieu de
+          trang dung chung cho hai tab nen nut chuyen xuong mot hang thao tac rieng. */}
+      {view === 'active' && (
+        <div className="flex justify-end">
+          <Button variant="primary" onClick={() => setUploadOpen(true)}>
+            <Plus size={15} aria-hidden="true" /> Tải tài liệu
+          </Button>
+        </div>
+      )}
 
       <Drawer
         open={uploadOpen}
@@ -707,6 +710,6 @@ export default function DocumentsPage() {
           setPendingAction(null);
         }}
       />
-    </PageShell>
+    </div>
   );
 }

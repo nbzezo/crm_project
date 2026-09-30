@@ -38,7 +38,6 @@ import {
   LayoutDashboard,
   ListChecks,
   NotebookPen,
-  NotebookText,
   Pencil,
   RotateCcw,
   Settings,
@@ -78,6 +77,12 @@ interface NavItem {
    * day la de nguoi dung khong bam vao mot thu roi nhan 403 ma khong hieu vi sao.
    */
   permission?: PermissionKey;
+  /**
+   * Hien muc khi co IT NHAT mot quyen trong danh sach. Dung cho trang gom nhieu
+   * tab moi tab mot quyen (vd. Tai lieu: Trang tai lieu + Tep tai len). Uu tien
+   * hon `permission` khi khai ca hai.
+   */
+  permissionAny?: PermissionKey[];
 }
 
 type NavGroupId = 'daily' | 'projects' | 'sales' | 'analytics' | 'tools';
@@ -139,7 +144,12 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
       { to: '/projects', label: t.nav.projects, icon: FolderKanban, permission: 'projects:read' },
       { to: '/boards', label: t.nav.boards, icon: Trello, permission: 'boards:read' },
       { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare, permission: 'tasks:read' },
-      { to: '/documents', label: t.nav.documents, icon: FolderOpen, permission: 'documents:read' },
+      {
+        to: '/documents',
+        label: t.nav.documents,
+        icon: FolderOpen,
+        permissionAny: ['documents:read', 'notes:read'],
+      },
     ],
   },
   {
@@ -179,10 +189,7 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   {
     id: 'tools',
     label: t.nav.groupTools,
-    items: [
-      { to: '/ai', label: t.nav.ai, icon: Sparkles, permission: 'ai:read' },
-      { to: '/notes', label: t.nav.notes, icon: NotebookText, end: true, permission: 'notes:read' },
-    ],
+    items: [{ to: '/ai', label: t.nav.ai, icon: Sparkles, permission: 'ai:read' }],
   },
 ];
 
@@ -197,7 +204,13 @@ function useGroupItems(order: NavOrder): (group: (typeof NAV_GROUPS)[number]) =>
   const allowed = usePermissionCheck();
   return (group) => {
     const itemMap = new Map(
-      group.items.filter((item) => allowed(item.permission)).map((item) => [item.to, item])
+      group.items
+        .filter((item) =>
+          item.permissionAny
+            ? item.permissionAny.some((key) => allowed(key))
+            : allowed(item.permission)
+        )
+        .map((item) => [item.to, item])
     );
     return order[group.id]
       .map((to) => itemMap.get(to))
