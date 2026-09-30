@@ -61,21 +61,14 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
       ? page.getByRole('dialog')
       : page.getByRole('complementary');
 
-  for (const group of [
-    'Công việc hôm nay',
-    'Quản lý dự án',
-    'Khách hàng & kinh doanh',
-    'Phân tích',
-    'Công cụ',
-  ]) {
+  for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh']) {
     await expect(container.getByRole('button', { name: group, exact: true })).toBeVisible();
   }
-  await expect(container.getByRole('link', { name: 'Sức khỏe pipeline' })).toBeVisible();
-  await expect(container.getByRole('button', { name: 'Ghi nhanh', exact: true })).toBeVisible();
-
-  await container.getByRole('button', { name: 'Công cụ', exact: true }).click();
-  await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toBeHidden();
-  await container.getByRole('button', { name: 'Công cụ', exact: true }).click();
+  const projectsGroup = container.getByRole('button', { name: 'Dự án', exact: true });
+  if ((await projectsGroup.getAttribute('aria-expanded')) === 'false') await projectsGroup.click();
+  await expect(container.getByRole('link', { name: 'Cơ hội bán hàng' })).toBeVisible();
+  await expect(container.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ghi nhanh', exact: true })).toBeVisible();
   await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
 
   if (testInfo.project.name === 'desktop-chromium') {
@@ -474,7 +467,7 @@ test('timeline full-width, filter, tooltip, group va responsive sidebar', async 
   await overdueBar.hover();
   await expect(page.getByRole('tooltip')).toContainText(/Quá hạn \d+ ngày/);
 
-  await expect(page.getByText('Hôm nay', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('Hôm nay', { exact: true })).toHaveCount(3);
   const search = page.getByRole('searchbox', { name: 'Tìm công việc trên dòng thời gian' });
   await search.fill(taskTitle);
   await expect(page.getByText('1/2 công việc đã xếp lịch')).toBeVisible();
@@ -950,6 +943,7 @@ test('ghi chu nhanh: mo trinh soan thao khong lam vo trang', async ({ page }, te
   if (testInfo.project.name === 'mobile-chromium') {
     await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: 'Đóng menu điều hướng' }).click();
   }
   await page.getByRole('button', { name: 'Ghi nhanh', exact: true }).click();
   const board = page.getByRole('dialog', { name: 'Ghi chú nhanh' });

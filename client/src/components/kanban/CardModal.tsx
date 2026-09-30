@@ -18,6 +18,7 @@ import {
   Link2,
   ListTree,
   MessageSquare,
+  MoreHorizontal,
   Paperclip,
   Plus,
   SlidersHorizontal,
@@ -38,6 +39,7 @@ import {
   Field as FormField,
   focusRing,
   selectOptionContrast,
+  IconButton,
 } from '../common/ui';
 import { AttachmentSection } from './AttachmentSection';
 import { ChecklistSection } from './ChecklistSection';
@@ -167,7 +169,7 @@ export function CardModal() {
           className={`bg-tr-panel p-8 text-center text-sm text-tr-muted ${
             presentation === 'drawer'
               ? 'h-full w-[min(32rem,100vw)] border-s border-tr-border'
-              : 'w-full max-w-4xl rounded-modal'
+              : 'w-full max-w-5xl rounded-modal'
           }`}
         >
           {t.common.loading}
@@ -197,7 +199,7 @@ export function CardModal() {
           className={
             presentation === 'drawer'
               ? 'tr-anim-slide-right tr-scroll h-full w-[min(32rem,100vw)] overflow-y-auto border-s border-tr-border bg-tr-panel shadow-2xl'
-              : 'tr-anim-pop mx-auto w-full max-w-4xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl'
+              : 'tr-anim-pop mx-auto w-full max-w-5xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl'
           }
         >
           {/* ----- Thanh dieu khien tren cung ----- */}
@@ -223,25 +225,12 @@ export function CardModal() {
               >
                 <Image size={17} aria-hidden="true" />
               </button>
-              <button
-                type="button"
-                onClick={menuPop.toggle}
-                className={`rounded-full px-2 py-1 text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
-                aria-label="Thao tác khác"
-                aria-haspopup="dialog"
-              >
-                <span className="block text-base leading-tight font-bold" aria-hidden="true">
-                  ···
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={requestClose}
-                className={`rounded-full p-1.5 text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
-                aria-label={t.common.close}
-              >
+              <IconButton label="Thao tác khác" onClick={menuPop.toggle} aria-haspopup="dialog">
+                <MoreHorizontal size={18} aria-hidden="true" />
+              </IconButton>
+              <IconButton label={t.common.close} onClick={requestClose}>
                 <X size={18} aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           </div>
 
@@ -254,7 +243,7 @@ export function CardModal() {
 
           <div
             className={`grid grid-cols-1 gap-6 px-4 pt-3 pb-6 sm:px-6 ${
-              presentation === 'drawer' ? '' : 'sm:grid-cols-[1fr_320px]'
+              presentation === 'drawer' ? '' : 'lg:grid-cols-[minmax(0,1fr)_340px]'
             }`}
           >
             {/* ================= Cot trai ================= */}
@@ -288,26 +277,10 @@ export function CardModal() {
                 />
               </div>
 
-              {/* Hang nut hanh dong ngang (giong Trello moi) */}
-              <div className="mt-2.5 mb-4 flex flex-wrap gap-1.5 pl-8">
-                <ActionChip icon={<Plus size={14} />} onClick={addPop.toggle}>
-                  Thêm
-                </ActionChip>
-                <ActionChip icon={<Clock size={14} />} onClick={datePop.toggle}>
-                  Ngày
-                </ActionChip>
-                <ActionChip icon={<Flag size={14} />} onClick={priorityPop.toggle}>
-                  Ưu tiên
-                </ActionChip>
-                <ActionChip icon={<Building2 size={14} />} onClick={customerPop.toggle}>
-                  {t.card.customer}
-                </ActionChip>
-                <ActionChip icon={<UserRound size={14} />} onClick={assigneePop.toggle}>
-                  {t.card.assignee}
-                </ActionChip>
-                <ActionChip icon={<CircleDot size={14} />} onClick={statusPop.toggle}>
-                  Trạng thái
-                </ActionChip>
+              <div className="mt-2.5 mb-4">
+                <Button variant="ghost" onClick={addPop.toggle}>
+                  <Plus size={14} aria-hidden="true" /> Thêm mục
+                </Button>
               </div>
 
               {/* Việc bị chặn phải nói rõ vì sao ngay dưới tiêu đề — một thẻ “bị
@@ -808,7 +781,7 @@ function CardSection({
           {hint && <p className="text-xs text-tr-muted">{hint}</p>}
         </button>
       </div>
-      <div id={bodyId} hidden={!open} className="pl-8">
+      <div id={bodyId} hidden={!open}>
         {children}
       </div>
     </section>
@@ -821,28 +794,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <h4 className="mb-1 text-xs font-semibold text-tr-subtle">{label}</h4>
       {children}
     </div>
-  );
-}
-
-function ActionChip({
-  icon,
-  children,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  onClick: (e: React.MouseEvent) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-haspopup="dialog"
-      className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-control bg-tr-hover px-2.5 text-xs font-medium text-tr-text transition hover:bg-tr-hover-strong fine:min-h-0 fine:py-1 fine:text-sm ${focusRing}`}
-    >
-      {icon}
-      {children}
-    </button>
   );
 }
 

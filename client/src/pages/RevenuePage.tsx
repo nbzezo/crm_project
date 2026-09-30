@@ -11,7 +11,17 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Check, Download, Info, Plus, Settings2 } from 'lucide-react';
+import {
+  Check,
+  Circle,
+  CircleCheck,
+  CircleDot,
+  Download,
+  FileText,
+  Info,
+  Plus,
+  Settings2,
+} from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ChartDataTable } from '../components/common/ChartDataTable';
 import { RevenueLineActions } from '../components/crm/RevenueLineActions';
@@ -30,14 +40,7 @@ import {
   TableHead,
   focusRing,
 } from '../components/common/ui';
-import {
-  REVENUE_STAGE_COLORS,
-  REVENUE_STAGE_ORDER,
-  REVENUE_STAGE_TINTS,
-  SERVICE_STATUS_COLORS,
-  SERVICE_STATUS_ORDER,
-  t,
-} from '../i18n/vi';
+import { REVENUE_STAGE_COLORS, REVENUE_STAGE_ORDER, SERVICE_STATUS_ORDER, t } from '../i18n/vi';
 import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../lib/format';
 import { funnel, receivable } from '../lib/revenue';
 import type {
@@ -47,6 +50,7 @@ import type {
   RevenueStage,
   RevenueSummary,
   Service,
+  ServiceStatus,
 } from '../types';
 
 /* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
@@ -90,6 +94,13 @@ export default function RevenuePage() {
   const [serviceId, setServiceId] = useState('');
   const [am, setAm] = useState('');
   const [chartView, setChartView] = useState<'monthly' | 'cumulative'>('monthly');
+  const [chartOpen, setChartOpen] = useState(() => {
+    try {
+      return localStorage.getItem('workflow-revenue-chart-open-v1') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [lineForm, setLineForm] = useState<{ open: boolean; line?: RevenueLine | null }>({
     open: false,
   });
@@ -109,6 +120,17 @@ export default function RevenuePage() {
     setStatus('');
     setServiceId('');
     setAm('');
+  };
+  const toggleChart = () => {
+    setChartOpen((open) => {
+      const next = !open;
+      try {
+        localStorage.setItem('workflow-revenue-chart-open-v1', next ? '1' : '0');
+      } catch {
+        // Trinh duyet chan storage khong duoc lam hong viec mo bang.
+      }
+      return next;
+    });
   };
 
   const { data, isLoading } = useQuery({
@@ -253,7 +275,7 @@ export default function RevenuePage() {
       />
 
       {/* Thanh lọc: năm, tìm kiếm, bộ lọc nghiệp vụ */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-tr-border bg-tr-panel p-2.5">
+      <div className="flex flex-wrap items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-2.5">
         <div className="w-28">
           <Select
             value={year}
@@ -326,49 +348,69 @@ export default function RevenuePage() {
       <Panel
         title={`Doanh thu theo tháng — năm ${year}`}
         action={
-          <Segmented
-            label="Chế độ xem biểu đồ"
-            value={chartView}
-            onChange={setChartView}
-            options={CHART_VIEW_OPTIONS}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              aria-expanded={chartOpen}
+              onClick={toggleChart}
+              className={`rounded-control px-2.5 py-1 text-xs font-medium text-tr-subtle hover:bg-tr-hover ${focusRing}`}
+            >
+              {chartOpen ? 'Ẩn biểu đồ' : 'Hiện biểu đồ'}
+            </button>
+            {chartOpen && (
+              <Segmented
+                label="Chế độ xem biểu đồ"
+                value={chartView}
+                onChange={setChartView}
+                options={CHART_VIEW_OPTIONS}
+              />
+            )}
+          </div>
         }
       >
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartView === 'monthly' ? chartData : cumulativeChartData}
-              margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
-            >
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="name" {...AXIS_PROPS} />
-              <YAxis {...AXIS_PROPS} tickFormatter={(v: number) => formatVNDShort(v)} width={64} />
-              <Tooltip content={<RevenueChartTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {REVENUE_STAGE_ORDER.map((stage) => (
-                <Bar
-                  key={stage}
-                  dataKey={stage}
-                  stackId="revenue"
-                  name={t.revenueStage[stage]}
-                  fill={REVENUE_STAGE_COLORS[stage]}
+        {chartOpen && (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartView === 'monthly' ? chartData : cumulativeChartData}
+                margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="name" {...AXIS_PROPS} />
+                <YAxis
+                  {...AXIS_PROPS}
+                  tickFormatter={(v: number) => formatVNDShort(v)}
+                  width={64}
                 />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+                <Tooltip content={<RevenueChartTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                {REVENUE_STAGE_ORDER.map((stage) => (
+                  <Bar
+                    key={stage}
+                    dataKey={stage}
+                    stackId="revenue"
+                    name={t.revenueStage[stage]}
+                    fill={REVENUE_STAGE_COLORS[stage]}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         {/* Bieu do cot chong 4 giai doan: khong the doc bang ban phim hay trinh
             doc man hinh neu khong co bang kem theo. */}
-        <ChartDataTable
-          caption={`Doanh thu ${year} theo tháng — ${chartView === 'monthly' ? 'theo tháng' : 'lũy kế'}`}
-          valueLabel="Tổng"
-          rows={(chartView === 'monthly' ? chartData : cumulativeChartData).map((row) => ({
-            name: row.name,
-            value: REVENUE_STAGE_ORDER.map(
-              (stage) => `${t.revenueStage[stage]} ${formatVNDShort(row[stage])}`
-            ).join(' · '),
-          }))}
-        />
+        {chartOpen && (
+          <ChartDataTable
+            caption={`Doanh thu ${year} theo tháng — ${chartView === 'monthly' ? 'theo tháng' : 'lũy kế'}`}
+            valueLabel="Tổng"
+            rows={(chartView === 'monthly' ? chartData : cumulativeChartData).map((row) => ({
+              name: row.name,
+              value: REVENUE_STAGE_ORDER.map(
+                (stage) => `${t.revenueStage[stage]} ${formatVNDShort(row[stage])}`
+              ).join(' · '),
+            }))}
+          />
+        )}
       </Panel>
 
       {/* Bảng nhập doanh thu 12 tháng */}
@@ -397,7 +439,7 @@ export default function RevenuePage() {
           />
         )
       ) : (
-        <div className="overflow-hidden rounded-lg border border-tr-border bg-tr-panel shadow-sm">
+        <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-tr-border px-3 py-2 text-xs text-tr-muted">
             <span className="inline-flex items-center gap-1.5" title={t.revenue.guideFlow}>
               <Info size={12} className="shrink-0" aria-hidden="true" />
@@ -406,10 +448,7 @@ export default function RevenuePage() {
             <span className="flex flex-wrap items-center gap-3">
               {REVENUE_STAGE_ORDER.map((stage) => (
                 <span key={stage} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
-                  />
+                  <RevenueStageGlyph stage={stage} />
                   {t.revenueStage[stage]}
                 </span>
               ))}
@@ -421,13 +460,7 @@ export default function RevenuePage() {
                 <tr>
                   <th
                     scope="col"
-                    className="sticky top-0 left-0 z-30 min-w-12 bg-tr-surface px-3 py-2.5"
-                  >
-                    STT
-                  </th>
-                  <th
-                    scope="col"
-                    className="sticky top-0 left-12 z-30 min-w-56 border-r border-tr-border bg-tr-surface px-3 py-2.5"
+                    className="sticky top-0 left-0 z-30 min-w-56 border-r border-tr-border bg-tr-surface px-3 py-2.5"
                   >
                     {t.card.customer}
                   </th>
@@ -461,7 +494,7 @@ export default function RevenuePage() {
                         }}
                         title={t.revenue.setStageForMonth}
                         aria-label={`${t.revenue.setStageForMonth}: ${t.revenue.month} ${m}`}
-                        className={`rounded px-1 py-0.5 uppercase transition hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                        className={`rounded-control-inner px-1 py-0.5 transition hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
                       >
                         {t.revenue.month} {m}
                       </button>
@@ -471,12 +504,9 @@ export default function RevenuePage() {
                 </tr>
               </TableHead>
               <tbody className="divide-y divide-tr-border">
-                {lines.map((line, index) => (
+                {lines.map((line) => (
                   <tr key={line.id} className="group hover:bg-tr-hover">
-                    <td className="sticky left-0 z-10 min-w-12 bg-tr-panel px-3 py-1.5 text-tr-muted tabular-nums group-hover:bg-tr-hover">
-                      {index + 1}
-                    </td>
-                    <td className="sticky left-12 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
+                    <td className="sticky left-0 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
                       <Link
                         to={`/customers/${line.customer_id}`}
                         className="font-medium text-tr-text hover:text-tr-primary hover:underline"
@@ -500,9 +530,7 @@ export default function RevenuePage() {
                       {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
                     </td>
                     <td className="px-3 py-1.5">
-                      <StatusChip color={SERVICE_STATUS_COLORS[line.status]}>
-                        {t.serviceStatus[line.status]}
-                      </StatusChip>
+                      <StatusChip status={line.status}>{t.serviceStatus[line.status]}</StatusChip>
                     </td>
                     <td
                       className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
@@ -550,11 +578,10 @@ export default function RevenuePage() {
               </tbody>
               <tfoot className="sticky bottom-0 z-20 bg-tr-surface text-sm font-semibold shadow-[0_-1px_0_var(--tr-border)]">
                 <tr>
-                  <td className="sticky bottom-0 left-0 z-30 min-w-12 bg-tr-surface px-3 py-2" />
-                  <td className="sticky bottom-0 left-12 z-30 border-r border-tr-border bg-tr-surface px-3 py-2 text-tr-subtle">
+                  <td className="sticky bottom-0 left-0 z-30 border-r border-tr-border bg-tr-surface px-3 py-2 text-tr-subtle">
                     {t.revenue.grandTotal}
                   </td>
-                  <td colSpan={5} />
+                  <td colSpan={4} />
                   <td className="px-3 py-2 text-right tabular-nums text-tr-text">
                     {formatVNDInput(grandTotal) || '0'}
                   </td>
@@ -653,34 +680,38 @@ function recomputeTotals(line: RevenueLine): RevenueLine {
   return { ...line, totals };
 }
 
-/** hex + alpha -> rgba(); dùng cho badge nền nhạt/viền mảnh không cần đổi bảng màu nguồn. */
-function hexToRgba(hex: string, alpha: number): string {
-  const v = hex.replace('#', '');
-  const r = parseInt(v.slice(0, 2), 16);
-  const g = parseInt(v.slice(2, 4), 16);
-  const b = parseInt(v.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-/** Badge trạng thái nhẹ: chấm màu + nền nhạt/viền mảnh cùng tông thay vì nền đặc bão hòa. */
-function StatusChip({ color, children }: { color: string; children: string }) {
+/** Badge trạng thái dùng token semantic để tự đổi theo theme. */
+function StatusChip({ status, children }: { status: ServiceStatus; children: string }) {
+  const classes: Record<ServiceStatus, string> = {
+    using:
+      'border-service-status-using-fg/35 bg-service-status-using-bg text-service-status-using-fg',
+    pending:
+      'border-service-status-pending-fg/35 bg-service-status-pending-bg text-service-status-pending-fg',
+    paused:
+      'border-service-status-paused-fg/35 bg-service-status-paused-bg text-service-status-paused-fg',
+    stopped:
+      'border-service-status-stopped-fg/35 bg-service-status-stopped-bg text-service-status-stopped-fg',
+  };
   return (
     <span
-      className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-      style={{
-        backgroundColor: hexToRgba(color, 0.14),
-        borderColor: hexToRgba(color, 0.35),
-        color,
-      }}
+      className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${classes[status]}`}
     >
-      <span
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: color }}
-        aria-hidden="true"
-      />
+      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
       {children}
     </span>
   );
+}
+
+function RevenueStageGlyph({ stage }: { stage: RevenueStage }) {
+  const Glyph =
+    stage === 'forecast'
+      ? Circle
+      : stage === 'reconciled'
+        ? CircleDot
+        : stage === 'invoiced'
+          ? FileText
+          : CircleCheck;
+  return <Glyph size={12} aria-hidden="true" style={{ color: REVENUE_STAGE_COLORS[stage] }} />;
 }
 
 /** Tooltip biểu đồ: liệt kê từng giai đoạn của tháng kèm tổng cộng — dễ đọc ở cả hai theme. */
@@ -743,7 +774,7 @@ function MonthCell({
   const variance = cell ? cell.amount_vnd - cell.forecast_vnd : 0;
 
   return (
-    <td className="px-1 py-1" style={{ backgroundColor: REVENUE_STAGE_TINTS[stage] }}>
+    <td className="px-1 py-1">
       <div className="flex items-center justify-end gap-1">
         <button
           onClick={popover.toggle}
@@ -758,12 +789,9 @@ function MonthCell({
               ? `${monthLabel}: chưa có số tiền`
               : `${monthLabel}: ${t.revenueStage[stage]} — bấm để đổi trạng thái`
           }
-          className={`shrink-0 rounded-full p-0.5 transition hover:ring-2 hover:ring-tr-border disabled:opacity-25 ${focusRing}`}
+          className={`shrink-0 rounded-control-inner p-0.5 transition hover:ring-2 hover:ring-tr-border disabled:opacity-25 ${focusRing}`}
         >
-          <span
-            className="block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
-          />
+          <RevenueStageGlyph stage={stage} />
         </button>
         <input
           inputMode="numeric"
@@ -784,7 +812,7 @@ function MonthCell({
             }
           }}
           placeholder="—"
-          className={`w-24 rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm tabular-nums outline-none transition hover:border-tr-border focus:border-tr-primary focus:bg-tr-panel ${
+          className={`w-24 rounded-control-inner border border-transparent bg-transparent px-1.5 py-1 text-right text-sm tabular-nums outline-none transition hover:border-tr-border focus:border-tr-primary focus:bg-tr-panel ${
             amount ? 'text-tr-text' : 'text-tr-muted'
           }`}
         />

@@ -1,17 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { STALE_DAYS } from '@workflow/contracts';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Building2,
-  CalendarClock,
-  FolderKanban,
-  PackageOpen,
-  PauseCircle,
-  RefreshCw,
-  User,
-} from 'lucide-react';
+import { Building2, CalendarClock, RefreshCw, User } from 'lucide-react';
 import { LabelChips } from '../labels/LabelChips';
 import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
@@ -45,7 +35,7 @@ export function SortableDealCard({
       <div
         ref={setNodeRef}
         style={{ transform: CSS.Translate.toString(transform), transition }}
-        className="rounded-lg bg-tr-hover-strong"
+        className="rounded-panel bg-tr-hover-strong"
       >
         <div className="invisible">
           <DealCardBody deal={deal} labels={labels} onClick={() => {}} />
@@ -66,7 +56,7 @@ export function SortableDealCard({
         if (!event.defaultPrevented && event.key === 'Enter') onClick();
       }}
       aria-label={`${deal.title}, ${deal.customer_name ?? 'chưa gán khách hàng'}, ${formatVND(deal.value_vnd)}`}
-      className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
+      className="rounded-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
     >
       <DealCardBody deal={deal} labels={labels} onClick={onClick} />
     </div>
@@ -85,15 +75,13 @@ export function DealCardBody({
 }) {
   const closed = deal.stage === 'won' || deal.stage === 'lost';
   const closeOverdue = isOverdue(deal.expected_close_date, closed);
-  const nextActionOverdue = Boolean(deal.next_action_date && deal.next_action_date < todayStr());
-  const stale = (deal.days_idle ?? 0) >= STALE_DAYS && !closed;
-  const noNextAction = !deal.next_action && !closed;
   /* V1/V2 luôn chặn forecast nên viền đỏ ở mọi vị trí trong ma trận (F-02). */
   const vetoed = !closed && Boolean(deal.v1_no_event || deal.v2_no_economic);
+  const signal = pickDealSignal(deal);
 
   return (
     <div
-      className={`tr-card-shadow w-full cursor-pointer rounded-lg bg-tr-card p-2.5 text-left transition hover:ring-2 hover:ring-tr-primary ${
+      className={`tr-card-shadow w-full cursor-pointer rounded-panel bg-tr-card p-2.5 text-left transition hover:ring-2 hover:ring-tr-primary ${
         dragging ? 'rotate-3 shadow-lg' : ''
       } ${vetoed ? 'ring-1 ring-tr-danger' : ''}`}
     >
@@ -107,7 +95,7 @@ export function DealCardBody({
       </div>
 
       <div className="mt-1 flex flex-wrap items-baseline gap-2">
-        <span className="text-sm font-semibold text-tr-success">{formatVND(deal.value_vnd)}</span>
+        <span className="text-sm font-semibold text-tr-text">{formatVND(deal.value_vnd)}</span>
         <span className="text-xs text-tr-muted">{deal.probability}%</span>
         {/* Điểm chất lượng đứng cạnh xác suất theo giai đoạn — hai chỉ số độc lập,
             chênh lệch giữa chúng chính là mức thổi phồng pipeline (F-08). */}
@@ -144,7 +132,7 @@ export function DealCardBody({
         )}
         {deal.expected_close_date && (
           <span
-            className={`inline-flex items-center gap-1 rounded px-1 py-0.5 ${
+            className={`inline-flex items-center gap-1 rounded-compact px-1 py-0.5 ${
               closeOverdue ? 'tr-badge-overdue' : ''
             }`}
             title={t.deal.expectedClose}
@@ -155,69 +143,73 @@ export function DealCardBody({
         )}
       </div>
 
-      {/* FR-PIP-01: Next Action luôn hiển thị nổi bật trên card */}
-      {deal.next_action ? (
+      {signal && (
         <div
-          className={`mt-2 flex items-center gap-1.5 rounded px-1.5 py-1 text-xs ${
-            nextActionOverdue ? 'tr-badge-overdue' : 'bg-tr-hover text-tr-subtle'
-          }`}
+          className={`mt-2 rounded-compact px-1.5 py-1 text-xs ${signal.kind === 'veto' ? 'tr-badge-overdue' : 'bg-tr-hover text-tr-subtle'}`}
+          title={signal.others.length ? [signal.text, ...signal.others].join(' · ') : signal.text}
         >
-          <ArrowRight size={12} className="shrink-0" />
-          <span className="min-w-0 flex-1 truncate">{deal.next_action}</span>
-          {deal.next_action_date && (
-            <span className="shrink-0">{formatDateShort(deal.next_action_date)}</span>
+          {signal.text}
+          {signal.others.length > 0 && (
+            <span className="ml-1 text-tr-muted">+{signal.others.length} cảnh báo</span>
           )}
-        </div>
-      ) : (
-        noNextAction && (
-          <div className="mt-2 flex items-center gap-1.5 rounded bg-tr-hover px-1.5 py-1 text-xs text-tr-warning">
-            <AlertTriangle size={12} /> Chưa có hành động tiếp theo
-          </div>
-        )
-      )}
-
-      {/* Tạm dừng đứng trên các cảnh báo khác: một cơ hội đang dừng có chủ ý thì
-          "chưa có hành động tiếp theo" không còn là vấn đề cần nhắc. */}
-      {!!deal.on_hold && (
-        <div className="mt-1.5 flex items-center gap-1 rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle">
-          <PauseCircle size={12} aria-hidden="true" />
-          Tạm dừng
-          {deal.on_hold_review_date && ` · xem lại ${formatDateShort(deal.on_hold_review_date)}`}
-        </div>
-      )}
-
-      {stale && !deal.on_hold && (
-        <div className="mt-1 text-xs text-tr-warning">Không có tương tác {deal.days_idle} ngày</div>
-      )}
-
-      {/* R-08: thời gian lưu tại giai đoạn — chỉ nói khi con số đã đáng chú ý. */}
-      {!closed && (deal.days_in_stage ?? 0) >= STAGE_AGE_DAYS && (
-        <div className="mt-1 text-xs text-tr-muted">Ở giai đoạn này {deal.days_in_stage} ngày</div>
-      )}
-
-      {/*
-        Won mà hồ sơ bàn giao chưa đủ (v23/v24). Chỉ hiện ở đúng giai đoạn `won`:
-        một cơ hội đang đàm phán thì chưa đến lượt nói chuyện bàn giao, và dán
-        nhãn cảnh báo lên đó chỉ làm loãng tín hiệu ở cột thực sự cần nhìn.
-      */}
-      {deal.stage === 'won' && !deal.handover_ready && (
-        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-tr-warning/15 px-1.5 py-0.5 text-xs font-semibold text-tr-warning">
-          <PackageOpen size={12} aria-hidden="true" /> Chờ bàn giao
-        </div>
-      )}
-
-      {deal.project_name && (
-        <div className="mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-xs text-tr-muted">
-          <FolderKanban size={12} aria-hidden="true" className="shrink-0" />
-          <span className="truncate">{deal.project_name}</span>
-        </div>
-      )}
-
-      {deal.lost_reason && (
-        <div className="mt-1 text-xs text-tr-danger">
-          Lý do: {t.lostReason[deal.lost_reason] ?? deal.lost_reason}
         </div>
       )}
     </div>
   );
+}
+
+export type DealSignal = { kind: string; text: string; tone: string; others: string[] };
+
+export function pickDealSignal(deal: Deal): DealSignal | null {
+  const closed = deal.stage === 'won' || deal.stage === 'lost';
+  const signals: DealSignal[] = [];
+  if (!closed && (deal.v1_no_event || deal.v2_no_economic))
+    signals.push({ kind: 'veto', text: 'Loại khỏi dự báo', tone: 'danger', others: [] });
+  if (deal.on_hold) signals.push({ kind: 'hold', text: 'Tạm dừng', tone: 'muted', others: [] });
+  if (deal.next_action && deal.next_action_date && deal.next_action_date < todayStr())
+    signals.push({
+      kind: 'next-overdue',
+      text: `Việc kế tiếp quá hạn: ${deal.next_action}`,
+      tone: 'danger',
+      others: [],
+    });
+  else if (deal.next_action)
+    signals.push({
+      kind: 'next',
+      text: `Việc kế tiếp: ${deal.next_action}`,
+      tone: 'muted',
+      others: [],
+    });
+  else if (!closed)
+    signals.push({
+      kind: 'missing-next',
+      text: 'Chưa có việc kế tiếp',
+      tone: 'warning',
+      others: [],
+    });
+  if (!closed && (deal.days_idle ?? 0) >= STALE_DAYS)
+    signals.push({
+      kind: 'idle',
+      text: `Không có tương tác ${deal.days_idle} ngày`,
+      tone: 'warning',
+      others: [],
+    });
+  if (!closed && (deal.days_in_stage ?? 0) >= STAGE_AGE_DAYS)
+    signals.push({
+      kind: 'stage-age',
+      text: `Ở giai đoạn này ${deal.days_in_stage} ngày`,
+      tone: 'muted',
+      others: [],
+    });
+  if (deal.stage === 'won' && !deal.handover_ready)
+    signals.push({ kind: 'handover', text: 'Chờ bàn giao', tone: 'warning', others: [] });
+  if (deal.lost_reason)
+    signals.push({
+      kind: 'lost',
+      text: `Lý do: ${t.lostReason[deal.lost_reason] ?? deal.lost_reason}`,
+      tone: 'danger',
+      others: [],
+    });
+  const [first, ...rest] = signals;
+  return first ? { ...first, others: rest.map((item) => item.text) } : null;
 }

@@ -40,11 +40,9 @@ export const t = {
     ai: 'Trợ lý AI',
     quickNotes: 'Ghi nhanh',
     settings: 'Cài đặt',
-    groupDaily: 'Công việc hôm nay',
-    groupProjects: 'Quản lý dự án',
-    groupSales: 'Khách hàng & kinh doanh',
-    groupAnalytics: 'Phân tích',
-    groupTools: 'Công cụ',
+    groupDaily: 'Hôm nay',
+    groupProjects: 'Dự án',
+    groupSales: 'Kinh doanh',
   },
   /* Trang Tai lieu gop hai tab (xem pages/DocumentsHubPage.tsx). Hai mo ta la
      nguyen van mo ta cu cua trang /notes va /documents. */

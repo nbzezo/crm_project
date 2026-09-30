@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { Menu, NotebookPen } from 'lucide-react';
 import { Link } from 'react-router';
 import { Logo } from '../common/Logo';
 import { SearchBox } from '../common/SearchBox';
@@ -8,9 +8,12 @@ import { AccountMenu } from './AccountMenu';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import { focusRing } from '../common/ui';
+import { usePermissionCheck } from '../../lib/permissions';
 
 export function Topbar() {
   const setNavOpen = useUiStore((s) => s.setNavOpen);
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+  const canReadNotes = usePermissionCheck()('notes:read');
 
   return (
     <header className="tr-topbar flex h-14 shrink-0 items-center gap-1 border-b border-tr-border/70 bg-transparent px-2.5 sm:gap-2 sm:px-5">
@@ -42,6 +45,17 @@ export function Topbar() {
           thao tác một chạm dùng nhiều lần trong ngày, chôn vào menu là làm chậm
           đi để đổi lấy gọn gàng. */}
       <ThemeToggle />
+      {canReadNotes && (
+        <button
+          type="button"
+          onClick={() => openQuickNotesBoard()}
+          aria-label={t.nav.quickNotes}
+          title={t.nav.quickNotes}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-tr-border bg-tr-panel text-tr-muted transition hover:bg-tr-hover hover:text-tr-text fine:h-8 fine:w-8 ${focusRing}`}
+        >
+          <NotebookPen size={18} aria-hidden="true" />
+        </button>
+      )}
       <ReminderBell />
       <AccountMenu />
     </header>

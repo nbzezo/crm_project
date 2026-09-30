@@ -1,15 +1,7 @@
 import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  AlignLeft,
-  Building2,
-  CheckSquare,
-  Clock,
-  ListTree,
-  Paperclip,
-  Pencil,
-} from 'lucide-react';
+import { AlignLeft, Building2, CheckSquare, Clock, ListTree, Paperclip } from 'lucide-react';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import { contrastInk, formatDateShort, isOverdue, todayStr } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
@@ -128,15 +120,19 @@ export function CardBody({ card, labels, dragging }: Props) {
           {/* Đặt trước hạn: "bị chặn" quan trọng hơn "trễ 2 ngày" — một việc bị
               chặn thì hạn không còn nói lên điều gì về người phụ trách. */}
           <CardStatusChip status={card.status} blockedReason={card.blocked_reason} />
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: PRIORITY_COLORS[card.priority] }}
-            title={`${t.card.priority}: ${t.priority[card.priority]}`}
-          />
+          {(card.priority === 'urgent' || card.priority === 'high') && (
+            <span
+              className="inline-flex items-center rounded-compact px-1 py-0.5 text-xs font-semibold"
+              style={{ color: PRIORITY_COLORS[card.priority] }}
+            >
+              {t.priority[card.priority]}
+            </span>
+          )}
           {card.due_date && (
-            <span className={`inline-flex items-center gap-1 rounded px-1 py-0.5 ${dueClass}`}>
-              <Clock size={12} />
+            <span
+              className={`inline-flex items-center gap-1 rounded-compact px-1 py-0.5 ${dueClass}`}
+            >
+              <Clock size={12} aria-hidden="true" />
               {formatDateShort(card.due_date)}
             </span>
           )}
@@ -147,35 +143,35 @@ export function CardBody({ card, labels, dragging }: Props) {
           )}
           {(card.subtask_total ?? 0) > 0 && (
             <span
-              className={`inline-flex items-center gap-1 rounded px-1 py-0.5 ${
+              className={`inline-flex items-center gap-1 rounded-compact px-1 py-0.5 ${
                 card.subtask_done === card.subtask_total ? 'tr-badge-done' : ''
               }`}
               title="Việc con"
             >
-              <ListTree size={12} />
+              <ListTree size={12} aria-hidden="true" />
               {card.subtask_done}/{card.subtask_total}
             </span>
           )}
           {card.checklist_total > 0 && (
             <span
-              className={`inline-flex items-center gap-1 rounded px-1 py-0.5 ${
+              className={`inline-flex items-center gap-1 rounded-compact px-1 py-0.5 ${
                 card.checklist_done === card.checklist_total ? 'tr-badge-done' : ''
               }`}
               title={t.card.checklist}
             >
-              <CheckSquare size={12} />
+              <CheckSquare size={12} aria-hidden="true" />
               {card.checklist_done}/{card.checklist_total}
             </span>
           )}
           {(card.attachment_total ?? 0) > 0 && (
             <span className="inline-flex items-center gap-1" title="Tệp đính kèm">
-              <Paperclip size={12} />
+              <Paperclip size={12} aria-hidden="true" />
               {card.attachment_total}
             </span>
           )}
           {card.customer_name && (
             <span className="inline-flex max-w-[9rem] items-center gap-1 truncate">
-              <Building2 size={12} />
+              <Building2 size={12} aria-hidden="true" />
               {card.customer_name}
             </span>
           )}
@@ -191,10 +187,6 @@ export function CardBody({ card, labels, dragging }: Props) {
           </span>
         </div>
       </div>
-
-      <span className="absolute top-1.5 right-1.5 hidden rounded bg-tr-card p-1 text-tr-muted shadow group-hover:block">
-        <Pencil size={12} />
-      </span>
     </div>
   );
 }

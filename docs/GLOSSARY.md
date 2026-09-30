@@ -24,6 +24,17 @@ trang. Tài liệu này là nguồn quyết định duy nhất cho câu hỏi "g
 | **PoC** | Proof of Concept — thuật ngữ hợp đồng/kỹ thuật đã quen. |
 | **veto** | Thuật ngữ của chính mô hình forecast trong sản phẩm này. |
 
+## Thuật ngữ hiển thị
+
+| Hiện tại | Dùng trong sản phẩm |
+|---|---|
+| Weighted pipeline | Pipeline có trọng số |
+| Next Action | Việc kế tiếp |
+| AI Brief | Tóm tắt AI |
+| HĐ sắp hết hạn | Hợp đồng sắp hết hạn |
+| Follow-up | Theo dõi lại |
+| Proposal | Đề xuất |
+
 ## Đã Việt hoá
 
 | Tiếng Anh | Dùng trong sản phẩm |

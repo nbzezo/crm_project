@@ -20,6 +20,28 @@ Tài liệu này là nguồn tham chiếu ngắn cho các mẫu UI dùng chung. 
 - Dùng `rounded-compact` thay cho giá trị bo góc 3 px viết trực tiếp.
 - Màu trạng thái phải mang tên theo ý nghĩa nghiệp vụ, không theo tên màu thị giác.
 
+### Quy tắc bo góc
+
+| Họ | Token | Dùng cho |
+|---|---|---|
+| Viên nang | `rounded-full` | Huy hiệu, chip trạng thái, avatar, chấm, công tắc |
+| Control | `rounded-control` | Nút, điều hướng, tìm kiếm, segmented, ô nhập |
+| Bên trong control | `rounded-control-inner` | Lựa chọn trong segmented và popover |
+| Khung | `rounded-panel` | Panel, thẻ và cột Kanban |
+| Lớp nổi | `rounded-modal` | Modal, Drawer và Popover lớn |
+| Chi tiết nhỏ | `rounded-compact` | Huy hiệu ngày/đếm và thanh nhãn |
+
+### Quy tắc màu nhấn
+
+`--tr-primary` chỉ dành cho hành động và trạng thái đang chọn. Đỏ và vàng dành
+cho trạng thái như quá hạn hoặc sắp hết hạn; vàng thương hiệu không dùng cho
+nhãn trang trí.
+
+### Quy tắc chữ
+
+Nhãn tiếng Việt dùng kiểu viết hoa chữ đầu câu, không dùng `uppercase` hoặc
+tracking giãn cách để tạo cảm giác trang trí.
+
 ## Quy tắc tương tác
 
 - Hành động chính dùng `Button variant="primary"`; xóa dùng tone nguy hiểm và luôn có nhãn truy cập.

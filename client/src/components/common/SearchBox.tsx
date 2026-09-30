@@ -86,7 +86,7 @@ export function SearchBox() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`tr-search-trigger flex h-11 w-full max-w-lg items-center gap-2 rounded-full border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text fine:h-8 ${focusRing}`}
+        className={`tr-search-trigger flex h-11 w-full max-w-lg items-center gap-2 rounded-control border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text fine:h-8 ${focusRing}`}
       >
         <Search size={15} aria-hidden="true" />
         <span className="flex-1 truncate text-left">{t.search.placeholder}</span>

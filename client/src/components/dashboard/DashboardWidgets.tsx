@@ -10,10 +10,7 @@ import {
   FileSignature,
   Layers,
   ListTodo,
-  Scale,
   ShieldAlert,
-  Target,
-  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { ColorBadge, Panel, PriorityBadge, focusRing } from '../common/ui';
@@ -129,38 +126,6 @@ export function KpiSummary({
 }) {
   const metrics: MetricItem[] = [
     {
-      icon: Layers,
-      label: 'Tổng pipeline',
-      value: formatVNDShort(data.kpi.pipeline_vnd),
-      hint: `${data.kpi.open_opportunity_count} cơ hội đang mở`,
-      tone: 'business',
-      to: '/pipeline',
-    },
-    {
-      icon: Target,
-      label: 'Cơ hội đang mở',
-      value: String(data.kpi.open_opportunity_count),
-      hint: 'Cơ hội',
-      tone: 'business',
-      to: '/pipeline',
-    },
-    {
-      icon: Scale,
-      label: 'Weighted pipeline',
-      value: formatVNDShort(data.kpi.weighted_pipeline_vnd),
-      hint: 'Theo xác suất',
-      tone: 'business',
-      to: '/pipeline',
-    },
-    {
-      icon: TrendingUp,
-      label: 'Dự kiến chốt tháng này',
-      value: String(data.kpi.closing_this_month_count),
-      hint: formatVNDShort(data.kpi.closing_this_month_vnd),
-      tone: 'business',
-      to: '/pipeline',
-    },
-    {
       icon: AlertTriangle,
       label: 'Công việc quá hạn',
       value: String(data.kpi.overdue_task_count),
@@ -170,7 +135,7 @@ export function KpiSummary({
     },
     {
       icon: FileSignature,
-      label: 'HĐ sắp hết hạn',
+      label: 'Hợp đồng sắp hết hạn',
       value: String(data.kpi.expiring_contract_count),
       hint: 'Trong 90 ngày',
       tone: data.kpi.expiring_contract_count > 0 ? 'warning' : 'business',
@@ -192,10 +157,27 @@ export function KpiSummary({
       <h2 id="kpi-summary-title" className="sr-only">
         Tình hình kinh doanh và cảnh báo chính
       </h2>
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         {ordered.map((metric) => (
           <Metric key={metric.label} {...metric} />
         ))}
+        <Link
+          to="/pipeline"
+          className={`tr-bento-card-interactive col-span-2 flex min-w-0 flex-col justify-between rounded-panel border border-tr-border bg-tr-panel p-3 text-left ${focusRing}`}
+          aria-label={`Pipeline: ${formatVNDShort(data.kpi.pipeline_vnd)}, ${data.kpi.open_opportunity_count} cơ hội đang mở, có trọng số ${formatVNDShort(data.kpi.weighted_pipeline_vnd)}, chốt tháng này ${data.kpi.closing_this_month_count} (${formatVNDShort(data.kpi.closing_this_month_vnd)})`}
+        >
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-tr-subtle">
+            <Layers size={15} aria-hidden="true" /> Pipeline
+          </span>
+          <span className="mt-1 text-xl font-bold tabular-nums text-tr-text">
+            {formatVNDShort(data.kpi.pipeline_vnd)}
+          </span>
+          <span className="mt-1 text-xs text-tr-muted">
+            {data.kpi.open_opportunity_count} cơ hội đang mở · Có trọng số{' '}
+            {formatVNDShort(data.kpi.weighted_pipeline_vnd)} · Chốt tháng này{' '}
+            {data.kpi.closing_this_month_count} ({formatVNDShort(data.kpi.closing_this_month_vnd)})
+          </span>
+        </Link>
       </div>
     </section>
   );
@@ -213,7 +195,7 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
       : tone === 'warning'
         ? 'bg-tr-warning/10 text-tr-warning hover:bg-tr-warning/15'
         : 'bg-tr-panel text-tr-text hover:bg-tr-hover';
-  const className = `tr-bento-card group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border p-3 text-left min-h-[88px] md:col-span-1 ${toneClass} ${focusRing}`;
+  const className = `tr-bento-card-interactive group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border p-3 text-left min-h-[88px] md:col-span-1 ${toneClass} ${focusRing}`;
   const supportingTextClass = tone === 'business' ? 'text-tr-muted' : 'text-tr-subtle';
   const content = (
     <>
@@ -296,7 +278,7 @@ export function buildRecommendedActions(data: DashboardData): RecommendedAction[
     add({
       id: `deal-${overdueAction.id}`,
       title: overdueAction.next_action || overdueAction.title,
-      meta: `${overdueAction.customer_name} · Next Action quá hạn`,
+      meta: `${overdueAction.customer_name} · Việc kế tiếp quá hạn`,
       tone: 'danger',
       kind: 'link',
       to: `/deals/${overdueAction.id}`,
@@ -643,7 +625,7 @@ export function ReminderWidget({
   const upcoming = items.filter((item) => !item.presentation.missed);
 
   return (
-    <Panel title="Nhắc hẹn" className="tr-bento-dark h-full">
+    <Panel title="Nhắc hẹn" className="h-full">
       {items.length === 0 ? (
         <CompactSuccess message="Không có nhắc hẹn đang chờ." />
       ) : (
@@ -846,7 +828,7 @@ function attentionItems(data: DashboardData): AttentionItem[] {
     }
   };
 
-  add(data.attention.next_action_overdue, { label: 'Next Action quá hạn', group: 'immediate' });
+  add(data.attention.next_action_overdue, { label: 'Việc kế tiếp quá hạn', group: 'immediate' });
   add(data.attention.no_next_action, { label: 'Chưa có hành động tiếp theo', group: 'immediate' });
   add(data.attention.close_overdue, { label: 'Quá ngày dự kiến chốt', group: 'immediate' });
   add(data.attention.stale, { label: 'Không tương tác >14 ngày', group: 'immediate' });

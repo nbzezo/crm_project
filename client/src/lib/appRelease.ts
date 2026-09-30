@@ -25,6 +25,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       'Tăng độ tương phản của chữ phụ, placeholder và thanh điều hướng trong giao diện Sáng.',
       'Làm đường viền, trạng thái hover và mũi tên chọn rõ ràng hơn.',
       'Gộp Tài liệu và Trang tài liệu thành một mục, chia hai tab: Trang tài liệu và Tệp tải lên.',
+      'Chuẩn hóa panel, điều hướng, KPI Tổng quan và các control theo hệ token giao diện mới.',
     ],
   },
   {

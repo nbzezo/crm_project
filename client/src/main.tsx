@@ -89,7 +89,7 @@ const router = createBrowserRouter([
       {
         path: 'pipeline',
         element: <PipelinePage />,
-        handle: { permission: 'deals:read', title: t.nav.pipeline },
+        handle: { permission: 'deals:read', title: t.nav.pipeline, visibleHeading: true },
       },
       {
         path: 'deals/:dealId',

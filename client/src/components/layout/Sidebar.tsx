@@ -20,7 +20,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Activity,
   BarChart3,
   BellRing,
   CalendarDays,
@@ -37,7 +36,6 @@ import {
   GripVertical,
   LayoutDashboard,
   ListChecks,
-  NotebookPen,
   Pencil,
   RotateCcw,
   Settings,
@@ -69,7 +67,6 @@ interface NavItem {
    * Bang Ghi chu nhanh, xem QuickNotesBoard.tsx). `to` van dung lam id on dinh
    * cho sap xep/badge, chi khong duoc dung lam duong dan thuc su.
    */
-  isAction?: boolean;
   /**
    * Quyen toi thieu de THAY muc nay. Khong khai bao = ai cung thay.
    *
@@ -85,7 +82,7 @@ interface NavItem {
   permissionAny?: PermissionKey[];
 }
 
-type NavGroupId = 'daily' | 'projects' | 'sales' | 'analytics' | 'tools';
+type NavGroupId = 'daily' | 'projects' | 'sales';
 type NavOrder = Record<NavGroupId, string[]>;
 
 const HOME_NAV: NavItem = {
@@ -93,6 +90,12 @@ const HOME_NAV: NavItem = {
   label: t.nav.dashboard,
   icon: LayoutDashboard,
   end: true,
+};
+const AI_NAV: NavItem = {
+  to: '/ai',
+  label: t.nav.ai,
+  icon: Sparkles,
+  permission: 'ai:read',
 };
 /*
  * Cai dat KHONG co `permission` rieng: no la mot trang gom nhieu muc, moi muc
@@ -120,13 +123,6 @@ function useCanOpenSettings(): boolean {
   const allowed = usePermissionCheck();
   return SETTINGS_PERMISSIONS.some((key) => allowed(key));
 }
-const QUICK_NOTES_NAV: NavItem = {
-  to: '/quick-notes',
-  label: t.nav.quickNotes,
-  icon: NotebookPen,
-  isAction: true,
-  permission: 'notes:read',
-};
 const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   {
     id: 'daily',
@@ -150,6 +146,7 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
         icon: FolderOpen,
         permissionAny: ['documents:read', 'notes:read'],
       },
+      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
     ],
   },
   {
@@ -172,24 +169,6 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
         permission: 'contacts:read',
       },
     ],
-  },
-  {
-    id: 'analytics',
-    label: t.nav.groupAnalytics,
-    items: [
-      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
-      {
-        to: '/pipeline-health',
-        label: t.nav.pipelineHealth,
-        icon: Activity,
-        permission: 'report.sales:read',
-      },
-    ],
-  },
-  {
-    id: 'tools',
-    label: t.nav.groupTools,
-    items: [{ to: '/ai', label: t.nav.ai, icon: Sparkles, permission: 'ai:read' }],
   },
 ];
 
@@ -221,9 +200,9 @@ function useGroupItems(order: NavOrder): (group: (typeof NAV_GROUPS)[number]) =>
 const DEFAULT_NAV_ORDER = Object.fromEntries(
   NAV_GROUPS.map((group) => [group.id, group.items.map((item) => item.to)])
 ) as NavOrder;
-/* v2 co so do nhom moi; khong tai thu tu v1 vi cac muc da chuyen qua nhom khac. */
-const NAV_ORDER_STORAGE_KEY = 'workflow-sidebar-nav-order-v2';
-const NAV_GROUPS_COLLAPSED_STORAGE_KEY = 'workflow-sidebar-groups-collapsed-v1';
+/* v3: cac muc Phan tich/Cong cu da chuyen qua nhom khac. */
+const NAV_ORDER_STORAGE_KEY = 'workflow-sidebar-nav-order-v3';
+const NAV_GROUPS_COLLAPSED_STORAGE_KEY = 'workflow-sidebar-groups-collapsed-v2';
 
 function normalizeNavOrder(value: unknown): NavOrder {
   const saved = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -286,7 +265,7 @@ function loadCollapsedGroups(): CollapsedGroups {
 
 /* Muc dieu huong cao 44px tren cam ung, thu gon con 32px tu breakpoint sm. */
 const ITEM_BASE =
-  'flex min-h-[44px] items-center gap-2.5 rounded-full px-3 text-sm transition fine:min-h-0 fine:py-1.5';
+  'flex min-h-[44px] items-center gap-2.5 rounded-control px-3 text-sm transition fine:min-h-0 fine:py-1.5';
 
 function navItemClass(isActive: boolean, extra = ''): string {
   return `${ITEM_BASE} ${focusRing} min-w-0 ${extra} ${
@@ -352,25 +331,6 @@ function NavItemLink({
   badgeTone,
 }: { item: NavItem; onNavigate?: () => void } & NavBadgeProps) {
   const Icon = item.icon;
-  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
-
-  if (item.isAction) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          openQuickNotesBoard();
-          onNavigate?.();
-        }}
-        className={navItemClass(false)}
-      >
-        <Icon size={16} className="shrink-0" aria-hidden="true" />
-        <span className="truncate">{item.label}</span>
-        <NavBadge count={badge} tone={badgeTone} />
-      </button>
-    );
-  }
-
   return (
     <NavLink
       to={item.to}
@@ -395,7 +355,6 @@ function SortableNavItem({
     id: item.to,
   });
   const Icon = item.icon;
-  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const itemExtra = `pr-12 sm:pr-9 ${isDragging ? 'shadow-md ring-1 ring-tr-primary/40' : ''}`;
 
   return (
@@ -404,31 +363,16 @@ function SortableNavItem({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group relative ${isDragging ? 'z-10 opacity-80' : ''}`}
     >
-      {item.isAction ? (
-        <button
-          type="button"
-          onClick={() => {
-            openQuickNotesBoard();
-            onNavigate?.();
-          }}
-          className={navItemClass(false, itemExtra)}
-        >
-          <Icon size={16} className="shrink-0" aria-hidden="true" />
-          <span className="truncate">{item.label}</span>
-          <NavBadge count={badge} tone={badgeTone} />
-        </button>
-      ) : (
-        <NavLink
-          to={item.to}
-          end={item.end}
-          onClick={onNavigate}
-          className={({ isActive }) => navItemClass(isActive, itemExtra)}
-        >
-          <Icon size={16} className="shrink-0" aria-hidden="true" />
-          <span className="truncate">{item.label}</span>
-          <NavBadge count={badge} tone={badgeTone} />
-        </NavLink>
-      )}
+      <NavLink
+        to={item.to}
+        end={item.end}
+        onClick={onNavigate}
+        className={({ isActive }) => navItemClass(isActive, itemExtra)}
+      >
+        <Icon size={16} className="shrink-0" aria-hidden="true" />
+        <span className="truncate">{item.label}</span>
+        <NavBadge count={badge} tone={badgeTone} />
+      </NavLink>
       <button
         type="button"
         {...attributes}
@@ -548,6 +492,7 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
     <>
       <nav aria-label={t.app.name} className="px-2.5 py-3">
         <NavItemLink item={HOME_NAV} onNavigate={onNavigate} />
+        {usePermissionCheck()('ai:read') && <NavItemLink item={AI_NAV} onNavigate={onNavigate} />}
         <StarredBoards boards={starred} onNavigate={onNavigate} />
 
         {allowCustomize && (
@@ -581,7 +526,7 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
                     type="button"
                     onClick={() => toggleGroup(group.id)}
                     aria-expanded={!isCollapsed}
-                    className={`flex w-full items-center gap-1.5 rounded-control text-left text-xs font-semibold tracking-[0.08em] text-tr-muted uppercase transition hover:text-[var(--tr-nav-text)] ${focusRing}`}
+                    className={`flex w-full items-center gap-1.5 rounded-control text-left text-xs font-semibold text-tr-muted transition hover:text-[var(--tr-nav-text)] ${focusRing}`}
                   >
                     <ChevronDown
                       size={12}
@@ -646,7 +591,6 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
       </nav>
 
       <div className="mt-auto border-t border-[var(--tr-nav-border)] px-2.5 pt-2 pb-3">
-        <NavItemLink item={QUICK_NOTES_NAV} onNavigate={onNavigate} />
         {canOpenSettings && <NavItemLink item={SETTINGS_NAV} onNavigate={onNavigate} />}
         <div className="mt-2 hidden px-3 text-xs text-tr-muted sm:block">{t.search.hint}</div>
       </div>
@@ -656,7 +600,6 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
 
 function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & NavBadgeProps) {
   const Icon = item.icon;
-  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const badgeDot = badge > 0 && (
     <span
       className={`absolute top-1 right-1 h-2 w-2 rounded-full ${
@@ -665,21 +608,6 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
       aria-hidden="true"
     />
   );
-
-  if (item.isAction) {
-    return (
-      <button
-        type="button"
-        onClick={() => openQuickNotesBoard()}
-        title={item.label}
-        aria-label={item.label}
-        className={`relative flex h-11 w-11 items-center justify-center rounded-control text-[var(--tr-nav-text)] transition hover:bg-[var(--tr-nav-hover)] fine:h-9 fine:w-9 ${focusRing}`}
-      >
-        <Icon size={18} aria-hidden="true" />
-        {badgeDot}
-      </button>
-    );
-  }
 
   return (
     <NavLink
@@ -710,6 +638,7 @@ function CollapsedNav({ order }: { order: NavOrder }) {
   return (
     <nav aria-label={t.app.name} className="flex flex-1 flex-col items-center gap-1 py-3">
       <CollapsedNavLink item={HOME_NAV} />
+      {usePermissionCheck()('ai:read') && <CollapsedNavLink item={AI_NAV} />}
       {NAV_GROUPS.map((group) => {
         const items = groupItems(group);
         if (items.length === 0) return null;
@@ -732,7 +661,6 @@ function CollapsedNav({ order }: { order: NavOrder }) {
         );
       })}
       <div className="mt-auto flex flex-col gap-1 border-t border-[var(--tr-nav-border)] pt-2">
-        <CollapsedNavLink item={QUICK_NOTES_NAV} />
         {canOpenSettings && <CollapsedNavLink item={SETTINGS_NAV} />}
       </div>
     </nav>

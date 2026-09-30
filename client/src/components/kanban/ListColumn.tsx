@@ -100,7 +100,7 @@ export const ListColumn = memo(function ListColumn({
       <div
         ref={setNodeRef}
         style={style}
-        className="flex h-full max-h-full w-11 shrink-0 flex-col items-center gap-3 rounded-modal bg-tr-list py-2"
+        className="flex h-full max-h-full w-11 shrink-0 flex-col items-center gap-3 rounded-panel bg-tr-list py-2"
       >
         <button
           type="button"
@@ -137,7 +137,7 @@ export const ListColumn = memo(function ListColumn({
         style={style}
         role="group"
         aria-label={`Danh sách ${list.name}`}
-        className={`flex max-h-full w-[272px] shrink-0 flex-col rounded-modal bg-tr-list transition-[box-shadow] ${
+        className={`flex max-h-full w-[272px] shrink-0 flex-col rounded-panel bg-tr-list transition-[box-shadow] ${
           isOver ? 'ring-2 ring-tr-primary' : ''
         }`}
       >

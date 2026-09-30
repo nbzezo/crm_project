@@ -33,6 +33,7 @@ import {
   Skeleton,
   focusRing,
 } from '../components/common/ui';
+import { PageHeader, PageShell } from '../components/common/PageShell';
 import { labelsOf, useLabelMap } from '../components/labels/EntityLabels';
 import {
   EMPTY_LABEL_FILTER,
@@ -279,7 +280,16 @@ export default function PipelinePage() {
     );
 
   return (
-    <div className="flex h-full flex-col">
+    <PageShell width="wide" spacing="sm" className="flex h-full flex-col pb-4">
+      <PageHeader
+        title={t.nav.pipeline}
+        description="Theo dõi cơ hội bán hàng theo từng giai đoạn."
+        actions={
+          <Button variant="primary" onClick={() => setForm({ open: true, deal: null })}>
+            <Plus size={16} /> {t.deal.newDeal}
+          </Button>
+        }
+      />
       <div className="flex flex-wrap items-center gap-4 px-4 pt-4">
         <Metric label="Cơ hội đang mở" value={String(openTotal.count)} />
         {/* Dang RUT GON, khong phai day du: chan moi cot Kanban ngay ben duoi cung
@@ -291,13 +301,13 @@ export default function PipelinePage() {
           title={formatVND(openTotal.sum)}
         />
         <Metric
-          label="Weighted pipeline"
+          label="Pipeline có trọng số"
           value={formatVNDShort(Math.round(openTotal.weighted))}
           title={formatVND(Math.round(openTotal.weighted))}
         />
         {(pendingHandover.length > 0 || pendingHandoverOnly) && (
           <FilterMetric
-            label="Won chờ bàn giao"
+            label="Chờ bàn giao"
             value={String(pendingHandover.length)}
             active={pendingHandoverOnly}
             tone={pendingHandover.length > 0 ? 'warning' : 'muted'}
@@ -344,13 +354,6 @@ export default function PipelinePage() {
             <ListIcon size={14} aria-hidden="true" /> Danh sách
           </button>
         </div>
-        <Button
-          variant="primary"
-          className="sm:ml-auto"
-          onClick={() => setForm({ open: true, deal: null })}
-        >
-          <Plus size={16} /> {t.deal.newDeal}
-        </Button>
       </div>
 
       {view === 'board' ? (
@@ -409,7 +412,7 @@ export default function PipelinePage() {
       </Suspense>
 
       {stageMoveDialogs}
-    </div>
+    </PageShell>
   );
 }
 
@@ -486,7 +489,7 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
                   Giá trị
                 </th>
                 <th scope="col" className="px-3 py-2">
-                  Next Action
+                  Việc kế tiếp
                 </th>
               </tr>
             </thead>
@@ -591,13 +594,46 @@ function StageColumn({
   onOpen: (deal: Deal) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: `stage-${stage}`, data: { type: 'stage', stage } });
+  const closed = stage === 'won' || stage === 'lost';
+  const [expanded, setExpanded] = useState(() => {
+    try {
+      return localStorage.getItem(`workflow-pipeline-closed-expanded-v1:${stage}`) === '1';
+    } catch {
+      return false;
+    }
+  });
   const total = deals.reduce((sum, d) => sum + d.value_vnd, 0);
   const weighted = deals.reduce((sum, d) => sum + (d.value_vnd * d.probability) / 100, 0);
+
+  if (closed && !expanded) {
+    return (
+      <button
+        ref={setNodeRef}
+        type="button"
+        onClick={() => {
+          setExpanded(true);
+          try {
+            localStorage.setItem(`workflow-pipeline-closed-expanded-v1:${stage}`, '1');
+          } catch {
+            // Khong de storage loi chan mo cot da dong.
+          }
+        }}
+        className="flex h-full min-h-[12rem] w-14 shrink-0 flex-col items-center justify-between rounded-panel border-t-4 bg-tr-list py-3 text-tr-text hover:bg-tr-hover"
+        style={{ borderTopColor: STAGE_COLORS[stage] }}
+        aria-label={`Mở cột ${t.stage[stage]}`}
+        title={`Trọng số ${formatVNDShort(Math.round(weighted))}`}
+      >
+        <span className="text-xs font-semibold [writing-mode:vertical-rl]">{t.stage[stage]}</span>
+        <span className="text-xs text-tr-muted">{deals.length}</span>
+        <span className="text-[10px] text-tr-muted">{formatVNDShort(total)}</span>
+      </button>
+    );
+  }
 
   return (
     <div
       ref={setNodeRef}
-      className="flex max-h-full w-[272px] shrink-0 flex-col rounded-xl bg-tr-list"
+      className="flex max-h-full w-[272px] shrink-0 flex-col rounded-panel bg-tr-list"
     >
       <header className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
         <span
@@ -629,7 +665,7 @@ function StageColumn({
           <span className="text-tr-muted">Tổng</span>
           <span className="font-semibold text-tr-text">{formatVNDShort(total)}</span>
         </div>
-        {stage !== 'won' && stage !== 'lost' && (
+        {!closed && (
           <div className="flex items-center justify-between text-xs">
             <span className="text-tr-muted">Trọng số</span>
             <span className="text-tr-subtle">{formatVNDShort(Math.round(weighted))}</span>
@@ -637,7 +673,7 @@ function StageColumn({
         )}
         <button
           onClick={onAdd}
-          className="flex w-full items-center gap-1.5 rounded-lg px-1 py-1 text-xs text-tr-subtle transition hover:bg-tr-hover-strong"
+          className="flex w-full items-center gap-1.5 rounded-control px-1 py-1 text-xs text-tr-subtle transition hover:bg-tr-hover-strong"
         >
           <Plus size={13} /> {t.deal.newDeal}
         </button>

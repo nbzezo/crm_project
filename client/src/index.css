@@ -65,6 +65,14 @@
   --color-interaction-zalo-bg: var(--interaction-zalo-bg);
   --color-interaction-zalo-fg: var(--interaction-zalo-fg);
   --color-tr-relation-good: var(--tr-relation-good);
+  --color-service-status-using-bg: var(--service-status-using-bg);
+  --color-service-status-using-fg: var(--service-status-using-fg);
+  --color-service-status-pending-bg: var(--service-status-pending-bg);
+  --color-service-status-pending-fg: var(--service-status-pending-fg);
+  --color-service-status-paused-bg: var(--service-status-paused-bg);
+  --color-service-status-paused-fg: var(--service-status-paused-fg);
+  --color-service-status-stopped-bg: var(--service-status-stopped-bg);
+  --color-service-status-stopped-fg: var(--service-status-stopped-fg);
 
   /* Bo chu: 12 / 14 / 16 / 18 / 24 / 30 / 36.
      Truoc day 62% tien ich co chu trong app la 12px tro xuong — co 11px (`2xs`),
@@ -104,6 +112,7 @@
      moi giu du do mem de nhan biet lop ma khong lam mat dien tich thi giac. */
   --radius-compact: 2px;
   --radius-control: 8px;
+  --radius-control-inner: 6px;
   --radius-panel: 12px;
   --radius-modal: 16px;
 
@@ -125,13 +134,13 @@
   --tr-on-yellow: #70540a;
 
   --tr-nav: #30302f;
-  --tr-surface: #f2f1ea;
+  --tr-surface: #efede5;
   --tr-panel: #fbf9f1;
-  --tr-list: #f4f0de;
-  --tr-card: #fbf9f1;
+  --tr-list: #e9e5d6;
+  --tr-card: #fffdf8;
   --tr-text: #282827;
   --tr-subtle: #54524d;
-  --tr-muted: #5a5852;
+  --tr-muted: #66635b;
   --tr-border: rgba(48, 48, 47, 0.14);
   /* Mau nhan giu CUNG MOT HUE o ca hai che do (215, xanh).
      Truoc day che do Sang dung den #30302f con che do Toi dung xanh — doi theme
@@ -171,6 +180,14 @@
   --tr-badge-overdue-fg: #a72f25;
   --tr-badge-soon-bg: #f4e9b5;
   --tr-badge-soon-fg: #70540a;
+  --service-status-using-bg: #e6f4ea;
+  --service-status-using-fg: #17643b;
+  --service-status-pending-bg: #e9f2ff;
+  --service-status-pending-fg: #0c66e4;
+  --service-status-paused-bg: #fff4d6;
+  --service-status-paused-fg: #7f5f01;
+  --service-status-stopped-bg: #eceef1;
+  --service-status-stopped-fg: #4f5966;
 
   --interaction-call-bg: #e9f2ff;
   --interaction-call-fg: #0c66e4;
@@ -258,6 +275,14 @@
   --tr-success: #7ee2b8;
   --tr-on-success: #1d2125;
   --tr-warning: #f5cd47;
+  --service-status-using-bg: #1c3b2d;
+  --service-status-using-fg: #8bdd9f;
+  --service-status-pending-bg: #1d3552;
+  --service-status-pending-fg: #85b8ff;
+  --service-status-paused-bg: #4b3d16;
+  --service-status-paused-fg: #f5cd47;
+  --service-status-stopped-bg: #303740;
+  --service-status-stopped-fg: #b8c2cf;
   --tr-hover: #a6c5e212;
   --tr-hover-strong: #a6c5e224;
   --tr-overlay: #0304048f;
@@ -618,11 +643,6 @@
 }
 
 /* Khoi the/panel phang, khong nhun khi hover — dung phong cach flat cua theme. */
-[data-theme='zoho'] .tr-bento-card:hover {
-  transform: none;
-  box-shadow: var(--tr-card-shadow);
-}
-
 /* Quy trinh giai doan co hoi kieu "path": moi buoc la mot khoi vien ro, noi
    voi nhau bang dau chevron nho — hoc tu statusbar/blueprint cua Zoho CRM.
    Chi doi hinh thuc hien thi (CSS), khong dong den logic chuyen giai doan
@@ -754,13 +774,17 @@ select.tr-field-control {
 
 .tr-bento-card {
   box-shadow: var(--tr-card-shadow);
+}
+
+.tr-bento-card-interactive {
+  box-shadow: var(--tr-card-shadow);
   transition:
     transform 150ms ease,
     box-shadow 150ms ease,
     border-color 150ms ease;
 }
 
-.tr-bento-card:hover {
+.tr-bento-card-interactive:hover {
   transform: translateY(-2px);
   box-shadow: var(--tr-popover-shadow);
 }

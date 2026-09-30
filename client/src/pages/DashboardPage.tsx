@@ -41,16 +41,13 @@ function DashboardHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <span className="mb-1.5 inline-flex items-center rounded-full bg-[var(--tr-yellow-soft)] px-2.5 py-0.5 text-xs font-bold tracking-wide text-[var(--tr-on-yellow)] uppercase">
-          Trung tâm điều hành
-        </span>
         <h1 className="text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
           Tổng quan
         </h1>
         <p className="mt-0.5 text-sm text-tr-muted">Toàn cảnh công việc &amp; kinh doanh của bạn</p>
       </div>
       <div className="flex items-center gap-2 self-start sm:self-auto">
-        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm">
+        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm">
           <CalendarDays size={14} className="text-tr-muted" aria-hidden="true" />
           {currentDateLabel()}
         </span>
@@ -59,7 +56,7 @@ function DashboardHeader({
           type="button"
           onClick={onRefresh}
           disabled={refreshing}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-tr-border bg-tr-panel text-tr-subtle shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control border border-tr-border bg-tr-panel text-tr-subtle shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
           aria-label={refreshing ? 'Đang làm mới Tổng quan' : 'Làm mới Tổng quan'}
           title="Làm mới dữ liệu"
         >
