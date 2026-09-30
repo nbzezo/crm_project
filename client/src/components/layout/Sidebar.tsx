@@ -34,6 +34,7 @@ import {
   FolderOpen,
   GanttChartSquare,
   GripVertical,
+  HeartPulse,
   LayoutDashboard,
   ListChecks,
   Pencil,
@@ -155,6 +156,12 @@ const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
     items: [
       { to: '/customers', label: t.nav.customers, icon: Users, permission: 'customers:read' },
       { to: '/pipeline', label: t.nav.pipeline, icon: Target, permission: 'deals:read' },
+      {
+        to: '/pipeline-health',
+        label: t.nav.pipelineHealth,
+        icon: HeartPulse,
+        permission: 'report.sales:read',
+      },
       {
         to: '/contracts',
         label: t.nav.contracts,

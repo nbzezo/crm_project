@@ -67,6 +67,7 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
   const projectsGroup = container.getByRole('button', { name: 'Dự án', exact: true });
   if ((await projectsGroup.getAttribute('aria-expanded')) === 'false') await projectsGroup.click();
   await expect(container.getByRole('link', { name: 'Cơ hội bán hàng' })).toBeVisible();
+  await expect(container.getByRole('link', { name: 'Sức khỏe pipeline' })).toBeVisible();
   await expect(container.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ghi nhanh', exact: true })).toBeVisible();
   await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
