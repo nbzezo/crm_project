@@ -99,11 +99,13 @@
   --z-index-tooltip: 80;
   --z-index-skip-link: 100;
 
-  /* Bo goc phan cap theo Bento: control < card < lop noi */
-  --radius-compact: 3px;
-  --radius-control: 14px;
-  --radius-panel: 20px;
-  --radius-modal: 26px;
+  /* Bo goc phan cap, gon theo giao dien cong cu: control < panel < lop noi.
+     Truoc day 14 / 20 / 26px lam gan nhu moi khoi thanh mot vien nang; thang
+     moi giu du do mem de nhan biet lop ma khong lam mat dien tich thi giac. */
+  --radius-compact: 2px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-modal: 16px;
 
   --font-sans:
     'Plus Jakarta Sans', Inter, Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -322,10 +324,10 @@
   --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235b6a67' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --radius-compact: 4px;
-  --radius-control: 8px;
-  --radius-panel: 12px;
-  --radius-modal: 16px;
+  --radius-compact: 2px;
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-modal: 12px;
   --shadow-sm: 0 1px 2px rgba(15, 23, 22, 0.1);
 
   --tr-page-bg: #b7c4c1;
@@ -418,10 +420,10 @@
      tron hai kieu chu: chu khong dau ve bang Ubuntu, chu co dau roi ve font du
      phong. Ban sac Yaru o day nam o mau, bo goc va accent color, khong phai o
      mat chu. */
-  --radius-compact: 6px;
-  --radius-control: 10px;
-  --radius-panel: 14px;
-  --radius-modal: 18px;
+  --radius-compact: 4px;
+  --radius-control: 8px;
+  --radius-panel: 10px;
+  --radius-modal: 14px;
 
   --tr-page-bg: #150a10;
   --tr-shell-gradient: linear-gradient(120deg, #2c1620 0%, #1f1119 58%, #2a1512 100%);

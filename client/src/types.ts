@@ -770,6 +770,7 @@ export interface CustomerFull extends Customer {
 export interface TaskRow {
   id: number;
   title: string;
+  description?: string;
   priority: Priority;
   start_date: string | null;
   due_date: string | null;
@@ -809,6 +810,14 @@ export interface TaskRow {
   estimate_hours: number | null;
   spent_hours: number;
   is_milestone: number;
+  created_at: string;
+  updated_at: string;
+  creator_contact_id: number | null;
+  creator_name: string | null;
+  watcher_count: number;
+  is_watching: number;
+  is_assigned_to_me: number;
+  is_created_by_me: number;
 }
 
 /** Một lần dời hạn — biến "trượt tiến độ" thành con số đọc được. */

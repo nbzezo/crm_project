@@ -27,6 +27,7 @@ import {
 } from '../services/cardService.ts';
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import { notifyAssigneeChangeTelegram } from '../services/telegram/telegramNotifier.ts';
+import { logTaskActivity } from '../services/taskActivity.ts';
 
 const router = Router();
 
@@ -585,7 +586,42 @@ router.patch('/:id', (req, res) => {
 
   if (assigneeChanged) notifyAssigneeChangeTelegram(db, id);
 
-  res.json(reloadCard(id));
+  const updated = reloadCard(id) as Record<string, unknown>;
+  const before = card as CardRow & Record<string, unknown>;
+  const trackedFields = [
+    'title',
+    'description',
+    'start_date',
+    'due_date',
+    'priority',
+    'customer_id',
+    'assignee_contact_id',
+    'status',
+    'is_done',
+    'list_id',
+  ] as const;
+  for (const field of trackedFields) {
+    if (field === 'is_done' && before.status !== updated.status) continue;
+    if (String(before[field] ?? '') === String(updated[field] ?? '')) continue;
+    const action =
+      field === 'list_id'
+        ? 'moved'
+        : field === 'status' && updated.status === 'done'
+          ? 'completed'
+          : field === 'status' && before.status === 'done'
+            ? 'reopened'
+            : 'updated';
+    logTaskActivity({
+      cardId: id,
+      actorContactId: actorContactId(req),
+      action,
+      field,
+      oldValue: before[field],
+      newValue: updated[field],
+    });
+  }
+
+  res.json(updated);
 });
 
 router.patch('/:id/move', (req, res) => {
@@ -598,7 +634,24 @@ router.patch('/:id/move', (req, res) => {
     }),
     req
   );
-  res.json(moveCard(id, body));
+  const before = required(
+    db.prepare(`SELECT list_id FROM cards WHERE id = ?`).get(id),
+    'Khong tim thay the'
+  ) as {
+    list_id: number;
+  };
+  const result = moveCard(id, body);
+  if (before.list_id !== body.list_id) {
+    logTaskActivity({
+      cardId: id,
+      actorContactId: actorContactId(req),
+      action: 'moved',
+      field: 'list_id',
+      oldValue: before.list_id,
+      newValue: body.list_id,
+    });
+  }
+  res.json(result);
 });
 
 router.delete('/:id', (req, res) => {
@@ -629,9 +682,46 @@ router.post('/:id/comments', (req, res) => {
   const info = db
     .prepare(`INSERT INTO card_comments (card_id, body) VALUES (?, ?)`)
     .run(cardId, body.body);
+  logTaskActivity({
+    cardId,
+    actorContactId: actorContactId(req),
+    action: 'commented',
+    field: 'comment',
+    newValue: body.body,
+  });
   res
     .status(201)
     .json(db.prepare(`SELECT * FROM card_comments WHERE id = ?`).get(info.lastInsertRowid));
+});
+
+/** Theo doi / bo theo doi mot cong viec. Mot contact chi co mot dong tren moi the. */
+router.put('/:id/watch', (req, res) => {
+  const cardId = intParam(req.params.id);
+  const body = parseBody(z.object({ watching: z.boolean() }), req);
+  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Khong tim thay the');
+  const contactId = actorContactId(req);
+  if (contactId == null) throw new HttpError(400, 'Tai khoan chua gan voi nhan su');
+
+  if (body.watching) {
+    db.prepare(`INSERT OR IGNORE INTO task_watchers (card_id, contact_id) VALUES (?, ?)`).run(
+      cardId,
+      contactId
+    );
+  } else {
+    db.prepare(`DELETE FROM task_watchers WHERE card_id = ? AND contact_id = ?`).run(
+      cardId,
+      contactId
+    );
+  }
+  logTaskActivity({
+    cardId,
+    actorContactId: contactId,
+    action: 'watched',
+    field: 'watching',
+    oldValue: !body.watching,
+    newValue: body.watching,
+  });
+  res.json({ card_id: cardId, watching: body.watching });
 });
 
 /** Nhan ban the (giong "Copy card"). */
@@ -662,10 +752,10 @@ router.post('/:id/copy', (req, res) => {
         `INSERT INTO cards (list_id, title, description, position, start_date, due_date, priority,
                             status, is_done, completed_at,
                             customer_id, contact_id, deal_id, contract_id, quotation_id,
-                            cover_color, search_text)
+                            cover_color, search_text, creator_contact_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
                  CASE WHEN ? = 'done' THEN datetime('now','localtime') ELSE NULL END,
-                 ?, ?, ?, ?, ?, ?, ?)`
+                 ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         listId,
@@ -684,7 +774,8 @@ router.post('/:id/copy', (req, res) => {
         source.contract_id,
         source.quotation_id,
         source.cover_color,
-        buildSearchText(title, source.description as string)
+        buildSearchText(title, source.description as string),
+        actorContactId(req)
       );
     const cardId = Number(info.lastInsertRowid);
 
@@ -703,6 +794,14 @@ router.post('/:id/copy', (req, res) => {
       `INSERT INTO checklist_items (card_id, content, is_done, position) VALUES (?, ?, ?, ?)`
     );
     for (const item of items) insertItem.run(cardId, item.content, item.is_done, item.position);
+
+    logTaskActivity({
+      cardId,
+      actorContactId: actorContactId(req),
+      action: 'created',
+      field: 'copied_from',
+      newValue: id,
+    });
 
     return cardId;
   })();

@@ -11,6 +11,7 @@ import {
 import { computeMovePosition, nextPosition, STEP } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { HttpError, required } from '../lib/validate.ts';
+import { logTaskActivity } from './taskActivity.ts';
 
 interface MoveCardInput {
   list_id: number;
@@ -422,10 +423,10 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
                             status, is_done, completed_at, start_date, due_date,
                             customer_id, contact_id, deal_id,
                             contract_id, quotation_id, assignee_contact_id, assignee_org_id,
-                            baseline_due_date, search_text)
+                            baseline_due_date, search_text, creator_contact_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?,
                  CASE WHEN ? = 'done' THEN datetime('now','localtime') ELSE NULL END,
-                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         targetList,
@@ -449,9 +450,18 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
         // Han dat luc tao chinh la baseline; moi lan doi sau nay deu la mot lan truot.
         input.due_date ?? null,
         // Truoc day chi index title luc tao con PATCH lai index ca description — chi muc bi lech.
-        buildSearchText(input.title, description)
+        buildSearchText(input.title, description),
+        options.actorContactId ?? null
       );
     const cardId = Number(info.lastInsertRowid);
+
+    logTaskActivity({
+      cardId,
+      actorContactId: options.actorContactId,
+      action: 'created',
+      field: 'title',
+      newValue: input.title,
+    });
 
     if (input.label_ids?.length) {
       const insertLabel = db.prepare(

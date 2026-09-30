@@ -254,6 +254,12 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
     'aria-labelledby',
     'settingstab-positions'
   );
+
+  await tabs.filter({ hasText: 'Giới thiệu' }).click();
+  await expect(page).toHaveURL(/tab=about/);
+  await expect(page.getByRole('heading', { name: 'Giới thiệu chung' })).toBeVisible();
+  await expect(page.getByText('Phiên bản hiện tại')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lịch sử thay đổi phiên bản' })).toBeVisible();
 });
 
 test('menu tai khoan tren thanh tren: ho so, vi tri, doi mat khau', async ({ page }) => {
@@ -303,6 +309,17 @@ test('tro ly AI viet lai noi dung tho va chuyen day du sang form tao cong viec',
           deal_id: null,
           contract_id: null,
           quotation_id: null,
+        },
+        project_id: null,
+        assignee_contact_id: null,
+        labels: {
+          customer_id: null,
+          contact_id: null,
+          deal_id: null,
+          contract_id: null,
+          quotation_id: null,
+          project_id: null,
+          assignee_contact_id: null,
         },
         confidence: 0.93,
         rationale: 'Đã tách thời hạn, ưu tiên và các bước chuẩn bị.',
@@ -1005,7 +1022,11 @@ test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
 
   for (const block of blocks) {
     await page.goto('/notes');
-    await page.getByRole('button', { name: 'Ghi chú mới' }).click();
+    await page.getByRole('button', { name: 'Tạo trang' }).click();
+    await page
+      .getByRole('dialog', { name: 'Chọn mục đích tài liệu' })
+      .getByRole('button', { name: /Trang trắng/ })
+      .click();
 
     const editor = page.locator('.bn-editor[contenteditable="true"]');
     await expect(editor).toBeVisible();

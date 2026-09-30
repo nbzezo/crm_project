@@ -5,6 +5,7 @@ import {
   Download,
   GanttChartSquare,
   HardDriveDownload,
+  Info,
   Mail,
   Network,
   PackageOpen,
@@ -34,6 +35,7 @@ import { EmailSettings } from '../components/settings/EmailSettings';
 import { UserSettings } from '../components/settings/UserSettings';
 import { OrgChartSettings } from '../components/settings/OrgChartSettings';
 import { PositionSettings } from '../components/settings/PositionSettings';
+import { AboutSettings } from '../components/settings/AboutSettings';
 import { usePermissionCheck, type PermissionKey } from '../lib/permissions';
 import { useSearchParams } from 'react-router';
 
@@ -63,18 +65,19 @@ type SettingsTab =
   | 'email'
   | 'telegram'
   | 'ai'
-  | 'data';
+  | 'data'
+  | 'about';
 
 /*
- * Muc Cai dat, xep theo BON NHOM.
+ * Muc Cai dat, xep theo NAM NHOM.
  *
  * Truoc day day la mot danh sach phang muoi hai muc tren mot dai tab ngang —
  * ma khung trang chi rong 896px nen nam muc cuoi khong bao gio hien ra. Te hon,
  * chung tron bon loai viec khac han nhau: cau hinh quy trinh, ket noi ra ngoai,
  * quan tri to chuc va viec ca nhan, khong co thu tu nao giai thich duoc.
  *
- * *Tai khoan* da chuyen ra menu avatar: no la thu duy nhat o day ma MOI nguoi
- * deu dung, con muoi mot muc con lai deu la viec quan tri.
+ * *Tai khoan* da chuyen ra menu avatar. *Gioi thieu* la thong tin chung nen
+ * khong doi quyen; cac muc cau hinh con lai deu la viec quan tri.
  *
  * `group` phai lien tuc theo thu tu mang — tieu de nhom chi ve o muc dau tien
  * cua moi nhom (xem cho goi Tabs ben duoi).
@@ -165,6 +168,13 @@ const SETTINGS_TABS: {
     icon: Database,
     group: t.settings.groupData,
     permission: 'data.export:export',
+  },
+
+  {
+    key: 'about',
+    label: t.settings.tabAbout,
+    icon: Info,
+    group: t.settings.groupSystem,
   },
 ];
 
@@ -292,9 +302,8 @@ export default function SettingsPage() {
   const allowed = usePermissionCheck();
   const [params, setParams] = useSearchParams();
 
-  /* Moi muc con lai deu la viec quan tri — *Tai khoan* da chuyen ra menu avatar
-     vi no la thu duy nhat o day ma MOI nguoi deu dung. Nguoi khong co quyen
-     quan tri nao se khong thay muc Cai dat o thanh ben (xem Sidebar.tsx). */
+  /* *Tai khoan* da chuyen ra menu avatar. Cac muc quan tri duoc loc theo quyen;
+   *Gioi thieu* luon hien vi khong doc hay thay doi du lieu nghiep vu. */
   const visibleTabs = SETTINGS_TABS.filter((item) => allowed(item.permission));
 
   /* Tab nam trong URL chu khong phai useState: mot khu co muoi mot muc thi F5
@@ -360,6 +369,7 @@ export default function SettingsPage() {
         {activeTab === 'users' && <UserSettings />}
         {activeTab === 'org' && <OrgChartSettings />}
         {activeTab === 'positions' && <PositionSettings />}
+        {activeTab === 'about' && <AboutSettings />}
       </Tabs>
     </PageShell>
   );

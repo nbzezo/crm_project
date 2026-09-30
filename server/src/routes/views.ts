@@ -1,17 +1,21 @@
 import { Router, type Request } from 'express';
+import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { actorContactId } from '../middleware/currentUser.ts';
+import { actorContactId, requirePermission } from '../middleware/currentUser.ts';
 import { scopeFragment, scopeFragmentOrUnowned, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { fold } from '../lib/viSearch.ts';
 import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
+import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 
 const router = Router();
 
 const TASK_SELECT = `
   SELECT k.id, k.title, k.description, k.priority, k.start_date, k.due_date, k.is_done,
          k.status, k.blocked_reason, k.blocked_since, k.recur_rule,
-         k.completed_at, k.position, k.list_id, k.parent_id,
+         k.completed_at, k.position, k.list_id, k.parent_id, k.created_at, k.updated_at,
+         k.creator_contact_id, creator.full_name AS creator_name,
+         (SELECT COUNT(*) FROM task_watchers tw WHERE tw.card_id = k.id) AS watcher_count,
          (SELECT COUNT(*) FROM task_nudges n WHERE n.card_id = k.id) AS nudge_count,
          (SELECT MAX(n.sent_at) FROM task_nudges n WHERE n.card_id = k.id) AS last_nudged_at,
          (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total,
@@ -34,6 +38,7 @@ const TASK_SELECT = `
     LEFT JOIN customers c ON c.id = k.customer_id
     LEFT JOIN deals d ON d.id = k.deal_id
     LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
+    LEFT JOIN contacts creator ON creator.id = k.creator_contact_id
     LEFT JOIN customers ao ON ao.id = k.assignee_org_id
     LEFT JOIN projects pr ON pr.id = b.project_id`;
 
@@ -63,6 +68,30 @@ function attachLabels(rows: Record<string, unknown>[]): Record<string, unknown>[
   return rows;
 }
 
+function attachPersonalTaskState(rows: Record<string, unknown>[], contactId: number | null) {
+  if (rows.length === 0 || contactId == null) {
+    for (const row of rows) {
+      row.is_watching = 0;
+      row.is_assigned_to_me = 0;
+      row.is_created_by_me = 0;
+    }
+    return rows;
+  }
+  const watched = new Set(
+    (
+      db.prepare(`SELECT card_id FROM task_watchers WHERE contact_id = ?`).all(contactId) as {
+        card_id: number;
+      }[]
+    ).map((row) => row.card_id)
+  );
+  for (const row of rows) {
+    row.is_watching = watched.has(row.id as number) ? 1 : 0;
+    row.is_assigned_to_me = row.assignee_contact_id === contactId ? 1 : 0;
+    row.is_created_by_me = row.creator_contact_id === contactId ? 1 : 0;
+  }
+  return rows;
+}
+
 /** Danh sach cong viec phang — dung cho trang Cong viec va Bang tinh. */
 /**
  * Pham vi CONG VIEC cho cac truy van tong hop.
@@ -89,6 +118,85 @@ function dealScope(req: Request, alias = 'd'): string {
   const column = alias ? `${alias}.owner_contact_id` : 'owner_contact_id';
   return scopeFragmentOrUnowned(req, 'deals', 'read', column);
 }
+
+/* Views gop nhieu resource nen khong the gan requireResource cho ca router. Rieng
+   nhanh /tasks phai chan tinh nang tai day; scope ben duoi chi loc DU LIEU, khong
+   thay cho quyen vao chuc nang. Luu/xoa view van chi can quyen doc cong viec. */
+router.use('/tasks', requirePermission('tasks', 'read'));
+
+/** Activity feed toan cuc cua nhung cong viec nguoi dung co quyen xem. */
+router.get('/tasks/activity', (req, res) => {
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 80));
+  const rows = db
+    .prepare(
+      `SELECT a.*, k.title AS task_title, k.is_done, k.status,
+              actor.full_name AS actor_name, l.name AS list_name,
+              b.id AS board_id, b.name AS board_name
+         FROM task_activity a
+         JOIN cards k ON k.id = a.card_id
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+         LEFT JOIN contacts actor ON actor.id = a.actor_contact_id
+        WHERE k.is_archived = 0 AND b.is_archived = 0${taskScope(req)}
+        ORDER BY a.created_at DESC, a.id DESC LIMIT ?`
+    )
+    .all(limit);
+  res.json(rows);
+});
+
+router.get('/tasks/saved-views', (req, res) => {
+  const userId = req.session?.userId ?? null;
+  const rows = db
+    .prepare(
+      `SELECT v.*, u.full_name AS owner_name
+         FROM task_saved_views v JOIN users u ON u.id = v.owner_user_id
+        WHERE v.is_shared = 1 OR v.owner_user_id IS ?
+        ORDER BY (v.owner_user_id IS ?) DESC, v.updated_at DESC, v.id DESC`
+    )
+    .all(userId, userId) as (Record<string, unknown> & { config_json: string })[];
+  res.json(
+    rows.map(({ config_json, ...row }) => {
+      try {
+        return { ...row, config: JSON.parse(config_json) as unknown };
+      } catch {
+        return { ...row, config: {} };
+      }
+    })
+  );
+});
+
+router.post('/tasks/saved-views', (req, res) => {
+  const userId = req.session?.userId;
+  if (!userId) throw new HttpError(401, 'Can dang nhap de luu che do xem');
+  const body = parseBody(
+    z.object({
+      name: z.string().trim().min(1).max(80),
+      config: z.unknown(),
+      is_shared: z.boolean().optional(),
+    }),
+    req
+  );
+  const info = db
+    .prepare(
+      `INSERT INTO task_saved_views (owner_user_id, name, config_json, is_shared)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(userId, body.name, JSON.stringify(body.config ?? {}), body.is_shared ? 1 : 0);
+  res
+    .status(201)
+    .json(db.prepare(`SELECT * FROM task_saved_views WHERE id = ?`).get(info.lastInsertRowid));
+});
+
+router.delete('/tasks/saved-views/:id', (req, res) => {
+  const id = intParam(req.params.id);
+  const userId = req.session?.userId;
+  if (!userId) throw new HttpError(401, 'Can dang nhap de xoa che do xem');
+  const result = db
+    .prepare(`DELETE FROM task_saved_views WHERE id = ? AND owner_user_id = ?`)
+    .run(id, userId);
+  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay che do xem');
+  res.json({ ok: true });
+});
 
 router.get('/tasks', (req, res) => {
   const where: string[] = ['b.is_archived = 0', 'k.is_archived = 0'];
@@ -135,6 +243,24 @@ router.get('/tasks', (req, res) => {
     }
   }
   if (req.query.unassigned === '1') where.push(`k.assignee_contact_id IS NULL`);
+  if (req.query.created === '1') {
+    const me = actorContactId(req);
+    if (me == null) where.push('1 = 0');
+    else {
+      where.push(`k.creator_contact_id = ?`);
+      params.push(me);
+    }
+  }
+  if (req.query.watching === '1') {
+    const me = actorContactId(req);
+    if (me == null) where.push('1 = 0');
+    else {
+      where.push(
+        `EXISTS (SELECT 1 FROM task_watchers tw WHERE tw.card_id = k.id AND tw.contact_id = ?)`
+      );
+      params.push(me);
+    }
+  }
   /* Pham vi cong viec: viec tren bang minh thay, CONG viec giao cho minh o bat
      ky dau. Trung tam cua luat nay la nguoi dung phai luon mo duoc chinh viec
      minh dang phai lam, ke ca khi no nam tren bang cua nguoi khac.
@@ -165,7 +291,7 @@ router.get('/tasks', (req, res) => {
     )
     .all(...params) as Record<string, unknown>[];
 
-  res.json(attachLabels(rows));
+  res.json(attachPersonalTaskState(attachLabels(rows), actorContactId(req)));
 });
 
 /** Su kien cho trang Lich — cong viec, nhac hen, ngay chot du kien, han hop dong. */

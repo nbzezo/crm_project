@@ -55,6 +55,9 @@ export const EXPORT_TABLES = [
   'boards',
   'lists',
   'cards',
+  // v44 — theo doi va dong thoi gian cong viec
+  'task_watchers',
+  'task_activity',
   'checklist_items',
   'labels',
   // card_labels la VIEW tu v9 (chi cac lien ket loai 'card'); label_links moi la bang goc

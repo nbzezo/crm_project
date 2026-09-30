@@ -51,6 +51,7 @@ import type {
   Project,
   TaskRow,
 } from '../types';
+import { TasksWorkspace } from '../components/tasks/TasksWorkspace';
 
 function useTaskQuery() {
   const filters = useUiStore((s) => s.taskFilters);
@@ -550,7 +551,7 @@ function TaskSummaryBar() {
 
 type GroupBy = 'none' | 'priority' | 'customer' | 'board' | 'assignee';
 
-export default function TasksPage() {
+export function LegacyTasksPage() {
   const { data: tasks = [], isLoading, error, refetch } = useTaskQuery();
   const resetFilters = useUiStore((s) => s.resetTaskFilters);
   /* Hai trang thai rong khac han nhau: chua co viec nao (giai thich + moi tao)
@@ -689,6 +690,8 @@ export default function TasksPage() {
     </PageShell>
   );
 }
+
+export default TasksWorkspace;
 
 /** Hàng thêm nhanh: tiêu đề + bảng/danh sách + ưu tiên + hạn, nhớ lựa chọn gần nhất. */
 function QuickAddRow({ onClose }: { onClose: () => void }) {

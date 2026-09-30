@@ -35,7 +35,15 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
 
      Them bang vao day la mot QUYET DINH, khong phai cach lam cho test xanh:
      mac dinh moi bang moi deu phai vao EXPORT_TABLES. */
-  const NON_BUSINESS = new Set(['users', 'sessions', 'password_reset_tokens', 'email_settings']);
+  const NON_BUSINESS = new Set([
+    'users',
+    'sessions',
+    'password_reset_tokens',
+    'email_settings',
+    // Cau hinh giao dien theo tai khoan; khong the khoi phuc doc lap vi `users`
+    // co y nam ngoai goi sao luu nghiep vu.
+    'task_saved_views',
+  ]);
   const exportSet = new Set<string>(EXPORT_TABLES);
   const missing = tables
     .map((row) => row.name)

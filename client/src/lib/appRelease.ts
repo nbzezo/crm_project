@@ -1,0 +1,51 @@
+import clientPackage from '../../package.json';
+
+export interface ReleaseNote {
+  version: string;
+  date: string;
+  title: string;
+  changes: readonly string[];
+}
+
+/**
+ * Thông tin phát hành hiển thị trong Cài đặt > Giới thiệu.
+ *
+ * Số phiên bản hiện tại lấy từ package.json để bản build và màn hình luôn cùng
+ * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
+ */
+export const APP_VERSION = clientPackage.version;
+export const APP_UPDATED_AT = '2026-09-30';
+
+export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.0.0',
+    date: '2026-09-30',
+    title: 'Không gian làm việc hợp nhất',
+    changes: [
+      'Bổ sung trang Giới thiệu với thông tin phiên bản và lịch sử thay đổi.',
+      'Hợp nhất công việc dạng danh sách, Kanban và lịch trong một không gian làm việc.',
+      'Bổ sung ghi chú nhanh dạng cửa sổ nổi để theo dõi thông tin khi đang làm việc.',
+      'Hoàn thiện trang tài liệu với mẫu theo mục đích sử dụng và trình soạn thảo toàn màn hình.',
+    ],
+  },
+  {
+    version: '0.9.0',
+    date: '2026-09-25',
+    title: 'Tài liệu và trợ lý thông minh',
+    changes: [
+      'Thêm mẫu tài liệu theo mục đích sử dụng và trải nghiệm soạn thảo mở rộng.',
+      'Trợ lý AI có thể đề xuất thêm thông tin cho công việc từ nội dung bản nháp.',
+      'Đơn giản hóa thao tác tạo công việc và tự động phân loại thông tin.',
+    ],
+  },
+  {
+    version: '0.8.0',
+    date: '2026-09-20',
+    title: 'Tổ chức và phân quyền',
+    changes: [
+      'Bổ sung đăng nhập nhiều người dùng, cây đơn vị, vị trí và ma trận phân quyền.',
+      'Áp dụng phạm vi dữ liệu theo người sở hữu, đơn vị và cấp quản lý.',
+      'Nâng cấp Trợ lý AI thành khung trò chuyện với lịch sử riêng cho từng người dùng.',
+    ],
+  },
+];
