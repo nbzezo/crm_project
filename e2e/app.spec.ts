@@ -53,9 +53,13 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
   page,
 }, testInfo) => {
   if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('button', { name: 'Thêm' }).click();
+    await page
+      .getByRole('navigation', { name: 'Điều hướng chính' })
+      .getByRole('button', { name: 'Thêm' })
+      .click();
     const sheet = page.getByRole('dialog', { name: 'Tất cả mục' });
-    for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh']) await expect(sheet.getByRole('region', { name: group })).toBeVisible();
+    for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh'])
+      await expect(sheet.getByRole('region', { name: group })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Cơ hội bán hàng' })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
@@ -86,12 +90,13 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
 });
 
 test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
-  // Bo theme rut con ba: sang, toi, Ubuntu. Quet axe tren tung theme vi
+  // Bo theme rut con bon: sang, toi, Ubuntu, Don sac. Quet axe tren tung theme vi
   // tuong phan la thu duy nhat khong the suy ra tu theme nay sang theme khac.
   const themes = [
     { label: 'Sáng', value: 'light' },
     { label: 'Tối', value: 'dark' },
     { label: 'Ubuntu 26', value: 'ubuntu' },
+    { label: 'Đơn sắc', value: 'mono' },
   ] as const;
 
   for (const theme of themes) {
@@ -125,6 +130,25 @@ test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', last.value);
   await expect(page.getByRole('button', { name: `Giao diện: ${last.label}` })).toBeVisible();
+});
+
+test('theme Don sac tai font rieng, in hoa tieu de va khong bat che do toi', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('workflow-theme', 'mono'));
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'mono');
+  await expect(page.locator('link#tr-font-mono')).toHaveCount(1);
+  await page.evaluate(() => document.fonts.ready);
+  const heading = page.locator('h1.tr-display').first();
+  await expect(heading).toBeVisible();
+  const style = await heading.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { family: s.fontFamily, transform: s.textTransform };
+  });
+  expect(style.family).toContain('Archivo');
+  expect(style.transform).toBe('uppercase');
+  // Khong thuoc DARK_THEMES: thu vien (BlockNote, Excalidraw...) phai chay nen sang.
+  const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
+  expect(scheme).toBe('light');
 });
 
 test('notification center xu ly, hoan tac va mo dung ngu canh lich', async ({
@@ -1265,13 +1289,25 @@ test.describe('mobile layout', () => {
   });
 
   test('các trang chính không tràn ngang', async ({ page, request }) => {
-    const response = await request.post('/api/boards', { data: { name: `Mobile layout ${Date.now()}` } });
+    const response = await request.post('/api/boards', {
+      data: { name: `Mobile layout ${Date.now()}` },
+    });
     expect(response.ok()).toBeTruthy();
-    const board = await response.json() as { id: number };
-    for (const route of ['/', '/tasks', `/boards/${board.id}`, '/customers', '/revenue', '/org-directory', '/reports']) {
+    const board = (await response.json()) as { id: number };
+    for (const route of [
+      '/',
+      '/tasks',
+      `/boards/${board.id}`,
+      '/customers',
+      '/revenue',
+      '/org-directory',
+      '/reports',
+    ]) {
       await page.goto(route);
       await expect(page.getByRole('main')).toBeVisible();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth
+      );
       expect(overflow, route).toBeLessThanOrEqual(1);
     }
   });
@@ -1279,7 +1315,11 @@ test.describe('mobile layout', () => {
   test('nút topbar có vùng chạm ít nhất 44px', async ({ page }) => {
     for (const button of await page.locator('header.tr-topbar button:visible').all()) {
       const box = await button.boundingBox();
-      if (box) expect(box.width, await button.getAttribute('aria-label') ?? 'topbar button').toBeGreaterThanOrEqual(44);
+      if (box)
+        expect(
+          box.width,
+          (await button.getAttribute('aria-label')) ?? 'topbar button'
+        ).toBeGreaterThanOrEqual(44);
     }
   });
 
@@ -1295,11 +1335,13 @@ test.describe('mobile layout', () => {
   });
 
   test('bảng cho đổi tên danh sách qua menu cảm ứng', async ({ page, request }) => {
-    const response = await request.post('/api/boards', { data: { name: `Mobile Kanban ${Date.now()}` } });
+    const response = await request.post('/api/boards', {
+      data: { name: `Mobile Kanban ${Date.now()}` },
+    });
     expect(response.ok()).toBeTruthy();
-    const board = await response.json() as { id: number };
+    const board = (await response.json()) as { id: number };
     const full = await request.get(`/api/boards/${board.id}/full`);
-    const lists = (await full.json() as { lists: { id: number; name: string }[] }).lists;
+    const lists = ((await full.json()) as { lists: { id: number; name: string }[] }).lists;
     expect(lists.length).toBeGreaterThan(0);
     await page.goto(`/boards/${board.id}`);
     await page.getByRole('button', { name: `Thao tác với danh sách ${lists[0].name}` }).click();
