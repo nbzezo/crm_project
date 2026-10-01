@@ -368,10 +368,10 @@ export default function RevenuePage() {
         description={VIEW_DESCRIPTION[view]}
         align="center"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <IconButton
               label="Thao tác doanh thu"
-              className="md:hidden"
+              className="order-5 justify-self-start md:hidden"
               onClick={(event) => {
                 setBulkMonth(null);
                 bulkPopover.show(event);
@@ -381,17 +381,27 @@ export default function RevenuePage() {
             </IconButton>
             <a
               href="/api/export/revenues.csv"
-              className={`inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
+              className={`order-4 inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover sm:order-none ${focusRing}`}
             >
               <Download size={15} aria-hidden="true" /> Xuất CSV
             </a>
-            <Button onClick={() => setImportOpen(true)}>
+            <Button
+              className="order-2 w-full sm:order-none sm:w-auto"
+              onClick={() => setImportOpen(true)}
+            >
               <FileSpreadsheet size={15} aria-hidden="true" /> Nhập Excel
             </Button>
-            <Button onClick={() => setCatalogOpen(true)}>
+            <Button
+              className="order-3 w-full sm:order-none sm:w-auto"
+              onClick={() => setCatalogOpen(true)}
+            >
               <Settings2 size={15} aria-hidden="true" /> {t.service.manage}
             </Button>
-            <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
+            <Button
+              variant="primary"
+              className="order-1 col-span-2 w-full sm:order-none sm:col-span-1 sm:w-auto"
+              onClick={() => setLineForm({ open: true, line: null })}
+            >
               <Plus size={16} aria-hidden="true" /> {t.revenue.newLine}
             </Button>
           </div>
@@ -400,20 +410,22 @@ export default function RevenuePage() {
 
       {/* Ba màn hình: Tổng / Mới + Mở rộng / Nền — mỗi màn hình có đường dẫn riêng. */}
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented
-          label="Màn hình doanh thu"
-          value={view}
-          onChange={(next) => navigate(next === 'total' ? '/revenue' : `/revenue/${next}`)}
-          options={VIEW_OPTIONS}
-        />
+        <div className="max-w-full overflow-x-auto [&>div]:flex-nowrap">
+          <Segmented
+            label="Màn hình doanh thu"
+            value={view}
+            onChange={(next) => navigate(next === 'total' ? '/revenue' : `/revenue/${next}`)}
+            options={VIEW_OPTIONS}
+          />
+        </div>
         {view === 'new' && (
           <Segmented label="Loại hợp đồng" value={kind} onChange={setKind} options={KIND_OPTIONS} />
         )}
       </div>
 
       {/* Thanh lọc: năm, tìm kiếm, bộ lọc nghiệp vụ */}
-      <div className="flex flex-wrap items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-2.5">
-        <div className="w-28">
+      <div className="grid grid-cols-2 items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-2.5 sm:flex sm:flex-wrap">
+        <div className="order-2 w-full sm:order-none sm:w-28">
           <Select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
@@ -426,7 +438,7 @@ export default function RevenuePage() {
             ))}
           </Select>
         </div>
-        <div className="min-w-[200px] flex-1 sm:max-w-xs">
+        <div className="order-1 col-span-2 min-w-0 sm:order-none sm:col-span-1 sm:min-w-[200px] sm:flex-1 sm:max-w-xs">
           <Input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
@@ -434,7 +446,7 @@ export default function RevenuePage() {
             aria-label={t.card.customer}
           />
         </div>
-        <div className="w-44">
+        <div className="order-3 w-full sm:order-none sm:w-44">
           <Select
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
@@ -448,7 +460,7 @@ export default function RevenuePage() {
             ))}
           </Select>
         </div>
-        <div className="w-40">
+        <div className="order-4 w-full sm:order-none sm:w-40">
           <Select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -462,7 +474,7 @@ export default function RevenuePage() {
             ))}
           </Select>
         </div>
-        <div className="w-36">
+        <div className="order-5 w-full sm:order-none sm:w-36">
           <Select value={am} onChange={(e) => setAm(e.target.value)} aria-label={t.revenue.am}>
             <option value="">Mọi AM</option>
             {ams.map((a) => (
@@ -475,7 +487,12 @@ export default function RevenuePage() {
           </Select>
         </div>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
+          <Button
+            className="order-6 col-span-2 sm:order-none sm:col-span-1"
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+          >
             {t.common.clearFilter}
           </Button>
         )}
