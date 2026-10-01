@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 46;
+export const LATEST_VERSION = 47;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -61,6 +61,71 @@ const V3 = `
   CREATE INDEX idx_comments_card ON card_comments(card_id, created_at DESC);
   ALTER TABLE cards ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;
 `;
+
+/**
+ * v47: ghep AM dang la chu tu do voi nguoi dung — theo ho ten, ten dang nhap hoac
+ * email, khong phan biet dau va hoa thuong. Chi ghep khi khop DUNG MOT nguoi;
+ * mo ho thi de trong de nguoi dung tu chon, khong doan.
+ */
+function linkRevenueAmUsers(db: Database): void {
+  const users = db.prepare(`SELECT id, username, email, full_name FROM users`).all() as {
+    id: number;
+    username: string;
+    email: string | null;
+    full_name: string | null;
+  }[];
+  const byKey = new Map<string, Set<number>>();
+  for (const u of users) {
+    for (const key of [u.full_name, u.username, u.email]) {
+      const folded = fold(key?.trim());
+      if (!folded) continue;
+      if (!byKey.has(folded)) byKey.set(folded, new Set());
+      byKey.get(folded)!.add(u.id);
+    }
+  }
+  const match = (name: string): number | null => {
+    const ids = byKey.get(fold(name.trim()));
+    return ids && ids.size === 1 ? [...ids][0] : null;
+  };
+
+  const lines = db
+    .prepare(`SELECT id, am FROM customer_services WHERE am IS NOT NULL AND TRIM(am) <> ''`)
+    .all() as { id: number; am: string }[];
+  const setLine = db.prepare(`UPDATE customer_services SET am_user_id = ? WHERE id = ?`);
+  let linked = 0;
+  for (const line of lines) {
+    const id = match(line.am);
+    if (id !== null) {
+      setLine.run(id, line.id);
+      linked += 1;
+    }
+  }
+
+  const targets = db
+    .prepare(`SELECT am, period, target_vnd, updated_by, updated_at FROM revenue_kpi_targets_v46`)
+    .all() as {
+    am: string;
+    period: string;
+    target_vnd: number;
+    updated_by: number | null;
+    updated_at: string;
+  }[];
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO revenue_kpi_targets (am_user_id, period, target_vnd, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?)`
+  );
+  let dropped = 0;
+  for (const t of targets) {
+    const id = t.am.trim() === '' ? 0 : match(t.am);
+    if (id === null) dropped += 1;
+    else insert.run(id, t.period, t.target_vnd, t.updated_by, t.updated_at);
+  }
+  db.exec(`DROP TABLE revenue_kpi_targets_v46`);
+  console.log(
+    `[db] v47: ghep ${linked}/${lines.length} dong doanh thu voi nguoi dung` +
+      (dropped ? `; bo ${dropped} chi tieu KPI khong ghep duoc AM` : '')
+  );
+}
 
 function readSql(name: string): string {
   return fs.readFileSync(path.join(here, name), 'utf8');
@@ -733,5 +798,15 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v46 (chi tieu KPI doanh thu theo AM)');
     current = 46;
+  }
+
+  if (current === 46 && targetVersion >= 47) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v47.sql'));
+      linkRevenueAmUsers(db);
+      db.pragma('user_version = 47');
+    })();
+    console.log('[db] Da nang cap schema len v47 (AM doanh thu la nguoi dung)');
+    current = 47;
   }
 }

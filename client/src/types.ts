@@ -517,7 +517,11 @@ export interface RevenueLine {
   contract_id: number | null;
   contract_name: string | null;
   contract_number: string | null;
+  /** Tên AM dạng chữ (đồng bộ theo người dùng; dữ liệu cũ có thể chưa ghép được). */
   am: string | null;
+  /** AM là một người dùng của hệ thống. */
+  am_user_id: number | null;
+  am_name: string | null;
   contract_kind: ContractKind;
   contract_term: ContractTerm;
   status: ServiceStatus;
@@ -1395,9 +1399,18 @@ export interface RevenueKpiMonth {
 
 export type RevenueKpiStatus = 'counted' | 'base_growth' | 'lost' | 'pending' | 'missing_baseline';
 
+/** Người dùng chọn được làm AM. */
+export interface RevenueAmOption {
+  id: number;
+  name: string;
+  is_active: number;
+}
+
 export interface RevenueKpiEntry {
   line_id: number;
-  am: string;
+  /** 0 = chưa gán AM. */
+  am_user_id: number;
+  am_name: string;
   period: string;
   group: RevenueGroup;
   status: RevenueKpiStatus;
@@ -1414,6 +1427,6 @@ export interface RevenueKpiResponse {
   year: number;
   current_period: string;
   months: RevenueKpiMonth[];
-  by_am: { am: string; months: RevenueKpiMonth[] }[];
+  by_am: { am_user_id: number; am_name: string; months: RevenueKpiMonth[] }[];
   entries: RevenueKpiEntry[];
 }

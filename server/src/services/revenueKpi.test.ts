@@ -7,7 +7,7 @@ function line(over: Partial<KpiLineInput> & { group: 'new' | 'expansion' | 'base
   const { group, ...rest } = over;
   return {
     line_id: 1,
-    am: 'Lan',
+    am_user_id: 1,
     groups: Object.fromEntries(yearPeriods(2026).map((p) => [p, group])),
     cells: {},
     prev_avg_vnd: null,

@@ -75,9 +75,9 @@ export function RevenueKpiView({
   });
 
   const saveTarget = useMutation({
-    mutationFn: (input: { am: string; period: string; value: number | null }) =>
+    mutationFn: (input: { am_user_id: number; period: string; value: number | null }) =>
       api.put('/api/revenues/kpi-targets', {
-        am: input.am,
+        am_user_id: input.am_user_id,
         period: input.period,
         target_vnd: input.value,
       }),
@@ -309,20 +309,24 @@ export function RevenueKpiView({
                   const amTarget = sumMonths(amToDate, 'target_vnd');
                   const amAchieved = sumMonths(amToDate, 'total_vnd');
                   return (
-                    <tr key={row.am || '__none__'}>
+                    <tr key={row.am_user_id}>
                       <th
                         scope="row"
                         className="sticky left-0 z-10 bg-tr-panel px-3 py-1.5 text-left font-medium whitespace-nowrap"
                       >
-                        {row.am || <span className="text-tr-muted">{NO_AM_LABEL}</span>}
+                        {row.am_name || <span className="text-tr-muted">{NO_AM_LABEL}</span>}
                       </th>
                       {row.months.map((m) => (
                         <td key={m.period} className="px-1 py-1 text-right">
                           <TargetInput
-                            label={`Chỉ tiêu ${row.am || NO_AM_LABEL} ${formatPeriod(m.period)}`}
+                            label={`Chỉ tiêu ${row.am_name || NO_AM_LABEL} ${formatPeriod(m.period)}`}
                             value={m.target_vnd}
                             onSave={(value) =>
-                              saveTarget.mutate({ am: row.am, period: m.period, value })
+                              saveTarget.mutate({
+                                am_user_id: row.am_user_id,
+                                period: m.period,
+                                value,
+                              })
                             }
                           />
                           <div className="pr-1.5 text-[11px] tabular-nums text-tr-muted">
@@ -505,7 +509,7 @@ function MonthDetails({
                       {e.service_name ?? 'Chưa gán dịch vụ'}
                     </div>
                   </td>
-                  <td className="px-3 py-1.5 text-tr-subtle">{e.am || NO_AM_LABEL}</td>
+                  <td className="px-3 py-1.5 text-tr-subtle">{e.am_name || NO_AM_LABEL}</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">
                     <span
                       className="mr-1.5 inline-block h-2 w-2 rounded-full"

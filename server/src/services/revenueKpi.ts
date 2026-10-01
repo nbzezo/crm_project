@@ -29,7 +29,8 @@ export type KpiStatus =
 
 export interface KpiLineInput {
   line_id: number;
-  am: string;
+  /** Nguoi dung lam AM; 0 = chua gan AM. */
+  am_user_id: number;
   groups: Record<string, RevenueGroup>;
   cells: Record<string, { amount_vnd: number; stage: RevenueStage }>;
   /** TB thang nam truoc (nhap tay, hoac tu tinh); null = khong co. */
@@ -38,7 +39,7 @@ export interface KpiLineInput {
 
 export interface KpiEntry {
   line_id: number;
-  am: string;
+  am_user_id: number;
   period: string;
   group: RevenueGroup;
   status: KpiStatus;
@@ -66,7 +67,7 @@ export function computeKpi(lines: KpiLineInput[], year: number, current: string)
       const elapsed = periodIndex(period) < currentIndex;
       const base = {
         line_id: line.line_id,
-        am: line.am,
+        am_user_id: line.am_user_id,
         period,
         group,
         prev_avg_vnd: group === 'base' ? line.prev_avg_vnd : null,

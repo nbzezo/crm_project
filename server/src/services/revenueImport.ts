@@ -111,7 +111,8 @@ export async function buildTemplate(
   lines: TemplateLine[],
   customers: string[],
   services: string[],
-  kpi: TemplateKpi[] = []
+  kpi: TemplateKpi[] = [],
+  ams: string[] = []
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'WorkFlow';
@@ -159,6 +160,7 @@ export async function buildTemplate(
   const lists = wb.addWorksheet('Danh mục', { state: 'veryHidden' });
   customers.forEach((name, i) => (lists.getCell(i + 1, 1).value = name));
   services.forEach((name, i) => (lists.getCell(i + 1, 2).value = name));
+  ams.forEach((name, i) => (lists.getCell(i + 1, 3).value = name));
   for (let r = 2; r <= lastRow; r += 1) {
     if (customers.length)
       ws.getCell(r, 2).dataValidation = {
@@ -177,6 +179,15 @@ export async function buildTemplate(
         showErrorMessage: true,
         errorStyle: 'warning',
         error: 'Dịch vụ chưa có trong danh mục.',
+      };
+    if (ams.length)
+      ws.getCell(r, 4).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: [`'Danh mục'!$C$1:$C$${ams.length}`],
+        showErrorMessage: true,
+        errorStyle: 'warning',
+        error: 'AM phải là một người dùng trong hệ thống.',
       };
     ws.getCell(r, 5).dataValidation = listValidation(Object.values(KIND_LABELS));
     ws.getCell(r, 6).dataValidation = listValidation(Object.values(TERM_LABELS));
@@ -214,7 +225,7 @@ export async function buildTemplate(
     `File mẫu nhập doanh thu năm ${year}. Mỗi dòng là một khách hàng × dịch vụ; T1–T12 là doanh thu từng tháng của năm ${year}.`,
     'Ô để trống = giữ nguyên dữ liệu đang có. Điền 0 nếu muốn đặt số tiền tháng đó về 0.',
     'Xoá một dòng khỏi file KHÔNG xoá dòng doanh thu trong hệ thống.',
-    'Dòng mới: để trống "Mã dòng". Khách hàng phải có sẵn trong CRM; dịch vụ phải có trong danh mục dịch vụ.',
+    'Dòng mới: để trống "Mã dòng". Khách hàng phải có sẵn trong CRM; dịch vụ phải có trong danh mục dịch vụ; AM là tên một người dùng của hệ thống.',
     'Không có "Mã dòng": hệ thống tìm dòng đã có theo Khách hàng + Dịch vụ; chưa có thì tạo mới.',
     `Mốc phân nhóm: "${ANCHOR_AUTO}" (12 tháng đầu là Mới / Mở rộng, sau đó là Nền), "${ANCHOR_BASE}", hoặc tháng mốc MM/YYYY.`,
     `TB tháng năm trước: mức so sánh của doanh thu Nền năm ${year} (TB tháng năm ${year - 1}).`,

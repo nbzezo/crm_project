@@ -57,6 +57,7 @@ import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../lib
 import { formatPeriod, funnel, receivable } from '../lib/revenue';
 import type {
   RevenueCell,
+  RevenueAmOption,
   RevenueComparisonResponse,
   RevenueGroup,
   RevenueLine,
@@ -154,6 +155,7 @@ export default function RevenuePage() {
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
   const [serviceId, setServiceId] = useState('');
+  /** id người dùng làm AM, 'none' = chưa gán AM. */
   const [am, setAm] = useState('');
   const [chartView, setChartView] = useState<'monthly' | 'cumulative'>('monthly');
   const [chartOpen, setChartOpen] = useState(() => {
@@ -181,7 +183,7 @@ export default function RevenuePage() {
   const [bulkMonth, setBulkMonth] = useState<number | null>(null);
   const bulkPopover = usePopover();
 
-  const filters = { q: term, status, service_id: serviceId, am, group };
+  const filters = { q: term, status, service_id: serviceId, am_user_id: am, group };
   const listKey = ['revenues', 'lines', year, filters] as const;
   const hasActiveFilters = Boolean(term || status || serviceId || am);
 
@@ -238,7 +240,7 @@ export default function RevenuePage() {
 
   const { data: ams = [] } = useQuery({
     queryKey: ['revenues', 'ams'],
-    queryFn: () => api.get<string[]>('/api/revenues/ams'),
+    queryFn: () => api.get<RevenueAmOption[]>('/api/revenues/ams'),
   });
 
   const refreshTotals = () => {
@@ -464,10 +466,12 @@ export default function RevenuePage() {
           <Select value={am} onChange={(e) => setAm(e.target.value)} aria-label={t.revenue.am}>
             <option value="">Mọi AM</option>
             {ams.map((a) => (
-              <option key={a} value={a}>
-                {a}
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.is_active ? '' : ' (đã nghỉ)'}
               </option>
             ))}
+            <option value="none">Chưa gán AM</option>
           </Select>
         </div>
         {hasActiveFilters && (
@@ -478,7 +482,10 @@ export default function RevenuePage() {
       </div>
 
       {view === 'kpi' ? (
-        <RevenueKpiView year={year} filters={{ q: term, status, service_id: serviceId, am }} />
+        <RevenueKpiView
+          year={year}
+          filters={{ q: term, status, service_id: serviceId, am_user_id: am }}
+        />
       ) : (
         <>
           {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
@@ -715,7 +722,7 @@ export default function RevenuePage() {
                           <GroupBadge line={line} year={year} onEdit={() => setAnchorFor(line)} />
                         </td>
                         <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                          {line.am || '—'}
+                          {line.am_name ?? (line.am ? `${line.am} (chưa ghép người dùng)` : '—')}
                         </td>
                         <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
                           {t.contractKind[line.contract_kind]}
@@ -865,7 +872,12 @@ export default function RevenuePage() {
 
       <Suspense fallback={null}>
         {lineForm.open && (
-          <RevenueLineForm open line={lineForm.line} onClose={() => setLineForm({ open: false })} />
+          <RevenueLineForm
+            open
+            line={lineForm.line}
+            year={year}
+            onClose={() => setLineForm({ open: false })}
+          />
         )}
         {monthsFor !== null && (
           <MonthlyRevenueModal
@@ -879,7 +891,7 @@ export default function RevenuePage() {
         {importOpen && (
           <RevenueImportDialog
             year={year}
-            filters={{ q: term, status, service_id: serviceId, am }}
+            filters={{ q: term, status, service_id: serviceId, am_user_id: am }}
             onClose={() => setImportOpen(false)}
           />
         )}
