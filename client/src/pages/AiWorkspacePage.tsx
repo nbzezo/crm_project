@@ -124,7 +124,7 @@ export default function AiWorkspacePage() {
           <span className="inline-flex items-center gap-1.5 rounded-full bg-tr-primary/10 px-2.5 py-1 text-xs font-semibold text-tr-primary">
             <Sparkles size={13} /> AI Copilot
           </span>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-tr-text">
+          <h1 className="tr-display mt-2 text-2xl font-bold tracking-tight text-tr-text">
             Trợ lý công việc &amp; CRM
           </h1>
           <p className="mt-1 text-sm text-tr-muted">

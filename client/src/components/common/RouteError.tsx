@@ -117,7 +117,7 @@ function ErrorShell({
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-tr-danger/12 text-tr-danger">
           {icon}
         </div>
-        <h1 className="text-xl font-semibold text-tr-text">{title}</h1>
+        <h1 className="tr-display text-xl font-semibold text-tr-text">{title}</h1>
         <p className="mx-auto mt-2 max-w-prose text-sm text-tr-subtle">{body}</p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">

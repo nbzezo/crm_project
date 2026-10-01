@@ -35,7 +35,7 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="mb-5 flex flex-col items-center gap-2 text-center">
       <Logo className="h-10 w-10" />
-      <h1 className="text-lg font-bold text-tr-text">{title}</h1>
+      <h1 className="tr-display text-lg font-bold text-tr-text">{title}</h1>
       <p className="text-xs text-tr-muted">{subtitle}</p>
     </div>
   );

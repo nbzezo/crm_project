@@ -103,7 +103,9 @@ export default function ProjectDetailPage() {
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-56 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-tr-text">{project.name}</h1>
+            <h1 className="tr-display text-2xl font-semibold tracking-tight text-tr-text">
+              {project.name}
+            </h1>
             <HealthBadge health={project.health} />
             {!!project.is_archived && (
               <span className="rounded-full bg-tr-hover px-2 py-0.5 text-xs text-tr-muted">
@@ -111,6 +113,7 @@ export default function ProjectDetailPage() {
               </span>
             )}
           </div>
+          <span className="tr-rule" aria-hidden="true" />
           <p className="mt-1 text-sm text-tr-muted">
             {[
               project.code,
