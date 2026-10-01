@@ -515,8 +515,13 @@ export function TaskWorkspaceList({
                   </tr>
                   {!collapsed.has(taskGroup.key) &&
                     taskGroup.rows.map(({ task, depth, childCount }) => (
-                      <tr key={task.id} className="group h-11 hover:bg-tr-hover">
-                        <td className="sticky left-0 z-10 border-b border-tr-border bg-tr-panel px-2 group-hover:bg-tr-hover">
+                      <tr
+                        key={task.id}
+                        className={`group h-11 hover:bg-tr-hover ${depth > 0 ? 'bg-tr-surface' : ''}`}
+                      >
+                        <td
+                          className={`sticky left-0 z-10 border-b border-tr-border ${depth > 0 ? 'bg-tr-surface' : 'bg-tr-panel'} px-2 group-hover:bg-tr-hover`}
+                        >
                           <input
                             type="checkbox"
                             checked={selected.has(task.id)}
@@ -525,7 +530,9 @@ export function TaskWorkspaceList({
                             className={`h-4 w-4 accent-tr-primary ${focusRing}`}
                           />
                         </td>
-                        <td className="sticky left-10 z-10 border-b border-tr-border bg-tr-panel px-2 group-hover:bg-tr-hover">
+                        <td
+                          className={`sticky left-10 z-10 border-b border-tr-border ${depth > 0 ? 'bg-tr-surface' : 'bg-tr-panel'} px-2 group-hover:bg-tr-hover`}
+                        >
                           <div
                             className="flex min-w-0 items-center gap-1"
                             style={{ paddingLeft: depth * 24 }}

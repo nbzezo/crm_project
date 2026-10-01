@@ -135,7 +135,7 @@ export function TaskWorkspaceCalendar({ tasks }: { tasks: TaskRow[] }) {
                         key={task.id}
                         type="button"
                         onClick={() => openCard(task.id, 'drawer')}
-                        className={`block w-full truncate rounded-control border-l-2 px-1.5 py-1 text-left ${nested ? 'text-[11px]' : 'text-xs'} ${nested ? 'ml-3 w-[calc(100%-0.75rem)]' : ''} ${task.is_done ? 'border-tr-success bg-tr-success/10 text-tr-muted line-through' : 'border-tr-primary bg-tr-primary/10 text-tr-text'} hover:bg-tr-hover ${focusRing}`}
+                        className={`block w-full truncate rounded-control border-l-2 px-1.5 py-1 text-left ${nested ? 'text-[11px]' : 'text-xs'} ${nested ? 'ml-3 w-[calc(100%-0.75rem)]' : ''} ${task.is_done ? 'border-tr-success bg-tr-success/10 text-tr-muted line-through' : nested ? 'border-tr-primary/50 bg-tr-hover text-tr-text' : 'border-tr-primary bg-tr-primary/10 text-tr-text'} hover:bg-tr-hover ${focusRing}`}
                         title={orphanOf ? `${task.title} (việc con của ${orphanOf})` : task.title}
                       >
                         {(nested || orphanOf) && <span className="mr-1 text-tr-muted">↳</span>}
