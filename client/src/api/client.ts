@@ -15,10 +15,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  /* FormData: de trinh duyet tu dat Content-Type kem boundary — tu dat se hong tep tai len. */
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   const res = await fetch(url, {
     method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
   if (res.status === 401) {
     // Phiên hết giữa chừng: AuthGate sẽ hiện lại màn đăng nhập.
@@ -45,6 +47,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 export const api = {
   get: <T>(url: string) => request<T>('GET', url),
   post: <T>(url: string, body?: unknown) => request<T>('POST', url, body ?? {}),
+  postForm: <T>(url: string, form: FormData) => request<T>('POST', url, form),
   patch: <T>(url: string, body: unknown) => request<T>('PATCH', url, body),
   put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
   del: <T>(url: string) => request<T>('DELETE', url),

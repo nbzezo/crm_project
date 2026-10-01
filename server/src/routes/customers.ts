@@ -167,8 +167,14 @@ router.get('/duplicates', (req, res) => {
   res.json(rows);
 });
 
-router.post('/', (req, res) => {
-  const body = parseBody(customerSchema, req);
+/** Gia tri cua mot khach hang moi — cung hinh voi body POST /api/customers. */
+export type NewCustomer = z.infer<typeof customerSchema>;
+
+/**
+ * Tao khach hang va tra ve dong vua tao. Dung chung cho POST /api/customers va luong
+ * "tai hop dong len" (tao khach hang ngay khi hop dong chua co trong so).
+ */
+export function insertCustomer(body: NewCustomer, ownerContactId: number | null) {
   const taxCode = normalizedTaxCode(body.tax_code);
   const email = normalizedEmail(body.email);
   const website = clean(body.website);
@@ -204,11 +210,17 @@ router.post('/', (req, res) => {
         email,
         taxCode
       ),
-      defaultOwner(req)
+      ownerContactId
     );
-  res
-    .status(201)
-    .json(db.prepare(`SELECT * FROM customers WHERE id = ?`).get(info.lastInsertRowid));
+  return db.prepare(`SELECT * FROM customers WHERE id = ?`).get(info.lastInsertRowid) as {
+    id: number;
+    name: string;
+  };
+}
+
+router.post('/', (req, res) => {
+  const body = parseBody(customerSchema, req);
+  res.status(201).json(insertCustomer(body, defaultOwner(req)));
 });
 
 router.get('/:id/full', (req, res) => {
