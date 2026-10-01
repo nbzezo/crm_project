@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
+import { HttpError } from '../../lib/validate.ts';
 import { fold } from '../../lib/viSearch.ts';
 import { runStructured } from './gateway.ts';
 import { extractText } from './textExtract.ts';
@@ -16,7 +17,14 @@ import { extractText } from './textExtract.ts';
  */
 
 const MIN_USEFUL_CHARS = 200;
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+/*
+ * Bo tach chu cuc bo chi doc toi da 60 trang va 400k ky tu nen dung luong tep khong
+ * quyet dinh chi phi — hop dong scan nang vi anh van lay duoc phan chu neu co.
+ * Gui nguyen tep cho AI thi base64 phinh ~33% va Gemini gioi han ~20 MB/request,
+ * nen tran an toan la ~15 MB tep goc.
+ */
+const MAX_LOCAL_READ_BYTES = 25 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 const MAX_PROMPT_CHARS = 24_000;
 
 /* ---------- Chuan hoa ---------- */
@@ -226,15 +234,22 @@ export async function extractContract(
   input: ExtractInput
 ): Promise<ContractExtraction> {
   const warnings: string[] = [];
-  const { text, method, reason } = await extractText(input.filePath, input.mime, input.fileName);
+  const { text, method, reason } = await extractText(
+    input.filePath,
+    input.mime,
+    input.fileName,
+    MAX_LOCAL_READ_BYTES
+  );
   const usable = text.trim().length >= MIN_USEFUL_CHARS;
 
   let attachments: { mime: string; dataBase64: string; fileName: string }[] | undefined;
   if (!usable) {
     if (reason) warnings.push(reason);
     if (input.size > MAX_ATTACHMENT_BYTES) {
-      throw new Error(
-        'Không đọc được chữ trong tệp và tệp quá lớn (>10 MB) để gửi AI đọc trực tiếp.'
+      throw new HttpError(
+        422,
+        'Không đọc được chữ trong tệp, và tệp quá lớn (>15 MB) để gửi AI đọc trực tiếp. Hãy nhập tay — tệp vẫn được đính kèm khi lưu.',
+        { code: 'FILE_TOO_LARGE_FOR_AI' }
       );
     }
     attachments = [
