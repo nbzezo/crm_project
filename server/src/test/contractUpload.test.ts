@@ -226,6 +226,34 @@ test('AI doc hop dong: khach hang co san duoc khop, so lieu duoc chuan hoa', asy
   assert.ok(res.data.warnings.some((w: string) => /thời hạn 12 tháng/.test(w)));
 });
 
+test('loi nha cung cap AI tra ve mo ta cu the, khong phai 502 tro tron', async () => {
+  const failWith =
+    (status: number, message: string): typeof globalThis.fetch =>
+    async (input, init) => {
+      if (String(input).startsWith(baseUrl)) return realFetch(input, init);
+      return new Response(JSON.stringify({ error: { message } }), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+  const cases: [number, RegExp][] = [
+    [429, /giới hạn tốc độ.*HTTP 429.*het quota/],
+    [401, /HTTP 401.*API key sai/],
+    [404, /Model AI không tồn tại.*HTTP 404/],
+    [503, /lỗi tạm thời.*HTTP 503/],
+  ];
+  for (const [status, pattern] of cases) {
+    globalThis.fetch = failWith(status, 'het quota');
+    const res = await post(
+      '/api/contracts/extract',
+      multipart({ name: 'hd.txt', body: CONTRACT_TEXT })
+    );
+    assert.equal(res.status, 424, `HTTP ${status} cua nha cung cap`);
+    assert.match(String(res.data.error), pattern);
+  }
+  globalThis.fetch = realFetch;
+});
+
 test('khach hang chua co: tao moi cung hop dong, tep va nguoi dai dien', async () => {
   globalThis.fetch = realFetch;
   const saved = await post(

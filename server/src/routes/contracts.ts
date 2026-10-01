@@ -18,7 +18,7 @@ import {
 import { listTasksByLink } from '../services/cardService.ts';
 import { createDocument, DOCUMENT_TEMP_DIR } from '../services/documentService.ts';
 import { extractContract } from '../services/ai/contractExtract.ts';
-import { AiProviderError } from '../services/ai/types.ts';
+import { describeAiError } from '../services/ai/describeError.ts';
 import { insertCustomer } from './customers.ts';
 
 const router = Router();
@@ -243,11 +243,7 @@ router.post('/extract', contractUpload.single('file'), async (req, res) => {
     }
     res.json(result);
   } catch (error) {
-    if (error instanceof AiProviderError) {
-      const status = error.code === 'not_configured' || /quota/.test(error.code) ? 409 : 502;
-      throw new HttpError(status, error.message, { code: error.code });
-    }
-    throw error;
+    throw describeAiError(error) ?? error;
   } finally {
     if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
   }

@@ -14,6 +14,22 @@ export class ApiError extends Error {
   }
 }
 
+/** Khi phan hoi loi khong phai JSON cua app (thuong la trang loi cua proxy) van noi duoc nguyen nhan. */
+function fallbackMessage(status: number): string {
+  switch (status) {
+    case 502:
+      return 'Lỗi 502: máy chủ ứng dụng không phản hồi qua proxy (đang khởi động lại, đã dừng hoặc bị lỗi). Thử lại sau ít phút; nếu lặp lại, kiểm tra log máy chủ.';
+    case 503:
+      return 'Lỗi 503: máy chủ tạm thời quá tải hoặc đang bảo trì. Thử lại sau ít phút.';
+    case 504:
+      return 'Lỗi 504: máy chủ xử lý quá lâu nên proxy ngắt kết nối (thường do tác vụ AI chạy lâu). Thử lại hoặc dùng tệp nhỏ hơn.';
+    case 413:
+      return 'Lỗi 413: tệp vượt quá dung lượng máy chủ cho phép.';
+    default:
+      return `Lỗi ${status}`;
+  }
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   /* FormData: de trinh duyet tu dat Content-Type kem boundary — tu dat se hong tep tai len. */
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
@@ -28,7 +44,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     useAuthStore.getState().markSignedOut();
   }
   if (!res.ok) {
-    let message = `Lỗi ${res.status}`;
+    let message = fallbackMessage(res.status);
     let details: Record<string, unknown> = {};
     try {
       const data = (await res.json()) as { error?: string } & Record<string, unknown>;
