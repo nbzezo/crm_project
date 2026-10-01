@@ -48,7 +48,6 @@ import {
   SETTINGS_NAV,
   isGroupDefaultOrder,
   loadNavOrder,
-  useCanOpenSettings,
   useGroupItems,
   useNavBadges,
   type NavGroupId,
@@ -227,7 +226,6 @@ interface SidebarNavProps {
 /** Phan noi dung dung chung cho ca thanh ben co dinh lan ngan keo tren mobile. */
 function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }: SidebarNavProps) {
   const groupItems = useGroupItems(order);
-  const canOpenSettings = useCanOpenSettings();
   const { data: boards = [] } = useBoards();
   const starred = boards.filter((board) => board.is_starred).slice(0, 5);
   const badges = useNavBadges();
@@ -297,24 +295,6 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
         <NavItemLink item={HOME_NAV} onNavigate={onNavigate} />
         {usePermissionCheck()('ai:read') && <NavItemLink item={AI_NAV} onNavigate={onNavigate} />}
         <StarredBoards boards={starred} onNavigate={onNavigate} />
-
-        {allowCustomize && (
-          <div className="mt-2 flex justify-end px-1">
-            <button
-              type="button"
-              onClick={() => setEditMode((current) => !current)}
-              aria-pressed={editMode}
-              className={`flex min-h-9 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${focusRing}`}
-            >
-              {editMode ? (
-                <Check size={13} aria-hidden="true" />
-              ) : (
-                <Pencil size={13} aria-hidden="true" />
-              )}
-              {editMode ? 'Xong' : 'Tùy chỉnh menu'}
-            </button>
-          </div>
-        )}
 
         {NAV_GROUPS.map((group) => {
           const items = groupItems(group);
@@ -393,9 +373,27 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
         })}
       </nav>
 
-      <div className="mt-auto border-t border-[var(--tr-nav-border)] px-2.5 pt-2 pb-3">
-        {canOpenSettings && <NavItemLink item={SETTINGS_NAV} onNavigate={onNavigate} />}
-        <div className="mt-2 hidden px-3 text-xs text-tr-muted sm:block">{t.search.hint}</div>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-[var(--tr-nav-border)] px-3 pt-2 pb-3">
+        <div className="hidden min-w-0 truncate text-xs text-tr-muted sm:block">
+          {t.search.hint}
+        </div>
+        {allowCustomize && (
+          <button
+            type="button"
+            onClick={() => setEditMode((current) => !current)}
+            aria-pressed={editMode}
+            aria-label={editMode ? 'Xong' : 'Tùy chỉnh menu'}
+            title={editMode ? 'Xong' : 'Tùy chỉnh menu'}
+            className={`ml-auto flex min-h-9 shrink-0 items-center gap-1.5 rounded-control px-2 text-xs font-medium transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${editMode ? 'bg-[var(--tr-nav-hover)] text-[var(--tr-nav-text)]' : 'text-tr-muted'} ${focusRing}`}
+          >
+            {editMode ? (
+              <Check size={14} aria-hidden="true" />
+            ) : (
+              <Pencil size={14} aria-hidden="true" />
+            )}
+            {editMode && 'Xong'}
+          </button>
+        )}
       </div>
     </>
   );
@@ -435,7 +433,6 @@ function CollapsedNavLink({ item, badge = 0, badgeTone }: { item: NavItem } & Na
 /** Dai thu gon: chi hien icon, bo qua bang gan sao va keo-tha de giu don gian. */
 function CollapsedNav({ order }: { order: NavOrder }) {
   const groupItems = useGroupItems(order);
-  const canOpenSettings = useCanOpenSettings();
   const badges = useNavBadges();
 
   return (
@@ -463,9 +460,6 @@ function CollapsedNav({ order }: { order: NavOrder }) {
           </div>
         );
       })}
-      <div className="mt-auto flex flex-col gap-1 border-t border-[var(--tr-nav-border)] pt-2">
-        {canOpenSettings && <CollapsedNavLink item={SETTINGS_NAV} />}
-      </div>
     </nav>
   );
 }
