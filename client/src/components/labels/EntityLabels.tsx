@@ -155,9 +155,7 @@ function LabelSelectPopover({
       <div className="space-y-2">
         {groups.map((group) => (
           <div key={group.name}>
-            <p className="mb-1 text-xs font-semibold text-tr-muted">
-              {group.name}
-            </p>
+            <p className="mb-1 text-xs font-semibold text-tr-muted">{group.name}</p>
             <div className="space-y-1">
               {group.items.map((label) => {
                 const active = selectedIds.includes(label.id);

@@ -382,9 +382,7 @@ export function ReminderBell() {
 
             {settingsOpen && (
               <div className="mt-3 rounded-panel border border-tr-border bg-tr-surface p-3">
-                <p className="mb-2 text-xs font-semibold text-tr-subtle">
-                  Nguồn hiển thị
-                </p>
+                <p className="mb-2 text-xs font-semibold text-tr-subtle">Nguồn hiển thị</p>
                 <div className="grid gap-1.5 sm:grid-cols-2">
                   {(Object.keys(CATEGORY_LABEL) as Category[]).map((category) => (
                     <label

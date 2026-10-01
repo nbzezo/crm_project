@@ -407,9 +407,7 @@ export function SearchBox() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-1">
-      <div className="px-4 py-1 text-xs font-semibold text-tr-muted">
-        {title}
-      </div>
+      <div className="px-4 py-1 text-xs font-semibold text-tr-muted">{title}</div>
       {children}
     </div>
   );

@@ -89,10 +89,7 @@ export function CustomerDrawer({ customer, onClose, onEdit, onCreateDeal }: Prop
 
           <section aria-labelledby="drawer-customer-contact">
             <div className="flex items-center justify-between gap-3">
-              <h3
-                id="drawer-customer-contact"
-                className="text-xs font-semibold text-tr-subtle"
-              >
+              <h3 id="drawer-customer-contact" className="text-xs font-semibold text-tr-subtle">
                 Thông tin chính
               </h3>
               <EntityLabels entityType="customer" entityId={displayCustomer.id} />
@@ -174,10 +171,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
     <>
       <section aria-labelledby="drawer-customer-overview">
         <div className="flex items-center justify-between gap-3">
-          <h3
-            id="drawer-customer-overview"
-            className="text-xs font-semibold text-tr-subtle"
-          >
+          <h3 id="drawer-customer-overview" className="text-xs font-semibold text-tr-subtle">
             Tổng quan vận hành
           </h3>
           <HealthPill level={health.level} label={health.label} reason={health.reason} />
@@ -205,10 +199,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
       </section>
 
       <section aria-labelledby="drawer-next-action">
-        <h3
-          id="drawer-next-action"
-          className="text-xs font-semibold text-tr-subtle"
-        >
+        <h3 id="drawer-next-action" className="text-xs font-semibold text-tr-subtle">
           Việc tiếp theo
         </h3>
         <div
@@ -255,10 +246,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
 
       {openDeals.length > 0 && (
         <section aria-labelledby="drawer-open-deals">
-          <h3
-            id="drawer-open-deals"
-            className="text-xs font-semibold text-tr-subtle"
-          >
+          <h3 id="drawer-open-deals" className="text-xs font-semibold text-tr-subtle">
             Cơ hội đang mở
           </h3>
           <div className="mt-2 divide-y divide-tr-border rounded-panel border border-tr-border">
@@ -288,10 +276,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
 
       {openTasks.length > 0 && (
         <section aria-labelledby="drawer-open-tasks">
-          <h3
-            id="drawer-open-tasks"
-            className="text-xs font-semibold text-tr-subtle"
-          >
+          <h3 id="drawer-open-tasks" className="text-xs font-semibold text-tr-subtle">
             Công việc đang mở
           </h3>
           <div className="mt-2 divide-y divide-tr-border rounded-panel border border-tr-border">
@@ -326,10 +311,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
       )}
 
       <section aria-labelledby="drawer-recent-activity">
-        <h3
-          id="drawer-recent-activity"
-          className="text-xs font-semibold text-tr-subtle"
-        >
+        <h3 id="drawer-recent-activity" className="text-xs font-semibold text-tr-subtle">
           Hoạt động gần đây
         </h3>
         {customer.interactions.length > 0 ? (

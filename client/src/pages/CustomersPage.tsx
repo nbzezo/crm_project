@@ -795,17 +795,13 @@ function CustomerMobileList({
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold text-tr-muted">
-                  Sức khỏe
-                </p>
+                <p className="text-xs font-semibold text-tr-muted">Sức khỏe</p>
                 <div className="mt-1">
                   <HealthBadge health={health} />
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-tr-muted">
-                  Việc tiếp theo
-                </p>
+                <p className="text-xs font-semibold text-tr-muted">Việc tiếp theo</p>
                 <div className="mt-1">
                   <NextActionCell
                     action={nextAction}
