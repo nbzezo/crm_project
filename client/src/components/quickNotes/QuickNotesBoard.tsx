@@ -367,10 +367,12 @@ export function QuickNotesBoard() {
           >
             <div className="flex flex-wrap items-center gap-2 border-b border-tr-border px-4 py-3">
               <StickyNote size={18} className="shrink-0 text-tr-primary" aria-hidden="true" />
-              <h2 className="mr-2 text-base font-semibold text-tr-text">Ghi chú nhanh</h2>
+              <h2 className="mr-2 min-w-0 flex-1 truncate text-base font-semibold text-tr-text sm:flex-none">
+                Ghi chú nhanh
+              </h2>
 
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <div className="relative w-full max-w-56">
+              <div className="order-last flex w-full min-w-0 flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:flex-1">
+                <div className="relative w-full sm:max-w-56">
                   <Search
                     size={14}
                     className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-tr-muted"
@@ -384,16 +386,18 @@ export function QuickNotesBoard() {
                     className={`w-full rounded-full border border-tr-border bg-tr-list py-1.5 pr-3 pl-8 text-sm text-tr-text outline-none placeholder:text-tr-muted focus:border-tr-primary ${focusRing}`}
                   />
                 </div>
-                <Segmented
-                  value={view}
-                  onChange={setView}
-                  label="Chế độ xem"
-                  options={[
-                    { value: 'active', label: 'Tất cả' },
-                    { value: 'archived', label: 'Lưu trữ' },
-                    { value: 'trash', label: 'Thùng rác' },
-                  ]}
-                />
+                <div className="max-w-full overflow-x-auto [&>div]:flex-nowrap">
+                  <Segmented
+                    value={view}
+                    onChange={setView}
+                    label="Chế độ xem"
+                    options={[
+                      { value: 'active', label: 'Tất cả' },
+                      { value: 'archived', label: 'Lưu trữ' },
+                      { value: 'trash', label: 'Thùng rác' },
+                    ]}
+                  />
+                </div>
                 {view === 'active' && (
                   <FilterPopover
                     toggles={toggles}
