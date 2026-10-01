@@ -39,7 +39,7 @@ export function TaskCardRow({
   };
   return (
     <article
-      className={`flex min-w-0 items-start gap-2 border-b border-tr-border px-3 py-2 ${depth > 0 ? 'bg-tr-surface' : 'bg-tr-panel'}`}
+      className={`flex min-w-0 items-start gap-2 border-b border-tr-border px-3 py-2 ${depth > 0 ? 'bg-[color-mix(in_srgb,var(--tr-panel),var(--tr-text)_9%)] border-l-2 border-l-tr-primary/40' : 'bg-tr-panel'}`}
       style={depth > 0 ? { paddingLeft: 12 + depth * 20 } : undefined}
       onPointerDown={(event) => {
         if (!onSelect || event.pointerType === 'mouse') return;
