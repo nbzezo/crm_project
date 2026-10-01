@@ -590,7 +590,7 @@ export function TaskWorkspaceList({
                               <button
                                 type="button"
                                 onClick={() => openCard(task.id, 'drawer')}
-                                className={`min-w-0 flex-1 truncate rounded-control px-1 py-1 text-left font-medium ${task.is_done ? 'text-tr-muted line-through' : 'text-tr-text'} hover:text-tr-primary ${focusRing}`}
+                                className={`min-w-0 flex-1 truncate rounded-control px-1 py-1 text-left ${depth > 0 ? 'text-xs' : 'font-medium'} ${task.is_done ? 'text-tr-muted line-through' : 'text-tr-text'} hover:text-tr-primary ${focusRing}`}
                                 title={task.title}
                               >
                                 {task.parent_id ? (

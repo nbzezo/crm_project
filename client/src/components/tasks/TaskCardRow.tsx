@@ -101,7 +101,7 @@ export function TaskCardRow({
         className={`min-h-11 min-w-0 flex-1 text-left ${focusRing}`}
       >
         <span
-          className={`block text-sm font-semibold ${task.is_done ? 'text-tr-muted line-through' : 'text-tr-text'}`}
+          className={`block ${depth > 0 ? 'text-xs font-medium' : 'text-sm font-semibold'} ${task.is_done ? 'text-tr-muted line-through' : 'text-tr-text'}`}
         >
           {task.title}
         </span>
