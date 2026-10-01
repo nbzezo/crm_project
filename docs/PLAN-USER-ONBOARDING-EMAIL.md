@@ -100,7 +100,20 @@ Cần khi tenant Microsoft 365 đã tắt Basic Auth, hoặc công ty không cho
    → màn cài đặt hiển thị sẵn URI này để copy.
 5. Nút "Ngắt kết nối" xoá refresh token; `last_error` hiển thị khi token bị thu hồi.
 
-## 3. Thứ tự đề xuất
+## 3. Trạng thái
+
+- **A — Đã làm.** `POST /api/users` nhận `positions` + `org_unit_id`, ghi trong cùng
+  transaction với tài khoản (`createUser({ onCreated })`); `setUserPositions` trong
+  `orgService.ts` dùng chung cho `/api/positions/assignments`. Form có ô Đơn vị và
+  danh sách Vị trí (kèm mô tả vị trí thay cho xem trước ma trận); bảng có cột
+  Vị trí / Đơn vị và hộp thoại "Phân quyền". Test: `server/src/test/userOnboarding.test.ts`.
+- **B — Đã làm, không cần migration.** Nhà cung cấp suy từ `host`
+  (`client/src/components/settings/emailProviders.ts`) thay vì lưu cột `provider`
+  — một cột riêng sẽ lệch ngay khi ai đó sửa tay host. Lỗi SMTP được dịch bởi
+  `explainSmtpError` trong `emailService.ts`.
+- **C — Chưa làm.**
+
+## 4. Thứ tự đề xuất
 
 1. **A** (chặn người dùng mới dùng được hệ thống — làm trước).
 2. **B** (1–2 ngày, giải quyết 80% nhu cầu Gmail/Outlook cá nhân và Workspace).

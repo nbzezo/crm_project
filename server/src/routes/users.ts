@@ -2,7 +2,9 @@ import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
-import { requirePermission } from '../middleware/currentUser.ts';
+import { accessOf, requirePermission } from '../middleware/currentUser.ts';
+import { setContactOrgUnit, setUserPositions } from '../services/auth/orgService.ts';
+import { positionAssignmentsSchema } from './positions.ts';
 import {
   createUser,
   deleteUserSessions,
@@ -63,21 +65,51 @@ const createSchema = z.object({
      tu phan truoc dau @ cua email. */
   username: z.string().min(1).max(120).optional(),
   contact_id: z.number().int().positive().nullable().optional(),
+  /* Vi tri ngay luc tao. Khong co vi tri thi tai khoan dang nhap vao chi thay 403
+     — ma tran quyen mac dinh la CAM (migrate-v39.sql). */
+  positions: positionAssignmentsSchema.optional(),
+  /* Don vi cua contact `contact_id`. Cho ngoi nam tren contact, khong tren tai
+     khoan, nen khong co contact thi khong co cho de ghi. */
+  org_unit_id: z.number().int().positive().nullable().optional(),
 });
 
 router.post('/', async (req, res, next) => {
   try {
     const body = parseBody(createSchema, req);
     const username = body.username?.trim() || body.email.split('@')[0];
+    const access = accessOf(req);
+
+    /* Quan ly tai khoan (`admin.users`) KHONG keo theo quyen phan quyen: neu
+       khong, ai tao duoc tai khoan cung tao duoc mot tai khoan quan tri cho minh. */
+    if (body.positions?.length && !access.can('admin.positions', 'update')) {
+      throw new HttpError(403, 'Bạn không có quyền gán vị trí cho người dùng');
+    }
+    if (body.org_unit_id != null) {
+      if (!access.can('admin.org', 'update')) {
+        throw new HttpError(403, 'Bạn không có quyền xếp người vào đơn vị');
+      }
+      if (body.contact_id == null) {
+        throw new HttpError(400, 'Cần gắn với một người trong sổ danh bạ để xếp đơn vị');
+      }
+    }
 
     const id = await createUser({
       username,
       email: body.email,
       fullName: body.full_name,
       contactId: body.contact_id ?? null,
+      onCreated: (userId) => {
+        if (body.positions?.length) setUserPositions(userId, body.positions);
+        if (body.org_unit_id != null && body.contact_id != null) {
+          setContactOrgUnit(body.contact_id, body.org_unit_id);
+        }
+      },
     });
     const invite = await sendInvite(req, id);
-    res.status(201).json({ ...getPublicUser(id), ...invite });
+    /* Canh bao, khong chan: co noi tao tai khoan truoc, phan quyen sau la quy
+       trinh binh thuong. Client nhac de nguoi quan tri khong quen. */
+    const warnings = body.positions?.length ? [] : ['no_position'];
+    res.status(201).json({ ...getPublicUser(id), ...invite, warnings });
   } catch (err) {
     next(err);
   }

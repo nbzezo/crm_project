@@ -196,3 +196,78 @@ export function getPositionPermissions(positionId: number): PermissionInput[] {
     )
     .all(positionId) as PermissionInput[];
 }
+
+/* ---------- Vi tri cua tung nguoi ---------- */
+
+export interface UserPositionInput {
+  position_id: number;
+  /** NULL = dung don vi cua chinh nguoi do. Chi dien khi kiem nhiem. */
+  scope_unit_id?: number | null;
+  is_primary?: boolean;
+}
+
+/**
+ * Ghi de toan bo vi tri cua mot nguoi.
+ *
+ * Mot cho duy nhat ghi `user_positions` — man Nguoi dung (tao tai khoan kem vi
+ * tri) va man Phan quyen (sua vi tri) cung goi vao day, de rao chan chong tu khoa
+ * cua va moc `permissions.version` khong the bi quen o mot trong hai.
+ *
+ * Kiem tra vi tri / don vi ton tai TRUOC khi ghi: de khoa ngoai tu chan thi nguoi
+ * dung nhan mot loi SQLITE_CONSTRAINT 500 thay vi mot cau doc duoc. Khong ai danh
+ * dau "chinh" thi vi tri dau tien la chinh — mot nguoi luon co dung mot vi tri
+ * chinh khi co it nhat mot vi tri.
+ */
+export function setUserPositions(userId: number, rows: UserPositionInput[]): void {
+  const seen = new Set<number>();
+  for (const row of rows) {
+    if (seen.has(row.position_id)) {
+      throw new HttpError(400, 'Một vị trí chỉ gán được một lần cho cùng một người');
+    }
+    seen.add(row.position_id);
+    if (!db.prepare('SELECT id FROM positions WHERE id = ?').get(row.position_id)) {
+      throw new HttpError(404, 'Không tìm thấy vị trí');
+    }
+    if (
+      row.scope_unit_id != null &&
+      !db.prepare('SELECT id FROM org_units WHERE id = ?').get(row.scope_unit_id)
+    ) {
+      throw new HttpError(404, 'Không tìm thấy đơn vị kiêm nhiệm');
+    }
+  }
+  if (rows.filter((row) => row.is_primary).length > 1) {
+    throw new HttpError(400, 'Chỉ được chọn một vị trí chính');
+  }
+  const primaryIndex = Math.max(
+    0,
+    rows.findIndex((row) => row.is_primary)
+  );
+
+  db.transaction(() => {
+    db.prepare('DELETE FROM user_positions WHERE user_id = ?').run(userId);
+    const insert = db.prepare(
+      'INSERT INTO user_positions (user_id, position_id, scope_unit_id, is_primary) VALUES (?, ?, ?, ?)'
+    );
+    rows.forEach((row, index) => {
+      insert.run(
+        userId,
+        row.position_id,
+        row.scope_unit_id ?? null,
+        index === primaryIndex ? 1 : 0
+      );
+    });
+    assertAdminRemains();
+    bumpPermissionsVersion();
+  })();
+}
+
+/**
+ * Xep mot nguoi vao don vi — ghi vao `contacts.org_unit_id`, nguon su that duy
+ * nhat ve cho ngoi (xem migrate-v39.sql). null = dua ra khoi so do to chuc.
+ */
+export function setContactOrgUnit(contactId: number, orgUnitId: number | null): void {
+  if (orgUnitId != null && !db.prepare('SELECT id FROM org_units WHERE id = ?').get(orgUnitId)) {
+    throw new HttpError(404, 'Không tìm thấy đơn vị');
+  }
+  db.prepare('UPDATE contacts SET org_unit_id = ? WHERE id = ?').run(orgUnitId, contactId);
+}

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { PERMISSION_ACTIONS, PERMISSION_RESOURCES, PERMISSION_SCOPES } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
-import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { intParam, parseBody, required } from '../lib/validate.ts';
 import { requirePermission } from '../middleware/currentUser.ts';
 import { bumpPermissionsVersion } from '../services/auth/access.ts';
 import {
@@ -11,6 +11,7 @@ import {
   assertPositionUnused,
   getPositionPermissions,
   setPositionPermissions,
+  setUserPositions,
 } from '../services/auth/orgService.ts';
 
 const router = Router();
@@ -160,51 +161,33 @@ router.get('/assignments/:userId', (req, res) => {
   );
 });
 
-const assignmentSchema = z.object({
-  positions: z
-    .array(
-      z.object({
-        position_id: z.number().int().positive(),
-        /* NULL = dung don vi cua chinh nguoi do. Chi dien khi kiem nhiem. */
-        scope_unit_id: z.number().int().positive().nullable().optional(),
-        is_primary: z.boolean().optional(),
-      })
-    )
-    .max(20),
-});
+/** Dung chung voi `POST /api/users` (tao tai khoan kem vi tri). */
+export const positionAssignmentsSchema = z
+  .array(
+    z.object({
+      position_id: z.number().int().positive(),
+      /* NULL = dung don vi cua chinh nguoi do. Chi dien khi kiem nhiem. */
+      scope_unit_id: z.number().int().positive().nullable().optional(),
+      is_primary: z.boolean().optional(),
+    })
+  )
+  .max(20);
+
+const assignmentSchema = z.object({ positions: positionAssignmentsSchema });
 
 /**
  * Ghi de toan bo vi tri cua mot nguoi.
  *
  * Ghi de ca tap thay vi them/bot tung dong, cung ly do voi ma tran quyen: client
- * gui ve trang thai no muon thay. `assertAdminRemains` chay SAU khi ghi, trong
- * cung transaction — cau hoi dung la "ket qua ra sao", khong phai "thao tac trong
- * the nao".
+ * gui ve trang thai no muon thay. Logic ghi nam o `setUserPositions` — dung chung
+ * voi man tao tai khoan.
  */
 router.put('/assignments/:userId', (req, res) => {
   const userId = intParam(req.params.userId);
   required(db.prepare('SELECT id FROM users WHERE id = ?').get(userId), 'Khong tim thay tai khoan');
   const body = parseBody(assignmentSchema, req);
 
-  const seen = new Set<number>();
-  for (const row of body.positions) {
-    if (seen.has(row.position_id)) {
-      throw new HttpError(400, 'Một vị trí chỉ gán được một lần cho cùng một người');
-    }
-    seen.add(row.position_id);
-  }
-
-  db.transaction(() => {
-    db.prepare('DELETE FROM user_positions WHERE user_id = ?').run(userId);
-    const insert = db.prepare(
-      'INSERT INTO user_positions (user_id, position_id, scope_unit_id, is_primary) VALUES (?, ?, ?, ?)'
-    );
-    for (const row of body.positions) {
-      insert.run(userId, row.position_id, row.scope_unit_id ?? null, row.is_primary ? 1 : 0);
-    }
-    assertAdminRemains();
-    bumpPermissionsVersion();
-  })();
+  setUserPositions(userId, body.positions);
 
   res.json(
     db

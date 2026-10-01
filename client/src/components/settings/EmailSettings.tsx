@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { TriangleAlert } from 'lucide-react';
+import { ExternalLink, TriangleAlert } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { Button, Field, FormError, Input, Panel, Select } from '../common/ui';
+import { Button, Field, FormError, Input, Panel, Segmented, Select } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
+import { detectProvider, EMAIL_PROVIDERS, type EmailProviderId } from './emailProviders';
 
 /**
  * Cau hinh SMTP. Cung khuon voi TelegramSettings: soan nhap vao state, bam luu
@@ -68,6 +69,44 @@ export function EmailSettings() {
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
 
+  const providerId = detectProvider(draft.host);
+  const provider = EMAIL_PROVIDERS.find((row) => row.id === providerId) ?? null;
+  /* "Tuy chinh" la mot lua chon tuong minh: bam vao thi mo khoa o host ma khong
+     xoa gi — nguoi dung sua tiep tu cau hinh dang co. */
+  const [customMode, setCustomMode] = useState(false);
+  const activeProvider: EmailProviderId = customMode ? 'custom' : providerId;
+
+  const chooseProvider = (id: EmailProviderId) => {
+    if (id === 'custom') {
+      setCustomMode(true);
+      return;
+    }
+    const preset = EMAIL_PROVIDERS.find((row) => row.id === id);
+    if (!preset) return;
+    setCustomMode(false);
+    setDraft((prev) => ({
+      ...prev,
+      enabled: true,
+      host: preset.host,
+      port: preset.port,
+      secure: preset.secure,
+      /* Gmail / Microsoft dang nhap bang chinh dia chi hop thu. */
+      username: prev.username || prev.from_email,
+    }));
+  };
+
+  /* Voi mau co san, ten dang nhap di theo dia chi gui di cho toi khi nguoi dung
+     tu sua no — hai o nay gan nhu luon trung nhau o Gmail / Microsoft. */
+  const setFromEmail = (value: string) =>
+    setDraft((prev) => ({
+      ...prev,
+      from_email: value,
+      username:
+        activeProvider !== 'custom' && (!prev.username || prev.username === prev.from_email)
+          ? value
+          : prev.username,
+    }));
+
   const save = useMutation({
     mutationFn: () =>
       api.put<EmailConfig>('/api/email/config', {
@@ -120,6 +159,41 @@ export function EmailSettings() {
       />
 
       <div className="max-w-xl space-y-3">
+        <div>
+          <p className="mb-1 text-xs font-semibold text-tr-subtle">{t.emailSettings.provider}</p>
+          <Segmented
+            label={t.emailSettings.provider}
+            value={activeProvider}
+            onChange={chooseProvider}
+            options={[
+              ...EMAIL_PROVIDERS.map((row) => ({ value: row.id, label: row.label })),
+              { value: 'custom' as const, label: t.emailSettings.providerCustom },
+            ]}
+          />
+        </div>
+
+        {provider && activeProvider !== 'custom' ? (
+          <div className="rounded-control border border-tr-border bg-tr-surface p-3 text-sm">
+            <p className="mb-1 font-medium text-tr-text">
+              {t.emailSettings.providerSteps.replace('{name}', provider.label)}
+            </p>
+            <ol className="list-decimal space-y-0.5 pl-5 text-tr-subtle">
+              {provider.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            <a
+              href={provider.helpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-tr-primary hover:underline"
+            >
+              {provider.helpLabel}
+              <ExternalLink size={12} aria-hidden />
+            </a>
+          </div>
+        ) : null}
+
         <label className="flex items-center gap-2 text-sm text-tr-text">
           <input
             type="checkbox"
@@ -131,7 +205,11 @@ export function EmailSettings() {
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <Field label={t.emailSettings.host} required>
-            <Input value={draft.host} onChange={(e) => set('host', e.target.value)} />
+            <Input
+              value={draft.host}
+              readOnly={activeProvider !== 'custom'}
+              onChange={(e) => set('host', e.target.value)}
+            />
           </Field>
           <Field label={t.emailSettings.port} required>
             <Input
@@ -164,7 +242,9 @@ export function EmailSettings() {
         </Field>
 
         <Field
-          label={t.emailSettings.password}
+          label={
+            activeProvider === 'custom' ? t.emailSettings.password : t.emailSettings.appPassword
+          }
           hint={saved?.has_password ? t.emailSettings.passwordSaved : undefined}
         >
           <Input
@@ -192,7 +272,7 @@ export function EmailSettings() {
             <Input
               type="email"
               value={draft.from_email}
-              onChange={(e) => set('from_email', e.target.value)}
+              onChange={(e) => setFromEmail(e.target.value)}
             />
           </Field>
         </div>

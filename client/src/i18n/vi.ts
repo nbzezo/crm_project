@@ -218,6 +218,23 @@ export const t = {
     inviteLinkManual:
       'Chưa cấu hình email nên hệ thống không gửi được thư. Sao chép liên kết này gửi cho họ:',
     createdHint: 'Tài khoản chưa dùng được cho tới khi họ mở liên kết và đặt mật khẩu.',
+    positions: 'Vị trí',
+    positionsHint: 'Quyền của tài khoản là quyền gộp từ mọi vị trí họ giữ.',
+    noPositions: 'Chưa có vị trí',
+    primary: 'Chính',
+    primaryLabel: 'Vị trí chính',
+    scopeUnit: 'Phạm vi',
+    scopeOwnUnit: 'Đơn vị của họ',
+    scopeUnitHint: 'Chọn đơn vị khác khi họ kiêm nhiệm hoặc được uỷ quyền tạm thời.',
+    orgUnit: 'Đơn vị',
+    noOrgUnit: 'Chưa xếp đơn vị',
+    orgUnitNeedsContact: 'Gắn với người trong sổ danh bạ trước để xếp đơn vị.',
+    editAccess: 'Phân quyền',
+    editAccessTitle: 'Vị trí & đơn vị — {name}',
+    accessSaved: 'Đã cập nhật vị trí và đơn vị',
+    noPositionWarning:
+      'Tài khoản chưa có vị trí nào nên đăng nhập vào sẽ không dùng được chức năng nào. Bấm "Phân quyền" để gán.',
+    noPositionAccess: 'Bạn không có quyền gán vị trí — nhờ người quản trị phân quyền sau khi tạo.',
   },
 
   emailSettings: {
@@ -247,6 +264,10 @@ export const t = {
     saveOk: 'Đã lưu cấu hình email',
     lastTest: 'Kiểm tra gần nhất',
     notConfigured: 'Chưa cấu hình',
+    provider: 'Kết nối nhanh',
+    providerCustom: 'Tuỳ chỉnh',
+    providerSteps: 'Để gửi thư qua {name}:',
+    appPassword: 'Mật khẩu ứng dụng (App Password)',
   },
   routeError: {
     /* Loi tai chunk: hay gap nhat khi deploy ban moi trong luc tab dang mo — ban

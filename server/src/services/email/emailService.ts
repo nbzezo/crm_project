@@ -175,6 +175,35 @@ function createTransport(config: EmailSettingsRow): Transporter {
   });
 }
 
+/*
+ * Loi xac thuc cua Gmail / Microsoft la mot chuoi ma 5.7.x kho doc. Day la ba
+ * truong hop chiem gan het cac lan cau hinh hong — dich ra viec can lam, giu
+ * nguyen chuoi goc phia sau de con tra cuu duoc.
+ */
+const SMTP_HINTS: { pattern: RegExp; hint: string }[] = [
+  {
+    pattern: /5\.7\.139|SmtpClientAuthentication is disabled/i,
+    hint: 'Microsoft 365 đang tắt SMTP AUTH cho hộp thư này — quản trị viên cần bật "Authenticated SMTP".',
+  },
+  {
+    pattern: /Application-specific password required|InvalidSecondFactor|5\.7\.9\b/i,
+    hint: 'Tài khoản bật xác minh 2 bước — hãy dùng Mật khẩu ứng dụng (App Password), không dùng mật khẩu đăng nhập.',
+  },
+  {
+    pattern: /535|Username and Password not accepted|authentication unsuccessful|Invalid login/i,
+    hint: 'Sai tên đăng nhập hoặc mật khẩu. Với Gmail / Outlook cần Mật khẩu ứng dụng (App Password).',
+  },
+  {
+    pattern: /SendAsDenied|5\.7\.60|not allowed to send as/i,
+    hint: 'Địa chỉ gửi đi phải trùng với tài khoản đăng nhập SMTP (hoặc được cấp quyền Send As).',
+  },
+];
+
+export function explainSmtpError(detail: string): string {
+  const hint = SMTP_HINTS.find((row) => row.pattern.test(detail))?.hint;
+  return hint ? `${hint} (${detail})` : detail;
+}
+
 function fromAddress(config: EmailSettingsRow): string {
   return config.from_name ? `"${config.from_name}" <${config.from_email}>` : config.from_email;
 }
@@ -209,7 +238,7 @@ export async function sendMail(
       html: message.html,
     });
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = explainSmtpError(error instanceof Error ? error.message : String(error));
     setEmailLastError(db, detail);
     throw new HttpError(502, `Không gửi được email: ${detail}`);
   }
@@ -227,7 +256,7 @@ export async function testEmailConnection(db: Database): Promise<void> {
   try {
     await createTransport(config).verify();
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = explainSmtpError(error instanceof Error ? error.message : String(error));
     setEmailLastError(db, detail);
     throw new HttpError(502, `Không kết nối được tới máy chủ SMTP: ${detail}`);
   }

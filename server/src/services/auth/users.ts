@@ -41,18 +41,33 @@ export interface PublicUser {
   last_login_at: string | null;
   /** Chua dat mat khau lan nao (moi duoc moi, chua kich hoat). */
   pending_invite: boolean;
+  /** Don vi cua contact gan voi tai khoan — `contacts.org_unit_id`. */
+  org_unit_id: number | null;
+  org_unit_name: string | null;
+  /** Vi tri dang giu, vi tri chinh dung dau. */
+  positions: UserPositionSummary[];
+}
+
+export interface UserPositionSummary {
+  position_id: number;
+  position_name: string;
+  is_primary: boolean;
+  scope_unit_id: number | null;
+  scope_unit_name: string | null;
 }
 
 const PUBLIC_SELECT = `
   SELECT u.id, u.username, u.email, u.full_name, u.contact_id, u.is_active,
          u.must_change_password, u.last_login_at, c.full_name AS contact_name,
+         c.org_unit_id, ou.name AS org_unit_name,
          EXISTS (
            SELECT 1 FROM password_reset_tokens t
             WHERE t.user_id = u.id AND t.kind = 'invite' AND t.used_at IS NULL
               AND t.expires_at > CAST(strftime('%s','now') AS INTEGER) * 1000
          ) AS pending_invite
     FROM users u
-    LEFT JOIN contacts c ON c.id = u.contact_id`;
+    LEFT JOIN contacts c ON c.id = u.contact_id
+    LEFT JOIN org_units ou ON ou.id = c.org_unit_id`;
 
 interface PublicRow {
   id: number;
@@ -65,9 +80,36 @@ interface PublicRow {
   must_change_password: number;
   last_login_at: string | null;
   pending_invite: number;
+  org_unit_id: number | null;
+  org_unit_name: string | null;
 }
 
-function toPublic(row: PublicRow): PublicUser {
+function positionsByUser(userId?: number): Map<number, UserPositionSummary[]> {
+  const rows = db
+    .prepare(
+      `SELECT up.user_id, up.position_id, p.name AS position_name, up.is_primary,
+              up.scope_unit_id, o.name AS scope_unit_name
+         FROM user_positions up
+         JOIN positions p ON p.id = up.position_id
+         LEFT JOIN org_units o ON o.id = up.scope_unit_id
+        ${userId === undefined ? '' : 'WHERE up.user_id = ?'}
+        ORDER BY up.is_primary DESC, p.position, p.id`
+    )
+    .all(...(userId === undefined ? [] : [userId])) as (Omit<UserPositionSummary, 'is_primary'> & {
+    user_id: number;
+    is_primary: number;
+  })[];
+
+  const map = new Map<number, UserPositionSummary[]>();
+  for (const { user_id, is_primary, ...rest } of rows) {
+    const list = map.get(user_id) ?? [];
+    list.push({ ...rest, is_primary: Boolean(is_primary) });
+    map.set(user_id, list);
+  }
+  return map;
+}
+
+function toPublic(row: PublicRow, positions: UserPositionSummary[]): PublicUser {
   return {
     id: row.id,
     username: row.username,
@@ -79,6 +121,9 @@ function toPublic(row: PublicRow): PublicUser {
     must_change_password: Boolean(row.must_change_password),
     last_login_at: row.last_login_at,
     pending_invite: Boolean(row.pending_invite),
+    org_unit_id: row.org_unit_id,
+    org_unit_name: row.org_unit_name,
+    positions,
   };
 }
 
@@ -112,14 +157,15 @@ export function findUserById(id: number): UserRow | undefined {
 }
 
 export function listUsers(): PublicUser[] {
+  const positions = positionsByUser();
   return (db.prepare(`${PUBLIC_SELECT} ORDER BY u.is_active DESC, u.id`).all() as PublicRow[]).map(
-    toPublic
+    (row) => toPublic(row, positions.get(row.id) ?? [])
   );
 }
 
 export function getPublicUser(id: number): PublicUser | undefined {
   const row = db.prepare(`${PUBLIC_SELECT} WHERE u.id = ?`).get(id) as PublicRow | undefined;
-  return row ? toPublic(row) : undefined;
+  return row ? toPublic(row, positionsByUser(id).get(id) ?? []) : undefined;
 }
 
 export interface CreateUserInput {
@@ -129,6 +175,12 @@ export interface CreateUserInput {
   contactId?: number | null;
   /** Bo trong khi moi qua email — nguoi dung tu dat o lien ket kich hoat. */
   password?: string;
+  /**
+   * Chay trong CUNG transaction voi cau INSERT — gan vi tri, xep don vi. Nem loi
+   * o day thi tai khoan cung khong duoc tao: mot tai khoan "tao xong nhung gan
+   * quyen hong" la mot tai khoan dang nhap vao chi thay 403.
+   */
+  onCreated?: (userId: number) => void;
 }
 
 /**
@@ -150,20 +202,24 @@ export async function createUser(input: CreateUserInput): Promise<number> {
     ? await hashPassword(input.password)
     : { hash: '', salt: '' };
 
-  const info = db
-    .prepare(
-      `INSERT INTO users (username, password_hash, password_salt, email, full_name, contact_id)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      input.username.trim(),
-      hash,
-      salt,
-      email,
-      input.fullName?.trim() || null,
-      input.contactId ?? null
-    );
-  return Number(info.lastInsertRowid);
+  return db.transaction(() => {
+    const info = db
+      .prepare(
+        `INSERT INTO users (username, password_hash, password_salt, email, full_name, contact_id)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        input.username.trim(),
+        hash,
+        salt,
+        email,
+        input.fullName?.trim() || null,
+        input.contactId ?? null
+      );
+    const id = Number(info.lastInsertRowid);
+    input.onCreated?.(id);
+    return id;
+  })();
 }
 
 export interface UpdateUserInput {

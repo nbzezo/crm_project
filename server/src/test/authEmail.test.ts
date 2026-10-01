@@ -314,3 +314,25 @@ test('khong the tu khoa tai khoan dang dang nhap', async () => {
   const res = await call('PATCH', `/api/users/${me.data.id}`, { is_active: false });
   assert.equal(res.status, 400);
 });
+
+test('loi SMTP pho bien cua Gmail / Microsoft duoc dich ra viec can lam', async () => {
+  const { explainSmtpError } = await import('../services/email/emailService.ts');
+
+  const gmailApp = explainSmtpError(
+    '534-5.7.9 Application-specific password required. Learn more at https://support.google.com'
+  );
+  assert.match(gmailApp, /Mật khẩu ứng dụng/);
+  assert.match(gmailApp, /534-5\.7\.9/, 'giu chuoi goc de tra cuu');
+
+  assert.match(
+    explainSmtpError(
+      '535 5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled'
+    ),
+    /tắt SMTP AUTH/
+  );
+  assert.match(
+    explainSmtpError('535-5.7.8 Username and Password not accepted.'),
+    /Sai tên đăng nhập hoặc mật khẩu/
+  );
+  assert.equal(explainSmtpError('connect ETIMEDOUT 1.2.3.4:587'), 'connect ETIMEDOUT 1.2.3.4:587');
+});
