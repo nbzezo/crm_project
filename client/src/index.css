@@ -761,6 +761,66 @@
   font-weight: 800;
 }
 
+/* Thanh giai doan tren mobile (mockup 1e): buoc da qua la vong den co dau tick,
+   buoc sau la vong so, chi buoc hien tai giu nhan. Ten buoc van nam trong nut
+   (font-size 0 chi an khoi mat) nen ten truy cap khong doi. */
+@media (max-width: 767px) {
+  [data-theme='mono'] .tr-stage-stepper > button:not([data-active='true']) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  [data-theme='mono'] .tr-stage-stepper > button:not([data-active='true'])::before {
+    content: counter(tr-step);
+    font-size: 12px;
+  }
+
+  [data-theme='mono'] .tr-stage-stepper > button[data-passed='true'] {
+    background-color: #111111;
+    color: #ffffff;
+    border-color: #111111;
+  }
+
+  [data-theme='mono'] .tr-stage-stepper > button[data-passed='true']::before {
+    content: '\2713';
+  }
+}
+
+/* KPI Tong quan dinh vien thanh mot luoi (mockup 1a/2a): khe 1px de lo nen
+   vien, o con bo vien va bo goc rieng. */
+[data-theme='mono'] .tr-kpi-grid {
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: var(--radius-panel);
+  background-color: rgba(17, 17, 17, 0.14);
+}
+
+[data-theme='mono'] .tr-kpi-grid > * {
+  border: 0;
+  border-radius: 0;
+}
+
+[data-theme='mono'] .tr-kpi-grid > :focus-visible {
+  outline-offset: -3px;
+}
+
+/* Cot Kanban (mockup 2b): nen trang vien 1px. Dung border chu khong dung
+   box-shadow de khong de mat vong `ring` khi keo the vao. Bo o so danh thu tu
+   cua mockup: ten cot + so dem + chip trang thai da kin 272px, them o so thi
+   ten cot bi cat. */
+[data-theme='mono'] .tr-list {
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  background-color: #ffffff;
+}
+
 /* Nut: phang, vien dam. Tailwind `shadow-sm` o VARIANTS bi luat nay de. */
 [data-theme='mono'] .tr-button {
   box-shadow: none;
