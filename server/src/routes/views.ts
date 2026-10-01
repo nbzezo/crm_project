@@ -545,7 +545,8 @@ router.get('/dashboard', (req, res) => {
          SUM(CASE WHEN k.is_done = 0 AND k.due_date = date('now','localtime') THEN 1 ELSE 0 END) AS due_today_count,
          SUM(CASE WHEN k.is_done = 0 AND k.due_date = date('now','localtime','+1 day') THEN 1 ELSE 0 END) AS due_tomorrow_count,
          SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN date('now','localtime') AND date('now','localtime','+7 days') THEN 1 ELSE 0 END) AS due_week_count,
-         SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count
+         SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count,
+         SUM(CASE WHEN k.is_done = 1 AND substr(k.completed_at, 1, 10) = date('now','localtime') THEN 1 ELSE 0 END) AS done_today_count
        FROM cards k JOIN lists l ON l.id = k.list_id JOIN boards b ON b.id = l.board_id
       WHERE b.is_archived = 0 AND k.is_archived = 0${taskScope(req)}`
     )
@@ -758,6 +759,8 @@ router.get('/dashboard', (req, res) => {
       tomorrow: taskCounts.due_tomorrow_count ?? 0,
       week: taskCounts.due_week_count ?? 0,
       open: taskCounts.open_count ?? 0,
+      // O KPI "Việc hôm nay" tren Tong quan: tien do trong ngay, khong chi viec con mo.
+      done_today: taskCounts.done_today_count ?? 0,
     },
     tasks: tasksByBucket,
     workload,
