@@ -5,6 +5,7 @@ import type {
   ContractTerm,
   InteractionType,
   Priority,
+  RevenueGroup,
   RevenueStage,
   ServiceStatus,
   Stage,
@@ -393,6 +394,16 @@ export const t = {
     reconciled: 'Bao gồm các khoản đã chuyển sang các bước sau đối soát.',
     invoiced: 'Bao gồm các khoản đã xuất hóa đơn hoặc đã thanh toán.',
   } as Record<string, string>,
+  revenueGroup: {
+    new: 'Mới',
+    expansion: 'Mở rộng',
+    base: 'Nền',
+  } as Record<string, string>,
+  revenueView: {
+    total: 'Doanh thu tổng',
+    new: 'Mới + Mở rộng',
+    base: 'Doanh thu nền',
+  },
   contractKind: {
     new: 'Mới',
     expansion: 'Mở rộng',
@@ -892,6 +903,15 @@ export const SERVICE_STATUS_COLORS: Record<ServiceStatus, string> = {
  * Màu 4 giai đoạn doanh thu: cùng sắc xanh đậm dần theo vòng đời tiền
  * (dự kiến → đối soát → xuất hóa đơn), riêng "đã thanh toán" dùng xanh lá kết quả.
  */
+/** Nhóm doanh thu: Mới / Mở rộng là 12 tháng đầu, sau đó chuyển sang Nền. */
+export const REVENUE_GROUP_ORDER: RevenueGroup[] = ['new', 'expansion', 'base'];
+export const REVENUE_GROUP_COLORS: Record<RevenueGroup, string> = {
+  /* Đã chạy bộ kiểm palette (CVD, độ sáng, tương phản) cho cả nền sáng và tối. */
+  new: '#2a9d8f',
+  expansion: '#c2852f',
+  base: '#5a6fb0',
+};
+
 export const REVENUE_STAGE_COLORS: Record<RevenueStage, string> = {
   forecast: '#9ec5f4',
   reconciled: '#3987e5',

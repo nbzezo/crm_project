@@ -53,3 +53,9 @@ export function sumTotals(list: (RevenueTotals | undefined)[]): RevenueTotals {
   }
   return out;
 }
+
+/** 'YYYY-MM' → 'T8/2026'. */
+export function formatPeriod(period: string | null | undefined): string {
+  if (!period) return '—';
+  return `T${Number(period.slice(5, 7))}/${period.slice(0, 4)}`;
+}

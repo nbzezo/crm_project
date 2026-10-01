@@ -1,6 +1,6 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   Bar,
   BarChart,
@@ -27,6 +27,8 @@ import { api, qs } from '../api/client';
 import { ChartDataTable } from '../components/common/ChartDataTable';
 import { RevenueLineActions } from '../components/crm/RevenueLineActions';
 import { RevenueFunnelCards } from '../components/crm/RevenueFunnelCards';
+import { RevenueGroupOverview } from '../components/crm/RevenueGroupOverview';
+import { RevenueBaseComparison } from '../components/crm/RevenueBaseComparison';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { PageHeader, PageShell } from '../components/common/PageShell';
 import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
@@ -42,11 +44,19 @@ import {
   TableHead,
   focusRing,
 } from '../components/common/ui';
-import { REVENUE_STAGE_COLORS, REVENUE_STAGE_ORDER, SERVICE_STATUS_ORDER, t } from '../i18n/vi';
+import {
+  REVENUE_GROUP_COLORS,
+  REVENUE_STAGE_COLORS,
+  REVENUE_STAGE_ORDER,
+  SERVICE_STATUS_ORDER,
+  t,
+} from '../i18n/vi';
 import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../lib/format';
-import { funnel, receivable } from '../lib/revenue';
+import { formatPeriod, funnel, receivable } from '../lib/revenue';
 import type {
   RevenueCell,
+  RevenueComparisonResponse,
+  RevenueGroup,
   RevenueLine,
   RevenueLinesResponse,
   RevenueStage,
@@ -67,6 +77,11 @@ const MonthlyRevenueModal = lazy(() =>
     default: module.MonthlyRevenueModal,
   }))
 );
+const RevenueAnchorDialog = lazy(() =>
+  import('../components/crm/RevenueAnchorDialog').then((module) => ({
+    default: module.RevenueAnchorDialog,
+  }))
+);
 const ServiceCatalog = lazy(() =>
   import('../components/crm/ServiceCatalog').then((module) => ({ default: module.ServiceCatalog }))
 );
@@ -83,6 +98,33 @@ const AXIS_PROPS = {
   tickLine: false,
 };
 
+type RevenueView = 'total' | 'new' | 'base';
+type KindFilter = 'new_expansion' | 'new' | 'expansion';
+
+const VIEW_OPTIONS: { value: RevenueView; label: string }[] = [
+  { value: 'total', label: t.revenueView.total },
+  { value: 'new', label: t.revenueView.new },
+  { value: 'base', label: t.revenueView.base },
+];
+
+const VIEW_DESCRIPTION: Record<RevenueView, string> = {
+  total: 'Gộp doanh thu Mới, Mở rộng và Nền.',
+  new: 'Doanh thu trong 12 tháng đầu kể từ tháng phát sinh doanh thu đầu tiên của hợp đồng mới hoặc mở rộng.',
+  base: 'Doanh thu của hợp đồng từ tháng thứ 13 trở đi, so với năm trước.',
+};
+
+const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
+  { value: 'new_expansion', label: 'Tất cả' },
+  { value: 'new', label: 'Mới' },
+  { value: 'expansion', label: 'Mở rộng' },
+];
+
+function groupSetOf(view: RevenueView, kind: KindFilter): Set<RevenueGroup> | null {
+  if (view === 'base') return new Set(['base']);
+  if (view === 'total') return null;
+  return kind === 'new_expansion' ? new Set(['new', 'expansion']) : new Set([kind]);
+}
+
 const CHART_VIEW_OPTIONS = [
   { value: 'monthly' as const, label: 'Theo tháng' },
   { value: 'cumulative' as const, label: 'Lũy kế' },
@@ -90,6 +132,13 @@ const CHART_VIEW_OPTIONS = [
 
 export default function RevenuePage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const params = useParams();
+  const view: RevenueView =
+    params.view === 'new' ? 'new' : params.view === 'base' ? 'base' : 'total';
+  const [kind, setKind] = useState<KindFilter>('new_expansion');
+  const groupSet = groupSetOf(view, kind);
+  const group = view === 'total' ? undefined : view === 'base' ? 'base' : kind;
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
@@ -109,11 +158,18 @@ export default function RevenuePage() {
   const [monthsFor, setMonthsFor] = useState<RevenueLine | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [anchorFor, setAnchorFor] = useState<RevenueLine | null>(null);
+  /** Nhập bù một tháng trước mốc tự động — chờ người dùng xác nhận. */
+  const [retroSave, setRetroSave] = useState<{
+    line: RevenueLine;
+    period: string;
+    amount_vnd: number;
+  } | null>(null);
   /** Tháng đang mở menu "chuyển trạng thái cả cột". */
   const [bulkMonth, setBulkMonth] = useState<number | null>(null);
   const bulkPopover = usePopover();
 
-  const filters = { q: term, status, service_id: serviceId, am };
+  const filters = { q: term, status, service_id: serviceId, am, group };
   const listKey = ['revenues', 'lines', year, filters] as const;
   const hasActiveFilters = Boolean(term || status || serviceId || am);
 
@@ -146,6 +202,16 @@ export default function RevenuePage() {
     queryFn: () => api.get<RevenueSummary>(`/api/revenues/summary${qs({ year, ...filters })}`),
   });
 
+  /* So sánh năm trước: màn hình Nền (chỉ tháng Nền) và màn hình Tổng (mọi tháng). */
+  const { data: comparison, isLoading: comparisonLoading } = useQuery({
+    queryKey: ['revenues', 'comparison', year, filters],
+    queryFn: () =>
+      api.get<RevenueComparisonResponse>(
+        `/api/revenues/comparison${qs({ year, ...filters, group: view === 'base' ? 'base' : 'all' })}`
+      ),
+    enabled: view !== 'new',
+  });
+
   const { data: years = [] } = useQuery({
     queryKey: ['revenues', 'years'],
     queryFn: () => api.get<number[]>('/api/revenues/years'),
@@ -163,6 +229,7 @@ export default function RevenuePage() {
 
   const refreshTotals = () => {
     queryClient.invalidateQueries({ queryKey: ['revenues', 'summary'] });
+    queryClient.invalidateQueries({ queryKey: ['revenues', 'comparison'] });
     queryClient.invalidateQueries({ queryKey: ['revenues', 'years'] });
   };
 
@@ -216,13 +283,39 @@ export default function RevenuePage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['revenues'] }),
   });
 
+  /** Tháng của dòng nằm ngoài nhóm đang xem — hiện mờ, không cộng vào tổng. */
+  const outOfGroup = (line: RevenueLine, period: string) =>
+    groupSet !== null && !groupSet.has(line.groups?.[period] ?? 'new');
+
+  /**
+   * Ghi số tiền một ô. Nhập bù vào tháng TRƯỚC mốc tự động sẽ kéo mốc lùi lại và
+   * làm nhiều tháng đổi nhóm — hỏi lại trước khi lưu.
+   */
+  const saveAmount = (line: RevenueLine, period: string, amount_vnd: number) => {
+    const first = line.anchor?.first_period;
+    if (line.anchor?.mode === 'auto' && first && amount_vnd > 0 && period < first) {
+      setRetroSave({ line, period, amount_vnd });
+      return;
+    }
+    saveCell.mutate({ lineId: line.id, period, amount_vnd });
+  };
+
   /** Tổng doanh thu từng tháng của các dòng đang hiển thị — dòng chân bảng. */
+  const groupKey = groupSet ? [...groupSet].join(',') : '';
   const monthTotals = useMemo(
     () =>
-      MONTHS.map((m) =>
-        lines.reduce((sum, line) => sum + (line.months[periodOf(year, m)]?.amount_vnd ?? 0), 0)
-      ),
-    [lines, year]
+      MONTHS.map((m) => {
+        const period = periodOf(year, m);
+        const only = groupKey ? new Set(groupKey.split(',')) : null;
+        return lines.reduce(
+          (sum, line) =>
+            only && !only.has(line.groups?.[period] ?? 'new')
+              ? sum
+              : sum + (line.months[period]?.amount_vnd ?? 0),
+          0
+        );
+      }),
+    [lines, year, groupKey]
   );
   const grandTotal = monthTotals.reduce((a, b) => a + b, 0);
 
@@ -256,7 +349,7 @@ export default function RevenuePage() {
     <PageShell width="wide">
       <PageHeader
         title={t.nav.revenue}
-        description={t.revenue.subtitle}
+        description={VIEW_DESCRIPTION[view]}
         align="center"
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -285,6 +378,19 @@ export default function RevenuePage() {
           </div>
         }
       />
+
+      {/* Ba màn hình: Tổng / Mới + Mở rộng / Nền — mỗi màn hình có đường dẫn riêng. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented
+          label="Màn hình doanh thu"
+          value={view}
+          onChange={(next) => navigate(next === 'total' ? '/revenue' : `/revenue/${next}`)}
+          options={VIEW_OPTIONS}
+        />
+        {view === 'new' && (
+          <Segmented label="Loại hợp đồng" value={kind} onChange={setKind} options={KIND_OPTIONS} />
+        )}
+      </div>
 
       {/* Thanh lọc: năm, tìm kiếm, bộ lọc nghiệp vụ */}
       <div className="flex flex-wrap items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-2.5">
@@ -356,6 +462,13 @@ export default function RevenuePage() {
 
       {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
       <RevenueFunnelCards total={total} detailed lineCount={summary?.line_count ?? 0} year={year} />
+
+      {view === 'total' && (
+        <RevenueGroupOverview year={year} summary={summary} comparison={comparison} />
+      )}
+      {view === 'base' && (
+        <RevenueBaseComparison year={year} data={comparison} isLoading={comparisonLoading} />
+      )}
 
       <Panel
         title={`Doanh thu theo tháng — năm ${year}`}
@@ -569,6 +682,7 @@ export default function RevenuePage() {
                       {line.contract_name && (
                         <div className="text-xs text-tr-muted">{line.contract_name}</div>
                       )}
+                      <GroupBadge line={line} year={year} onEdit={() => setAnchorFor(line)} />
                     </td>
                     <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
                       {line.am || '—'}
@@ -611,9 +725,12 @@ export default function RevenuePage() {
                           key={m}
                           cell={cell}
                           monthLabel={`T${m}`}
-                          onAmount={(amount_vnd) =>
-                            saveCell.mutate({ lineId: line.id, period, amount_vnd })
+                          outOfGroup={
+                            outOfGroup(line, period)
+                              ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period]]}`
+                              : undefined
                           }
+                          onAmount={(amount_vnd) => saveAmount(line, period, amount_vnd)}
                           onStage={(stage) => saveCell.mutate({ lineId: line.id, period, stage })}
                         />
                       );
@@ -622,6 +739,7 @@ export default function RevenuePage() {
                       <RevenueLineActions
                         line={line}
                         onMonths={setMonthsFor}
+                        onAnchor={setAnchorFor}
                         onEdit={(next) => setLineForm({ open: true, line: next })}
                         onDelete={(next) => setDeleteId(next.id)}
                       />
@@ -634,10 +752,12 @@ export default function RevenuePage() {
                   <td className="sticky bottom-0 left-0 z-30 border-r border-tr-border bg-tr-surface px-3 py-2 text-tr-subtle">
                     {t.revenue.grandTotal}
                   </td>
-                  <td colSpan={4} />
+                  {/* AM, loại HĐ, thời hạn, dịch vụ, tình trạng */}
+                  <td colSpan={5} />
                   <td className="px-3 py-2 text-right tabular-nums text-tr-text">
                     {formatVNDInput(grandTotal) || '0'}
                   </td>
+                  <td />
                   {monthTotals.map((value, i) => (
                     <td key={i} className="px-2 py-2 text-right tabular-nums text-tr-text">
                       {formatVNDInput(value) || '—'}
@@ -720,7 +840,33 @@ export default function RevenuePage() {
           />
         )}
         {catalogOpen && <ServiceCatalog open onClose={() => setCatalogOpen(false)} />}
+        {anchorFor !== null && (
+          <RevenueAnchorDialog line={anchorFor} year={year} onClose={() => setAnchorFor(null)} />
+        )}
       </Suspense>
+      <ConfirmDialog
+        open={retroSave !== null}
+        title="Nhập bù trước mốc phân nhóm"
+        confirmLabel="Vẫn lưu"
+        message={
+          retroSave
+            ? `${formatPeriod(retroSave.period)} nằm trước tháng có doanh thu đầu tiên hiện tại (${formatPeriod(retroSave.line.anchor.first_period)}). Lưu số này sẽ lùi mốc về ${formatPeriod(retroSave.period)}: 12 tháng Mới / Mở rộng bắt đầu sớm hơn và một số tháng sẽ chuyển sang Nền, báo cáo các năm liên quan thay đổi theo.`
+            : ''
+        }
+        onCancel={() => setRetroSave(null)}
+        onConfirm={() => {
+          if (retroSave)
+            saveCell.mutate(
+              {
+                lineId: retroSave.line.id,
+                period: retroSave.period,
+                amount_vnd: retroSave.amount_vnd,
+              },
+              { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['revenues'] }) }
+            );
+          setRetroSave(null);
+        }}
+      />
       <ConfirmDialog
         open={deleteId !== null}
         message="Xóa dòng dịch vụ này? Toàn bộ doanh thu đã nhập của dòng sẽ bị xóa theo."
@@ -731,6 +877,50 @@ export default function RevenuePage() {
         }}
       />
     </PageShell>
+  );
+}
+
+/**
+ * Nhóm của dòng trong năm đang xem — ví dụ "Mới → Nền từ T8/2026". Bấm để sửa
+ * mốc phân nhóm; mốc sửa tay có dấu ✎.
+ */
+function GroupBadge({
+  line,
+  year,
+  onEdit,
+}: {
+  line: RevenueLine;
+  year: number;
+  onEdit: () => void;
+}) {
+  if (!line.groups) return null;
+  const sequence: RevenueGroup[] = [];
+  for (const m of MONTHS) {
+    const g = line.groups[periodOf(year, m)];
+    if (g && sequence[sequence.length - 1] !== g) sequence.push(g);
+  }
+  const label =
+    sequence.length > 1
+      ? `${t.revenueGroup[sequence[0]]} → Nền từ ${formatPeriod(line.anchor.base_from)}`
+      : t.revenueGroup[sequence[0] ?? 'new'];
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      title="Mốc phân nhóm — bấm để xem / sửa"
+      className={`mt-0.5 flex items-center gap-1 rounded-control-inner text-xs text-tr-subtle hover:text-tr-primary ${focusRing}`}
+    >
+      {sequence.map((g) => (
+        <span
+          key={g}
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: REVENUE_GROUP_COLORS[g] }}
+          aria-hidden="true"
+        />
+      ))}
+      {label}
+      {line.anchor.mode !== 'auto' && <span aria-label="mốc sửa tay"> ✎</span>}
+    </button>
   );
 }
 
@@ -833,11 +1023,14 @@ function RevenueChartTooltip({
 function MonthCell({
   cell,
   monthLabel,
+  outOfGroup,
   onAmount,
   onStage,
 }: {
   cell: RevenueCell | undefined;
   monthLabel: string;
+  /** Có giá trị = tháng không thuộc nhóm đang xem; nội dung là lời giải thích. */
+  outOfGroup?: string;
   onAmount: (value: number) => void;
   onStage: (stage: RevenueStage) => void;
 }) {
@@ -847,6 +1040,17 @@ function MonthCell({
   const stage = cell?.stage ?? 'forecast';
   const shown = text ?? formatVNDInput(amount);
   const variance = cell ? cell.amount_vnd - cell.forecast_vnd : 0;
+
+  if (outOfGroup) {
+    return (
+      <td
+        className="bg-tr-surface px-2 py-1 text-right text-xs tabular-nums text-tr-muted"
+        title={outOfGroup}
+      >
+        {amount ? formatVNDInput(amount) : '·'}
+      </td>
+    );
+  }
 
   return (
     <td className="px-1 py-1">

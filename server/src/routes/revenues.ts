@@ -588,6 +588,7 @@ router.get('/comparison', (req, res) => {
       contract_kind: line.contract_kind,
       status: line.status,
       anchor: line.anchor,
+      groups: line.groups,
       periods,
       months,
       prev_months: prevByLine.get(Number(line.id)) ?? {},

@@ -107,7 +107,8 @@ const router = createBrowserRouter([
         handle: { permission: 'contracts:read', title: t.nav.contracts },
       },
       {
-        path: 'revenue',
+        /* Ba màn hình: /revenue (tổng), /revenue/new (Mới + Mở rộng), /revenue/base (Nền). */
+        path: 'revenue/:view?',
         element: <RevenuePage />,
         handle: { permission: 'revenues:read', title: t.nav.revenue },
       },

@@ -1,4 +1,4 @@
-import { Pencil, Table2, Trash2 } from 'lucide-react';
+import { Milestone, Pencil, Table2, Trash2 } from 'lucide-react';
 import { IconButton } from '../common/ui';
 import { t } from '../../i18n/vi';
 import type { RevenueLine } from '../../types';
@@ -6,11 +6,14 @@ import type { RevenueLine } from '../../types';
 export function RevenueLineActions({
   line,
   onMonths,
+  onAnchor,
   onEdit,
   onDelete,
 }: {
   line: RevenueLine;
   onMonths: (line: RevenueLine) => void;
+  /** Mở hộp sửa mốc phân nhóm Mới / Nền — chỉ có ở trang Doanh thu. */
+  onAnchor?: (line: RevenueLine) => void;
   onEdit: (line: RevenueLine) => void;
   onDelete: (line: RevenueLine) => void;
 }) {
@@ -19,6 +22,11 @@ export function RevenueLineActions({
       <IconButton label={t.revenue.enterMonths} tone="primary" onClick={() => onMonths(line)}>
         <Table2 size={14} aria-hidden="true" />
       </IconButton>
+      {onAnchor && (
+        <IconButton label="Mốc phân nhóm Mới / Nền" onClick={() => onAnchor(line)}>
+          <Milestone size={14} aria-hidden="true" />
+        </IconButton>
+      )}
       <IconButton label={t.common.edit} onClick={() => onEdit(line)}>
         <Pencil size={14} aria-hidden="true" />
       </IconButton>

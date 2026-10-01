@@ -526,7 +526,71 @@ export interface RevenueLine {
   notes: string;
   /** Khóa là 'YYYY-MM'. */
   months: Record<string, RevenueCell>;
+  /** Tổng năm của dòng — khi xem theo nhóm, chỉ cộng các tháng thuộc nhóm đó. */
   totals: RevenueTotals;
+  /** Nhóm của từng tháng trong năm đang xem ('YYYY-MM' → nhóm). */
+  groups: Record<string, RevenueGroup>;
+  anchor: RevenueAnchor;
+  /** TB tháng năm trước nhập tay để so với năm đang xem; null = chưa nhập. */
+  baseline_avg_vnd: number | null;
+}
+
+/** Doanh thu Mới / Mở rộng (12 tháng đầu kể từ tháng có doanh thu đầu tiên) / Nền. */
+export type RevenueGroup = 'new' | 'expansion' | 'base';
+export type RevenueAnchorMode = 'auto' | 'manual' | 'base';
+
+/** Mốc phân nhóm của một dòng. */
+export interface RevenueAnchor {
+  mode: RevenueAnchorMode;
+  manual_period: string | null;
+  /** Tháng đầu tiên có doanh thu > 0 — mốc tự động. */
+  first_period: string | null;
+  effective: string | null;
+  /** Tháng đầu tiên dòng chuyển sang Nền. */
+  base_from: string | null;
+}
+
+export interface RevenueAnchorImpact {
+  before: RevenueAnchor;
+  after: RevenueAnchor;
+  moved: { period: string; amount_vnd: number; from: RevenueGroup; to: RevenueGroup }[];
+  moved_count: number;
+  moved_amount_vnd: number;
+  years: number[];
+}
+
+export type RevenueProjectionSource =
+  'actual' | 'entered' | 'same_period_ratio' | 'average' | 'none';
+
+/** So sánh một dòng với năm trước, chỉ trên các tháng thuộc nhóm đang xem. */
+export interface RevenueComparisonLine {
+  line_id: number;
+  customer_id: number;
+  customer_name: string;
+  service_name: string | null;
+  contract_name: string | null;
+  contract_kind: ContractKind;
+  status: ServiceStatus;
+  anchor: RevenueAnchor;
+  groups: Record<string, RevenueGroup>;
+  periods: string[];
+  months: Record<string, number>;
+  prev_months: Record<string, number>;
+  baseline_avg_vnd: number | null;
+  prev_avg_vnd: number | null;
+  prev_avg_source: 'manual' | 'computed' | null;
+  prev_same_period: Record<string, { value: number; approx: boolean } | null>;
+  projection: Record<string, { value: number; source: RevenueProjectionSource }>;
+  ytd_actual_vnd: number;
+  projected_total_vnd: number;
+  prev_total_vnd: number;
+  prev_total_approx: boolean;
+}
+
+export interface RevenueComparisonResponse {
+  year: number;
+  current_period: string;
+  lines: RevenueComparisonLine[];
 }
 
 export interface RevenueLinesResponse {
@@ -541,6 +605,7 @@ export interface RevenueSummary {
   line_count: number;
   by_service: ({ name: string; line_count: number } & RevenueTotals)[];
   by_customer: ({ id: number; name: string } & RevenueTotals)[];
+  by_group: Record<RevenueGroup, { totals: RevenueTotals; months: Record<string, number> }>;
 }
 
 /** Dòng dịch vụ hiển thị trong hồ sơ khách hàng (tổng doanh thu mọi năm). */
