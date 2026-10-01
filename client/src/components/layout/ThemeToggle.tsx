@@ -1,4 +1,4 @@
-import { Check, Monitor, Moon, Orbit, Sun, type LucideIcon } from 'lucide-react';
+import { Check, Contrast, Monitor, Moon, Orbit, Sun, type LucideIcon } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 
@@ -31,6 +31,13 @@ const OPTIONS: ThemeOption[] = [
     description: 'Yaru tối — aubergine & cam Ubuntu',
     icon: Orbit,
     colors: ['#2c001e', '#2a1e25', '#ff7043'],
+  },
+  {
+    mode: 'mono',
+    label: 'Đơn sắc',
+    description: 'Đen trắng, tiêu đề khối, viền mảnh',
+    icon: Contrast,
+    colors: ['#f3f3f1', '#ffffff', '#111111'],
   },
   {
     mode: 'system',

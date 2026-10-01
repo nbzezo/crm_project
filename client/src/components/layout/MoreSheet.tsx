@@ -24,6 +24,7 @@ const THEMES: { mode: ThemeMode; label: string }[] = [
   { mode: 'light', label: 'Sáng' },
   { mode: 'dark', label: 'Tối' },
   { mode: 'ubuntu', label: 'Ubuntu 26' },
+  { mode: 'mono', label: 'Đơn sắc' },
   { mode: 'system', label: 'Theo hệ thống' },
 ];
 

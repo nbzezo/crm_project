@@ -1,9 +1,10 @@
 import { create } from 'zustand';
+import { ensureThemeFont } from '../lib/themeFonts';
 
-export type ThemeMode = 'light' | 'dark' | 'ubuntu' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'ubuntu' | 'mono' | 'system';
 
 const STORAGE_KEY = 'workflow-theme';
-const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'ubuntu', 'system'];
+const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'ubuntu', 'mono', 'system'];
 
 /**
  * Theme co NEN TOI. Khong chi de doi token CSS: `isDark()` la nguon su that cho
@@ -29,6 +30,7 @@ function systemPrefersDark(): boolean {
 /** Gan thuoc tinh data-theme len <html> de bo token CSS doi theo. */
 function applyTheme(mode: ThemeMode): void {
   const resolved = mode === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : mode;
+  ensureThemeFont(resolved);
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
