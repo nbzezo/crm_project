@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { LATEST_VERSION, migrate } from '../db/migrate.ts';
 
@@ -263,4 +264,36 @@ test('v47 ghep AM chu tu do voi nguoi dung, chuyen chi tieu KPI sang am_user_id'
     ]
   );
   db.close();
+});
+
+test('v48 them dang nhap Google cho email ma giu nguyen cau hinh SMTP, va quay lui duoc', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 47);
+  db.prepare(
+    `UPDATE email_settings SET enabled = 1, host = 'smtp.gmail.com', from_email = 'a@b.vn'`
+  ).run();
+
+  migrate(db);
+  const row = db
+    .prepare('SELECT host, from_email, auth_type, google_account FROM email_settings')
+    .get();
+  assert.deepEqual(row, {
+    host: 'smtp.gmail.com',
+    from_email: 'a@b.vn',
+    auth_type: 'password',
+    google_account: '',
+  });
+  assert.throws(() => db.prepare(`UPDATE email_settings SET auth_type = 'yahoo'`).run());
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v48-rollback.sql', import.meta.url), 'utf8'));
+  const columns = (db.pragma('table_info(email_settings)') as { name: string }[]).map(
+    (c) => c.name
+  );
+  assert.equal(columns.includes('auth_type'), false);
+  assert.equal(columns.includes('google_account'), false);
+  assert.equal(
+    (db.prepare('SELECT host FROM email_settings').get() as { host: string }).host,
+    'smtp.gmail.com'
+  );
 });

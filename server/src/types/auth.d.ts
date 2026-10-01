@@ -5,6 +5,8 @@ declare module 'express-session' {
   interface SessionData {
     userId?: number;
     username?: string;
+    /** Chong CSRF cho luong dang nhap Google o routes/email.ts. Dung mot lan. */
+    googleOAuthState?: string;
   }
 }
 

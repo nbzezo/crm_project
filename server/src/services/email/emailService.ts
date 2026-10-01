@@ -2,6 +2,13 @@ import nodemailer, { type Transporter } from 'nodemailer';
 import type { Database } from 'better-sqlite3';
 import { decryptSecret, encryptSecret } from '../ai/secretStore.ts';
 import { HttpError } from '../../lib/validate.ts';
+import {
+  forgetGoogleAccessToken,
+  googleAccessToken,
+  revokeGoogleToken,
+  sendViaGmail,
+  type GoogleClient,
+} from './googleMail.ts';
 
 /*
  * Gui email qua SMTP — dung cho thu moi tai khoan va lien ket dat lai mat khau.
@@ -35,7 +42,19 @@ interface EmailSettingsRow {
   last_test_at: string | null;
   last_error: string | null;
   updated_at: string;
+  auth_type: EmailAuthType;
+  google_client_id: string;
+  google_client_secret_ciphertext: string;
+  google_client_secret_iv: string;
+  google_client_secret_tag: string;
+  google_refresh_token_ciphertext: string;
+  google_refresh_token_iv: string;
+  google_refresh_token_tag: string;
+  google_account: string;
 }
+
+/** `password` = SMTP (moi nha cung cap); `google` = Gmail API qua dang nhap Google (v48). */
+export type EmailAuthType = 'password' | 'google';
 
 export interface EmailConfig {
   enabled: boolean;
@@ -51,6 +70,11 @@ export interface EmailConfig {
   ready: boolean;
   last_test_at: string | null;
   last_error: string | null;
+  auth_type: EmailAuthType;
+  google_client_id: string;
+  has_google_client_secret: boolean;
+  /** Dia chi Gmail da dang nhap; rong = chua ket noi. */
+  google_account: string;
 }
 
 export interface EmailConfigUpdate {
@@ -64,6 +88,9 @@ export interface EmailConfigUpdate {
   fromName?: string;
   fromEmail?: string;
   appBaseUrl?: string;
+  authType?: EmailAuthType;
+  googleClientId?: string;
+  googleClientSecret?: string;
 }
 
 export interface MailMessage {
@@ -85,9 +112,45 @@ function decryptPassword(config: EmailSettingsRow): string {
   });
 }
 
-/** Cau hinh du de mo mot ket noi SMTP. `username`/`password` co the trong voi relay noi bo. */
+function googleClient(config: EmailSettingsRow): GoogleClient {
+  return {
+    clientId: config.google_client_id,
+    clientSecret: decryptSecret({
+      ciphertext: config.google_client_secret_ciphertext,
+      iv: config.google_client_secret_iv,
+      tag: config.google_client_secret_tag,
+    }),
+  };
+}
+
+function googleRefreshToken(config: EmailSettingsRow): string {
+  return decryptSecret({
+    ciphertext: config.google_refresh_token_ciphertext,
+    iv: config.google_refresh_token_iv,
+    tag: config.google_refresh_token_tag,
+  });
+}
+
+/** Client ID + Secret da khai bao — du de mo trang dang nhap Google. */
+export function googleClientOf(db: Database): GoogleClient | null {
+  const client = googleClient(row(db));
+  return client.clientId && client.clientSecret ? client : null;
+}
+
+/**
+ * Cau hinh du de gui that.
+ *
+ * SMTP: `username`/`password` co the trong voi relay noi bo. Google: phai co
+ * client va refresh token — dia chi gui di chinh la tai khoan da dang nhap.
+ */
 function isReady(config: EmailSettingsRow): boolean {
-  return Boolean(config.enabled && config.host.trim() && config.from_email.trim());
+  if (!config.enabled) return false;
+  if (config.auth_type === 'google') {
+    return Boolean(
+      config.google_account && googleRefreshToken(config) && googleClient(config).clientSecret
+    );
+  }
+  return Boolean(config.host.trim() && config.from_email.trim());
 }
 
 export function getEmailConfig(db: Database): EmailConfig {
@@ -105,6 +168,10 @@ export function getEmailConfig(db: Database): EmailConfig {
     ready: isReady(config),
     last_test_at: config.last_test_at,
     last_error: config.last_error,
+    auth_type: config.auth_type,
+    google_client_id: config.google_client_id,
+    has_google_client_secret: Boolean(config.google_client_secret_ciphertext),
+    google_account: config.google_account,
   };
 }
 
@@ -118,11 +185,28 @@ export function updateEmailConfig(db: Database, update: EmailConfigUpdate): void
   if (update.clearPassword) encrypted = encryptSecret('');
   else if (update.password) encrypted = encryptSecret(update.password);
 
+  const clientId =
+    update.googleClientId === undefined ? current.google_client_id : update.googleClientId.trim();
+  let clientSecret = {
+    ciphertext: current.google_client_secret_ciphertext,
+    iv: current.google_client_secret_iv,
+    tag: current.google_client_secret_tag,
+  };
+  if (update.googleClientSecret) clientSecret = encryptSecret(update.googleClientSecret.trim());
+
+  /* Refresh token gan voi OAuth client da cap no. Doi client thi token cu chet o
+     lan gui ke tiep — ngat ket noi ngay bay gio de man hinh noi that thay vi de
+     thu moi dau tien hong. */
+  const clientChanged = clientId !== current.google_client_id || Boolean(update.googleClientSecret);
+
   db.prepare(
     `UPDATE email_settings
         SET enabled = ?, host = ?, port = ?, secure = ?, username = ?,
             password_ciphertext = ?, password_iv = ?, password_tag = ?,
             from_name = ?, from_email = ?, app_base_url = ?,
+            auth_type = ?, google_client_id = ?,
+            google_client_secret_ciphertext = ?, google_client_secret_iv = ?,
+            google_client_secret_tag = ?,
             updated_at = datetime('now','localtime')
       WHERE id = 1`
   ).run(
@@ -138,8 +222,50 @@ export function updateEmailConfig(db: Database, update: EmailConfigUpdate): void
     update.fromEmail === undefined ? current.from_email : update.fromEmail.trim(),
     update.appBaseUrl === undefined
       ? current.app_base_url
-      : update.appBaseUrl.trim().replace(/\/+$/, '')
+      : update.appBaseUrl.trim().replace(/\/+$/, ''),
+    update.authType ?? current.auth_type,
+    clientId,
+    clientSecret.ciphertext,
+    clientSecret.iv,
+    clientSecret.tag
   );
+
+  if (clientChanged && current.google_account) clearGoogleConnection(db);
+}
+
+/** Luu ket qua dang nhap Google. Gmail API luon gui duoi ten tai khoan nay. */
+export function saveGoogleConnection(
+  db: Database,
+  connection: { refreshToken: string; account: string }
+): void {
+  const token = encryptSecret(connection.refreshToken);
+  db.prepare(
+    `UPDATE email_settings
+        SET auth_type = 'google', enabled = 1, google_account = ?, from_email = ?,
+            google_refresh_token_ciphertext = ?, google_refresh_token_iv = ?,
+            google_refresh_token_tag = ?, last_error = NULL,
+            last_test_at = datetime('now','localtime'),
+            updated_at = datetime('now','localtime')
+      WHERE id = 1`
+  ).run(connection.account, connection.account, token.ciphertext, token.iv, token.tag);
+}
+
+function clearGoogleConnection(db: Database): void {
+  db.prepare(
+    `UPDATE email_settings
+        SET google_account = '', google_refresh_token_ciphertext = '',
+            google_refresh_token_iv = '', google_refresh_token_tag = '',
+            updated_at = datetime('now','localtime')
+      WHERE id = 1`
+  ).run();
+  forgetGoogleAccessToken();
+}
+
+/** Ngat ket noi Google: xoa token o day va thu hoi no phia Google. */
+export async function disconnectGoogle(db: Database): Promise<void> {
+  const token = googleRefreshToken(row(db));
+  clearGoogleConnection(db);
+  if (token) await revokeGoogleToken(token);
 }
 
 export function setEmailLastError(db: Database, message: string | null): void {
@@ -230,14 +356,25 @@ export async function sendMail(
   }
 
   try {
-    await createTransport(config).sendMail({
+    const mail = {
       from: fromAddress(config),
       to: message.to,
       subject: message.subject,
       text: message.text,
       html: message.html,
-    });
+    };
+    if (config.auth_type === 'google') {
+      const token = await googleAccessToken(googleClient(config), googleRefreshToken(config));
+      await sendViaGmail(token, mail);
+    } else {
+      await createTransport(config).sendMail(mail);
+    }
   } catch (error) {
+    /* Loi Google da la HttpError co noi dung tieng Viet — giu nguyen. */
+    if (error instanceof HttpError) {
+      setEmailLastError(db, error.message);
+      throw error;
+    }
     const detail = explainSmtpError(error instanceof Error ? error.message : String(error));
     setEmailLastError(db, detail);
     throw new HttpError(502, `Không gửi được email: ${detail}`);
@@ -247,9 +384,26 @@ export async function sendMail(
   return { delivered: true };
 }
 
-/** Kiem tra ket noi SMTP ma khong gui thu — dung cho nut "Kiem tra" o Cai dat. */
+/** Kiem tra ket noi ma khong gui thu — dung cho nut "Kiem tra" o Cai dat. */
 export async function testEmailConnection(db: Database): Promise<void> {
   const config = row(db);
+  if (config.auth_type === 'google') {
+    const refreshToken = googleRefreshToken(config);
+    if (!refreshToken) throw new HttpError(400, 'Chưa đăng nhập tài khoản Google');
+    /* Xin access token moi bang refresh token: hong client, token bi thu hoi
+       hay app OAuth het han Testing deu lo ra o day. */
+    forgetGoogleAccessToken();
+    try {
+      await googleAccessToken(googleClient(config), refreshToken);
+    } catch (error) {
+      if (error instanceof HttpError) setEmailLastError(db, error.message);
+      throw error;
+    }
+    db.prepare(
+      `UPDATE email_settings SET last_test_at = datetime('now','localtime'), last_error = NULL WHERE id = 1`
+    ).run();
+    return;
+  }
   if (!config.host.trim()) throw new HttpError(400, 'Chưa khai báo máy chủ SMTP');
   if (!config.from_email.trim()) throw new HttpError(400, 'Chưa khai báo địa chỉ email gửi đi');
 

@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 47;
+export const LATEST_VERSION = 48;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -808,5 +808,14 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v47 (AM doanh thu la nguoi dung)');
     current = 47;
+  }
+
+  if (current === 47 && targetVersion >= 48) {
+    db.transaction(() => {
+      db.exec(readSql('migrate-v48.sql'));
+      db.pragma('user_version = 48');
+    })();
+    console.log('[db] Da nang cap schema len v48 (gui email bang tai khoan Google)');
+    current = 48;
   }
 }

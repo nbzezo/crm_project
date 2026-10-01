@@ -111,7 +111,12 @@ Cần khi tenant Microsoft 365 đã tắt Basic Auth, hoặc công ty không cho
   (`client/src/components/settings/emailProviders.ts`) thay vì lưu cột `provider`
   — một cột riêng sẽ lệch ngay khi ai đó sửa tay host. Lỗi SMTP được dịch bởi
   `explainSmtpError` trong `emailService.ts`.
-- **C — Chưa làm.**
+- **C — Đã làm cho Google (v48).** Khác phương án: không dùng SMTP + XOAUTH2 (bắt
+  buộc scope `https://mail.google.com/` = toàn quyền hộp thư) mà dùng **Gmail API với
+  scope `gmail.send`** — CRM chỉ gửi được thư. `services/email/googleMail.ts`,
+  route `/api/email/oauth/google/{start,callback,disconnect}`, chống CSRF bằng `state`
+  trong session. Ô "Địa chỉ web của CRM" từ chối địa chỉ hộp thư (mail.google.com, …).
+  Microsoft 365 OAuth chưa làm. Test: `server/src/test/googleEmail.test.ts`.
 
 ## 4. Thứ tự đề xuất
 
