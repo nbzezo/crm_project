@@ -1,4 +1,4 @@
-import { Building2, Check, Monitor, Moon, Orbit, Sun, type LucideIcon } from 'lucide-react';
+import { Check, Monitor, Moon, Orbit, Sun, type LucideIcon } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 
@@ -24,13 +24,6 @@ const OPTIONS: ThemeOption[] = [
     description: 'Trello tối tương phản cao',
     icon: Moon,
     colors: ['#15191e', '#20262d', '#579dff'],
-  },
-  {
-    mode: 'zoho',
-    label: 'Zoho CRM',
-    description: 'Phẳng gọn kiểu doanh nghiệp — ngọc lam & cam',
-    icon: Building2,
-    colors: ['#eaf1f0', '#ffffff', '#0e5c56'],
   },
   {
     mode: 'ubuntu',
@@ -80,7 +73,7 @@ export function ThemeToggle() {
         /* Be rong TU DONG voi nguong toi thieu, khong phai be rong co dinh.
            Ban truoc dat `w-11 fine:w-9 xl:w-auto`: tu xl tro len ca `fine:w-9`
            lan `xl:w-auto` cung khop, va `fine:w-9` thang trong thu tu CSS — nut
-           ket o 36px con nhan "Zoho CRM" thi xuong dong thanh hai dong de len
+           ket o 36px con nhan "Ubuntu 26" thi xuong dong thanh hai dong de len
            nhau. Dung `min-w-*` thi khong con hai luat tranh nhau: duoi xl nhan bi
            an nen noi dung chi la icon, `min-w` giu dung hinh tron; tu xl nhan
            hien ra va nut tu gian thanh vien thuoc. */

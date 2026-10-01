@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
-export type ThemeMode = 'light' | 'dark' | 'zoho' | 'ubuntu' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'ubuntu' | 'system';
 
 const STORAGE_KEY = 'workflow-theme';
-const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'zoho', 'ubuntu', 'system'];
+const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'ubuntu', 'system'];
 
 /**
  * Theme co NEN TOI. Khong chi de doi token CSS: `isDark()` la nguon su that cho
@@ -14,13 +14,13 @@ const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'zoho', 'ubuntu', 's
 const DARK_THEMES = new Set<ThemeMode>(['dark', 'ubuntu']);
 
 /**
- * Ba theme da go: 'neo-tactile', 'neat-slate', 'cream-teal'.
+ * Bon theme da go: 'neo-tactile', 'neat-slate', 'cream-teal', 'zoho'.
  *
- * Ca ba deu la bien the NEN SANG, nen nguoi dung dang dung chung se duoc dua ve
+ * Ca bon deu la bien the NEN SANG, nen nguoi dung dang dung chung se duoc dua ve
  * 'light' chu khong phai gia tri mac dinh 'dark' — doi tu nen sang sang nen toi
  * ma khong hoi la mot cu nhay bat ngo. Chi doc mot lan roi ghi de localStorage.
  */
-const REMOVED_LIGHT_THEMES = new Set(['neo-tactile', 'neat-slate', 'cream-teal']);
+const REMOVED_LIGHT_THEMES = new Set(['neo-tactile', 'neat-slate', 'cream-teal', 'zoho']);
 
 function systemPrefersDark(): boolean {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;

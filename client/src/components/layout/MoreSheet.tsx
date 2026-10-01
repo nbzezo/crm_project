@@ -23,7 +23,6 @@ import {
 const THEMES: { mode: ThemeMode; label: string }[] = [
   { mode: 'light', label: 'Sáng' },
   { mode: 'dark', label: 'Tối' },
-  { mode: 'zoho', label: 'Zoho CRM' },
   { mode: 'ubuntu', label: 'Ubuntu 26' },
   { mode: 'system', label: 'Theo hệ thống' },
 ];

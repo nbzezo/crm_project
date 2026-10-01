@@ -86,11 +86,10 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
 });
 
 test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
-  // Bo theme rut con bon: sang, toi, Zoho, Ubuntu. Quet axe tren tung theme vi
+  // Bo theme rut con ba: sang, toi, Ubuntu. Quet axe tren tung theme vi
   // tuong phan la thu duy nhat khong the suy ra tu theme nay sang theme khac.
   const themes = [
     { label: 'Sáng', value: 'light' },
-    { label: 'Zoho CRM', value: 'zoho' },
     { label: 'Tối', value: 'dark' },
     { label: 'Ubuntu 26', value: 'ubuntu' },
   ] as const;

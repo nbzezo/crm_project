@@ -29,7 +29,6 @@ const cssPath = path.resolve('client/src/index.css');
 const THEMES = [
   { name: 'Sáng', selector: ':root' },
   { name: 'Tối', selector: "[data-theme='dark']" },
-  { name: 'Zoho CRM', selector: "[data-theme='zoho']" },
   { name: 'Ubuntu 26', selector: "[data-theme='ubuntu']" },
 ];
 

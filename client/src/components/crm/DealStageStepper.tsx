@@ -45,7 +45,7 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* `tr-stage-stepper`: moc de theme Zoho ve chuoi chevron giua cac buoc.
+      {/* `tr-stage-stepper`: moc de theme Don sac ve cac buoc dang vien thuoc danh so.
           Truoc day CSS bam thang vao chuoi aria-label — doi nhan cho de doc la
           mat hieu ung, im lang. Lop nay la hop dong tuong minh giua hai ben. */}
       <div
