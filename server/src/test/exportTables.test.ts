@@ -40,6 +40,10 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     'sessions',
     'password_reset_tokens',
     'email_settings',
+    // Refresh token Google (da ma hoa) va trang thai "tep nao da len Drive" —
+    // khong phai du lieu nghiep vu, va khong the khoi phuc tu ban xuat JSON.
+    'drive_backup_settings',
+    'drive_backup_files',
     // Cau hinh giao dien theo tai khoan; khong the khoi phuc doc lap vi `users`
     // co y nam ngoai goi sao luu nghiep vu.
     'task_saved_views',

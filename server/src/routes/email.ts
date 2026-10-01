@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, parseBody } from '../lib/validate.ts';
 import { requirePermission } from '../middleware/currentUser.ts';
+import { crmBaseUrl as sharedCrmBaseUrl } from '../lib/requestBaseUrl.ts';
 import { buildGoogleAuthUrl, exchangeGoogleCode } from '../services/email/googleMail.ts';
 import {
-  appBaseUrl,
   disconnectGoogle,
   getEmailConfig,
   googleClientOf,
@@ -38,16 +38,8 @@ const updateSchema = z.object({
   google_client_secret: z.string().max(300).optional(),
 });
 
-/*
- * Goc URL cua CRM va redirect URI cho Google.
- *
- * Phai trung TUNG KY TU voi dong da khai bao o Google Cloud Console, nen may chu
- * tu tinh va tra ve cho man Cai dat hien ra de sao chep — khong de nguoi dung
- * tu go. Dung `app_base_url` neu co (dung sau proxy), khong thi suy tu request.
- */
 function crmBaseUrl(req: Request): string {
-  const host = req.get('host');
-  return appBaseUrl(db, host ? `${req.protocol}://${host}` : undefined);
+  return sharedCrmBaseUrl(db, req);
 }
 
 function googleRedirectUri(req: Request): string {

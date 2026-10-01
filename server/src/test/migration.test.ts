@@ -297,3 +297,34 @@ test('v48 them dang nhap Google cho email ma giu nguyen cau hinh SMTP, va quay l
     'smtp.gmail.com'
   );
 });
+
+test('v49 them bang sao luu Drive voi gia tri mac dinh an toan, va quay lui duoc', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 48);
+  migrate(db);
+
+  const settings = db
+    .prepare(
+      'SELECT enabled, interval_hours, keep_db_count, google_account, next_run_at FROM drive_backup_settings'
+    )
+    .get();
+  assert.deepEqual(settings, {
+    enabled: 0,
+    interval_hours: 24,
+    keep_db_count: 14,
+    google_account: '',
+    next_run_at: null,
+  });
+  assert.throws(() => db.prepare('UPDATE drive_backup_settings SET keep_db_count = 0').run());
+  assert.throws(() => db.prepare('UPDATE drive_backup_settings SET interval_hours = 721').run());
+  assert.throws(() => db.prepare(`INSERT INTO drive_backup_settings (id) VALUES (2)`).run());
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v49-rollback.sql', import.meta.url), 'utf8'));
+  const tables = (
+    db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]
+  ).map((t) => t.name);
+  assert.equal(tables.includes('drive_backup_settings'), false);
+  assert.equal(tables.includes('drive_backup_files'), false);
+  assert.ok(tables.includes('email_settings'), 'bang cua dot truoc con nguyen');
+});

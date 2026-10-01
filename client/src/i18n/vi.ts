@@ -298,6 +298,67 @@ export const t = {
     googleDisconnected: 'Đã ngắt kết nối Google',
     googleFromHint: 'Gmail luôn gửi dưới tên tài khoản đã đăng nhập.',
   },
+  driveBackup: {
+    title: 'Sao lưu lên Google Drive',
+    intro:
+      'Mỗi lần chạy, CRM nén cơ sở dữ liệu và đẩy lên Drive, kèm mọi tệp tải lên mới. Có thêm một bản nằm ngoài máy chủ để khi máy hỏng không mất hợp đồng, báo giá. CRM chỉ thấy và sửa được các tệp do chính nó tạo ra, không đọc được phần còn lại của Drive.',
+    privacy:
+      'Bản sao CSDL chứa toàn bộ dữ liệu khách hàng và mật khẩu đã băm của người dùng. Ai vào được tài khoản Google bên dưới là đọc được chúng — nên dùng tài khoản của công ty, bật xác minh 2 bước, và đừng chia sẻ thư mục sao lưu.',
+    connectedAs: 'Đang sao lưu vào Drive của {account}',
+    notConnected: 'Chưa đăng nhập tài khoản Google nào.',
+    openFolder: 'Mở thư mục sao lưu',
+    setupTitle: 'Cần làm một lần trong Google Cloud Console',
+    setupSteps: [
+      'Dùng cùng project với phần gửi email nếu có, hoặc tạo project mới. Vào "APIs & Services → Library" và bật Google Drive API.',
+      'Vào "OAuth consent screen", thêm scope .../auth/drive.file và đặt Publishing status là "In production" (để Testing thì Google thu hồi quyền sau 7 ngày).',
+      'Dùng lại OAuth client của phần email (bấm nút bên dưới) hoặc tạo client mới loại Web application. Thêm Redirect URI bên dưới vào "Authorized redirect URIs" — mỗi client có thể có nhiều URI.',
+      'Bấm "Lưu và đăng nhập Google", chọn tài khoản và giữ dấu tick quyền tạo tệp trên Drive.',
+    ],
+    redirectUri: 'Redirect URI (dán vào Google Cloud Console)',
+    redirectWarn:
+      'Chưa khai báo Địa chỉ web của CRM (mục Email) — URI này đang lấy theo trình duyệt. Nếu CRM chạy sau proxy, hãy khai báo địa chỉ thật trước.',
+    reuseEmailClient: 'Dùng lại Client của mục Email',
+    clientId: 'Client ID',
+    clientSecret: 'Client Secret',
+    secretSaved: 'Đã lưu Client Secret — để trống nếu không muốn đổi',
+    connect: 'Lưu và đăng nhập Google',
+    reconnect: 'Đăng nhập lại',
+    disconnect: 'Ngắt kết nối',
+    disconnected: 'Đã ngắt kết nối Google Drive',
+    connectedToast: 'Đã kết nối Google Drive — bản sao lưu đầu tiên sẽ chạy trong vài phút',
+    enabled: 'Tự sao lưu theo lịch',
+    interval: 'Chạy',
+    keepDb: 'Giữ lại số bản sao CSDL',
+    keepDbHint:
+      'Bản cũ hơn bị xoá khỏi Drive. Tệp tải lên thì được giữ mãi, kể cả khi đã xoá khỏi CRM.',
+    save: 'Lưu cấu hình',
+    saved: 'Đã lưu cấu hình sao lưu Drive',
+    runNow: 'Sao lưu lên Drive ngay',
+    running: 'Đang sao lưu…',
+    runStarted: 'Đã bắt đầu sao lưu — có thể mất vài phút',
+    lastSuccess: 'Lần thành công gần nhất',
+    never: 'Chưa có',
+    lastDb: 'Bản sao CSDL',
+    lastFiles: 'Tệp tải lên',
+    filesSummary: '{uploaded} tệp mới, {failed} lỗi',
+    onDrive: '{n} tệp đã có trên Drive',
+    pending: '{n} tệp đang chờ sao lưu',
+    nextRun: 'Lần chạy tiếp theo',
+    restoreTitle: 'Khôi phục tệp bị mất',
+    restoreHint:
+      '{n} tệp mà CRM cần đã không còn trên máy chủ nhưng có bản trên Drive. Chỉ thêm tệp thiếu, không ghi đè tệp đang có.',
+    restoreNoBackup:
+      '{n} tệp khác cũng bị mất nhưng chưa từng được sao lưu lên Drive nên không khôi phục được.',
+    restore: 'Khôi phục {n} tệp',
+    restoreDone: 'Đã khôi phục {restored} tệp, {failed} lỗi, {none} tệp không có bản sao lưu.',
+    intervals: [
+      [6, 'Mỗi 6 giờ'],
+      [12, 'Mỗi 12 giờ'],
+      [24, 'Mỗi ngày'],
+      [72, 'Mỗi 3 ngày'],
+      [168, 'Mỗi tuần'],
+    ] as [number, string][],
+  },
   routeError: {
     /* Loi tai chunk: hay gap nhat khi deploy ban moi trong luc tab dang mo — ban
        cu tro toi file .js da bi thay the. Nguoi dung chi can tai lai trang. */
@@ -819,7 +880,8 @@ export const t = {
     tabAbout: 'Giới thiệu',
     scoringTitle: 'Chấm điểm cơ hội (BANT + 4P)',
     backup: 'Sao lưu & xuất dữ liệu',
-    backupChoiceHint: 'Chọn tải bản sao lưu về máy hoặc gửi trực tiếp vào nhóm Telegram.',
+    backupChoiceHint:
+      'Chọn tải bản sao lưu về máy hoặc gửi trực tiếp vào nhóm Telegram. Hai nút này chỉ sao lưu cơ sở dữ liệu, không gồm tệp tải lên — tệp được sao lưu bằng mục Google Drive bên dưới.',
     backupDownload: 'Tải về máy',
     backupSendTelegram: 'Gửi qua Telegram',
     backupTelegramNotReady: 'Chưa cấu hình Telegram (xem tab Telegram) để gửi sao lưu',

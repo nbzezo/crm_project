@@ -7,6 +7,8 @@ declare module 'express-session' {
     username?: string;
     /** Chong CSRF cho luong dang nhap Google o routes/email.ts. Dung mot lan. */
     googleOAuthState?: string;
+    /** Nhu tren, cho luong dang nhap Google cua sao luu Drive (routes/driveBackup.ts). */
+    driveOAuthState?: string;
   }
 }
 

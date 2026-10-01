@@ -32,6 +32,7 @@ import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
+import { DriveBackupSettings } from '../components/settings/DriveBackupSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
 import { UserSettings } from '../components/settings/UserSettings';
 import { OrgChartSettings } from '../components/settings/OrgChartSettings';
@@ -284,6 +285,8 @@ function DataSettings() {
           </div>
         )}
       </Panel>
+
+      <DriveBackupSettings />
 
       <Panel title={t.settings.sampleData}>
         <p className="text-sm text-tr-subtle">

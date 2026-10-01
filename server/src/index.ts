@@ -7,6 +7,7 @@ import { closeDatabase } from './db/connection.ts';
 import { db } from './db/connection.ts';
 import { ensureAdminUser } from './services/auth/bootstrapAdmin.ts';
 import { startAiAutomationScheduler } from './services/ai/automations.ts';
+import { startDriveBackupScheduler } from './services/backup/driveBackup.ts';
 import { startBackupTelegramScheduler } from './services/telegram/telegramBackup.ts';
 import { startTelegramNotifierScheduler } from './services/telegram/telegramNotifier.ts';
 
@@ -18,6 +19,7 @@ const app = createApp();
 startAiAutomationScheduler(db);
 startTelegramNotifierScheduler(db);
 startBackupTelegramScheduler(db);
+startDriveBackupScheduler(db);
 const server = app.listen(PORT, () => {
   console.log(`[api] WorkFlow server dang chay tai http://localhost:${PORT}`);
 });

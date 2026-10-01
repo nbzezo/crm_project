@@ -34,12 +34,14 @@ export function buildGoogleAuthUrl(input: {
   redirectUri: string;
   state: string;
   loginHint?: string;
+  /** Mac dinh la quyen gui thu. Sao luu Drive truyen scope rieng cua no. */
+  scopes?: string[];
 }): string {
   const params = new URLSearchParams({
     client_id: input.clientId,
     redirect_uri: input.redirectUri,
     response_type: 'code',
-    scope: GOOGLE_SCOPES.join(' '),
+    scope: (input.scopes ?? GOOGLE_SCOPES).join(' '),
     /* `offline` + `consent`: Google chi tra refresh token o lan dong y DAU TIEN.
        Khong ep `consent` thi lan ket noi lai (sau khi ngat) se khong co refresh
        token va CRM khong gui duoc thu nao sau mot gio. */
@@ -99,11 +101,18 @@ function explainGoogleError(code?: string, description?: string): string {
   return `Google từ chối yêu cầu: ${detail}`;
 }
 
-/** Doi `code` tu trang dong y lay refresh token, va dia chi Gmail vua dang nhap. */
+const DEFAULT_MISSING_SCOPE_MESSAGE =
+  'Bạn chưa cho phép quyền "Gửi email thay bạn" — hãy đăng nhập lại và giữ dấu tick đó.';
+
+/** Doi `code` tu trang dong y lay refresh token, va dia chi Google vua dang nhap. */
 export async function exchangeGoogleCode(
   client: GoogleClient,
   code: string,
-  redirectUri: string
+  redirectUri: string,
+  required: { scope: string; missingMessage: string } = {
+    scope: GMAIL_SEND_SCOPE,
+    missingMessage: DEFAULT_MISSING_SCOPE_MESSAGE,
+  }
 ): Promise<{ refreshToken: string; account: string }> {
   const token = await postToken({
     code,
@@ -113,14 +122,11 @@ export async function exchangeGoogleCode(
     grant_type: 'authorization_code',
   });
 
-  /* Man dong y cua Google cho bo tick tung quyen. Thieu `gmail.send` thi ket
-     noi "thanh cong" ma khong gui duoc thu nao — bao ngay luc nay thay vi luc
-     nguoi dung moi dau tien khong nhan duoc thu moi. */
-  if (!token.scope?.split(' ').includes(GMAIL_SEND_SCOPE)) {
-    throw new HttpError(
-      400,
-      'Bạn chưa cho phép quyền "Gửi email thay bạn" — hãy đăng nhập lại và giữ dấu tick đó.'
-    );
+  /* Man dong y cua Google cho bo tick tung quyen. Thieu quyen can thiet thi ket
+     noi "thanh cong" ma khong lam duoc viec gi — bao ngay luc nay thay vi luc
+     nguoi dung moi dau tien khong nhan duoc thu moi / ban sao luu dau tien hong. */
+  if (!token.scope?.split(' ').includes(required.scope)) {
+    throw new HttpError(400, required.missingMessage);
   }
   if (!token.refresh_token || !token.access_token) {
     throw new HttpError(502, 'Google không trả về refresh token — hãy đăng nhập lại.');
@@ -142,25 +148,27 @@ export async function exchangeGoogleCode(
 }
 
 /* Access token song mot gio. Nho lai trong bo nho de mot dot gui nhieu thu moi
-   khong goi Google xin token cho tung thu; khoa theo refresh token nen ket noi
-   lai bang tai khoan khac la tu bo token cu. */
-let cached: { refreshToken: string; accessToken: string; expiresAt: number } | null = null;
+   (hay mot dot len hang tram tep sao luu) khong goi Google xin token cho tung
+   lan. Khoa theo refresh token — email va sao luu Drive co hai refresh token
+   khac nhau cung ton tai, va ket noi lai bang tai khoan khac la tu bo token cu. */
+const cached = new Map<string, { accessToken: string; expiresAt: number }>();
 
 function rememberAccessToken(refreshToken: string, accessToken: string, expiresIn = 3600): void {
-  cached = { refreshToken, accessToken, expiresAt: Date.now() + (expiresIn - 60) * 1000 };
+  cached.set(refreshToken, { accessToken, expiresAt: Date.now() + (expiresIn - 60) * 1000 });
 }
 
-export function forgetGoogleAccessToken(): void {
-  cached = null;
+/** Bo token da nho: cua mot refresh token, hoac tat ca khi khong chi dinh. */
+export function forgetGoogleAccessToken(refreshToken?: string): void {
+  if (refreshToken) cached.delete(refreshToken);
+  else cached.clear();
 }
 
 export async function googleAccessToken(
   client: GoogleClient,
   refreshToken: string
 ): Promise<string> {
-  if (cached && cached.refreshToken === refreshToken && cached.expiresAt > Date.now()) {
-    return cached.accessToken;
-  }
+  const hit = cached.get(refreshToken);
+  if (hit && hit.expiresAt > Date.now()) return hit.accessToken;
   const token = await postToken({
     client_id: client.clientId,
     client_secret: client.clientSecret,

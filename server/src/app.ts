@@ -13,6 +13,7 @@ import auth from './routes/auth.ts';
 import users from './routes/users.ts';
 import orgUnits from './routes/orgUnits.ts';
 import positions from './routes/positions.ts';
+import driveBackup from './routes/driveBackup.ts';
 import email from './routes/email.ts';
 import boards from './routes/boards.ts';
 import lists from './routes/lists.ts';
@@ -137,6 +138,9 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/reminders', requireResource('tasks'), reminders);
   app.use('/api/notifications', notifications);
   app.use('/api/telegram', requireResource('settings.telegram'), telegram);
+  /* Truoc `app.use('/api', requireResource('deals'), scoring)` ben duoi: router do bat moi
+     duong /api chua khop va doi quyen `deals`, nen mount sau no se bi chan nham. */
+  app.use('/api/drive-backup', driveBackup);
   app.use('/api/nudges', requireResource('tasks'), nudges);
   app.use('/api/projects', requireResource('projects'), projects);
   app.use('/api/calendar', requireResource('tasks'), calendarEvents);

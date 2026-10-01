@@ -267,6 +267,37 @@ hiện ra ngoài thành cùng một mã 502. Bảng tra cứu ở
 - Nếu cấu hình `WORKFLOW_DATA_DIR`, hãy sao lưu toàn bộ thư mục đã cấu hình. Không chỉ copy file
   `app.db`, vì tài liệu tải lên nằm trong `files/` và các bản backup nằm trong `backups/`.
 
+### Sao lưu lên Google Drive
+
+Nút **Sao lưu ngay** và gửi qua Telegram chỉ sao lưu **cơ sở dữ liệu**, và mọi thứ (DB, tệp tải lên,
+bản sao lưu) cùng nằm trên một ổ của máy chủ. Mục **Cài đặt → Dữ liệu & sao lưu → Sao lưu lên Google
+Drive** thêm một bản nằm ngoài máy chủ:
+
+- Theo lịch (mặc định mỗi ngày) CRM nén CSDL đẩy vào thư mục `WorkFlow CRM — Sao lưu/database/`, giữ
+  14 bản gần nhất (chỉnh được), và đẩy mọi **tệp tải lên mới** vào `files/`. Tệp đã lên thì không tải
+  lại; tệp bị xoá khỏi CRM **không** bị xoá khỏi Drive. Tên gốc của tệp nằm trong mô tả tệp trên Drive.
+- CRM chỉ xin quyền `drive.file`: thấy và sửa được các tệp do chính nó tạo, không đọc được phần còn
+  lại của Drive.
+- Cần một OAuth client của Google (Web application) có bật **Google Drive API**; làm theo hướng dẫn
+  ngay trên màn hình. Có thể dùng lại client của phần email nhưng phải thêm Redirect URI của sao lưu
+  (`<địa chỉ CRM>/api/drive-backup/oauth/callback`) vào client đó. Nhớ đặt Publishing status là
+  *In production*, để *Testing* thì Google thu hồi quyền sau 7 ngày.
+- Bản sao CSDL chứa toàn bộ dữ liệu khách hàng và mật khẩu đã băm: dùng tài khoản Google của công
+  ty, bật xác minh 2 bước, không chia sẻ thư mục sao lưu.
+- Nút **Khôi phục tệp bị mất** tải lại các tệp CRM cần mà không còn trên máy chủ. Chỉ thêm tệp
+  thiếu, không ghi đè tệp đang có.
+
+**Khôi phục cơ sở dữ liệu khi mất máy chủ** (làm tay, vì thay `app.db` đang chạy từ giao diện web sẽ làm
+mất dữ liệu của mọi người kể từ lúc sao lưu):
+
+1. Dựng lại CRM trên máy mới, chưa cho người dùng vào. Dừng ứng dụng.
+2. Trên Drive, mở thư mục `WorkFlow CRM — Sao lưu/database/`, tải bản `app-….db.gz` mới nhất, giải nén
+   (`gunzip app-….db.gz`) và đổi tên thành `app.db` trong thư mục dữ liệu (`WORKFLOW_DATA_DIR`).
+3. Tải toàn bộ thư mục `files/` trên Drive vào `<thư mục dữ liệu>/files/`, giữ nguyên tên tệp.
+4. Khởi động lại. Mật khẩu SMTP, API key AI và token Google trong CSDL được mã hoá bằng khoá
+   `.ai-master.key` nằm trong thư mục dữ liệu và **không** có trong bản sao lưu — nếu mất khoá, nhập lại
+   các cấu hình đó (Email, AI, Telegram, Drive) sau khi khôi phục. Nên tự cất riêng một bản `.ai-master.key`.
+
 ## Cấu trúc
 
 ```
