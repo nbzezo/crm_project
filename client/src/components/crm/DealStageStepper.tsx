@@ -64,6 +64,7 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
               disabled={active}
               aria-current={active ? 'step' : undefined}
               data-active={active ? 'true' : undefined}
+              data-passed={passed ? 'true' : undefined}
               onClick={() => go(stage)}
               title={active ? undefined : `Chuyển sang: ${t.stage[stage]}`}
               className={`min-h-11 shrink-0 snap-center rounded-compact px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition disabled:cursor-default fine:min-h-0 ${focusRing} ${

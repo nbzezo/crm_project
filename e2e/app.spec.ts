@@ -34,6 +34,33 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+type Page = import('@playwright/test').Page;
+type TestInfo = import('@playwright/test').TestInfo;
+
+/** Duoi md app khong co thanh ben: dieu huong la thanh tab day + sheet "Thêm". */
+function isMobile(testInfo: TestInfo): boolean {
+  return testInfo.project.name === 'mobile-chromium';
+}
+
+/**
+ * Bam mot muc dieu huong chinh BEN TRONG app (khong `page.goto`). Desktop: lien
+ * ket o thanh ben. Mobile: mo sheet "Tất cả mục" tu tab "Thêm" roi bam lien ket
+ * trong do — nut hamburger cu da bo tu khi co thanh tab.
+ */
+async function clickNavLink(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  if (isMobile(testInfo)) {
+    await page
+      .getByRole('navigation', { name: 'Điều hướng chính' })
+      .getByRole('button', { name: 'Thêm' })
+      .click();
+    const sheet = page.getByRole('dialog', { name: 'Tất cả mục' });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole('link', { name, exact: true }).click();
+    return;
+  }
+  await page.getByRole('link', { name, exact: true }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   // E2E khong phu thuoc mang ngoai: font da co fallback he thong trong CSS.
   await page.route('https://fonts.googleapis.com/**', (route) =>
@@ -193,9 +220,10 @@ test('notification center xu ly, hoan tac va mo dung ngu canh lich', async ({
   await expect(page.getByText(`Đã hoàn thành “${title}”`)).toBeVisible();
   await expect(center.getByText(title, { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Hoàn tác' }).click();
-  // Toast nam ngoai popover nen click Hoan tac dong popover theo dung quy tac
-  // click-outside. Mo lai de kiem tra du lieu da duoc khoi phuc.
-  await bell.click();
+  // Desktop: toast nam ngoai popover nen click Hoan tac dong popover theo dung
+  // quy tac click-outside. Mobile: toast nam TREN sheet nen sheet van mo. Mo lai
+  // neu can de kiem tra du lieu da duoc khoi phuc.
+  if (!(await center.isVisible())) await bell.click();
   await expect(center).toBeVisible();
   await expect(center.getByText(title, { exact: true })).toBeVisible();
 
@@ -237,34 +265,42 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
 
   await page.goto('/settings');
   const tabs = page.getByRole('tab');
-  /* Cột nhóm dọc thay dải tab ngang: mười một mục không bao giờ vừa một hàng
-     trong khung 896px, và năm mục cuối trước đây nằm ngoài màn hình mà không có
-     dấu hiệu gì. Khẳng định hướng để không ai vô tình đổi ngược lại. */
-  await expect(page.getByRole('tablist')).toHaveAttribute('aria-orientation', 'vertical');
-  /*
-   * Điều đang được bảo vệ là ĐIỀU HƯỚNG BÀN PHÍM của tablist, không phải số tab —
-   * nên `End` bám theo tab cuối cùng thay vì một chỉ số cứng. Đếm cứng khiến mỗi
-   * lần thêm một mục Cài đặt lại làm hỏng một bài test không liên quan gì.
-   */
-  /* `count()` đọc một lần, không tự thử lại như `toHaveCount` — gọi thẳng sẽ đếm
-     phải trang chưa render xong của route lazy và luôn ra 0. */
-  await expect(tabs.first()).toBeVisible();
-  const tabCount = await tabs.count();
-  expect(tabCount).toBeGreaterThanOrEqual(4);
+  /* Duoi md Cai dat la mau "danh sach -> panel": chon mot muc thi danh sach
+     nhuong cho panel (xem bai "mobile layout > cài đặt mở panel..."), nen dieu
+     huong ban phim giua cac tab chi co nghia tren desktop. */
+  if (!isMobile(testInfo)) {
+    /* Cột nhóm dọc thay dải tab ngang: mười một mục không bao giờ vừa một hàng
+       trong khung 896px, và năm mục cuối trước đây nằm ngoài màn hình mà không có
+       dấu hiệu gì. Khẳng định hướng để không ai vô tình đổi ngược lại. */
+    await expect(page.getByRole('tablist')).toHaveAttribute('aria-orientation', 'vertical');
+    /*
+     * Điều đang được bảo vệ là ĐIỀU HƯỚNG BÀN PHÍM của tablist, không phải số tab —
+     * nên `End` bám theo tab cuối cùng thay vì một chỉ số cứng. Đếm cứng khiến mỗi
+     * lần thêm một mục Cài đặt lại làm hỏng một bài test không liên quan gì.
+     */
+    /* `count()` đọc một lần, không tự thử lại như `toHaveCount` — gọi thẳng sẽ đếm
+       phải trang chưa render xong của route lazy và luôn ra 0. */
+    await expect(tabs.first()).toBeVisible();
+    const tabCount = await tabs.count();
+    expect(tabCount).toBeGreaterThanOrEqual(4);
 
-  await tabs.nth(0).focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(tabs.nth(1)).toBeFocused();
-  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await tabs.nth(0).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(tabs.nth(1)).toBeFocused();
+    await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
 
-  await page.keyboard.press('End');
-  await expect(tabs.nth(tabCount - 1)).toBeFocused();
-  await expect(tabs.nth(tabCount - 1)).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('End');
+    await expect(tabs.nth(tabCount - 1)).toBeFocused();
+    await expect(tabs.nth(tabCount - 1)).toHaveAttribute('aria-selected', 'true');
 
-  await page.keyboard.press('Home');
-  await expect(tabs.nth(0)).toBeFocused();
-  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'settingstab-users');
+    await page.keyboard.press('Home');
+    await expect(tabs.nth(0)).toBeFocused();
+    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel')).toHaveAttribute(
+      'aria-labelledby',
+      'settingstab-users'
+    );
+  }
 
   /* Tab nằm trong URL: F5 phải giữ đúng chỗ đang xem, và link gửi được cho
      người khác. Trước đây nó là useState nên cả hai đều không làm được. */
@@ -275,6 +311,8 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
     'aria-labelledby',
     'settingstab-positions'
   );
+  // Mobile: panel dang mo che danh sach — quay lai danh sach truoc khi chon muc khac.
+  if (isMobile(testInfo)) await page.getByRole('button', { name: 'Cài đặt' }).click();
 
   await tabs.filter({ hasText: 'Giới thiệu' }).click();
   await expect(page).toHaveURL(/tab=about/);
@@ -465,13 +503,19 @@ test('timeline full-width, filter, tooltip, group va responsive sidebar', async 
   const canvasBox = await canvas.boundingBox();
   expect(canvasBox?.width ?? 0).toBeGreaterThanOrEqual((scrollBox?.width ?? 0) - 1);
 
-  const labelColumn = page.getByTestId('timeline-label-column');
-  const labelBefore = await labelColumn.boundingBox();
-  const resizeHandle = page.getByRole('separator', { name: 'Thay đổi độ rộng cột công việc' });
-  await resizeHandle.focus();
-  await page.keyboard.press('ArrowRight');
-  const labelAfter = await labelColumn.boundingBox();
-  expect(labelAfter?.width ?? 0).toBeGreaterThan(labelBefore?.width ?? 0);
+  /* Man hep: cot cong viec co dinh 136px va tay nam doi do rong bi an co chu
+     dich (TimelineView, `isNarrow`) — chi kiem doi do rong tren desktop. */
+  if (!isMobile(testInfo)) {
+    const labelColumn = page.getByTestId('timeline-label-column');
+    const labelBefore = await labelColumn.boundingBox();
+    const resizeHandle = page.getByRole('separator', {
+      name: 'Thay đổi độ rộng cột công việc',
+    });
+    await resizeHandle.focus();
+    await page.keyboard.press('ArrowRight');
+    const labelAfter = await labelColumn.boundingBox();
+    expect(labelAfter?.width ?? 0).toBeGreaterThan(labelBefore?.width ?? 0);
+  }
 
   const groupButton = page.getByRole('button', { name: new RegExp(escapeRegex(listName ?? '')) });
   await expect(page.getByTitle(taskTitle)).toBeVisible();
@@ -569,11 +613,15 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
   await page.goto('/tasks');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Công việc');
   await expect(page.getByRole('button', { name: 'Thêm công việc' })).toBeVisible();
-  const taskRow = page.getByRole('button', { name: cardTitle, exact: true });
+  // Dong the tren mobile doc ca han/trang thai vao ten nut, nen so khop phan dau.
+  const taskRow = isMobile(testInfo)
+    ? page.getByRole('button', { name: new RegExp(`^${escapeRegex(cardTitle)}`) })
+    : page.getByRole('button', { name: cardTitle, exact: true });
   await expect(taskRow).toBeVisible();
 
   // Loc theo dung nguoi do — viec phai con lai.
-  await page.getByRole('button', { name: 'Bộ lọc nâng cao' }).click();
+  // Cung mot nut: nhan "Lọc & sắp xếp" duoi lg, "Bộ lọc nâng cao" tu lg.
+  await page.getByRole('button', { name: /Bộ lọc nâng cao|Lọc & sắp xếp/ }).click();
   /* `exact: true`: `name` cua getByRole so khop theo CHUOI CON, ma AssigneePicker
      (role="combobox" — xem Combobox.tsx) co nhan dang "Người phụ trách: <ten viec>"
      nen khong exact thi `.first()` bat nham no thay vi o loc. */
@@ -696,19 +744,28 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
     .getByRole('dialog', { name: 'Dạng xem' })
     .getByRole('button', { name: /Bảng tính/ })
     .click();
-  const assigneePicker = page.getByRole('combobox', {
-    name: `Người phụ trách: ${taskTitle}`,
-  });
-  await assigneePicker.click();
-  await page
-    .getByRole('dialog', { name: `Người phụ trách: ${taskTitle}` })
-    .getByRole('button', { name: new RegExp(escapeRegex(assigneeName)) })
-    .click();
-  await expect(assigneePicker).toContainText(assigneeName);
+  /* Duoi md "Bảng tính" hien thanh danh sach the (bang khong vua man hinh), nen
+     khong co o sua truc tiep Người phụ trách — ca nay chi co tren desktop. */
+  if (!isMobile(testInfo)) {
+    const assigneePicker = page.getByRole('combobox', {
+      name: `Người phụ trách: ${taskTitle}`,
+    });
+    await assigneePicker.click();
+    await page
+      .getByRole('dialog', { name: `Người phụ trách: ${taskTitle}` })
+      .getByRole('button', { name: new RegExp(escapeRegex(assigneeName)) })
+      .click();
+    await expect(assigneePicker).toContainText(assigneeName);
+  }
 
   /* Chip Dự án trong drawer là một bộ chọn thật. Combobox này nằm trong một
-     popover khác, nên ca này đồng thời chặn hồi quy popover cha đóng trước click. */
-  await page.getByRole('button', { name: taskTitle, exact: true }).click();
+     popover khác, nên ca này đồng thời chặn hồi quy popover cha đóng trước click.
+     Dong the tren mobile doc ca han/trang thai vao ten nut, nen so khop phan dau. */
+  await (
+    isMobile(testInfo)
+      ? page.getByRole('button', { name: new RegExp(`^${escapeRegex(taskTitle)}`) }).first()
+      : page.getByRole('button', { name: taskTitle, exact: true })
+  ).click();
   const drawer = page.getByRole('dialog', { name: taskTitle });
   await drawer.getByRole('button', { name: `Dự án: ${projectName}` }).click();
   await page.getByRole('combobox', { name: 'Chọn dự án cho công việc' }).click();
@@ -832,7 +889,9 @@ test('WCAG AA scan, skip-link va reflow 200%', async ({ page, request }, testInf
       const touchTargets =
         pathname === '/'
           ? [page.getByRole('button', { name: /Tìm thẻ/ })]
-          : await page.getByRole('button', { name: /Di chuyển danh sách/ }).all();
+          : /* Tay nam keo cot chi hien voi con tro hover (`hoverable:flex`); tren cam
+               ung thao tac cot di qua menu. */
+            await page.getByRole('button', { name: /Thao tác với danh sách/ }).all();
       expect(touchTargets.length).toBeGreaterThan(0);
       for (const target of touchTargets) {
         const box = await target.boundingBox();
@@ -904,12 +963,8 @@ test('quay lai giu vi tri cuon, dieu huong moi ve dau trang va doi focus', async
 
   /* Dieu huong BEN TRONG app, khong dung `page.goto`: goto la tai lai ca trang,
      ma vi tri cuon von duoc giu trong bo nho cua tai lieu — tai lai thi mat sach,
-     dung nhu ky vong. Duoi md thanh dieu huong nam trong ngan keo. */
-  if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-  }
-  await page.getByRole('link', { name: 'Báo cáo', exact: true }).click();
+     dung nhu ky vong. */
+  await clickNavLink(page, testInfo, 'Báo cáo');
   await expect(page).toHaveURL(/\/reports$/);
   /* "Ve dau trang", khong phai "dung bang 0 tai tich tac nay": doc ngay sau khi
      URL doi la doc vao luc bo cuc con dang on dinh, va vai pixel sai lech khong
@@ -925,12 +980,7 @@ test('quay lai giu vi tri cuon, dieu huong moi ve dau trang va doi focus', async
 test('dieu huong trong app dua focus vao vung noi dung', async ({ page }, testInfo) => {
   // `page.goto` la tai lai ca trang nen khong kiem tra duoc hanh vi nay — phai
   // dieu huong BEN TRONG app, tuc la bam mot lien ket cua react-router.
-  // Duoi md thanh dieu huong nam trong ngan keo, phai mo ra truoc.
-  if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-  }
-  await page.getByRole('link', { name: 'Báo cáo', exact: true }).click();
+  await clickNavLink(page, testInfo, 'Báo cáo');
   await expect(page).toHaveURL(/\/reports$/);
   await expect(page.locator('#main-content')).toBeFocused();
 });
@@ -967,12 +1017,7 @@ function collectPageErrors(page: import('@playwright/test').Page): string[] {
 test('ghi chu nhanh: mo trinh soan thao khong lam vo trang', async ({ page }, testInfo) => {
   const errors = collectPageErrors(page);
 
-  // Duoi md thanh dieu huong nam trong ngan keo, phai mo ra truoc.
-  if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('button', { name: 'Đóng menu điều hướng' }).click();
-  }
+  // Nut "Ghi nhanh" o thanh tren co mat ca desktop lan mobile.
   await page.getByRole('button', { name: 'Ghi nhanh', exact: true }).click();
   const board = page.getByRole('dialog', { name: 'Ghi chú nhanh' });
   await expect(board).toBeVisible();
@@ -989,28 +1034,51 @@ test('ghi chu nhanh: mo trinh soan thao khong lam vo trang', async ({ page }, te
   const viewport = page.viewportSize();
   const floatingBox = await floatingNote.boundingBox();
   expect(floatingBox).not.toBeNull();
-  expect(Math.round(floatingBox!.width)).toBe(Math.min(528, viewport!.width - 32));
-  expect(Math.round(floatingBox!.height)).toBe(Math.min(648, viewport!.height - 48));
+  if (isMobile(testInfo)) {
+    // Man hep: cua so ghi chu chiem tron man hinh va khong keo duoc (QuickNoteWindows, isNarrow).
+    expect(Math.round(floatingBox!.width)).toBe(viewport!.width);
+    expect(Math.round(floatingBox!.height)).toBe(viewport!.height);
+  } else {
+    expect(Math.round(floatingBox!.width)).toBe(Math.min(528, viewport!.width - 32));
+    expect(Math.round(floatingBox!.height)).toBe(Math.min(648, viewport!.height - 48));
 
-  // Trong luc keo chi dung transform (khong render lai ca Bang o tung pixel),
-  // khi tha moi chot toa do. ResizeObserver cung khong duoc lam cua so co dan.
-  const titleBar = floatingNote.locator(':scope > div').first();
-  const titleBarBox = await titleBar.boundingBox();
-  await page.mouse.move(titleBarBox!.x + 40, titleBarBox!.y + 20);
-  await page.mouse.down();
-  await page.mouse.move(titleBarBox!.x + 88, titleBarBox!.y + 52, { steps: 16 });
-  await expect
-    .poll(() => floatingNote.evaluate((node) => node.style.transform))
-    .toContain('translate3d');
-  await page.mouse.up();
-  await expect.poll(() => floatingNote.evaluate((node) => node.style.transform)).toBe('');
-  await page.waitForTimeout(150);
-  const stableBox = await floatingNote.boundingBox();
-  expect(Math.round(stableBox!.width)).toBe(Math.round(floatingBox!.width));
-  expect(Math.round(stableBox!.height)).toBe(Math.round(floatingBox!.height));
+    // Trong luc keo chi dung transform (khong render lai ca Bang o tung pixel),
+    // khi tha moi chot toa do. ResizeObserver cung khong duoc lam cua so co dan.
+    const titleBar = floatingNote.locator(':scope > div').first();
+    const titleBarBox = await titleBar.boundingBox();
+    await page.mouse.move(titleBarBox!.x + 40, titleBarBox!.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(titleBarBox!.x + 88, titleBarBox!.y + 52, { steps: 16 });
+    await expect
+      .poll(() => floatingNote.evaluate((node) => node.style.transform))
+      .toContain('translate3d');
+    await page.mouse.up();
+    await expect.poll(() => floatingNote.evaluate((node) => node.style.transform)).toBe('');
+    await page.waitForTimeout(150);
+    const stableBox = await floatingNote.boundingBox();
+    expect(Math.round(stableBox!.width)).toBe(Math.round(floatingBox!.width));
+    expect(Math.round(stableBox!.height)).toBe(Math.round(floatingBox!.height));
+  }
 
   await editor.pressSequentially('Ghi chu kiem thu');
   await expect(editor).toContainText('Ghi chu kiem thu');
+
+  if (isMobile(testInfo)) {
+    /* Man hep khong co khay bong bong: "Quay lại" thu ghi chu vao vien
+       "Ghi nhanh · N", bam vien mo danh sach cac ghi chu dang mo. */
+    await page.getByRole('button', { name: 'Quay lại danh sách ghi nhanh' }).click();
+    await expect(page.getByRole('button', { name: 'Ghi nhanh · 1' })).toBeVisible();
+    await board.getByRole('button', { name: 'Ghi chú mới' }).click();
+    await expect(page.locator('.bn-editor[contenteditable="true"]')).toBeVisible();
+    await page.getByRole('button', { name: 'Quay lại danh sách ghi nhanh' }).click();
+    await page.getByRole('button', { name: 'Ghi nhanh · 2' }).click();
+    const openList = page.getByRole('dialog', { name: 'Ghi nhanh đang mở' });
+    await expect(openList).toBeVisible();
+    await expect(openList.getByRole('button', { name: /^Ghi chú #/ })).toHaveCount(2);
+    await expect(page.getByText('Trang này gặp lỗi')).toHaveCount(0);
+    expect(errors).toEqual([]);
+    return;
+  }
 
   // Moi ghi chu la mot cua so rieng. Thu nho khong unmount editor (autosave van
   // chay), va nhieu ghi chu thu nho duoc gom vao cung mot khay bong bong.
@@ -1200,7 +1268,23 @@ test('o nhap ngay doc dd/MM/yyyy chu khong phai mm/dd/yyyy', async ({ page }) =>
   await expect(signDate).toHaveValue('03/04/2027');
 });
 
-test('menu Tạo nhanh: nhóm, phím tắt, bàn phím và a11y', async ({ page }) => {
+test('menu Tạo nhanh: nhóm, phím tắt, bàn phím và a11y', async ({ page }, testInfo) => {
+  if (isMobile(testInfo)) {
+    /* Mobile khong co FAB: tab "Tạo" giua thanh day mo bottom sheet cung cac muc. */
+    await page
+      .getByRole('navigation', { name: 'Điều hướng chính' })
+      .getByRole('button', { name: 'Tạo' })
+      .click();
+    const sheet = page.getByRole('dialog', { name: 'Tạo nhanh' });
+    await expect(sheet).toBeVisible();
+    for (const name of ['Cơ hội', 'Khách hàng', 'Công việc', 'Ghi nhanh', 'Trang tài liệu']) {
+      await expect(sheet.getByRole('button', { name, exact: true })).toBeVisible();
+    }
+    await expectNoViolations(page, 'sheet Tạo nhanh đang mở');
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    return;
+  }
   const fab = page.getByRole('button', { name: 'Tạo nhanh' });
   await expect(fab).toBeVisible();
   await expect(fab).toHaveAttribute('aria-expanded', 'false');

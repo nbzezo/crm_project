@@ -71,6 +71,9 @@ Component chỉ gắn class/thuộc tính trung tính; class đó chỉ có styl
 | `tr-card-title` | Ô tiêu đề trong cửa sổ thẻ | 22 px (mobile), 28 px từ `sm` |
 | `tr-modal-title` | Tiêu đề `Modal` | 24 px in hoa hẹp |
 | `tr-stage-stepper` + `data-active` | Thanh giai đoạn cơ hội | Viên thuốc đánh số, bước hiện tại tô đen |
+| `data-passed` | Nút các bước đã qua trong thanh giai đoạn | Dưới `md`: thanh gọn — bước đã qua là vòng đen có dấu tick, bước sau là vòng số, chỉ bước hiện tại giữ nhãn (mockup 1e) |
+| `tr-kpi-grid` | Lưới KPI trên Tổng quan | Các ô dính viền thành một lưới, khe 1 px (mockup 1a/2a) |
+| `tr-list` | Gốc cột Kanban (cả cột thu gọn) | Nền trắng, viền 1 px (mockup 2b) |
 
 Thành phần dùng chung đã có class định danh (`.tr-button-*`, `.tr-modal`,
 `.tr-tab`, `table > thead`, `.tr-empty-state`) được skin thẳng trong khối mono,

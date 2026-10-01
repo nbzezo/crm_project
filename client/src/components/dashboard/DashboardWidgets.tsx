@@ -157,7 +157,8 @@ export function KpiSummary({
       <h2 id="kpi-summary-title" className="sr-only">
         Tình hình kinh doanh và cảnh báo chính
       </h2>
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+      {/* tr-kpi-grid: moc theme Don sac — o KPI dinh vien thanh mot luoi (mockup 1a/2a). */}
+      <div className="tr-kpi-grid grid grid-cols-2 gap-2.5 md:grid-cols-4">
         {ordered.map((metric) => (
           <Metric key={metric.label} {...metric} />
         ))}

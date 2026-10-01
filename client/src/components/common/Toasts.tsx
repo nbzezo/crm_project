@@ -55,8 +55,11 @@ export function Toasts() {
       onBlurCapture={release}
       /* Nang len tren nut "Tạo nhanh": FAB ghim `right-5 bottom-5` (56px cao) nen
          voi `bottom-4` toast de chong len no — axe bao target-size vi nut bi che
-         mot phan, va tren mobile nguoi dung khong bam duoc nut Hoàn tác. */
-      className="pointer-events-none fixed right-4 bottom-[calc(var(--tr-tabbar-h)+1rem)] z-toast flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2 md:right-8 md:bottom-28"
+         mot phan, va tren mobile nguoi dung khong bam duoc nut Hoàn tác.
+         Duoi md popover la bottom sheet kem lop phu toan man hinh o z-popover;
+         tang z-toast-mobile dat toast TREN lop do de "Hoàn tác" van bam duoc khi
+         sheet dang mo (vd. bam "Hoàn thành" trong chuong thong bao). */
+      className="pointer-events-none fixed right-4 bottom-[calc(var(--tr-tabbar-h)+1rem)] z-toast max-md:z-toast-mobile flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2 md:right-8 md:bottom-28"
     >
       {toasts.map((toast) => (
         <div

@@ -707,7 +707,10 @@ export function TasksWorkspace() {
                   <Menu size={18} />
                 </button>
                 <div className="min-w-0">
-                  <h1 className="tr-display hidden truncate text-lg font-semibold text-tr-text lg:block">
+                  {/* sr-only (khong phai `hidden`) duoi lg: header mobile da du cho, nhung
+                      trang van can mot <h1> cho trinh doc man hinh va dieu huong theo
+                      tieu de — App chi chen h1 du phong khi route khong khai visibleHeading. */}
+                  <h1 className="tr-display truncate text-lg font-semibold text-tr-text max-lg:sr-only">
                     {scope === 'activity'
                       ? 'Hoạt động công việc'
                       : scope === 'completed'
