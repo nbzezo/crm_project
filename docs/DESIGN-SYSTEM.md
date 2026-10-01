@@ -49,6 +49,17 @@ tracking giãn cách để tạo cảm giác trang trí.
 - Tab, menu và modal phải dùng được hoàn toàn bằng bàn phím; trạng thái focus không được ẩn.
 - Không chỉ dùng màu để truyền đạt trạng thái: kèm nhãn văn bản hoặc biểu tượng có mô tả.
 
+## Mobile
+
+- Dưới `md`, điều hướng chính dùng `MobileTabBar` với năm vị trí; chiều cao nội dung lấy từ `--tr-tabbar-h` và mép dưới lấy từ `--tr-safe-bottom`.
+- Khi bàn phím ảo mở, `useViewportInsets` cập nhật `--tr-vvh` và `--tr-keyboard-inset`. Thanh nhập dính đáy phải dùng các biến này, không dùng chiều cao viewport cố định.
+- Menu và bộ lọc neo bằng `Popover` tự chuyển thành bottom sheet trên màn hình hẹp có con trỏ coarse. Sheet độc lập dùng `BottomSheet`; cả hai phải khóa cuộn nền, bẫy focus và tôn trọng safe-area.
+- Modal dưới `sm` chiếm toàn màn hình. Header/điều khiển đóng phải luôn thấy; phần thân là vùng cuộn riêng.
+- Control tương tác có vùng chạm tối thiểu 44 × 44 px trên thiết bị cảm ứng. Có thể thu nhỏ bằng biến thể `fine:` cho chuột.
+- Không ẩn thao tác chỉ bằng hover. Nếu desktop cần giao diện gọn, dùng `hoverable:opacity-0` và giữ trạng thái mặc định nhìn thấy trên cảm ứng.
+- Tên bảng, cột hoặc thẻ là văn bản tĩnh trên cảm ứng; thao tác đổi tên đi qua menu để tránh tự bật bàn phím. Desktop vẫn có thể sửa trực tiếp.
+- Kanban mobile dùng cột snap ngang theo viewport; `touch-action: none` chỉ đặt trên tay nắm kéo, không đặt trên toàn thẻ hoặc vùng cuộn.
+
 ## Kiểm tra tự động
 
 Chạy `npm run check:ui` để chặn bo góc, màu tùy ý và bảng màu nhãn bị khai báo lặp. Lệnh này cũng nằm trong `npm run check`.

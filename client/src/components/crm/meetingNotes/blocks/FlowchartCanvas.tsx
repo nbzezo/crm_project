@@ -64,8 +64,8 @@ export default function FlowchartCanvas({ block, editor }: CanvasProps) {
     <div
       contentEditable={false}
       data-flowchart-scope=""
-      className="my-1 rounded-panel border border-tr-border"
-      style={{ height: 480, width: '100%', minWidth: 0, position: 'relative', display: 'block' }}
+      className="my-1 h-[min(70dvh,520px)] rounded-panel border border-tr-border md:h-[480px]"
+      style={{ width: '100%', minWidth: 0, position: 'relative', display: 'block' }}
     >
       <style>{HEIGHT_FIX_CSS}</style>
       <Excalidraw

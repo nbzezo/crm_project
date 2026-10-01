@@ -95,6 +95,20 @@ for (const file of await walk(sourceRoot)) {
         `${relative}:${index + 1} khai báo bảng màu nhãn riêng; hãy dùng theme/palettes.`
       );
     }
+    if (/\.tsx$/.test(relative) && /\b(?:uppercase|tracking-wide)\b/.test(codeLines[index] ?? '')) {
+      findings.push(
+        `${relative}:${index + 1} dùng chữ hoa/giãn chữ trang trí; giữ kiểu chữ câu thông thường.`
+      );
+    }
+    if (
+      /\.tsx$/.test(relative) &&
+      /opacity-0.*group-hover:opacity-100/.test(codeLines[index] ?? '') &&
+      !/(?:hoverable|fine|lg):opacity-0/.test(codeLines[index] ?? '')
+    ) {
+      findings.push(
+        `${relative}:${index + 1} ẩn thao tác chỉ bằng hover; trên màn cảm ứng thao tác phải luôn hiện.`
+      );
+    }
     if (
       /\.tsx?$/.test(relative) &&
       !HEX_ALLOWED_FILES.has(relative) &&

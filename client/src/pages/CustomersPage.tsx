@@ -549,7 +549,7 @@ function CustomerTable({
     <div className="tr-scroll overflow-x-auto rounded-modal border border-tr-border bg-tr-panel shadow-sm">
       <table className="w-full min-w-[62rem] table-fixed text-sm">
         <caption className="sr-only">Danh sách khách hàng và các tín hiệu cần chăm sóc</caption>
-        <thead className="sticky top-0 z-10 bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
+        <thead className="sticky top-0 z-10 bg-tr-surface text-left text-xs text-tr-subtle shadow-[0_1px_0_var(--tr-border)]">
           <tr>
             <th scope="col" className="w-[22%] px-4 py-3">
               Khách hàng
@@ -795,7 +795,7 @@ function CustomerMobileList({
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                <p className="text-xs font-semibold text-tr-muted">
                   Sức khỏe
                 </p>
                 <div className="mt-1">
@@ -803,7 +803,7 @@ function CustomerMobileList({
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                <p className="text-xs font-semibold text-tr-muted">
                   Việc tiếp theo
                 </p>
                 <div className="mt-1">

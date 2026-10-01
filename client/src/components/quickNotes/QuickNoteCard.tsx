@@ -150,16 +150,12 @@ function MoreMenu({
   return (
     <div className="w-72">
       <div className="mb-3">
-        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-          Màu
-        </div>
+        <div className="mb-1.5 text-xs font-semibold text-tr-muted">Màu</div>
         <ColorPickerMenu note={note} />
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-          Tag
-        </div>
+        <div className="mb-1.5 text-xs font-semibold text-tr-muted">Tag</div>
         <div className="flex flex-wrap items-center gap-1.5">
           {tags.map((tag) => (
             <span
@@ -195,9 +191,7 @@ function MoreMenu({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-          Reminder
-        </div>
+        <div className="mb-1.5 text-xs font-semibold text-tr-muted">Reminder</div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="w-64">
             <DateTimeInput
@@ -215,9 +209,7 @@ function MoreMenu({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-          Gắn vào CRM
-        </div>
+        <div className="mb-1.5 text-xs font-semibold text-tr-muted">Gắn vào CRM</div>
         <QuickNoteRelations
           relations={note.relations}
           onChange={(relations) => syncRelations.mutate({ id: note.id, relations })}
@@ -225,9 +217,7 @@ function MoreMenu({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
-          Đính kèm file
-        </div>
+        <div className="mb-1.5 text-xs font-semibold text-tr-muted">Đính kèm file</div>
         <QuickNoteAttachments noteId={note.id} />
       </div>
 
@@ -416,7 +406,7 @@ function PreviewCard({
       {/* `top-1.5` chu khong phai `top-2`: cum nut cao 26px, dat o 6px thi ket
           thuc dung trong dong dau cua tieu de (o troi ben tren da chua cho),
           de o 8px thi met chu cua dong thu hai. */}
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-100 transition hoverable:opacity-0 hoverable:group-hover:opacity-100 hoverable:group-focus-within:opacity-100">
         {note.deleted_at ? (
           <>
             <button

@@ -1,6 +1,7 @@
 import { CalendarDays, ChevronDown, GanttChartSquare, Table2, Trello } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { t } from '../../i18n/vi';
+import { focusRing } from '../common/ui';
 
 export type BoardViewMode = 'board' | 'calendar' | 'timeline' | 'table';
 
@@ -64,13 +65,13 @@ export function BoardViewDock({
   onChange: (mode: BoardViewMode) => void;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
-      <nav className="tr-popover-shadow pointer-events-auto flex items-center gap-1 rounded-lg border border-tr-border bg-tr-panel p-1">
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center max-md:hidden">
+      <nav className="tr-popover-shadow pointer-events-auto flex items-center gap-1 rounded-panel border border-tr-border bg-tr-panel p-1">
         {BOARD_VIEWS.map(({ value: mode, label, icon: Icon }) => (
           <button
             key={mode}
             onClick={() => onChange(mode)}
-            className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition ${
+            className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm transition ${
               value === mode
                 ? 'bg-tr-hover font-medium text-tr-primary'
                 : 'text-tr-subtle hover:bg-tr-hover'
@@ -81,6 +82,39 @@ export function BoardViewDock({
           </button>
         ))}
       </nav>
+    </div>
+  );
+}
+
+export function BoardViewSegmented({
+  value,
+  onChange,
+}: {
+  value: BoardViewMode;
+  onChange: (mode: BoardViewMode) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Dạng xem"
+      className="flex w-full gap-1 rounded-panel bg-white/10 p-1"
+    >
+      {BOARD_VIEWS.map(({ value: mode, label, icon: Icon }) => {
+        const active = mode === value;
+        return (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={active}
+            aria-label={label}
+            onClick={() => onChange(mode)}
+            className={`flex h-11 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-control text-sm font-semibold whitespace-nowrap transition ${focusRing} ${active ? 'flex-[2.4] bg-tr-panel text-tr-primary' : 'flex-1 text-white hover:bg-white/15'}`}
+          >
+            <Icon size={17} aria-hidden="true" />
+            {active && <span className="truncate">{label}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

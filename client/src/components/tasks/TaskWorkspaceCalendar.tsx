@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import type { TaskRow } from '../../types';
 import { Button, focusRing } from '../common/ui';
+import { TaskCardRow } from './TaskCardRow';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -70,14 +71,31 @@ export function TaskWorkspaceCalendar({ tasks }: { tasks: TaskRow[] }) {
           {format(month, "'Tháng' M, yyyy", { locale: vi })}
         </h2>
       </header>
-      <div className="grid min-w-[760px] grid-cols-7 border-b border-tr-border bg-tr-surface">
+      <div className="tr-scroll max-h-[65dvh] overflow-y-auto md:hidden">
+        {days
+          .filter(
+            (day) =>
+              isSameMonth(day, month) && (byDay.get(format(day, 'yyyy-MM-dd'))?.length ?? 0) > 0
+          )
+          .map((day) => (
+            <div key={format(day, 'yyyy-MM-dd')}>
+              <h3 className="sticky top-0 z-10 bg-tr-surface px-3 py-2 text-sm font-semibold text-tr-text">
+                {format(day, 'EEEE, d/M', { locale: vi })}
+              </h3>
+              {(byDay.get(format(day, 'yyyy-MM-dd')) ?? []).map((task) => (
+                <TaskCardRow key={task.id} task={task} onOpen={() => openCard(task.id, 'drawer')} />
+              ))}
+            </div>
+          ))}
+      </div>
+      <div className="hidden min-w-[760px] grid-cols-7 border-b border-tr-border bg-tr-surface md:grid">
         {WEEKDAYS.map((day) => (
           <div key={day} className="px-2 py-2 text-center text-xs font-semibold text-tr-subtle">
             {day}
           </div>
         ))}
       </div>
-      <div className="tr-scroll overflow-x-auto">
+      <div className="tr-scroll hidden overflow-x-auto md:block">
         <div className="grid min-w-[760px] grid-cols-7">
           {days.map((day) => {
             const key = format(day, 'yyyy-MM-dd');

@@ -123,6 +123,10 @@
 
 /* ---------- Che do sang ---------- */
 :root {
+  --tr-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tr-tabbar-h: calc(56px + var(--tr-safe-bottom));
+  --tr-vvh: 100dvh;
+  --tr-keyboard-inset: 0px;
   color-scheme: light;
   --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235a5852' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --tr-page-bg: #a7adb8;
@@ -712,6 +716,36 @@ body {
   font-size: 16px;
 }
 
+/* Safari phong to trang khi focus mot o nhap duoi 16px tren cam ung. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']):not(
+      [class*='text-lg'],
+      [class*='text-xl'],
+      [class*='text-2xl']
+    ),
+  select:not([class*='text-lg'], [class*='text-xl']),
+  textarea:not([class*='text-lg'], [class*='text-xl']),
+  .meeting-note-canvas .bn-default-styles,
+  .quick-note-canvas .bn-default-styles {
+    font-size: 16px;
+  }
+}
+
+/* Cac hanh dong an cho hover phai hien tren thiet bi khong co hover. */
+@media (hover: none) {
+  [class*='group-hover:opacity-100'] {
+    opacity: 1;
+  }
+  [class*='group-hover:visible'] {
+    visibility: visible;
+  }
+  button[class*='group-hover:opacity-100'],
+  button[class*='group-hover:visible'] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (pointer: fine) {
   .tr-field-control {
     font-size: 14px;
@@ -769,6 +803,9 @@ select.tr-field-control {
   height: 100%;
   width: 100%;
   overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   background: var(--tr-shell-gradient);
 }
 
@@ -1270,6 +1307,11 @@ select.tr-field-control {
     transform: translateX(100%);
   }
 }
+@keyframes tr-slide-in-up {
+  from {
+    transform: translateY(100%);
+  }
+}
 @keyframes tr-toast-in {
   from {
     opacity: 0;
@@ -1293,6 +1335,9 @@ select.tr-field-control {
 }
 .tr-anim-slide-right {
   animation: tr-slide-in-right 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tr-anim-slide-up {
+  animation: tr-slide-in-up 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .tr-anim-toast {
   animation: tr-toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1);

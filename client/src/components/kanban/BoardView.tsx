@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCorners,
   useSensor,
@@ -42,7 +42,7 @@ import type { BoardFull, Card, CardStatus } from '../../types';
  * `meContactId` phai truyen vao thay vi doc trong ham: "Viec cua toi" duoc dinh
  * nghia boi contacts.is_me o may chu, va ham nay la ham thuan de con test duoc.
  */
-function matchesFilters(card: Card, f: BoardFilters, meContactId?: number | null): boolean {
+export function matchesFilters(card: Card, f: BoardFilters, meContactId?: number | null): boolean {
   if (f.q && !foldText(`${card.title} ${card.description ?? ''}`).includes(foldText(f.q)))
     return false;
   // FR-TAG-22: 'and' = phai co du moi nhan da chon; 'or' (mac dinh) = co it nhat mot
@@ -80,7 +80,13 @@ function matchesFilters(card: Card, f: BoardFilters, meContactId?: number | null
   return true;
 }
 
-export function BoardView({ board }: { board: BoardFull }) {
+export function BoardView({
+  board,
+  onActiveListChange,
+}: {
+  board: BoardFull;
+  onActiveListChange?: (index: number, total: number) => void;
+}) {
   const queryClient = useQueryClient();
   const openCard = useUiStore((s) => s.openCard);
   const filters = useUiStore((s) => s.boardFilters);
@@ -92,12 +98,15 @@ export function BoardView({ board }: { board: BoardFull }) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeListName, setActiveListName] = useState<string | null>(null);
   const dragSnapshot = useRef<BoardFull | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollFrame = useRef<number | null>(null);
+  const lastActiveIndex = useRef(-1);
   const [addingList, setAddingList] = useState(false);
   const [listDraft, setListDraft] = useState('');
   const [deleteListId, setDeleteListId] = useState<number | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     // Cham giu 200ms moi bat dau keo — duoi nguong do van la thao tac cuon.
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -372,6 +381,56 @@ export function BoardView({ board }: { board: BoardFull }) {
     [patchList]
   );
 
+  const reportActiveList = useCallback(() => {
+    const viewport = scrollRef.current;
+    const first = viewport?.firstElementChild as HTMLElement | null;
+    if (!viewport || !first || !board.lists.length) return;
+    const stride = first.offsetWidth + 12;
+    const index = Math.max(
+      0,
+      Math.min(board.lists.length - 1, Math.round(viewport.scrollLeft / stride))
+    );
+    if (index !== lastActiveIndex.current) {
+      lastActiveIndex.current = index;
+      onActiveListChange?.(index, board.lists.length);
+    }
+  }, [board.lists.length, onActiveListChange]);
+
+  useEffect(() => {
+    lastActiveIndex.current = -1;
+    reportActiveList();
+    return () => {
+      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    };
+  }, [reportActiveList]);
+
+  const handleMoveList = useCallback(
+    (listId: number, direction: -1 | 1) => {
+      const oldIdx = board.lists.findIndex((list) => list.id === listId);
+      const newIdx = oldIdx + direction;
+      if (oldIdx < 0 || newIdx < 0 || newIdx >= board.lists.length) return;
+      dragSnapshot.current = cloneBoard(board);
+      const next = cloneBoard(board);
+      next.lists = arrayMove(next.lists, oldIdx, newIdx);
+      setBoard(next);
+      moveList.mutate({
+        listId,
+        beforeId: newIdx > 0 ? next.lists[newIdx - 1].id : null,
+        afterId: newIdx < next.lists.length - 1 ? next.lists[newIdx + 1].id : null,
+      });
+      requestAnimationFrame(() => {
+        const viewport = scrollRef.current;
+        const column = viewport?.children[newIdx] as HTMLElement | undefined;
+        if (viewport && column)
+          viewport.scrollTo({
+            left: column.offsetLeft - viewport.offsetLeft - 12,
+            behavior: 'smooth',
+          });
+      });
+    },
+    [board, moveList, setBoard]
+  );
+
   /* Loc mot lan cho ca bang thay vi loc lai trong moi lan render cua tung cot. */
   const columns = useMemo(
     () =>
@@ -411,7 +470,14 @@ export function BoardView({ board }: { board: BoardFull }) {
           restoreDragSnapshot();
         }}
       >
-        <div className="tr-scroll-onboard flex h-full items-start gap-3 overflow-x-auto px-3 pt-3 pb-4">
+        <div
+          ref={scrollRef}
+          onScroll={() => {
+            if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+            scrollFrame.current = requestAnimationFrame(reportActiveList);
+          }}
+          className={`tr-scroll-onboard flex h-full snap-x snap-mandatory scroll-px-3 items-start gap-3 overflow-x-auto px-3 pt-3 pb-4 md:snap-none ${activeCard || activeListName ? 'snap-none' : ''}`}
+        >
           <SortableContext items={listIds} strategy={horizontalListSortingStrategy}>
             {columns.map(({ list, visible, hiddenCount }) => (
               <ListColumn
@@ -428,11 +494,16 @@ export function BoardView({ board }: { board: BoardFull }) {
                 onSortList={handleSortList}
                 onCollapseList={handleCollapseList}
                 onMapStatus={handleMapStatus}
+                onMoveList={handleMoveList}
+                canMoveLeft={board.lists.findIndex((entry) => entry.id === list.id) > 0}
+                canMoveRight={
+                  board.lists.findIndex((entry) => entry.id === list.id) < board.lists.length - 1
+                }
               />
             ))}
           </SortableContext>
 
-          <div className="w-[272px] shrink-0">
+          <div className="w-[min(calc(100vw-3rem),340px)] shrink-0 snap-start md:w-[272px]">
             {addingList ? (
               <div className="rounded-modal bg-tr-list p-2">
                 <input
@@ -478,7 +549,7 @@ export function BoardView({ board }: { board: BoardFull }) {
             <CardBody card={activeCard} labels={board.labels} onClick={() => {}} dragging />
           )}
           {activeListName && (
-            <div className="w-[272px] rotate-3 rounded-modal bg-tr-list px-3 py-2 text-sm font-semibold text-tr-text shadow-lg">
+            <div className="w-[min(calc(100vw-3rem),340px)] rotate-3 rounded-modal bg-tr-list px-3 py-2 text-sm font-semibold text-tr-text shadow-lg md:w-[272px]">
               {activeListName}
             </div>
           )}

@@ -78,7 +78,62 @@ export function CustomerServices({ customerId }: { customerId: number }) {
             <RevenueFunnelCards total={total} />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel">
+          <div className="divide-y divide-tr-border overflow-hidden rounded-panel border border-tr-border bg-tr-panel md:hidden">
+            {lines.map((line) => (
+              <article key={line.id} className="space-y-3 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMonthsFor(line)}
+                    className="min-h-11 min-w-0 flex-1 text-left"
+                  >
+                    <span className="block truncate text-sm font-semibold text-tr-text">
+                      {line.service_name || 'Chưa gán dịch vụ'}
+                    </span>
+                    <span className="block truncate text-xs text-tr-muted">
+                      {line.contract_name || line.am || 'Chưa có hợp đồng/AM'}
+                    </span>
+                  </button>
+                  <ColorBadge color={SERVICE_STATUS_COLORS[line.status]} small>
+                    {t.serviceStatus[line.status]}
+                  </ColorBadge>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <dt className="text-xs text-tr-muted">Dự kiến</dt>
+                    <dd className="truncate text-sm font-medium text-tr-subtle">
+                      {formatVND(line.totals.forecast_vnd)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-tr-muted">Tổng năm</dt>
+                    <dd className="truncate text-sm font-semibold text-tr-text">
+                      {formatVND(line.totals.amount_vnd)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-tr-muted">Đã thu</dt>
+                    <dd className="truncate text-sm font-medium text-tr-success">
+                      {formatVND(funnel(line.totals).paid)}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="flex items-center justify-between border-t border-tr-border pt-2">
+                  <span className="text-xs text-tr-muted">
+                    {formatDate(line.start_date) || '—'} → {formatDate(line.end_date) || '—'}
+                  </span>
+                  <RevenueLineActions
+                    line={line}
+                    onMonths={setMonthsFor}
+                    onEdit={(next) => setForm({ open: true, line: next })}
+                    onDelete={(next) => setDeleteId(next.id)}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-lg border border-tr-border bg-tr-panel md:block">
             <table className="w-full text-sm">
               <TableHead>
                 <tr>

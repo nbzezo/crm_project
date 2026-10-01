@@ -20,6 +20,7 @@ export function Tabs<T extends string>({
   className = '',
   panelClassName = '',
   orientation = 'horizontal',
+  mobileListMode,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -38,6 +39,8 @@ export function Tabs<T extends string>({
    * chiều rộng cho nội dung.
    */
   orientation?: 'horizontal' | 'vertical';
+  /** Settings: tren dien thoai chi hien danh sach hoac panel dang chon. */
+  mobileListMode?: 'list' | 'panel';
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const panelId = `${idPrefix}-panel`;
@@ -116,7 +119,7 @@ export function Tabs<T extends string>({
             <Fragment key={item.value}>
               <div
                 role="presentation"
-                className="mt-3 px-2.5 pb-1 text-[11px] font-semibold tracking-[0.06em] text-tr-muted uppercase first:mt-0"
+                className="mt-3 px-2.5 pb-1 text-xs font-semibold text-tr-muted first:mt-0"
               >
                 {item.group}
               </div>
@@ -134,7 +137,7 @@ export function Tabs<T extends string>({
       id={panelId}
       role="tabpanel"
       aria-labelledby={`${idPrefix}-${value}`}
-      className={panelClassName}
+      className={`${mobileListMode === 'list' ? 'max-md:hidden' : ''} ${panelClassName}`}
     >
       {children}
     </div>
@@ -153,7 +156,11 @@ export function Tabs<T extends string>({
      hẹp chính là nơi dải tab ngang hỏng nặng nhất. */
   return (
     <div className="grid gap-4 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:gap-6">
-      <div className="md:sticky md:top-4 md:self-start">{list}</div>
+      <div
+        className={`${mobileListMode === 'panel' ? 'max-md:hidden' : ''} md:sticky md:top-4 md:self-start`}
+      >
+        {list}
+      </div>
       {panel}
     </div>
   );

@@ -45,9 +45,13 @@ export const CardItem = memo(function CardItem({ card, labels, onClick }: Props)
   return (
     <div
       ref={setNodeRef}
-      /* touchAction: none — neu khong trinh duyet se cuop cu cham de cuon trang
-         va thao tac keo tren dien thoai gan nhu khong bao gio bat duoc. */
-      style={{ transform: CSS.Translate.toString(transform), transition, touchAction: 'none' }}
+      /* TouchSensor co delay 200ms: manipulation giu cuon native trong luc cham
+         ngan, con nhan giu du lau van kich hoat keo the. */
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        touchAction: 'manipulation',
+      }}
       {...attributes}
       {...listeners}
       onClick={onClick}

@@ -102,7 +102,7 @@ export default function AiWorkspacePage() {
    */
   if (tab === 'assistant') {
     return (
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 flex-col max-md:max-h-[calc(var(--tr-vvh)-3.5rem-var(--tr-tabbar-h))] [html[data-keyboard-open]_&]:max-h-[calc(var(--tr-vvh)-3.5rem)]">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-tr-border px-4 py-2.5">
           <h1 className="inline-flex items-center gap-2 text-base font-bold tracking-tight text-tr-text">
             <Sparkles size={16} className="text-tr-primary" aria-hidden="true" />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { Button, Field, FormError, Input } from '../components/common/ui';
 import { t } from '../i18n/vi';
@@ -18,7 +19,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('sign-in');
 
   return (
-    <div className="tr-app-stage flex min-h-dvh items-center justify-center bg-tr-surface px-4">
+    <div className="tr-app-stage flex min-h-dvh items-center justify-center bg-tr-surface px-4 py-[max(1rem,env(safe-area-inset-top))]">
       <div className="w-full max-w-sm rounded-modal border border-tr-border bg-tr-panel p-6 shadow-lg">
         {mode === 'sign-in' ? (
           <SignInForm onLogin={login} onForgot={() => setMode('forgot')} />
@@ -49,6 +50,7 @@ function SignInForm({
 }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -76,6 +78,10 @@ function SignInForm({
           <Input
             name="username"
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="email"
             autoFocus
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
@@ -83,14 +89,26 @@ function SignInForm({
           />
         </Field>
         <Field label={t.auth.password} required>
-          <Input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <Input
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              aria-pressed={showPassword}
+              className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-control text-tr-muted"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
         </Field>
         <Button
           type="submit"
@@ -105,7 +123,7 @@ function SignInForm({
           <button
             type="button"
             onClick={onForgot}
-            className="rounded-control text-xs text-tr-muted underline underline-offset-2 hover:text-tr-text"
+            className="inline-flex min-h-11 items-center rounded-control px-2 text-sm text-tr-muted underline underline-offset-2 hover:text-tr-text"
           >
             {t.auth.forgot}
           </button>

@@ -91,7 +91,7 @@ export function CustomerDrawer({ customer, onClose, onEdit, onCreateDeal }: Prop
             <div className="flex items-center justify-between gap-3">
               <h3
                 id="drawer-customer-contact"
-                className="text-xs font-semibold tracking-wide text-tr-subtle uppercase"
+                className="text-xs font-semibold text-tr-subtle"
               >
                 Thông tin chính
               </h3>
@@ -176,7 +176,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
         <div className="flex items-center justify-between gap-3">
           <h3
             id="drawer-customer-overview"
-            className="text-xs font-semibold tracking-wide text-tr-subtle uppercase"
+            className="text-xs font-semibold text-tr-subtle"
           >
             Tổng quan vận hành
           </h3>
@@ -207,7 +207,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
       <section aria-labelledby="drawer-next-action">
         <h3
           id="drawer-next-action"
-          className="text-xs font-semibold tracking-wide text-tr-subtle uppercase"
+          className="text-xs font-semibold text-tr-subtle"
         >
           Việc tiếp theo
         </h3>
@@ -257,7 +257,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
         <section aria-labelledby="drawer-open-deals">
           <h3
             id="drawer-open-deals"
-            className="text-xs font-semibold tracking-wide text-tr-subtle uppercase"
+            className="text-xs font-semibold text-tr-subtle"
           >
             Cơ hội đang mở
           </h3>
@@ -290,7 +290,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
         <section aria-labelledby="drawer-open-tasks">
           <h3
             id="drawer-open-tasks"
-            className="text-xs font-semibold tracking-wide text-tr-subtle uppercase"
+            className="text-xs font-semibold text-tr-subtle"
           >
             Công việc đang mở
           </h3>
@@ -328,7 +328,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
       <section aria-labelledby="drawer-recent-activity">
         <h3
           id="drawer-recent-activity"
-          className="text-xs font-semibold tracking-wide text-tr-subtle uppercase"
+          className="text-xs font-semibold text-tr-subtle"
         >
           Hoạt động gần đây
         </h3>

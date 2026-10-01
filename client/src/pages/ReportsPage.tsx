@@ -253,79 +253,120 @@ export default function ReportsPage() {
           {assigneeRows.length === 0 ? (
             <NoData />
           ) : (
-            <div
-              className="tr-scroll overflow-x-auto"
-              /* Vung cuon ngang phai cuon duoc bang ban phim (WCAG 2.1.1) —
+            <>
+              <div className="space-y-2 md:hidden">
+                {assigneeRows.map((row) => (
+                  <article
+                    key={row.contact_id ?? 'unassigned'}
+                    className="rounded-panel border border-tr-border bg-tr-panel p-3"
+                  >
+                    <div className="mb-1 text-sm font-semibold text-tr-text">
+                      {row.assignee_name ? (
+                        <AssigneeChip name={row.assignee_name} orgKind={row.org_kind} />
+                      ) : (
+                        t.card.unassigned
+                      )}
+                    </div>
+                    <p className="mb-3 text-xs text-tr-muted">
+                      {row.org_name ?? 'Chưa có tổ chức'}
+                    </p>
+                    <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                      <div>
+                        <strong className="block text-lg text-tr-text">{row.completed}</strong>Hoàn
+                        thành
+                      </div>
+                      <div>
+                        <strong className="block text-lg text-tr-text">{row.open_count}</strong>Đang
+                        mở
+                      </div>
+                      <div>
+                        <strong className="block text-lg text-tr-danger">
+                          {row.overdue_count}
+                        </strong>
+                        Quá hạn
+                      </div>
+                      <div>
+                        <strong className="block text-lg text-tr-text">{row.due_week_count}</strong>
+                        Tuần này
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div
+                className="tr-scroll hidden overflow-x-auto md:block"
+                /* Vung cuon ngang phai cuon duoc bang ban phim (WCAG 2.1.1) —
                  bang rong thi ben trong khong con gi focus duoc. */
-              tabIndex={0}
-            >
-              <table className="w-full min-w-[640px] text-sm">
-                <caption className="sr-only">
-                  Thông lượng và khối lượng theo người phụ trách
-                </caption>
-                <thead className="text-left text-xs tracking-wide text-tr-subtle uppercase">
-                  <tr>
-                    <th scope="col" className="px-2 py-1.5">
-                      Người phụ trách
-                    </th>
-                    <th scope="col" className="px-2 py-1.5">
-                      Tổ chức
-                    </th>
-                    <th scope="col" className="px-2 py-1.5 text-right">
-                      Hoàn thành kỳ này
-                    </th>
-                    <th scope="col" className="px-2 py-1.5 text-right">
-                      Đang mở
-                    </th>
-                    <th scope="col" className="px-2 py-1.5 text-right">
-                      Quá hạn
-                    </th>
-                    <th scope="col" className="px-2 py-1.5 text-right">
-                      Tuần này
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-tr-border">
-                  {assigneeRows.map((row) => (
-                    <tr key={row.contact_id ?? 'unassigned'}>
-                      <td className="px-2 py-1.5">
-                        {row.assignee_name ? (
-                          <AssigneeChip name={row.assignee_name} orgKind={row.org_kind} />
-                        ) : (
-                          <span className="text-tr-danger italic">{t.card.unassigned}</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-tr-muted">{row.org_name ?? '—'}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-tr-text">
-                        {row.completed}
-                      </td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-tr-subtle">
-                        {row.open_count}
-                      </td>
-                      <td
-                        className={`px-2 py-1.5 text-right tabular-nums ${row.overdue_count > 0 ? 'font-semibold text-tr-danger' : 'text-tr-muted'}`}
-                      >
-                        {row.overdue_count}
-                      </td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-tr-subtle">
-                        {row.due_week_count}
-                        {/* Chỉ hiện số giờ khi MỌI việc tuần này đều đã ước lượng —
-                            một tổng cộng dồn từ dữ liệu thiếu là một tổng sai. */}
-                        {row.week_hours > 0 && (
-                          <span className="ml-1 text-xs text-tr-muted">
-                            (
-                            {row.estimated_count < row.due_week_count
-                              ? `≥ ${row.week_hours}h`
-                              : `${row.week_hours}h`}
-                            )
-                          </span>
-                        )}
-                      </td>
+                tabIndex={0}
+              >
+                <table className="w-full min-w-[640px] text-sm">
+                  <caption className="sr-only">
+                    Thông lượng và khối lượng theo người phụ trách
+                  </caption>
+                  <thead className="text-left text-xs text-tr-subtle">
+                    <tr>
+                      <th scope="col" className="px-2 py-1.5">
+                        Người phụ trách
+                      </th>
+                      <th scope="col" className="px-2 py-1.5">
+                        Tổ chức
+                      </th>
+                      <th scope="col" className="px-2 py-1.5 text-right">
+                        Hoàn thành kỳ này
+                      </th>
+                      <th scope="col" className="px-2 py-1.5 text-right">
+                        Đang mở
+                      </th>
+                      <th scope="col" className="px-2 py-1.5 text-right">
+                        Quá hạn
+                      </th>
+                      <th scope="col" className="px-2 py-1.5 text-right">
+                        Tuần này
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-tr-border">
+                    {assigneeRows.map((row) => (
+                      <tr key={row.contact_id ?? 'unassigned'}>
+                        <td className="px-2 py-1.5">
+                          {row.assignee_name ? (
+                            <AssigneeChip name={row.assignee_name} orgKind={row.org_kind} />
+                          ) : (
+                            <span className="text-tr-danger italic">{t.card.unassigned}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-tr-muted">{row.org_name ?? '—'}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums text-tr-text">
+                          {row.completed}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums text-tr-subtle">
+                          {row.open_count}
+                        </td>
+                        <td
+                          className={`px-2 py-1.5 text-right tabular-nums ${row.overdue_count > 0 ? 'font-semibold text-tr-danger' : 'text-tr-muted'}`}
+                        >
+                          {row.overdue_count}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums text-tr-subtle">
+                          {row.due_week_count}
+                          {/* Chỉ hiện số giờ khi MỌI việc tuần này đều đã ước lượng —
+                            một tổng cộng dồn từ dữ liệu thiếu là một tổng sai. */}
+                          {row.week_hours > 0 && (
+                            <span className="ml-1 text-xs text-tr-muted">
+                              (
+                              {row.estimated_count < row.due_week_count
+                                ? `≥ ${row.week_hours}h`
+                                : `${row.week_hours}h`}
+                              )
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </Panel>
 

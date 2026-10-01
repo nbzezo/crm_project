@@ -4,7 +4,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCorners,
   useDraggable,
@@ -153,7 +153,7 @@ function KanbanLane({ lane, onOpen }: { lane: Lane; onOpen: (id: number) => void
   return (
     <section
       ref={setNodeRef}
-      className={`w-[292px] shrink-0 rounded-panel border p-2 transition ${isOver ? 'border-tr-primary bg-tr-primary/5' : 'border-tr-border bg-tr-surface'}`}
+      className={`w-[min(calc(100vw-3rem),340px)] shrink-0 snap-start rounded-panel border p-2 transition md:w-[292px] ${isOver ? 'border-tr-primary bg-tr-primary/5' : 'border-tr-border bg-tr-surface'}`}
     >
       <header className="flex h-9 items-center justify-between px-1">
         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusTone}`}>
@@ -179,7 +179,7 @@ export function TaskWorkspaceKanban({ tasks, group }: { tasks: TaskRow[]; group:
   const [active, setActive] = useState<TaskRow | null>(null);
   const lanes = useMemo(() => lanesFor(tasks, group), [tasks, group]);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
     useSensor(KeyboardSensor)
   );
@@ -207,7 +207,9 @@ export function TaskWorkspaceKanban({ tasks, group }: { tasks: TaskRow[]; group:
       onDragEnd={handleEnd}
       onDragCancel={() => setActive(null)}
     >
-      <div className="tr-scroll flex min-h-[520px] items-start gap-3 overflow-x-auto pb-3">
+      <div
+        className={`tr-scroll flex min-h-[520px] snap-x snap-mandatory items-start gap-3 overflow-x-auto pb-3 md:snap-none ${active ? 'snap-none' : ''}`}
+      >
         {lanes.map((lane) => (
           <KanbanLane key={lane.key} lane={lane} onOpen={(id) => openCard(id, 'drawer')} />
         ))}

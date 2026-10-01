@@ -59,7 +59,7 @@ export function CalendarList({
       {groups.map((group) => (
         <section key={group.date} className="mb-5 last:mb-0">
           <h3
-            className={`mb-2 flex items-baseline gap-2 border-b border-tr-border pb-1.5 text-xs font-semibold tracking-wide ${
+            className={`mb-2 flex items-baseline gap-2 border-b border-tr-border pb-1.5 text-xs font-semibold ${
               group.date === today ? 'text-tr-primary' : 'text-tr-muted'
             }`}
           >

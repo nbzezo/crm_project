@@ -24,6 +24,28 @@ export const BOARD_GRADIENTS = [
 
 export const ALL_BACKGROUNDS = [...BOARD_COLORS, ...BOARD_GRADIENTS];
 
+/** Lớp tối đủ để chữ trắng trên cả màu sáng nhất của gradient đạt WCAG AA. */
+export function boardScrim(value: string | null | undefined): string {
+  const colors = (value || BOARD_COLORS[0]).match(/#[0-9a-f]{6}/gi) ?? [BOARD_COLORS[0]];
+  const luminance = (hex: string, alpha: number) => {
+    const channels = [1, 3, 5].map(
+      (start) => (parseInt(hex.slice(start, start + 2), 16) * (1 - alpha)) / 255
+    );
+    const linear = channels.map((channel) =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+    );
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  };
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 12; i += 1) {
+    const mid = (low + high) / 2;
+    if (Math.max(...colors.map((color) => luminance(color, mid))) <= 1.05 / 4.5 - 0.05) high = mid;
+    else low = mid;
+  }
+  return `rgba(0,0,0,${Math.min(1, high + 0.01).toFixed(3)})`;
+}
+
 /** Style nen cho bang — nhan ca ma mau lan chuoi gradient. */
 export function backgroundStyle(value: string | null | undefined): React.CSSProperties {
   const background = value || BOARD_COLORS[0];

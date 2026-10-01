@@ -85,7 +85,7 @@ export function ClassificationPanel({
           Vượt <b>bất kỳ</b> ngưỡng nào là đủ để đề xuất Mô hình A — không lấy trung bình.
         </caption>
         <thead>
-          <tr className="text-xs text-tr-muted uppercase">
+          <tr className="text-xs text-tr-muted">
             <th scope="col" className="py-1 text-left font-semibold">
               Tiêu chí
             </th>

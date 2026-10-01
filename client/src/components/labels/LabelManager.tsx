@@ -652,7 +652,7 @@ function RecordsDialog({ label, onClose }: { label: Label; onClose: () => void }
         <div className="space-y-3">
           {[...byType.entries()].map(([type, rows]) => (
             <div key={type}>
-              <p className="mb-1 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+              <p className="mb-1 text-xs font-semibold text-tr-muted">
                 {t.labelEntity[type as LabelEntity]} ({rows.length})
               </p>
               <ul className="divide-y divide-tr-border rounded-panel border border-tr-border">

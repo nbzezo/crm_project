@@ -338,138 +338,225 @@ export default function OrgDirectoryPage() {
                 />
               )
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm">
-                <table className="w-full min-w-[720px] text-sm">
-                  <TableHead>
-                    <tr>
-                      <th scope="col" className="px-4 py-2">
-                        Tổ chức
-                      </th>
-                      <th scope="col" className="px-4 py-2">
-                        Người liên hệ
-                      </th>
-                      <th scope="col" className="px-4 py-2">
-                        Quan hệ
-                      </th>
-                      <th scope="col" className="px-4 py-2">
-                        Cập nhật
-                      </th>
-                      <th scope="col" className="px-4 py-2"></th>
-                    </tr>
-                  </TableHead>
-                  <tbody className="divide-y divide-tr-border">
-                    {filteredOrgs.map((org) => {
-                      const summary = orgSummaries.get(org.id);
-                      const expanded = expandedId === org.id;
-                      return (
-                        <Fragment key={org.id}>
-                          <tr className="transition hover:bg-tr-hover">
-                            <td className="px-4 py-2">
-                              <Link
-                                to={`/customers/${org.id}`}
-                                className="group flex items-center gap-2"
-                              >
-                                <Building2
-                                  size={14}
-                                  className="shrink-0 text-tr-muted"
-                                  aria-hidden="true"
-                                />
-                                <span className="truncate font-semibold text-tr-text group-hover:text-tr-primary group-hover:underline">
-                                  {org.name}
-                                </span>
-                              </Link>
-                              {(org.short_name || org.industry) && (
-                                <div className="mt-0.5 pl-[22px] text-xs text-tr-muted">
-                                  {[org.short_name, org.industry].filter(Boolean).join(' · ')}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-2">
-                              {summary?.loaded ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setExpandedId(expanded ? null : org.id)}
-                                  className={`inline-flex items-center gap-1 rounded-control px-1 py-0.5 text-xs text-tr-subtle transition hover:text-tr-primary ${focusRing}`}
-                                  aria-expanded={expanded}
-                                >
-                                  <Users size={12} aria-hidden="true" />
-                                  {summary.contacts.length} người liên hệ
-                                  <ChevronDown
-                                    size={12}
-                                    aria-hidden="true"
-                                    className={`transition ${expanded ? 'rotate-180' : ''}`}
-                                  />
-                                </button>
-                              ) : (
-                                <Skeleton className="h-3 w-20" />
-                              )}
-                            </td>
-                            <td className="px-4 py-2">
-                              {!summary?.loaded ? (
-                                <Skeleton className="h-4 w-14" />
-                              ) : summary.relationship ? (
-                                <span
-                                  className={`rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ${
-                                    RELATIONSHIP_BADGE_CLASS[summary.relationship] ??
-                                    'bg-tr-hover text-tr-subtle'
-                                  }`}
-                                >
-                                  ● {t.relationship[summary.relationship] ?? summary.relationship}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-tr-muted">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 text-xs whitespace-nowrap text-tr-muted">
-                              {formatDate(org.updated_at) || '—'}
-                            </td>
-                            <td className="px-4 py-2">
-                              <div className="flex items-center justify-end gap-1">
-                                <Link to={`/customers/${org.id}`} className={ghostLinkClass}>
-                                  <Eye size={13} aria-hidden="true" /> Xem
-                                </Link>
-                                <IconButton
-                                  onClick={(e) =>
-                                    setRowMenu({ id: org.id, anchor: e.currentTarget })
-                                  }
-                                  label={`Thao tác khác: ${org.name}`}
-                                >
-                                  <MoreHorizontal size={16} aria-hidden="true" />
-                                </IconButton>
+              <>
+                <div className="space-y-3 md:hidden">
+                  {filteredOrgs.map((org) => {
+                    const summary = orgSummaries.get(org.id);
+                    return (
+                      <article
+                        key={org.id}
+                        className="rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            to={`/customers/${org.id}`}
+                            className="min-h-11 min-w-0 flex-1 text-base font-semibold text-tr-text"
+                          >
+                            {org.name}
+                          </Link>
+                          <IconButton
+                            onClick={(e) => setRowMenu({ id: org.id, anchor: e.currentTarget })}
+                            label={`Thao tác khác: ${org.name}`}
+                          >
+                            <MoreHorizontal size={18} />
+                          </IconButton>
+                        </div>
+                        <p className="text-xs text-tr-muted">
+                          {[org.short_name, org.industry, formatDate(org.updated_at)]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                        {summary?.relationship && (
+                          <span
+                            className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-medium ${RELATIONSHIP_BADGE_CLASS[summary.relationship] ?? 'bg-tr-hover text-tr-subtle'}`}
+                          >
+                            {t.relationship[summary.relationship] ?? summary.relationship}
+                          </span>
+                        )}
+                        <div className="mt-3 space-y-2">
+                          {summary?.contacts.map((contact) => (
+                            <div key={contact.id} className="rounded-control bg-tr-surface p-2">
+                              <div className="text-sm font-semibold text-tr-text">
+                                {contact.full_name}
+                                {contact.title && (
+                                  <span className="ml-1 font-normal text-tr-muted">
+                                    · {contact.title}
+                                  </span>
+                                )}
                               </div>
-                            </td>
-                          </tr>
-                          {expanded && (
-                            <tr>
-                              <td colSpan={5} className="bg-tr-surface px-4 py-3">
-                                <div className="mb-2 flex items-center justify-between">
-                                  <p className="text-xs font-semibold text-tr-subtle">
-                                    Người liên hệ
-                                  </p>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => rowContactRefs.current.get(org.id)?.openAdd()}
+                              <div className="mt-1 flex gap-2">
+                                {contact.phone && (
+                                  <a
+                                    href={`tel:${contact.phone}`}
+                                    className="inline-flex min-h-11 items-center rounded-control px-2 text-sm text-tr-primary"
                                   >
-                                    <Plus size={13} aria-hidden="true" /> Thêm người liên hệ
-                                  </Button>
+                                    Gọi {contact.phone}
+                                  </a>
+                                )}
+                                {contact.zalo && (
+                                  <a
+                                    href={`https://zalo.me/${contact.zalo}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex min-h-11 items-center rounded-control px-2 text-sm text-tr-primary"
+                                  >
+                                    Zalo
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => setExpandedId(expandedId === org.id ? null : org.id)}
+                        >
+                          Quản lý người liên hệ
+                        </Button>
+                        {expandedId === org.id && (
+                          <ContactList
+                            customerId={org.id}
+                            contacts={summary?.contacts ?? []}
+                            compact
+                          />
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+                <div className="hidden overflow-x-auto rounded-lg border border-tr-border bg-tr-panel shadow-sm md:block">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <TableHead>
+                      <tr>
+                        <th scope="col" className="px-4 py-2">
+                          Tổ chức
+                        </th>
+                        <th scope="col" className="px-4 py-2">
+                          Người liên hệ
+                        </th>
+                        <th scope="col" className="px-4 py-2">
+                          Quan hệ
+                        </th>
+                        <th scope="col" className="px-4 py-2">
+                          Cập nhật
+                        </th>
+                        <th scope="col" className="px-4 py-2"></th>
+                      </tr>
+                    </TableHead>
+                    <tbody className="divide-y divide-tr-border">
+                      {filteredOrgs.map((org) => {
+                        const summary = orgSummaries.get(org.id);
+                        const expanded = expandedId === org.id;
+                        return (
+                          <Fragment key={org.id}>
+                            <tr className="transition hover:bg-tr-hover">
+                              <td className="px-4 py-2">
+                                <Link
+                                  to={`/customers/${org.id}`}
+                                  className="group flex items-center gap-2"
+                                >
+                                  <Building2
+                                    size={14}
+                                    className="shrink-0 text-tr-muted"
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate font-semibold text-tr-text group-hover:text-tr-primary group-hover:underline">
+                                    {org.name}
+                                  </span>
+                                </Link>
+                                {(org.short_name || org.industry) && (
+                                  <div className="mt-0.5 pl-[22px] text-xs text-tr-muted">
+                                    {[org.short_name, org.industry].filter(Boolean).join(' · ')}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-2">
+                                {summary?.loaded ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedId(expanded ? null : org.id)}
+                                    className={`inline-flex items-center gap-1 rounded-control px-1 py-0.5 text-xs text-tr-subtle transition hover:text-tr-primary ${focusRing}`}
+                                    aria-expanded={expanded}
+                                  >
+                                    <Users size={12} aria-hidden="true" />
+                                    {summary.contacts.length} người liên hệ
+                                    <ChevronDown
+                                      size={12}
+                                      aria-hidden="true"
+                                      className={`transition ${expanded ? 'rotate-180' : ''}`}
+                                    />
+                                  </button>
+                                ) : (
+                                  <Skeleton className="h-3 w-20" />
+                                )}
+                              </td>
+                              <td className="px-4 py-2">
+                                {!summary?.loaded ? (
+                                  <Skeleton className="h-4 w-14" />
+                                ) : summary.relationship ? (
+                                  <span
+                                    className={`rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ${
+                                      RELATIONSHIP_BADGE_CLASS[summary.relationship] ??
+                                      'bg-tr-hover text-tr-subtle'
+                                    }`}
+                                  >
+                                    ● {t.relationship[summary.relationship] ?? summary.relationship}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-tr-muted">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-xs whitespace-nowrap text-tr-muted">
+                                {formatDate(org.updated_at) || '—'}
+                              </td>
+                              <td className="px-4 py-2">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Link to={`/customers/${org.id}`} className={ghostLinkClass}>
+                                    <Eye size={13} aria-hidden="true" /> Xem
+                                  </Link>
+                                  <IconButton
+                                    onClick={(e) =>
+                                      setRowMenu({ id: org.id, anchor: e.currentTarget })
+                                    }
+                                    label={`Thao tác khác: ${org.name}`}
+                                  >
+                                    <MoreHorizontal size={16} aria-hidden="true" />
+                                  </IconButton>
                                 </div>
-                                <ContactList
-                                  ref={(handle) => {
-                                    rowContactRefs.current.set(org.id, handle);
-                                  }}
-                                  customerId={org.id}
-                                  contacts={summary?.contacts ?? []}
-                                  compact
-                                />
                               </td>
                             </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            {expanded && (
+                              <tr>
+                                <td colSpan={5} className="bg-tr-surface px-4 py-3">
+                                  <div className="mb-2 flex items-center justify-between">
+                                    <p className="text-xs font-semibold text-tr-subtle">
+                                      Người liên hệ
+                                    </p>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => rowContactRefs.current.get(org.id)?.openAdd()}
+                                    >
+                                      <Plus size={13} aria-hidden="true" /> Thêm người liên hệ
+                                    </Button>
+                                  </div>
+                                  <ContactList
+                                    ref={(handle) => {
+                                      rowContactRefs.current.set(org.id, handle);
+                                    }}
+                                    customerId={org.id}
+                                    contacts={summary?.contacts ?? []}
+                                    compact
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
             {hasActiveFilters && filteredOrgs.length > 0 && (
               <p className="text-xs text-tr-muted">

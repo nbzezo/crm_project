@@ -76,7 +76,8 @@ export function AttachmentSection({
               </a>
               <button
                 onClick={() => remove.mutate(doc.id)}
-                className="shrink-0 rounded p-1 text-tr-muted opacity-0 transition group-hover:opacity-100 hover:bg-tr-hover-strong hover:text-tr-danger"
+                aria-label="Xóa tệp đính kèm"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted opacity-100 transition hover:bg-tr-hover-strong hover:text-tr-danger hoverable:opacity-0 hoverable:group-hover:opacity-100 fine:h-7 fine:w-7"
               >
                 <Trash2 size={14} />
               </button>

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -149,7 +149,7 @@ function FilterPopover({
 
         {tags.length > 0 && (
           <div className="mt-2 border-t border-tr-border pt-2">
-            <div className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+            <div className="mb-1.5 px-1 text-xs font-semibold text-tr-muted">
               Tag
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -274,7 +274,7 @@ export function QuickNotesBoard() {
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
@@ -476,7 +476,7 @@ export function QuickNotesBoard() {
                 >
                   {pinnedNotes.length > 0 && (
                     <>
-                      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-tr-muted">
                         <Pin size={12} aria-hidden="true" /> Đã ghim
                       </div>
                       {renderGroup(pinnedNotes)}
@@ -485,7 +485,7 @@ export function QuickNotesBoard() {
                   {otherNotes.length > 0 && (
                     <>
                       {pinnedNotes.length > 0 && (
-                        <div className="mt-4 mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                        <div className="mt-4 mb-2 text-xs font-semibold text-tr-muted">
                           Ghi chú khác
                         </div>
                       )}

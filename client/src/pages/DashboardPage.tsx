@@ -31,12 +31,22 @@ function currentDateLabel(): string {
   return value.charAt(0).toLocaleUpperCase('vi') + value.slice(1);
 }
 
+function shortDateLabel(): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'numeric',
+  }).format(new Date());
+}
+
 function DashboardHeader({
   refreshing,
   onRefresh,
+  overdueCount,
 }: {
   refreshing: boolean;
   onRefresh: () => void;
+  overdueCount?: number;
 }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -46,17 +56,21 @@ function DashboardHeader({
         </h1>
         <p className="mt-0.5 text-sm text-tr-muted">Toàn cảnh công việc &amp; kinh doanh của bạn</p>
       </div>
-      <div className="flex items-center gap-2 self-start sm:self-auto">
-        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm">
+      <div className="flex w-full items-center gap-2 self-start sm:w-auto sm:self-auto">
+        <span className="hidden min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm sm:inline-flex">
           <CalendarDays size={14} className="text-tr-muted" aria-hidden="true" />
           {currentDateLabel()}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs text-tr-muted sm:hidden">
+          {shortDateLabel()}
+          {overdueCount != null && ` · ${overdueCount} việc quá hạn`}
         </span>
         <AiBrief contextType="today" />
         <button
           type="button"
           onClick={onRefresh}
           disabled={refreshing}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-control border border-tr-border bg-tr-panel text-tr-subtle shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
+          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-tr-border bg-tr-panel text-tr-subtle shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text disabled:cursor-wait disabled:opacity-60 fine:h-9 fine:w-9 ${focusRing}`}
           aria-label={refreshing ? 'Đang làm mới Tổng quan' : 'Làm mới Tổng quan'}
           title="Làm mới dữ liệu"
         >
@@ -136,7 +150,11 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
-      <DashboardHeader refreshing={isFetching} onRefresh={() => void refetch()} />
+      <DashboardHeader
+        refreshing={isFetching}
+        onRefresh={() => void refetch()}
+        overdueCount={data.kpi.overdue_task_count}
+      />
 
       <KpiSummary data={data} onOpenOverdueTasks={() => openTaskBucket('overdue')} />
 

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router';
 import { Building2, ListTodo, Plus, Target, Users, Zap } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
+import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
+import { BottomSheet } from '../common/BottomSheet';
 import { DocumentTemplatePicker } from '../crm/meetingNotes/DocumentTemplatePicker';
 import {
   createDocumentFromTemplate,
@@ -37,11 +39,13 @@ import type { MeetingNote } from '../../types';
  * bat ky dau". Vi vay chi an phan nhin thay; phan lang nghe ban phim van song.
  */
 export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
-  const [open, setOpen] = useState(false);
+  const open = useUiStore((s) => s.quickCreateOpen);
+  const setOpen = useUiStore((s) => s.setQuickCreateOpen);
   const [dealOpen, setDealOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useMediaQuery(MD_QUERY);
 
   // Mo menu thi dua focus vao muc dau — neu khong, nguoi dung ban phim bam mo
   // xong van dang dung o nut FAB va phai Tab nguoc lai.
@@ -89,7 +93,7 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
         <div className="fixed inset-0 z-sticky" onClick={() => setOpen(false)} aria-hidden="true" />
       )}
       <div
-        className={`fixed right-5 bottom-5 z-nav-overlay flex-col items-end gap-2 sm:right-8 sm:bottom-8 ${
+        className={`fixed right-5 bottom-[calc(1.25rem+var(--tr-safe-bottom))] z-nav-overlay flex-col items-end gap-2 max-md:hidden sm:right-8 sm:bottom-8 ${
           hidden ? 'hidden' : 'flex'
         }`}
       >
@@ -164,7 +168,7 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
         )}
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => setOpen(!open)}
           aria-label={open ? 'Đóng menu tạo nhanh' : 'Tạo nhanh'}
           aria-expanded={open}
           aria-haspopup="menu"
@@ -180,6 +184,55 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
           />
         </button>
       </div>
+      <BottomSheet
+        open={open && !isDesktop}
+        onClose={() => setOpen(false)}
+        title="Tạo nhanh"
+        closeLabel="Đóng tạo nhanh"
+      >
+        <div className="grid grid-cols-3 gap-2">
+          <MobileCreateItem
+            icon={<Target size={22} />}
+            label="Cơ hội"
+            onClick={() => {
+              setOpen(false);
+              setDealOpen(true);
+            }}
+          />
+          <MobileCreateItem
+            icon={<Building2 size={22} />}
+            label="Khách hàng"
+            onClick={() => {
+              setOpen(false);
+              setCustomerOpen(true);
+            }}
+          />
+          <MobileCreateItem
+            icon={<ListTodo size={22} />}
+            label="Công việc"
+            onClick={() => {
+              setOpen(false);
+              openTaskComposer();
+            }}
+          />
+          <MobileCreateItem
+            icon={<Zap size={22} />}
+            label="Ghi nhanh"
+            onClick={() => {
+              setOpen(false);
+              openQuickNotesBoard({ createNew: true });
+            }}
+          />
+          <MobileCreateItem
+            icon={<Users size={22} />}
+            label="Trang tài liệu"
+            onClick={() => {
+              setOpen(false);
+              setTemplateOpen(true);
+            }}
+          />
+        </div>
+      </BottomSheet>
       <Suspense fallback={null}>
         {dealOpen && <DealForm open onClose={() => setDealOpen(false)} />}
         {customerOpen && <CustomerForm open onClose={() => setCustomerOpen(false)} />}
@@ -206,12 +259,33 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
   );
 }
 
+function MobileCreateItem({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-panel border border-tr-border bg-tr-hover text-sm text-tr-text ${focusRing}`}
+    >
+      <span className="text-tr-primary">{icon}</span>
+      {label}
+    </button>
+  );
+}
+
 /** Tieu de nhom trong menu — thuan trang tri nen an khoi cay a11y. */
 function MenuGroup({ label, divider }: { label: string; divider?: boolean }) {
   return (
     <p
       aria-hidden="true"
-      className={`px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-tr-muted uppercase ${
+      className={`px-3 pt-2 pb-1 text-xs font-semibold text-tr-muted ${
         divider ? 'mt-1 border-t border-tr-border' : ''
       }`}
     >
@@ -247,7 +321,7 @@ function MenuItem({
       </span>
       <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
       {shortcut && (
-        <kbd className="shrink-0 rounded border border-tr-border px-1.5 py-0.5 text-[10px] text-tr-muted">
+        <kbd className="hidden shrink-0 rounded border border-tr-border px-1.5 py-0.5 text-[10px] text-tr-muted fine:inline-block">
           {shortcut}
         </kbd>
       )}

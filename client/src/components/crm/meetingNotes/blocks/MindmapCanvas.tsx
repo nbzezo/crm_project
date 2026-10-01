@@ -9,6 +9,7 @@ import 'mind-elixir/style';
 import { Download, GripHorizontal } from 'lucide-react';
 import { useThemeStore } from '../../../../stores/themeStore';
 import { Button } from '../../../common/ui';
+import { COARSE_QUERY, useMediaQuery } from '../../../../lib/useMediaQuery';
 
 interface CanvasProps {
   block: { id: string; props: { data: string; height: number; palette: string } };
@@ -106,6 +107,8 @@ function buildTheme(isDark: boolean, paletteKey: string): Theme {
 export default function MindmapCanvas({ block, editor }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<MindElixirInstance | null>(null);
+  const coarsePointer = useMediaQuery(COARSE_QUERY);
+  const [hasSelection, setHasSelection] = useState(false);
   const isDark = useThemeStore((s) => s.isDark());
   const [height, setHeight] = useState(block.props.height || 480);
   const [paletteKey, setPaletteKey] = useState(block.props.palette || 'default');
@@ -146,10 +149,15 @@ export default function MindmapCanvas({ block, editor }: CanvasProps) {
       }, 400);
     };
     instance.bus.addListener('operation', handleChange);
+    const handleSelection = () => setHasSelection(Boolean(instance.currentNode));
+    instance.bus.addListener('selectNodes', handleSelection);
+    instance.bus.addListener('unselectNodes', handleSelection);
 
     return () => {
       if (saveTimer) clearTimeout(saveTimer);
       instance.bus.removeListener('operation', handleChange);
+      instance.bus.removeListener('selectNodes', handleSelection);
+      instance.bus.removeListener('unselectNodes', handleSelection);
       instance.destroy();
       instanceRef.current = null;
     };
@@ -242,12 +250,52 @@ export default function MindmapCanvas({ block, editor }: CanvasProps) {
         className="w-full min-w-0 overflow-hidden rounded-panel border border-tr-border"
       />
 
+      {coarsePointer && hasSelection && (
+        <div
+          className="sticky bottom-0 z-10 grid grid-cols-4 gap-1 border border-tr-border bg-tr-panel p-1"
+          role="toolbar"
+          aria-label="Chỉnh sửa nhánh sơ đồ tư duy"
+        >
+          <button
+            type="button"
+            className="min-h-11 rounded-control text-xs text-tr-text"
+            onClick={() => void instanceRef.current?.addChild()}
+          >
+            + Nhánh con
+          </button>
+          <button
+            type="button"
+            className="min-h-11 rounded-control text-xs text-tr-text"
+            onClick={() => void instanceRef.current?.insertSibling('after')}
+          >
+            + Nhánh ngang
+          </button>
+          <button
+            type="button"
+            className="min-h-11 rounded-control text-xs text-tr-text"
+            onClick={() => void instanceRef.current?.beginEdit()}
+          >
+            Sửa
+          </button>
+          <button
+            type="button"
+            className="min-h-11 rounded-control text-xs text-tr-danger"
+            onClick={() => {
+              const instance = instanceRef.current;
+              if (instance?.currentNode) void instance.removeNodes([instance.currentNode]);
+            }}
+          >
+            Xoá
+          </button>
+        </div>
+      )}
+
       <div
         onPointerDown={startResize}
         role="separator"
         aria-orientation="horizontal"
         aria-label="Kéo để đổi chiều cao khung vẽ"
-        className="flex h-3 cursor-row-resize items-center justify-center text-tr-muted hover:text-tr-subtle"
+        className="flex h-6 cursor-row-resize touch-none items-center justify-center text-tr-muted hover:text-tr-subtle"
       >
         <GripHorizontal size={14} aria-hidden="true" />
       </div>

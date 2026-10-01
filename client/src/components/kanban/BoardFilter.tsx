@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Check, Search } from 'lucide-react';
 import { api } from '../../api/client';
 import { Combobox } from '../common/Combobox';
 import { Popover } from '../common/Popover';
@@ -10,6 +11,7 @@ import { useUiStore, type BoardFilters } from '../../stores/uiStore';
 import { useAssignees } from '../tasks/AssigneePicker';
 import { CARD_STATUSES } from '@workflow/contracts';
 import type { CardStatus, Customer, Label, Priority } from '../../types';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 
 /** `<select>` chỉ trả chuỗi — đưa về đúng kiểu ba nhánh của bộ lọc. */
 export function parseAssigneeFilter(raw: string): BoardFilters['assignee'] {
@@ -22,12 +24,15 @@ export function BoardFilter({
   anchor,
   onClose,
   labels,
+  matchCount,
 }: {
   open: boolean;
   anchor: HTMLElement | null;
   onClose: () => void;
   labels: Label[];
+  matchCount: number;
 }) {
+  const isSheet = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
   const filters = useUiStore((s) => s.boardFilters);
   const setFilters = useUiStore((s) => s.setBoardFilters);
   const reset = useUiStore((s) => s.resetBoardFilters);
@@ -58,12 +63,19 @@ export function BoardFilter({
     <Popover open={open} anchor={anchor} onClose={onClose} title="Bộ lọc" width={340}>
       <div className="space-y-4">
         <Section title="Từ khóa">
-          <input
-            value={filters.q}
-            onChange={(e) => setFilters({ q: e.target.value })}
-            placeholder="Tìm trong thẻ (không cần dấu)…"
-            className="w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary"
-          />
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3 top-3.5 text-tr-muted"
+              aria-hidden="true"
+            />
+            <input
+              value={filters.q}
+              onChange={(e) => setFilters({ q: e.target.value })}
+              placeholder="Tìm trong thẻ (không cần dấu)…"
+              className="tr-field-control h-11 w-full rounded-control border border-tr-border pl-9 pr-3 outline-none focus:border-tr-primary"
+            />
+          </div>
         </Section>
 
         <Section title="Trạng thái">
@@ -197,12 +209,32 @@ export function BoardFilter({
           />
         </Section>
 
-        <button
-          onClick={reset}
-          className="w-full rounded-compact bg-tr-hover py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover-strong"
-        >
-          Xóa bộ lọc
-        </button>
+        {!isSheet && (
+          <button
+            onClick={reset}
+            className="w-full rounded-compact bg-tr-hover py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover-strong"
+          >
+            Xóa bộ lọc
+          </button>
+        )}
+        {isSheet && (
+          <div className="sticky bottom-0 grid grid-cols-[1fr_2fr] gap-2 border-t border-tr-border bg-tr-panel py-2">
+            <button
+              type="button"
+              onClick={reset}
+              className="min-h-11 rounded-control bg-tr-hover text-sm text-tr-text"
+            >
+              Xóa lọc
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-11 rounded-control bg-tr-primary text-sm font-semibold text-tr-on-primary"
+            >
+              Xem {matchCount} thẻ
+            </button>
+          </div>
+        )}
       </div>
     </Popover>
   );
@@ -229,13 +261,16 @@ function Row({
   type?: 'checkbox' | 'radio';
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-tr-text transition hover:bg-tr-hover">
+    <label
+      className={`flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-tr-text transition hover:bg-tr-hover max-md:min-h-10 max-md:rounded-full max-md:border max-md:border-tr-border max-md:px-3.5 ${checked ? 'max-md:bg-tr-primary max-md:text-tr-on-primary' : ''}`}
+    >
       <input
         type={type}
         checked={checked}
         onChange={onToggle}
-        className="h-4 w-4 border-tr-border text-tr-primary"
+        className="h-4 w-4 border-tr-border text-tr-primary max-md:sr-only"
       />
+      {checked && <Check size={15} className="hidden max-md:block" aria-hidden="true" />}
       {children}
     </label>
   );

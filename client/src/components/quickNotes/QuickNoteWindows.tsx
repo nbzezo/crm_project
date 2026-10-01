@@ -6,13 +6,23 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { Maximize2, Minus, Pin, PinOff, StickyNote, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  Maximize2,
+  Minus,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+  StickyNote,
+  X,
+} from 'lucide-react';
 import { focusRing, Skeleton } from '../common/ui';
 import { useDialog } from '../common/useDialog';
 import { useThemeStore } from '../../stores/themeStore';
 import { colorForNote } from './palette';
 import { QuickNoteEditorSurface } from './QuickNoteCard';
 import { useQuickNote } from './useQuickNotes';
+import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 
 export interface QuickNoteWindowBounds {
   x: number;
@@ -105,11 +115,14 @@ interface LayerProps {
 }
 
 export function QuickNoteWindowLayer({ windows, onChange, onClose, onFocus }: LayerProps) {
+  const isNarrow = !useMediaQuery(MD_QUERY);
+  const [listOpen, setListOpen] = useState(false);
   const ordered = useMemo(
     () => [...windows.filter((item) => !item.pinned), ...windows.filter((item) => item.pinned)],
     [windows]
   );
   const minimized = windows.filter((item) => item.minimized);
+  const activeMobile = [...windows].reverse().find((item) => !item.minimized);
 
   useEffect(() => {
     const onResize = () => {
@@ -123,23 +136,89 @@ export function QuickNoteWindowLayer({ windows, onChange, onClose, onFocus }: La
 
   return (
     <>
-      {ordered.map((item) => (
+      {(isNarrow ? (activeMobile ? [activeMobile] : []) : ordered).map((item) => (
         <QuickNoteFloatingWindow
           key={item.id}
           state={item}
           onChange={(patch) => onChange(item.id, patch)}
           onClose={() => onClose(item.id)}
           onFocus={() => onFocus(item.id)}
+          isNarrow={isNarrow}
         />
       ))}
-      <QuickNoteBubbleStack
-        windows={minimized}
-        onRestore={(id) => {
-          onChange(id, { minimized: false });
-          onFocus(id);
-        }}
-        onClose={onClose}
-      />
+      {!isNarrow && (
+        <QuickNoteBubbleStack
+          windows={minimized}
+          onRestore={(id) => {
+            onChange(id, { minimized: false });
+            onFocus(id);
+          }}
+          onClose={onClose}
+        />
+      )}
+      {isNarrow && windows.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setListOpen(true)}
+            className="fixed right-3 z-[var(--z-index-quick-note-bubbles)] min-h-11 rounded-full bg-tr-primary px-4 text-sm font-semibold text-tr-on-primary shadow-lg"
+            style={{ bottom: 'calc(var(--tr-tabbar-h) + 0.75rem)' }}
+          >
+            Ghi nhanh · {windows.length}
+          </button>
+          {listOpen && (
+            <div className="fixed inset-0 z-modal" role="presentation">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/45"
+                onClick={() => setListOpen(false)}
+                aria-label="Đóng danh sách ghi nhanh"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Ghi nhanh đang mở"
+                className="absolute inset-x-0 bottom-0 max-h-[70dvh] overflow-y-auto rounded-t-modal bg-tr-panel p-4 pb-[var(--tr-safe-bottom)]"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-tr-text">Ghi nhanh</h2>
+                  <button
+                    type="button"
+                    onClick={() => setListOpen(false)}
+                    className="flex h-11 w-11 items-center justify-center"
+                    aria-label="Đóng"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                {windows.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 border-b border-tr-border">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange(item.id, { minimized: false });
+                        onFocus(item.id);
+                        setListOpen(false);
+                      }}
+                      className="min-h-11 flex-1 text-left text-sm text-tr-text"
+                    >
+                      Ghi chú #{item.id}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onClose(item.id)}
+                      className="flex h-11 w-11 items-center justify-center text-tr-danger"
+                      aria-label={`Đóng ghi chú ${item.id}`}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }
@@ -149,11 +228,13 @@ function QuickNoteFloatingWindow({
   onChange,
   onClose,
   onFocus,
+  isNarrow,
 }: {
   state: QuickNoteWindowState;
   onChange: (patch: Partial<QuickNoteWindowState>) => void;
   onClose: () => void;
   onFocus: () => void;
+  isNarrow: boolean;
 }) {
   const { data: note, isLoading, isError } = useQuickNote(state.id);
   const isDark = useThemeStore((store) => store.isDark());
@@ -161,6 +242,7 @@ function QuickNoteFloatingWindow({
   const bg = color ? (isDark ? color.bgDark : color.bgLight) : undefined;
   const fg = color ? (isDark ? color.textDark : color.textLight) : undefined;
   const panelRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const latestBoundsRef = useRef(state.bounds);
   const onChangeRef = useRef(onChange);
 
@@ -193,7 +275,7 @@ function QuickNoteFloatingWindow({
 
   useEffect(() => {
     const node = panelRef.current;
-    if (!node || state.maximized || state.minimized) return;
+    if (!node || state.maximized || state.minimized || isNarrow) return;
     let commitTimer: number | undefined;
     let pendingBounds: QuickNoteWindowBounds | null = null;
     const observer = new ResizeObserver(() => {
@@ -219,10 +301,10 @@ function QuickNoteFloatingWindow({
       observer.disconnect();
       window.clearTimeout(commitTimer);
     };
-  }, [state.maximized, state.minimized]);
+  }, [state.maximized, state.minimized, isNarrow]);
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || state.maximized) return;
+    if (isNarrow || event.button !== 0 || state.maximized) return;
     if ((event.target as HTMLElement).closest('button')) return;
     event.preventDefault();
     onFocus();
@@ -271,33 +353,41 @@ function QuickNoteFloatingWindow({
       aria-modal="false"
       aria-label={note?.title || 'Ghi chú không tiêu đề'}
       onMouseDown={onFocus}
-      className={`fixed flex min-h-[260px] min-w-[280px] flex-col overflow-hidden rounded-xl border border-black/10 shadow-2xl ${
-        state.maximized ? '' : '[resize:both]'
+      className={`fixed flex flex-col overflow-hidden border border-black/10 shadow-2xl ${isNarrow ? 'inset-0 h-dvh w-screen rounded-none' : 'min-h-[260px] min-w-[280px] rounded-xl'} ${
+        state.maximized || isNarrow ? '' : '[resize:both]'
       }`}
       style={{
         display: state.minimized ? 'none' : 'flex',
         zIndex: state.pinned
           ? 'var(--z-index-quick-note-window-pinned)'
           : 'var(--z-index-quick-note-window)',
-        left: state.maximized ? EDGE : state.bounds.x,
-        top: state.maximized ? EDGE : state.bounds.y,
-        right: state.maximized ? EDGE : undefined,
-        bottom: state.maximized ? EDGE : undefined,
-        width: state.maximized ? 'auto' : state.bounds.width,
-        height: state.maximized ? 'auto' : state.bounds.height,
-        maxWidth: `calc(100vw - ${EDGE * 2}px)`,
-        maxHeight: `calc(100vh - ${EDGE * 2}px)`,
+        left: isNarrow ? 0 : state.maximized ? EDGE : state.bounds.x,
+        top: isNarrow ? 0 : state.maximized ? EDGE : state.bounds.y,
+        right: isNarrow ? 0 : state.maximized ? EDGE : undefined,
+        bottom: isNarrow ? 0 : state.maximized ? EDGE : undefined,
+        width: isNarrow ? '100vw' : state.maximized ? 'auto' : state.bounds.width,
+        height: isNarrow ? '100dvh' : state.maximized ? 'auto' : state.bounds.height,
+        maxWidth: isNarrow ? '100vw' : `calc(100vw - ${EDGE * 2}px)`,
+        maxHeight: isNarrow ? '100dvh' : `calc(100vh - ${EDGE * 2}px)`,
         backgroundColor: bg,
         color: fg,
       }}
     >
       <div
         onPointerDown={startDrag}
-        className={`flex h-10 shrink-0 touch-none select-none items-center gap-2 border-b border-current/15 px-2 ${
+        className={`flex min-h-11 shrink-0 select-none items-center gap-2 border-b border-current/15 px-2 pt-[env(safe-area-inset-top)] ${
           state.maximized ? 'cursor-default' : 'cursor-move'
         }`}
         style={{ backgroundColor: bg, color: fg }}
       >
+        {isNarrow && (
+          <WindowButton
+            label="Quay lại danh sách ghi nhanh"
+            onClick={() => onChange({ minimized: true })}
+          >
+            <ChevronLeft size={20} />
+          </WindowButton>
+        )}
         <StickyNote size={15} className="shrink-0 opacity-70" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate text-xs font-semibold">
           {note?.title || 'Ghi chú không tiêu đề'}
@@ -308,19 +398,55 @@ function QuickNoteFloatingWindow({
         >
           {state.pinned ? <PinOff size={15} /> : <Pin size={15} />}
         </WindowButton>
-        <WindowButton label="Thu nhỏ thành bong bóng" onClick={() => onChange({ minimized: true })}>
-          <Minus size={16} />
-        </WindowButton>
-        <WindowButton
-          label={state.maximized ? 'Khôi phục kích thước' : 'Phóng to cửa sổ'}
-          onClick={() => onChange({ maximized: !state.maximized })}
-        >
-          <Maximize2 size={14} />
-        </WindowButton>
+        {!isNarrow && (
+          <WindowButton
+            label="Thu nhỏ thành bong bóng"
+            onClick={() => onChange({ minimized: true })}
+          >
+            <Minus size={16} />
+          </WindowButton>
+        )}
+        {!isNarrow && (
+          <WindowButton
+            label={state.maximized ? 'Khôi phục kích thước' : 'Phóng to cửa sổ'}
+            onClick={() => onChange({ maximized: !state.maximized })}
+          >
+            <Maximize2 size={14} />
+          </WindowButton>
+        )}
+        {isNarrow && (
+          <WindowButton
+            label="Thao tác ghi nhanh"
+            onClick={() => setMobileMenuOpen((value) => !value)}
+          >
+            <MoreHorizontal size={20} />
+          </WindowButton>
+        )}
         <WindowButton label="Đóng cửa sổ ghi chú" onClick={onClose}>
           <X size={16} />
         </WindowButton>
       </div>
+      {isNarrow && mobileMenuOpen && (
+        <div className="absolute right-2 top-14 z-20 min-w-40 rounded-panel border border-tr-border bg-tr-panel p-1 shadow-xl">
+          <button
+            type="button"
+            onClick={() => {
+              onChange({ pinned: !state.pinned });
+              setMobileMenuOpen(false);
+            }}
+            className="min-h-11 w-full rounded-control px-3 text-left text-sm text-tr-text"
+          >
+            {state.pinned ? 'Bỏ ghim' : 'Ghim ghi chú'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-11 w-full rounded-control px-3 text-left text-sm text-tr-danger"
+          >
+            Đóng ghi chú
+          </button>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1">
         {isLoading ? (
@@ -358,7 +484,7 @@ function WindowButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition hover:bg-black/10 ${focusRing}`}
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition hover:bg-black/10 fine:h-7 fine:w-7 ${focusRing}`}
     >
       {children}
     </button>

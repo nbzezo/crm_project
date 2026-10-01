@@ -184,6 +184,9 @@ interface UiState {
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
 
+  quickCreateOpen: boolean;
+  setQuickCreateOpen: (open: boolean) => void;
+
   /** Ngan keo dieu huong tren man hinh hep. */
   navOpen: boolean;
   setNavOpen: (open: boolean) => void;
@@ -233,6 +236,9 @@ export const useUiStore = create<UiState>((set) => ({
 
   searchOpen: false,
   setSearchOpen: (open) => set({ searchOpen: open }),
+
+  quickCreateOpen: false,
+  setQuickCreateOpen: (open) => set({ quickCreateOpen: open }),
 
   navOpen: false,
   setNavOpen: (open) => set({ navOpen: open }),

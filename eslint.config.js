@@ -10,6 +10,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       '.codegraph/**',
+      '.playwright/**',
       '.claude/**',
       'server/data/**',
       'docs/**',

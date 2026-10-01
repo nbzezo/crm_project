@@ -243,7 +243,7 @@ export default function BoardsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && name.trim() && createBoard.mutate()}
-              className="w-full rounded border-2 border-tr-primary px-2.5 py-1.5 text-sm outline-none"
+              className="tr-field-control w-full rounded-control border-2 border-tr-primary px-2.5 py-1.5 outline-none"
             />
           </label>
 
@@ -332,9 +332,10 @@ function BoardTile({
 
       <button
         onClick={() => onToggleStar({ id: board.id, patch: { is_starred: !board.is_starred } })}
-        className={`absolute top-2 right-2 rounded p-1 text-white transition hover:bg-black/25 ${
-          board.is_starred ? '' : 'opacity-0 group-hover:opacity-100'
+        className={`absolute top-0 right-0 flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-black/25 fine:top-2 fine:right-2 fine:h-7 fine:w-7 ${
+          board.is_starred ? '' : 'hoverable:opacity-0 hoverable:group-hover:opacity-100'
         }`}
+        aria-label={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao'}
         title={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao'}
       >
         <Star
@@ -348,7 +349,8 @@ function BoardTile({
         onClick={() =>
           onToggleArchive({ id: board.id, patch: { is_archived: !board.is_archived } })
         }
-        className="absolute right-2 bottom-2 rounded p-1 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/25"
+        className="absolute right-0 bottom-0 flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-black/25 hoverable:opacity-0 hoverable:group-hover:opacity-100 fine:right-2 fine:bottom-2 fine:h-7 fine:w-7"
+        aria-label={board.is_archived ? t.board.unarchive : t.board.archive}
         title={board.is_archived ? t.board.unarchive : t.board.archive}
       >
         {board.is_archived ? <X size={13} /> : <Archive size={13} />}

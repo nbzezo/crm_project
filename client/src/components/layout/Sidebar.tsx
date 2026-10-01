@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -20,227 +20,43 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  BarChart3,
-  BellRing,
-  CalendarDays,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
-  Contact,
-  FileSignature,
-  FolderKanban,
-  FolderOpen,
-  GanttChartSquare,
   GripVertical,
-  HeartPulse,
-  LayoutDashboard,
-  ListChecks,
   Pencil,
   RotateCcw,
-  Settings,
-  Sparkles,
   Star,
-  Target,
-  Trello,
-  Users,
   X,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { backgroundStyle } from '../../lib/backgrounds';
-import { selectNeedsNudge } from '../../lib/followUp';
 import { t } from '../../i18n/vi';
-import { usePermissionCheck, type PermissionKey } from '../../lib/permissions';
-import type { Board, NotificationFeed, TaskRow } from '../../types';
+import { usePermissionCheck } from '../../lib/permissions';
+import type { Board } from '../../types';
 import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from '../common/useDialog';
 import { focusRing } from '../common/ui';
 import { buildDndAnnouncements } from '../../lib/dnd/announcements';
+import {
+  AI_NAV,
+  DEFAULT_NAV_ORDER,
+  HOME_NAV,
+  NAV_GROUPS,
+  NAV_ORDER_STORAGE_KEY,
+  SETTINGS_NAV,
+  isGroupDefaultOrder,
+  loadNavOrder,
+  useCanOpenSettings,
+  useGroupItems,
+  useNavBadges,
+  type NavGroupId,
+  type NavItem,
+  type NavOrder,
+} from './navConfig';
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  end?: boolean;
-  /**
-   * Item nay khong dieu huong sang trang — bam de mo mot overlay toan cuc (vd.
-   * Bang Ghi chu nhanh, xem QuickNotesBoard.tsx). `to` van dung lam id on dinh
-   * cho sap xep/badge, chi khong duoc dung lam duong dan thuc su.
-   */
-  /**
-   * Quyen toi thieu de THAY muc nay. Khong khai bao = ai cung thay.
-   *
-   * An menu KHONG phai la chan — may chu van kiem lai moi request. Muc dich o
-   * day la de nguoi dung khong bam vao mot thu roi nhan 403 ma khong hieu vi sao.
-   */
-  permission?: PermissionKey;
-  /**
-   * Hien muc khi co IT NHAT mot quyen trong danh sach. Dung cho trang gom nhieu
-   * tab moi tab mot quyen (vd. Tai lieu: Trang tai lieu + Tep tai len). Uu tien
-   * hon `permission` khi khai ca hai.
-   */
-  permissionAny?: PermissionKey[];
-}
-
-type NavGroupId = 'daily' | 'projects' | 'sales';
-type NavOrder = Record<NavGroupId, string[]>;
-
-const HOME_NAV: NavItem = {
-  to: '/',
-  label: t.nav.dashboard,
-  icon: LayoutDashboard,
-  end: true,
-};
-const AI_NAV: NavItem = {
-  to: '/ai',
-  label: t.nav.ai,
-  icon: Sparkles,
-  permission: 'ai:read',
-};
-/*
- * Cai dat KHONG co `permission` rieng: no la mot trang gom nhieu muc, moi muc
- * mot quyen. Hien/an no theo viec nguoi dung co it nhat MOT muc nao do hay
- * khong — xem `canOpenSettings` ben duoi.
- *
- * Truoc khi *Tai khoan* chuyen ra menu avatar, ai cung co it nhat mot muc nen
- * cau hoi nay khong ton tai. Nay mot Nhan vien khong con muc nao, va mo ra mot
- * trang trong thi te hon la khong thay muc do.
- */
-const SETTINGS_NAV: NavItem = { to: '/settings', label: t.nav.settings, icon: Settings };
-
-const SETTINGS_PERMISSIONS: PermissionKey[] = [
-  'settings.app:read',
-  'settings.ai:read',
-  'settings.email:read',
-  'settings.telegram:read',
-  'data.export:export',
-  'admin.users:read',
-  'admin.org:read',
-  'admin.positions:read',
-];
-
-function useCanOpenSettings(): boolean {
-  const allowed = usePermissionCheck();
-  return SETTINGS_PERMISSIONS.some((key) => allowed(key));
-}
-const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
-  {
-    id: 'daily',
-    label: t.nav.groupDaily,
-    items: [
-      { to: '/tasks', label: t.nav.tasks, icon: ListChecks, permission: 'tasks:read' },
-      { to: '/follow-up', label: t.nav.followUp, icon: BellRing, permission: 'tasks:read' },
-      { to: '/calendar', label: t.nav.calendar, icon: CalendarDays, permission: 'tasks:read' },
-    ],
-  },
-  {
-    id: 'projects',
-    label: t.nav.groupProjects,
-    items: [
-      { to: '/projects', label: t.nav.projects, icon: FolderKanban, permission: 'projects:read' },
-      { to: '/boards', label: t.nav.boards, icon: Trello, permission: 'boards:read' },
-      { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare, permission: 'tasks:read' },
-      {
-        to: '/documents',
-        label: t.nav.documents,
-        icon: FolderOpen,
-        permissionAny: ['documents:read', 'notes:read'],
-      },
-      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
-    ],
-  },
-  {
-    id: 'sales',
-    label: t.nav.groupSales,
-    items: [
-      { to: '/customers', label: t.nav.customers, icon: Users, permission: 'customers:read' },
-      { to: '/pipeline', label: t.nav.pipeline, icon: Target, permission: 'deals:read' },
-      {
-        to: '/pipeline-health',
-        label: t.nav.pipelineHealth,
-        icon: HeartPulse,
-        permission: 'report.sales:read',
-      },
-      {
-        to: '/contracts',
-        label: t.nav.contracts,
-        icon: FileSignature,
-        permission: 'contracts:read',
-      },
-      { to: '/revenue', label: t.nav.revenue, icon: CircleDollarSign, permission: 'revenues:read' },
-      {
-        to: '/org-directory',
-        label: t.nav.orgDirectory,
-        icon: Contact,
-        permission: 'contacts:read',
-      },
-    ],
-  },
-];
-
-/**
- * Muc menu cua mot nhom, da loc theo quyen va sap theo thu tu nguoi dung luu.
- *
- * Loc TRUOC khi ap thu tu, va co y KHONG dung toi DEFAULT_NAV_ORDER: thu tu da
- * luu van giu day du moi muc, nen khi ai do duoc cap them quyen thi muc tuong
- * ung tro lai dung cho cu thay vi nhay xuong cuoi.
- */
-function useGroupItems(order: NavOrder): (group: (typeof NAV_GROUPS)[number]) => NavItem[] {
-  const allowed = usePermissionCheck();
-  return (group) => {
-    const itemMap = new Map(
-      group.items
-        .filter((item) =>
-          item.permissionAny
-            ? item.permissionAny.some((key) => allowed(key))
-            : allowed(item.permission)
-        )
-        .map((item) => [item.to, item])
-    );
-    return order[group.id]
-      .map((to) => itemMap.get(to))
-      .filter((item): item is NavItem => item !== undefined);
-  };
-}
-
-const DEFAULT_NAV_ORDER = Object.fromEntries(
-  NAV_GROUPS.map((group) => [group.id, group.items.map((item) => item.to)])
-) as NavOrder;
-/* v3: cac muc Phan tich/Cong cu da chuyen qua nhom khac. */
-const NAV_ORDER_STORAGE_KEY = 'workflow-sidebar-nav-order-v3';
 const NAV_GROUPS_COLLAPSED_STORAGE_KEY = 'workflow-sidebar-groups-collapsed-v2';
-
-function normalizeNavOrder(value: unknown): NavOrder {
-  const saved = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  const result = {} as NavOrder;
-
-  for (const group of NAV_GROUPS) {
-    const defaults = DEFAULT_NAV_ORDER[group.id];
-    const allowed = new Set(defaults);
-    const rawOrder = saved[group.id];
-    const preferred: string[] = Array.isArray(rawOrder)
-      ? rawOrder.filter((id: unknown): id is string => typeof id === 'string' && allowed.has(id))
-      : [];
-    const unique = [...new Set(preferred)];
-    result[group.id] = [...unique, ...defaults.filter((id) => !unique.includes(id))];
-  }
-
-  return result;
-}
-
-function loadNavOrder(): NavOrder {
-  if (typeof window === 'undefined') return normalizeNavOrder(null);
-  try {
-    return normalizeNavOrder(JSON.parse(localStorage.getItem(NAV_ORDER_STORAGE_KEY) ?? 'null'));
-  } catch {
-    return normalizeNavOrder(null);
-  }
-}
-
-function isGroupDefaultOrder(groupId: NavGroupId, order: NavOrder): boolean {
-  return order[groupId].join('|') === DEFAULT_NAV_ORDER[groupId].join('|');
-}
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'workflow-sidebar-collapsed-v1';
 
@@ -306,26 +122,6 @@ function useBoards() {
 
 /* Dung chung queryKey voi ReminderBell ('notifications') va FollowUpPage
    ('tasks','follow-up') de React Query gop request, khong goi API rieng. */
-function useNavBadges() {
-  const { data: feed } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api.get<NotificationFeed>('/api/notifications'),
-    refetchInterval: 60_000,
-  });
-  const { data: tasks } = useQuery({
-    queryKey: ['tasks', 'follow-up'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
-    // Chi de dem badge canh "Cần theo dõi": tai lai toan bo danh sach viec dang
-    // mo tren moi lan doi route la phi. Con so nay khong can tuoi tung giay.
-    staleTime: 60_000,
-  });
-
-  return {
-    '/tasks': feed?.counts.task ?? 0,
-    '/follow-up': tasks ? selectNeedsNudge(tasks).length : 0,
-  } as Record<string, number>;
-}
-
 interface NavBadgeProps {
   badge?: number;
   badgeTone?: 'primary' | 'danger';
@@ -439,7 +235,7 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
   const [editMode, setEditMode] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedGroups);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );

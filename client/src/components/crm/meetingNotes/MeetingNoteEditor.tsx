@@ -400,7 +400,7 @@ export function MeetingNoteEditor({
             <p className="text-sm text-tr-subtle">{summary.summary}</p>
             {summary.action_items.length > 0 && (
               <div>
-                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-tr-muted uppercase">
+                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-tr-muted">
                   <ListChecks size={13} aria-hidden="true" /> Việc cần làm
                 </div>
                 <ul className="space-y-1.5">

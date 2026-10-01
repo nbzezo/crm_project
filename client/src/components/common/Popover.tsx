@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { ChevronLeft, X } from 'lucide-react';
 import { useDialog } from './useDialog';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ interface Props {
    */
   matchAnchorWidth?: boolean;
   onBack?: () => void;
+  presentation?: 'auto' | 'anchored';
 }
 
 /**
@@ -33,15 +35,18 @@ export function Popover({
   width: widthProp = 304,
   matchAnchorWidth = false,
   onBack,
+  presentation = 'auto',
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const coarseNarrow = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
+  const sheet = presentation === 'auto' && coarseNarrow;
   const [pos, setPos] = useState({
     left: 0,
     top: 0,
     bottom: null as number | null,
     maxHeight: 220,
   });
-  useDialog({ open, onClose, containerRef: ref, trapFocus: false, focusOnOpen: true });
+  useDialog({ open, onClose, containerRef: ref, trapFocus: sheet, focusOnOpen: true });
 
   /**
    * Neo mac dinh o DUOI nut bam, nhung lat len TREN khi khong du cho — vd. nut
@@ -51,7 +56,7 @@ export function Popover({
   const [resolvedWidth, setResolvedWidth] = useState(widthProp);
 
   useLayoutEffect(() => {
-    if (!open || !anchor) return;
+    if (!open || !anchor || sheet) return;
     const rect = anchor.getBoundingClientRect();
     const margin = 8;
     const width = matchAnchorWidth ? Math.max(widthProp, rect.width) : widthProp;
@@ -74,11 +79,11 @@ export function Popover({
     } else {
       setPos({ left, top: rect.bottom + 6, bottom: null, maxHeight: Math.max(160, spaceBelow) });
     }
-  }, [open, anchor, widthProp, matchAnchorWidth]);
+  }, [open, anchor, widthProp, matchAnchorWidth, sheet]);
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: PointerEvent) => {
       if (
         ref.current &&
         !ref.current.contains(e.target as Node) &&
@@ -88,9 +93,9 @@ export function Popover({
         onClose();
       }
     };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown);
     };
   }, [open, onClose, anchor]);
 
@@ -99,45 +104,59 @@ export function Popover({
   /* Portal ra <body>: mo tu ben trong vung `overflow-auto`/`tr-app-shell` (overflow:
      hidden) se cat/lech phan tu `fixed` neu khong portal — cung van de nhu Drawer.tsx. */
   return createPortal(
-    <div
-      ref={ref}
-      role="dialog"
-      aria-modal="false"
-      aria-label={title}
-      /* Popover co the chua mot Combobox, ma Combobox lai portal popover con ra
-         body. Chan mousedown noi bo noi bot len document de popover cha khong
-         dong va unmount lua chon con truoc khi su kien click kip chay. */
-      onMouseDown={(event) => event.stopPropagation()}
-      className="tr-popover tr-popover-shadow tr-anim-pop fixed z-popover flex flex-col overflow-hidden rounded-panel border border-tr-border bg-tr-panel"
-      style={{
-        left: pos.left,
-        top: pos.bottom == null ? pos.top : undefined,
-        bottom: pos.bottom ?? undefined,
-        width: Math.min(resolvedWidth, window.innerWidth - 16),
-        maxHeight: pos.maxHeight,
-      }}
-    >
-      <div className="relative flex h-10 shrink-0 items-center justify-center border-b border-tr-border px-9">
-        {onBack && (
+    <>
+      {sheet && (
+        <div className="tr-anim-fade fixed inset-0 z-popover bg-tr-overlay" aria-hidden="true" />
+      )}
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal={sheet}
+        aria-label={title}
+        /* Popover co the chua mot Combobox, ma Combobox lai portal popover con ra
+         body. Chan pointerdown noi bo noi bot len document de popover cha khong
+         dong va unmount lua chon con truoc khi su kien click kip chay. Pointer
+         event bao gom ca chuot, cam ung va but. */
+        onPointerDown={(event) => event.stopPropagation()}
+        className={
+          sheet
+            ? 'tr-popover tr-popover-shadow tr-anim-slide-up fixed inset-x-0 bottom-[var(--tr-keyboard-inset)] z-popover flex max-h-[calc(var(--tr-vvh)*0.85)] flex-col overflow-hidden rounded-t-modal border-t border-tr-border bg-tr-panel pb-[var(--tr-safe-bottom)]'
+            : 'tr-popover tr-popover-shadow tr-anim-pop fixed z-popover flex flex-col overflow-hidden rounded-panel border border-tr-border bg-tr-panel'
+        }
+        style={
+          sheet
+            ? undefined
+            : {
+                left: pos.left,
+                top: pos.bottom == null ? pos.top : undefined,
+                bottom: pos.bottom ?? undefined,
+                width: Math.min(resolvedWidth, window.innerWidth - 16),
+                maxHeight: pos.maxHeight,
+              }
+        }
+      >
+        <div className="relative flex h-12 shrink-0 items-center justify-center border-b border-tr-border px-12 fine:h-10">
+          {onBack && (
+            <button
+              onClick={onBack}
+              aria-label="Quay lại"
+              className="absolute left-1.5 flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary fine:h-8 fine:w-8"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
+          <span className="truncate text-sm font-semibold text-tr-subtle">{title}</span>
           <button
-            onClick={onBack}
-            aria-label="Quay lại"
-            className="absolute left-1.5 rounded-control p-1.5 text-tr-muted transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
+            onClick={onClose}
+            className="absolute right-1.5 flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary fine:h-8 fine:w-8"
+            aria-label="Đóng"
           >
-            <ChevronLeft size={16} />
+            <X size={16} />
           </button>
-        )}
-        <span className="truncate text-sm font-semibold text-tr-subtle">{title}</span>
-        <button
-          onClick={onClose}
-          className="absolute right-1.5 rounded-control p-1.5 text-tr-muted transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
-          aria-label="Đóng"
-        >
-          <X size={16} />
-        </button>
+        </div>
+        <div className="tr-scroll min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
       </div>
-      <div className="tr-scroll min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
-    </div>,
+    </>,
     document.body
   );
 }
@@ -150,6 +169,7 @@ export function PopoverItem({
   danger,
   role,
   checked,
+  disabled,
 }: {
   icon?: ReactNode;
   children: ReactNode;
@@ -159,6 +179,7 @@ export function PopoverItem({
   role?: 'menuitem' | 'menuitemradio';
   /** Di kem `role="menuitemradio"` — noi ra muc nao dang duoc chon. */
   checked?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -166,7 +187,8 @@ export function PopoverItem({
       role={role}
       aria-checked={role === 'menuitemradio' ? checked : undefined}
       onClick={onClick}
-      className={`tr-popover-item -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary fine:py-1.5 ${
+      disabled={disabled}
+      className={`tr-popover-item -mx-3 flex min-h-11 w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary disabled:cursor-not-allowed disabled:opacity-45 fine:min-h-0 fine:py-1.5 ${
         danger ? 'text-tr-danger' : 'text-tr-text'
       }`}
     >

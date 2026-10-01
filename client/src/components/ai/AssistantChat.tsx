@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Bot,
   Check,
+  Copy,
   ListPlus,
   MessageSquarePlus,
   PanelLeftClose,
@@ -270,7 +271,7 @@ export function AssistantChat() {
             onClick={() => setRailOpen((v) => !v)}
             aria-label={railOpen ? 'Đóng danh sách trò chuyện' : 'Mở danh sách trò chuyện'}
             aria-expanded={railOpen}
-            className={`flex h-9 w-9 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text lg:hidden ${focusRing}`}
+            className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text lg:hidden ${focusRing}`}
           >
             {railOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
           </button>
@@ -355,7 +356,7 @@ export function AssistantChat() {
         </div>
 
         {/* ---------- O nhap ---------- */}
-        <div className="shrink-0 border-t border-tr-border bg-tr-panel/80 px-3 py-3 sm:px-6">
+        <div className="shrink-0 border-t border-tr-border bg-tr-panel/80 px-3 pt-3 pb-[calc(max(var(--tr-tabbar-h),var(--tr-keyboard-inset))+0.75rem)] sm:px-6 md:pb-3">
           <div className="mx-auto w-full max-w-3xl">
             <FormError error={intent === 'ask' ? (ask.error ?? decide.error) : quickTask.error} />
 
@@ -384,7 +385,7 @@ export function AssistantChat() {
                     ? 'Hỏi về khách hàng, cơ hội, hợp đồng, việc của bạn…'
                     : 'Mô tả việc cần làm, AI sẽ viết lại thành task…'
                 }
-                className={`tr-scroll block max-h-[200px] w-full resize-none bg-transparent px-3 py-2.5 text-sm text-tr-text outline-none placeholder:text-tr-muted ${focusRing}`}
+                className={`tr-field-control tr-scroll block max-h-[40dvh] w-full resize-none bg-transparent px-3 py-2.5 text-tr-text outline-none placeholder:text-tr-muted md:max-h-[200px] ${focusRing}`}
               />
 
               <div className="flex flex-wrap items-center gap-1.5 border-t border-tr-border/60 px-2 py-1.5">
@@ -435,7 +436,7 @@ export function AssistantChat() {
                   onClick={submit}
                   disabled={draft.trim().length < 3 || busy}
                   aria-label={intent === 'ask' ? 'Gửi câu hỏi' : 'Viết lại thành task'}
-                  className={`ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-tr-primary text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-40 ${focusRing}`}
+                  className={`ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-tr-primary text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-40 fine:h-9 fine:w-9 ${focusRing}`}
                 >
                   {intent === 'ask' ? (
                     <ArrowUp size={17} aria-hidden="true" />
@@ -550,7 +551,7 @@ function ChatRail({
                     label={`Xoá: ${session.title || 'Cuộc trò chuyện mới'}`}
                     tone="danger"
                     onClick={() => onDelete(session)}
-                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    className="opacity-100 fine:opacity-0 fine:group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Trash2 size={15} aria-hidden="true" />
                   </IconButton>
@@ -631,12 +632,38 @@ function Turn({
   onDecide: (decision: 'approve' | 'reject') => void;
   onFollowUp: (text: string) => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyAnswer() {
+    await navigator.clipboard.writeText(result.answer);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
   return (
     <div className="space-y-3">
       <Bubble text={question} />
 
       <div className="space-y-3">
         <AnswerText text={result.answer} />
+
+        <div className="flex items-center gap-1" aria-label="Hành động cho câu trả lời">
+          <IconButton
+            label={copied ? 'Đã sao chép câu trả lời' : 'Sao chép câu trả lời'}
+            onClick={() => void copyAnswer()}
+          >
+            {copied ? (
+              <Check size={15} aria-hidden="true" />
+            ) : (
+              <Copy size={15} aria-hidden="true" />
+            )}
+          </IconButton>
+          {copied && (
+            <span role="status" className="text-xs text-tr-muted">
+              Đã sao chép
+            </span>
+          )}
+        </div>
 
         {result.sources.length > 0 && (
           <details className="text-xs text-tr-muted">

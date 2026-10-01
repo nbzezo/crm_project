@@ -4,6 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 const e2eData = path.join(os.tmpdir(), 'workflow-clone-trello-e2e');
 const storageState = path.join(e2eData, 'storage-state.json');
+const apiPort = Number(process.env.E2E_API_PORT ?? 3101);
+const webPort = Number(process.env.E2E_WEB_PORT ?? 5174);
 
 export default defineConfig({
   testDir: './e2e',
@@ -14,18 +16,18 @@ export default defineConfig({
   reporter: [['list']],
   outputDir: '.playwright/test-results',
   use: {
-    baseURL: 'http://127.0.0.1:5174',
+    baseURL: `http://127.0.0.1:${webPort}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: [
     {
       command: 'npm run start:dev -w server',
-      url: 'http://127.0.0.1:3101/api/health',
+      url: `http://127.0.0.1:${apiPort}/api/health`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        PORT: '3101',
+        PORT: String(apiPort),
         WORKFLOW_DATA_DIR: e2eData,
         WORKFLOW_DB_PATH: path.join(e2eData, 'app.db'),
         WORKFLOW_SESSION_SECRET: 'e2e-session-secret-value-at-least-32-characters',
@@ -35,12 +37,12 @@ export default defineConfig({
       },
     },
     {
-      command: 'npm run preview -w client -- --host 127.0.0.1 --port 5174',
-      url: 'http://127.0.0.1:5174',
+      command: `npm run preview -w client -- --host 127.0.0.1 --port ${webPort}`,
+      url: `http://127.0.0.1:${webPort}`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        VITE_API_PROXY_TARGET: 'http://127.0.0.1:3101',
+        VITE_API_PROXY_TARGET: `http://127.0.0.1:${apiPort}`,
       },
     },
   ],

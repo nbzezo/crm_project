@@ -563,7 +563,7 @@ function People({ project }: { project: ProjectDetail }) {
     <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel">
       <table className="w-full text-sm">
         <caption className="sr-only">Nhân sự tham gia dự án</caption>
-        <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+        <thead className="bg-tr-surface text-left text-xs text-tr-subtle">
           <tr>
             <th scope="col" className="px-3 py-2">
               Người phụ trách

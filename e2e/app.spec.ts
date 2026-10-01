@@ -53,13 +53,17 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
   page,
 }, testInfo) => {
   if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('button', { name: 'Mở menu điều hướng' }).click();
+    await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('button', { name: 'Thêm' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Tất cả mục' });
+    for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh']) await expect(sheet.getByRole('region', { name: group })).toBeVisible();
+    await expect(sheet.getByRole('link', { name: 'Cơ hội bán hàng' })).toBeVisible();
+    await expect(sheet.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
+    await expect(sheet.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Ghi nhanh' })).toBeVisible();
+    return;
   }
 
-  const container =
-    testInfo.project.name === 'mobile-chromium'
-      ? page.getByRole('dialog')
-      : page.getByRole('complementary');
+  const container = page.getByRole('complementary');
 
   for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh']) {
     await expect(container.getByRole('button', { name: group, exact: true })).toBeVisible();
@@ -1247,4 +1251,63 @@ test('đổi tab Tài liệu bằng bàn phím', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Tệp tải lên' })).toBeFocused();
   await expect(page.getByRole('button', { name: /Tải tài liệu/ })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+});
+
+test.describe('mobile layout', () => {
+  test.skip(({ isMobile }) => !isMobile, 'Chỉ kiểm tra project mobile');
+
+  test('thanh tab có năm mục, điều hướng và mở Tạo nhanh', async ({ page }) => {
+    const tabs = page.getByRole('navigation', { name: 'Điều hướng chính' });
+    await expect(tabs.locator('a, button')).toHaveCount(5);
+    await tabs.getByRole('link', { name: 'Công việc' }).click();
+    await expect(page).toHaveURL(/\/tasks$/);
+    await tabs.getByRole('button', { name: 'Tạo' }).click();
+    await expect(page.getByRole('dialog', { name: 'Tạo nhanh' })).toBeVisible();
+  });
+
+  test('các trang chính không tràn ngang', async ({ page, request }) => {
+    const response = await request.post('/api/boards', { data: { name: `Mobile layout ${Date.now()}` } });
+    expect(response.ok()).toBeTruthy();
+    const board = await response.json() as { id: number };
+    for (const route of ['/', '/tasks', `/boards/${board.id}`, '/customers', '/revenue', '/org-directory', '/reports']) {
+      await page.goto(route);
+      await expect(page.getByRole('main')).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, route).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('nút topbar có vùng chạm ít nhất 44px', async ({ page }) => {
+    for (const button of await page.locator('header.tr-topbar button:visible').all()) {
+      const box = await button.boundingBox();
+      if (box) expect(box.width, await button.getAttribute('aria-label') ?? 'topbar button').toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('cài đặt mở panel rồi quay lại danh sách', async ({ page }) => {
+    await page.goto('/settings');
+    const aiTab = page.getByRole('tab', { name: 'Trợ lý AI' });
+    await expect(aiTab).toBeVisible();
+    await aiTab.click();
+    await expect(page).toHaveURL(/\?tab=ai/);
+    await expect(page.getByRole('button', { name: 'Cài đặt' })).toBeVisible();
+    await page.getByRole('button', { name: 'Cài đặt' }).click();
+    await expect(aiTab).toBeVisible();
+  });
+
+  test('bảng cho đổi tên danh sách qua menu cảm ứng', async ({ page, request }) => {
+    const response = await request.post('/api/boards', { data: { name: `Mobile Kanban ${Date.now()}` } });
+    expect(response.ok()).toBeTruthy();
+    const board = await response.json() as { id: number };
+    const full = await request.get(`/api/boards/${board.id}/full`);
+    const lists = (await full.json() as { lists: { id: number; name: string }[] }).lists;
+    expect(lists.length).toBeGreaterThan(0);
+    await page.goto(`/boards/${board.id}`);
+    await page.getByRole('button', { name: `Thao tác với danh sách ${lists[0].name}` }).click();
+    await page.getByRole('button', { name: 'Đổi tên danh sách' }).click();
+    const editor = page.getByRole('textbox', { name: 'Tên danh sách' });
+    await editor.fill('Cột mobile');
+    await editor.press('Enter');
+    await expect(page.getByText('Cột mobile').first()).toBeVisible();
+  });
 });

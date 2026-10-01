@@ -37,7 +37,7 @@ const VARIANTS: Record<Variant, string> = {
 
 /* Chieu cao toi thieu 44px cho thiet bi cam ung (WCAG 2.5.5), thu gon tren chuot */
 const SIZES: Record<Size, string> = {
-  sm: 'min-h-[36px] px-2.5 py-1 text-xs fine:min-h-0',
+  sm: 'min-h-11 px-2.5 py-1 text-xs fine:min-h-0',
   md: 'min-h-[44px] px-3 py-1.5 text-sm fine:min-h-[32px]',
   lg: 'min-h-[44px] px-4 py-2 text-sm',
 };

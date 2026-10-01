@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, FolderKanban, Image, Plus, Tag, Trash2, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  FolderKanban,
+  Image,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { api } from '../../api/client';
 import { Combobox } from '../common/Combobox';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -16,11 +26,17 @@ export function BoardMenu({
   board,
   open,
   onClose,
+  onRename,
+  labelText,
+  onToggleLabelText,
   onDeleted,
 }: {
   board: BoardFull;
   open: boolean;
   onClose: () => void;
+  onRename: () => void;
+  labelText: boolean;
+  onToggleLabelText: () => void;
   onDeleted: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -99,12 +115,12 @@ export function BoardMenu({
 
   return (
     <>
-      <aside className="tr-popover-shadow absolute top-0 right-0 z-nav-overlay flex h-full w-[339px] flex-col bg-tr-panel">
-        <header className="relative flex h-12 shrink-0 items-center justify-center border-b border-tr-border px-10">
+      <aside className="tr-popover-shadow absolute inset-0 z-nav-overlay flex h-full w-full flex-col bg-tr-panel sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[min(339px,100vw)]">
+        <header className="relative flex min-h-12 shrink-0 items-center justify-center border-b border-tr-border px-12 pt-[env(safe-area-inset-top)] sm:pt-0">
           {view !== 'main' && (
             <button
               onClick={() => setView('main')}
-              className="absolute left-2 rounded p-1.5 text-tr-muted transition hover:bg-tr-hover"
+              className="absolute left-1 flex h-11 w-11 items-center justify-center rounded text-tr-muted transition hover:bg-tr-hover"
             >
               <ChevronLeft size={17} />
             </button>
@@ -112,7 +128,7 @@ export function BoardMenu({
           <span className="text-sm font-semibold text-tr-subtle">{titles[view]}</span>
           <button
             onClick={onClose}
-            className="absolute right-2 rounded p-1.5 text-tr-muted transition hover:bg-tr-hover"
+            className="absolute right-1 flex h-11 w-11 items-center justify-center rounded text-tr-muted transition hover:bg-tr-hover"
           >
             <X size={17} />
           </button>
@@ -121,6 +137,14 @@ export function BoardMenu({
         <div className="tr-scroll flex-1 overflow-y-auto p-3">
           {view === 'main' && (
             <div className="space-y-1">
+              <MenuRow icon={<Pencil size={18} />} label="Đổi tên bảng" onClick={onRename} />
+              <div className="md:hidden">
+                <MenuRow
+                  icon={<SlidersHorizontal size={18} />}
+                  label={labelText ? 'Thu gọn chữ nhãn' : 'Hiện chữ nhãn'}
+                  onClick={onToggleLabelText}
+                />
+              </div>
               <MenuRow
                 icon={
                   <span className="h-6 w-8 rounded" style={backgroundStyle(board.background)} />
@@ -225,7 +249,7 @@ export function BoardMenu({
                   onChange={(e) => setLabelName(e.target.value)}
                   placeholder={t.settings.labelName}
                   onKeyDown={(e) => e.key === 'Enter' && labelName.trim() && addLabel.mutate()}
-                  className="w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary"
+                  className="tr-field-control w-full rounded-control border border-tr-border px-2.5 py-1.5 outline-none focus:border-tr-primary"
                 />
                 <div className="mt-2 grid grid-cols-5 gap-2">
                   {LABEL_PALETTE.map((color) => (
@@ -277,7 +301,7 @@ function MenuRow({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded px-2 py-2 text-left text-sm text-tr-text transition hover:bg-tr-hover"
+      className="flex min-h-11 w-full items-center gap-3 rounded px-2 py-2 text-left text-sm text-tr-text transition hover:bg-tr-hover fine:min-h-0"
     >
       {icon}
       {label}

@@ -133,7 +133,7 @@ export function HandoverPanel({ dealId }: { dealId: number }) {
                   type="button"
                   onClick={() => remove.mutate(item)}
                   aria-label={`Xóa mục: ${item.content}`}
-                  className={`mt-0.5 shrink-0 rounded p-0.5 text-tr-muted opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 hover:text-tr-danger ${focusRing}`}
+                  className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted opacity-100 transition hover:text-tr-danger hoverable:opacity-0 hoverable:group-hover:opacity-100 hoverable:focus-visible:opacity-100 fine:h-7 fine:w-7 ${focusRing}`}
                 >
                   <Trash2 size={14} aria-hidden="true" />
                 </button>

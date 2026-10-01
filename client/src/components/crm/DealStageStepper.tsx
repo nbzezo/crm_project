@@ -8,6 +8,7 @@
  * thể xảy ra từ bất kỳ giai đoạn nào (xem `useDealStageMove`), nên hiển thị
  * dạng badge phủ + liên kết phụ thay vì một ô trong chuỗi.
  */
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDealStageMove } from '../../hooks/useDealStageMove';
 import { CircleSlash, Ellipsis } from 'lucide-react';
@@ -21,6 +22,11 @@ import type { Deal, Stage } from '../../types';
 const LINEAR_STAGES = STAGE_ORDER.filter((s) => s !== 'lost');
 
 export function DealStageStepper({ deal }: { deal: Deal }) {
+  const activeStepRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches)
+      activeStepRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [deal.stage]);
   const queryClient = useQueryClient();
   const { move, dialogs } = useDealStageMove({
     invalidate: () => {
@@ -45,19 +51,20 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
       <div
         role="group"
         aria-label="Giai đoạn cơ hội"
-        className="tr-stage-stepper flex flex-wrap items-center gap-1"
+        className="tr-scroll flex snap-x snap-mandatory items-center gap-1 overflow-x-auto md:flex-wrap md:overflow-visible"
       >
         {LINEAR_STAGES.map((stage, index) => {
           const active = stage === deal.stage;
           const passed = currentIndex >= 0 && index < currentIndex;
           return (
             <button
+              ref={active ? activeStepRef : undefined}
               key={stage}
               type="button"
               disabled={active}
               onClick={() => go(stage)}
               title={active ? undefined : `Chuyển sang: ${t.stage[stage]}`}
-              className={`rounded-compact px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition disabled:cursor-default ${focusRing} ${
+              className={`min-h-11 shrink-0 snap-center rounded-compact px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition disabled:cursor-default fine:min-h-0 ${focusRing} ${
                 active
                   ? ''
                   : passed

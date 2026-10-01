@@ -4,10 +4,12 @@ import { useRouteViewport } from './lib/useRouteViewport';
 import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
+import { MobileTabBar } from './components/layout/MobileTabBar';
 import { Toasts } from './components/common/Toasts';
 import { usePermissionCheck, type PermissionKey } from './lib/permissions';
 import { EmptyState } from './components/common/ui';
 import { t } from './i18n/vi';
+import { useViewportInsets } from './lib/useViewportInsets';
 
 const CardModal = lazy(() =>
   import('./components/kanban/CardModal').then((module) => ({ default: module.CardModal }))
@@ -26,6 +28,7 @@ const QuickNotesBoard = lazy(() =>
 export default function App() {
   const mainRef = useRef<HTMLElement>(null);
   useRouteViewport(mainRef);
+  useViewportInsets();
   const matches = useMatches();
   const pageHandle = [...matches]
     .reverse()
@@ -38,6 +41,7 @@ export default function App() {
               permission?: PermissionKey;
               /** Trang tu co o nhap ghim day man hinh — nut "Tạo nhanh" se de len no. */
               hideQuickCreate?: boolean;
+              mobileChrome?: 'full' | 'no-topbar';
             }
           | undefined
     )
@@ -69,7 +73,9 @@ export default function App() {
         Bỏ qua đến nội dung chính
       </a>
       <div className="tr-app-shell flex flex-col">
-        <Topbar />
+        <div className={pageHandle?.mobileChrome === 'no-topbar' ? 'max-md:hidden' : ''}>
+          <Topbar title={pageTitle} />
+        </div>
         <div className="flex min-h-0 flex-1">
           <Sidebar />
           {/* `relative`: lam main thanh containing block cho con `position:absolute`
@@ -84,7 +90,7 @@ export default function App() {
                ben trong — vd mot bang Kanban con rong — nguoi dung ban phim khong
                cach nao cuon noi dung. Skip-link van hoat dong y nguyen. */
             tabIndex={0}
-            className="relative min-w-0 flex-1 overflow-auto bg-transparent outline-none"
+            className="relative min-w-0 flex-1 overflow-auto bg-transparent pb-[var(--tr-tabbar-h)] outline-none"
           >
             {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}
             {blocked ? (
@@ -109,6 +115,7 @@ export default function App() {
         <QuickNotesBoard />
       </Suspense>
       <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
+      <MobileTabBar />
       <Toasts />
     </div>
   );

@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../common/ConfirmDialog';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { undoableDelete } from '../../lib/undo';
+import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { useUiStore } from '../../stores/uiStore';
 import type { Label, Priority, TaskRow } from '../../types';
 import {
@@ -37,6 +38,7 @@ import {
 } from './TaskPresentation';
 import { AssigneeSelect } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
+import { TaskCardRow } from './TaskCardRow';
 
 const columnHelper = createColumnHelper<TaskRow>();
 const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -59,6 +61,7 @@ export function TaskTable({
   onChanged?: () => void;
   onClearFilters?: () => void;
 }) {
+  const isWide = useMediaQuery(MD_QUERY);
   const queryClient = useQueryClient();
   const openCard = useUiStore((s) => s.openCard);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'due_date', desc: false }]);
@@ -421,109 +424,130 @@ export function TaskTable({
         </Button>
       </div>
 
-      <div className="tr-scroll max-h-[70vh] overflow-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <table className={`w-full text-sm ${showDetails ? 'min-w-[1180px]' : 'min-w-[760px]'}`}>
-          <caption className="sr-only">Danh sách công việc</caption>
-          <thead className="sticky top-0 z-10 bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase shadow-[0_1px_0_var(--tr-border)]">
-            {table.getHeaderGroups().map((group) => (
-              <tr key={group.id}>
-                {group.headers.map((header) => {
-                  const sorted = header.column.getIsSorted();
-                  const responsiveClass = SECONDARY_COLUMNS.has(header.id)
-                    ? showDetails
-                      ? 'hidden lg:table-cell'
-                      : 'hidden'
-                    : '';
-                  return (
-                    <th
-                      scope="col"
-                      key={header.id}
-                      aria-sort={
-                        sorted === 'asc'
-                          ? 'ascending'
-                          : sorted === 'desc'
-                            ? 'descending'
-                            : header.column.getCanSort()
-                              ? 'none'
-                              : undefined
-                      }
-                      className={`px-3 py-2 whitespace-nowrap ${responsiveClass}`}
-                    >
-                      {header.id === 'select' ? (
-                        <input
-                          type="checkbox"
-                          checked={allOnPageSelected}
-                          onChange={(e) =>
-                            setSelected((prev) => {
-                              const next = new Set(prev);
-                              pageRows.forEach((r) =>
-                                e.target.checked
-                                  ? next.add(r.original.id)
-                                  : next.delete(r.original.id)
-                              );
-                              return next;
-                            })
-                          }
-                          aria-label={t.common.selectAll}
-                          title={t.common.selectAll}
-                          className={`h-4 w-4 cursor-pointer rounded-control border-tr-border accent-tr-primary ${focusRing}`}
-                        />
-                      ) : header.isPlaceholder ? null : header.column.getCanSort() ? (
-                        <button
-                          type="button"
-                          onClick={header.column.getToggleSortingHandler()}
-                          className={`inline-flex items-center gap-1 rounded-control hover:text-tr-text ${focusRing}`}
-                        >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {sorted === 'asc' ? (
-                            <ArrowUp size={12} aria-hidden="true" />
-                          ) : sorted === 'desc' ? (
-                            <ArrowDown size={12} aria-hidden="true" />
-                          ) : (
-                            <ChevronsUpDown size={12} className="opacity-40" aria-hidden="true" />
-                          )}
-                        </button>
-                      ) : (
-                        flexRender(header.column.columnDef.header, header.getContext())
-                      )}
-                    </th>
-                  );
-                })}
-              </tr>
-            ))}
-          </thead>
-          <tbody className="divide-y divide-tr-border">
-            {pageRows.map((row) => (
-              <tr
-                key={row.id}
-                className={`group transition hover:bg-tr-hover ${
-                  selected.has(row.original.id) ? 'bg-tr-primary/10' : ''
-                }`}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const responsiveClass = SECONDARY_COLUMNS.has(cell.column.id)
-                    ? showDetails
-                      ? 'hidden lg:table-cell'
-                      : 'hidden'
-                    : '';
-                  const actionClass =
-                    cell.column.id === 'actions'
-                      ? 'opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100'
+      {!isWide ? (
+        <div className="rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+          {pageRows.map((row) => (
+            <TaskCardRow
+              key={row.original.id}
+              task={row.original}
+              onOpen={() => openCard(row.original.id, 'drawer')}
+              selected={selected.has(row.original.id)}
+              onSelect={() =>
+                setSelected((current) => {
+                  const next = new Set(current);
+                  if (next.has(row.original.id)) next.delete(row.original.id);
+                  else next.add(row.original.id);
+                  return next;
+                })
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="tr-scroll max-h-[70vh] overflow-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+          <table className={`w-full text-sm ${showDetails ? 'min-w-[1180px]' : 'min-w-[760px]'}`}>
+            <caption className="sr-only">Danh sách công việc</caption>
+            <thead className="sticky top-0 z-10 bg-tr-surface text-left text-xs text-tr-subtle shadow-[0_1px_0_var(--tr-border)]">
+              {table.getHeaderGroups().map((group) => (
+                <tr key={group.id}>
+                  {group.headers.map((header) => {
+                    const sorted = header.column.getIsSorted();
+                    const responsiveClass = SECONDARY_COLUMNS.has(header.id)
+                      ? showDetails
+                        ? 'hidden lg:table-cell'
+                        : 'hidden'
                       : '';
-                  return (
-                    <td
-                      key={cell.id}
-                      className={`px-3 py-2 whitespace-nowrap text-tr-subtle ${responsiveClass} ${actionClass}`}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    return (
+                      <th
+                        scope="col"
+                        key={header.id}
+                        aria-sort={
+                          sorted === 'asc'
+                            ? 'ascending'
+                            : sorted === 'desc'
+                              ? 'descending'
+                              : header.column.getCanSort()
+                                ? 'none'
+                                : undefined
+                        }
+                        className={`px-3 py-2 whitespace-nowrap ${responsiveClass}`}
+                      >
+                        {header.id === 'select' ? (
+                          <input
+                            type="checkbox"
+                            checked={allOnPageSelected}
+                            onChange={(e) =>
+                              setSelected((prev) => {
+                                const next = new Set(prev);
+                                pageRows.forEach((r) =>
+                                  e.target.checked
+                                    ? next.add(r.original.id)
+                                    : next.delete(r.original.id)
+                                );
+                                return next;
+                              })
+                            }
+                            aria-label={t.common.selectAll}
+                            title={t.common.selectAll}
+                            className={`h-4 w-4 cursor-pointer rounded-control border-tr-border accent-tr-primary ${focusRing}`}
+                          />
+                        ) : header.isPlaceholder ? null : header.column.getCanSort() ? (
+                          <button
+                            type="button"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className={`inline-flex items-center gap-1 rounded-control hover:text-tr-text ${focusRing}`}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {sorted === 'asc' ? (
+                              <ArrowUp size={12} aria-hidden="true" />
+                            ) : sorted === 'desc' ? (
+                              <ArrowDown size={12} aria-hidden="true" />
+                            ) : (
+                              <ChevronsUpDown size={12} className="opacity-40" aria-hidden="true" />
+                            )}
+                          </button>
+                        ) : (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        )}
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="divide-y divide-tr-border">
+              {pageRows.map((row) => (
+                <tr
+                  key={row.id}
+                  className={`group transition hover:bg-tr-hover ${
+                    selected.has(row.original.id) ? 'bg-tr-primary/10' : ''
+                  }`}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const responsiveClass = SECONDARY_COLUMNS.has(cell.column.id)
+                      ? showDetails
+                        ? 'hidden lg:table-cell'
+                        : 'hidden'
+                      : '';
+                    const actionClass =
+                      cell.column.id === 'actions'
+                        ? 'opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100'
+                        : '';
+                    return (
+                      <td
+                        key={cell.id}
+                        className={`px-3 py-2 whitespace-nowrap text-tr-subtle ${responsiveClass} ${actionClass}`}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-tr-muted">
         <span>

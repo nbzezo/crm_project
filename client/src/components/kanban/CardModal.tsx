@@ -9,7 +9,6 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
-  CircleDot,
   Clock,
   Copy,
   Flag,
@@ -69,6 +68,7 @@ export function CardModal() {
   const [editingDesc, setEditingDesc] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'detail' | 'activity'>('detail');
   const panelRef = useRef<HTMLDivElement>(null);
 
   const addPop = usePopover();
@@ -100,14 +100,17 @@ export function CardModal() {
   }, [card?.id]);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['card', cardId] });
+    const cardRefresh = queryClient.invalidateQueries({ queryKey: ['card', cardId] });
     invalidateCardViews(queryClient);
-    queryClient.invalidateQueries({ queryKey: ['customer'] });
+    void queryClient.invalidateQueries({ queryKey: ['customer'] });
+    return cardRefresh;
   };
 
   const update = useMutation({
     mutationFn: (patch: Record<string, unknown>) => api.patch(`/api/cards/${cardId}`, patch),
-    onSuccess: refresh,
+    // Chờ query chi tiết tải lại trước khi callback cục bộ đóng popover. Nhờ vậy
+    // chip dự án/danh sách không giữ tên cũ sau một thao tác chọn thành công.
+    onSuccess: () => refresh(),
   });
 
   const remove = useMutation({
@@ -187,7 +190,9 @@ export function CardModal() {
     <>
       <div
         className={`tr-anim-fade fixed inset-0 z-modal flex bg-tr-overlay ${
-          presentation === 'drawer' ? 'justify-end' : 'overflow-y-auto p-4 pt-10 pb-10'
+          presentation === 'drawer'
+            ? 'justify-end'
+            : 'p-0 sm:overflow-y-auto sm:p-4 sm:pt-10 sm:pb-10'
         }`}
         onMouseDown={(e) => e.target === e.currentTarget && requestClose()}
       >
@@ -198,16 +203,16 @@ export function CardModal() {
           aria-label={card.title}
           className={
             presentation === 'drawer'
-              ? 'tr-anim-slide-right tr-scroll h-full w-[min(32rem,100vw)] overflow-y-auto border-s border-tr-border bg-tr-panel shadow-2xl'
-              : 'tr-anim-pop mx-auto w-full max-w-5xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl'
+              ? 'tr-anim-slide-right flex h-full w-full flex-col overflow-hidden border-s border-tr-border bg-tr-panel shadow-2xl sm:tr-scroll sm:w-[min(32rem,100vw)] sm:overflow-y-auto'
+              : 'tr-anim-pop fixed inset-0 flex w-full flex-col overflow-hidden rounded-none bg-tr-panel shadow-2xl sm:static sm:mx-auto sm:block sm:max-w-5xl sm:rounded-modal'
           }
         >
           {/* ----- Thanh dieu khien tren cung ----- */}
-          <div className="flex items-center gap-2 px-3 py-2.5">
+          <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-tr-border bg-tr-panel px-3 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] sm:static sm:border-0 sm:bg-transparent sm:pt-2.5">
             <button
               type="button"
               onClick={listPop.toggle}
-              className={`inline-flex items-center gap-1 rounded-control bg-tr-hover px-2.5 py-1 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+              className={`inline-flex min-h-11 items-center gap-1 rounded-control bg-tr-hover px-2.5 py-1 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong fine:min-h-0 ${focusRing}`}
               aria-label={`Danh sách: ${card.board?.list_name}. Chuyển sang danh sách khác`}
               aria-haspopup="dialog"
             >
@@ -216,15 +221,9 @@ export function CardModal() {
             </button>
 
             <div className="ml-auto flex items-center gap-1">
-              <button
-                type="button"
-                onClick={coverPop.toggle}
-                className={`rounded-control p-1.5 text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
-                aria-label="Ảnh bìa"
-                aria-haspopup="dialog"
-              >
+              <IconButton label="Ảnh bìa" onClick={coverPop.toggle} aria-haspopup="dialog">
                 <Image size={17} aria-hidden="true" />
-              </button>
+              </IconButton>
               <IconButton label="Thao tác khác" onClick={menuPop.toggle} aria-haspopup="dialog">
                 <MoreHorizontal size={18} aria-hidden="true" />
               </IconButton>
@@ -242,25 +241,50 @@ export function CardModal() {
           )}
 
           <div
-            className={`grid grid-cols-1 gap-6 px-4 pt-3 pb-6 sm:px-6 ${
+            className="flex shrink-0 border-b border-tr-border bg-tr-panel p-2 lg:hidden"
+            role="tablist"
+            aria-label="Nội dung thẻ"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === 'detail'}
+              onClick={() => setMobileTab('detail')}
+              className={`min-h-11 flex-1 rounded-control text-sm font-semibold ${mobileTab === 'detail' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-subtle'}`}
+            >
+              Chi tiết
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === 'activity'}
+              onClick={() => setMobileTab('activity')}
+              className={`min-h-11 flex-1 rounded-control text-sm font-semibold ${mobileTab === 'activity' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-subtle'}`}
+            >
+              Hoạt động ({card.comments?.length ?? 0})
+            </button>
+          </div>
+
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto grid grid-cols-1 gap-6 px-4 pt-3 pb-6 sm:min-h-0 sm:flex-none sm:overflow-visible sm:px-6 ${
               presentation === 'drawer' ? '' : 'lg:grid-cols-[minmax(0,1fr)_340px]'
             }`}
           >
             {/* ================= Cot trai ================= */}
-            <div className="min-w-0">
+            <div className={`min-w-0 ${mobileTab === 'activity' ? 'hidden lg:block' : ''}`}>
               <div className="flex items-start gap-3">
                 <button
                   type="button"
                   onClick={() => update.mutate({ is_done: !card.is_done })}
-                  className={`mt-2.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${focusRing} ${
-                    card.is_done
-                      ? 'border-tr-success bg-tr-success text-tr-on-success'
-                      : 'border-tr-muted text-transparent hover:border-tr-text'
-                  }`}
+                  className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full fine:mt-2.5 fine:h-5 fine:w-5 ${focusRing}`}
                   aria-pressed={Boolean(card.is_done)}
                   aria-label={card.is_done ? t.card.markUndone : t.card.markDone}
                 >
-                  <Check size={13} aria-hidden="true" />
+                  <span
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition ${card.is_done ? 'border-tr-success bg-tr-success text-tr-on-success' : 'border-tr-muted text-transparent hover:border-tr-text'}`}
+                  >
+                    <Check size={13} aria-hidden="true" />
+                  </span>
                 </button>
                 <input
                   value={title}
@@ -554,7 +578,9 @@ export function CardModal() {
             </div>
 
             {/* ================= Cot phai ================= */}
-            <ActivityColumn card={card} />
+            <div className={mobileTab === 'detail' ? 'hidden lg:block' : ''}>
+              <ActivityColumn card={card} />
+            </div>
           </div>
         </div>
       </div>
@@ -830,42 +856,44 @@ function ActivityColumn({ card }: { card: CardDetail }) {
   const stamp = (value: string) => formatDateTime(value.replace(' ', 'T').slice(0, 16));
 
   return (
-    <aside className="min-w-0">
+    <aside className="flex min-h-full min-w-0 flex-col lg:block">
       <div className="mb-2.5 flex items-center gap-2.5">
         <MessageSquare size={16} className="text-tr-subtle" />
         <h3 className="text-sm font-semibold text-tr-text">Nhận xét và hoạt động</h3>
       </div>
 
-      <textarea
-        rows={focused ? 3 : 1}
-        value={draft}
-        onFocus={() => setFocused(true)}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder="Viết bình luận…"
-        className="tr-card-shadow w-full resize-none rounded-lg border border-tr-border bg-tr-card px-3 py-2 text-sm text-tr-text outline-none focus:border-tr-primary"
-      />
-      {focused && (
-        <div className="mt-2 flex gap-2">
-          <button
-            disabled={!draft.trim()}
-            onClick={() => add.mutate()}
-            className="rounded-compact bg-tr-primary px-3 py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-50"
-          >
-            {t.common.save}
-          </button>
-          <button
-            onClick={() => {
-              setDraft('');
-              setFocused(false);
-            }}
-            className="rounded-compact px-3 py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover"
-          >
-            {t.common.cancel}
-          </button>
-        </div>
-      )}
+      <div className="order-2 sticky bottom-0 z-10 border-t border-tr-border bg-tr-panel p-2 pb-[calc(0.5rem+var(--tr-safe-bottom))] lg:static lg:order-none lg:border-0 lg:bg-transparent lg:p-0">
+        <textarea
+          rows={focused ? 3 : 1}
+          value={draft}
+          onFocus={() => setFocused(true)}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Viết bình luận…"
+          className="tr-card-shadow tr-field-control max-h-[7.5rem] w-full resize-none rounded-lg border border-tr-border bg-tr-card px-3 py-2 text-tr-text outline-none focus:border-tr-primary"
+        />
+        {focused && (
+          <div className="mt-2 flex gap-2">
+            <button
+              disabled={!draft.trim()}
+              onClick={() => add.mutate()}
+              className="min-h-11 rounded-compact bg-tr-primary px-3 py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-50 fine:min-h-0"
+            >
+              {t.common.save}
+            </button>
+            <button
+              onClick={() => {
+                setDraft('');
+                setFocused(false);
+              }}
+              className="min-h-11 rounded-compact px-3 py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover fine:min-h-0"
+            >
+              {t.common.cancel}
+            </button>
+          </div>
+        )}
+      </div>
 
-      <ul className="mt-4 space-y-3">
+      <ul className="order-1 mt-4 flex-1 space-y-3 lg:order-none">
         {(card.comments ?? []).map((comment) => (
           <li key={comment.id} className="group flex gap-2">
             <Avatar />
@@ -877,7 +905,7 @@ function ActivityColumn({ card }: { card: CardDetail }) {
                 <span>{stamp(comment.created_at)}</span>
                 <button
                   onClick={() => remove.mutate(comment.id)}
-                  className="underline opacity-0 transition group-hover:opacity-100 hover:text-tr-danger"
+                  className="min-h-11 underline opacity-100 transition hover:text-tr-danger hoverable:min-h-0 hoverable:opacity-0 hoverable:group-hover:opacity-100"
                 >
                   {t.common.delete}
                 </button>

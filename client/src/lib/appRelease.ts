@@ -14,18 +14,20 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-09-30';
+export const APP_UPDATED_AT = '2026-10-01';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     version: '1.0.1',
-    date: '2026-09-30',
+    date: '2026-10-01',
     title: 'Cải thiện khả năng đọc giao diện',
     changes: [
       'Tăng độ tương phản của chữ phụ, placeholder và thanh điều hướng trong giao diện Sáng.',
       'Làm đường viền, trạng thái hover và mũi tên chọn rõ ràng hơn.',
       'Gộp Tài liệu và Trang tài liệu thành một mục, chia hai tab: Trang tài liệu và Tệp tải lên.',
       'Chuẩn hóa panel, điều hướng, KPI Tổng quan và các control theo hệ token giao diện mới.',
+      'Tối ưu toàn bộ khung điều hướng, Kanban, Công việc, CRM, Timeline, Ghi nhanh và Trợ lý AI cho điện thoại.',
+      'Bổ sung bottom sheet dùng chung, vùng chạm 44 px, safe-area và xử lý bàn phím ảo trên mobile.',
     ],
   },
   {

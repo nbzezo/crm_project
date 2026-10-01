@@ -1,4 +1,4 @@
-import { Menu, NotebookPen } from 'lucide-react';
+import { Menu, NotebookPen, Search } from 'lucide-react';
 import { Link } from 'react-router';
 import { Logo } from '../common/Logo';
 import { SearchBox } from '../common/SearchBox';
@@ -10,8 +10,9 @@ import { useUiStore } from '../../stores/uiStore';
 import { focusRing } from '../common/ui';
 import { usePermissionCheck } from '../../lib/permissions';
 
-export function Topbar() {
+export function Topbar({ title }: { title: string }) {
   const setNavOpen = useUiStore((s) => s.setNavOpen);
+  const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const canReadNotes = usePermissionCheck()('notes:read');
 
@@ -21,7 +22,7 @@ export function Topbar() {
         type="button"
         onClick={() => setNavOpen(true)}
         aria-label={t.common.openMenu}
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-text md:hidden ${focusRing}`}
+        className={`hidden h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
       >
         <Menu size={20} aria-hidden="true" />
       </button>
@@ -37,9 +38,21 @@ export function Topbar() {
         </span>
       </Link>
 
+      <span className="min-w-0 flex-1 truncate text-lg font-bold tracking-[-0.02em] text-tr-text md:hidden">
+        {title}
+      </span>
+
       <div className="ml-1 min-w-0 flex-1">
         <SearchBox />
       </div>
+      <button
+        type="button"
+        onClick={() => setSearchOpen(true)}
+        aria-label={t.search.placeholder}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-text md:hidden ${focusRing}`}
+      >
+        <Search size={20} aria-hidden="true" />
+      </button>
 
       {/* Giao diện Sáng/Tối giữ nguyên ở đây chứ không vào menu tài khoản: đó là
           thao tác một chạm dùng nhiều lần trong ngày, chôn vào menu là làm chậm

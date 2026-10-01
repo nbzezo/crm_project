@@ -21,7 +21,7 @@ export function Drawer({
   title,
   children,
   footer,
-  width = 'w-[min(26rem,100vw)]',
+  width = 'w-full sm:w-[min(26rem,100vw)]',
 }: {
   open: boolean;
   onClose: () => void;
@@ -51,7 +51,7 @@ export function Drawer({
         aria-labelledby={titleId}
         className={`tr-anim-slide-right flex h-full flex-col border-s border-tr-border bg-tr-panel shadow-2xl ${width}`}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-tr-border px-4 py-3">
+        <div className="flex items-start justify-between gap-3 border-b border-tr-border px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:pt-3">
           <div id={titleId} className="min-w-0 flex-1 text-base font-semibold text-tr-text">
             {title}
           </div>
@@ -59,7 +59,7 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label={t.common.close}
-            className={`-me-1 shrink-0 rounded-panel p-1.5 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
+            className={`-me-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-text fine:h-8 fine:w-8 ${focusRing}`}
           >
             <X size={18} aria-hidden="true" />
           </button>

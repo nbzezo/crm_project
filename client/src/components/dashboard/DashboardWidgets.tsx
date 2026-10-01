@@ -169,13 +169,17 @@ export function KpiSummary({
           <span className="flex items-center gap-1.5 text-xs font-semibold text-tr-subtle">
             <Layers size={15} aria-hidden="true" /> Pipeline
           </span>
-          <span className="mt-1 text-xl font-bold tabular-nums text-tr-text">
+          <span className="mt-1 text-2xl font-bold tabular-nums text-tr-text">
             {formatVNDShort(data.kpi.pipeline_vnd)}
           </span>
-          <span className="mt-1 text-xs text-tr-muted">
+          <span className="mt-1 hidden text-xs text-tr-muted sm:block">
             {data.kpi.open_opportunity_count} cơ hội đang mở · Có trọng số{' '}
             {formatVNDShort(data.kpi.weighted_pipeline_vnd)} · Chốt tháng này{' '}
             {data.kpi.closing_this_month_count} ({formatVNDShort(data.kpi.closing_this_month_vnd)})
+          </span>
+          <span className="mt-1 flex justify-between text-xs text-tr-muted sm:hidden">
+            <span>{data.kpi.open_opportunity_count} cơ hội</span>
+            <span>Có trọng số {formatVNDShort(data.kpi.weighted_pipeline_vnd)}</span>
           </span>
         </Link>
       </div>
@@ -209,9 +213,13 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
         <span className="truncate">{label}</span>
       </span>
       <span className="mt-1.5 flex min-w-0 items-end justify-between gap-1.5">
-        <span className="truncate text-xl font-bold tracking-[-0.035em] tabular-nums">{value}</span>
+        <span className="truncate text-2xl font-bold tracking-[-0.035em] tabular-nums">
+          {value}
+        </span>
         {hint && (
-          <span className={`truncate pb-0.5 text-xs font-medium ${supportingTextClass}`}>
+          <span
+            className={`hidden truncate pb-0.5 text-xs font-medium sm:inline ${supportingTextClass}`}
+          >
             {hint}
           </span>
         )}
@@ -418,7 +426,7 @@ export function ActionWidget({
     >
       {recommendations.length > 0 && (
         <div className="mb-3 rounded-panel bg-tr-hover p-2.5">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-wide text-tr-subtle uppercase">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-tr-subtle">
             <ShieldAlert size={13} className="text-tr-warning" aria-hidden="true" /> Nên ưu tiên
           </div>
           <ol className="grid gap-1 sm:grid-cols-3">
@@ -491,7 +499,7 @@ function RecommendationItem({
   index: number;
   onOpenTask: (id: number) => void;
 }) {
-  const className = `group flex w-full min-w-0 items-start gap-2 rounded-control p-1.5 text-left transition hover:bg-tr-hover-strong ${focusRing}`;
+  const className = `group flex min-h-[52px] w-full min-w-0 items-center gap-2 rounded-control p-1.5 text-left transition hover:bg-tr-hover-strong ${focusRing}`;
   const content = (
     <>
       <span
@@ -506,11 +514,12 @@ function RecommendationItem({
         {index}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-semibold text-tr-text" title={item.title}>
+        <span className="block truncate text-sm font-medium text-tr-text" title={item.title}>
           {item.title}
         </span>
         <span className="block truncate text-xs text-tr-subtle">{item.meta}</span>
       </span>
+      <ChevronRight size={16} className="shrink-0 text-tr-muted" aria-hidden="true" />
     </>
   );
   return item.kind === 'task' ? (
@@ -561,7 +570,7 @@ function TaskItem({ task, onOpen }: { task: TaskRow; onOpen: (id: number) => voi
         )}
         <ChevronRight
           size={14}
-          className="shrink-0 text-tr-muted opacity-0 group-hover:opacity-100"
+          className="shrink-0 text-tr-muted opacity-100 hoverable:opacity-0 hoverable:group-hover:opacity-100"
           aria-hidden="true"
         />
       </button>
@@ -655,9 +664,7 @@ function ReminderGroup({
 }) {
   return (
     <section>
-      <h3
-        className={`mb-1 text-xs font-bold tracking-wide uppercase ${danger ? 'text-tr-danger' : 'text-tr-subtle'}`}
-      >
+      <h3 className={`mb-1 text-xs font-bold ${danger ? 'text-tr-danger' : 'text-tr-subtle'}`}>
         {label} <span className="font-normal text-tr-muted">{items.length}</span>
       </h3>
       <ul className="space-y-0.5">
@@ -714,7 +721,7 @@ function ReminderItem({
       {(reminder.card_id || reminder.deal_id || reminder.customer_id) && (
         <ChevronRight
           size={14}
-          className="mt-0.5 shrink-0 text-tr-muted opacity-0 group-hover:opacity-100"
+          className="mt-0.5 shrink-0 text-tr-muted opacity-100 hoverable:opacity-0 hoverable:group-hover:opacity-100"
           aria-hidden="true"
         />
       )}
@@ -907,7 +914,7 @@ function AttentionGroup({
   return (
     <section className="min-w-0">
       <h3
-        className={`mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase ${danger ? 'text-tr-danger' : 'text-tr-warning'}`}
+        className={`mb-1.5 flex items-center gap-1.5 text-xs font-bold ${danger ? 'text-tr-danger' : 'text-tr-warning'}`}
       >
         {danger ? (
           <AlertTriangle size={13} aria-hidden="true" />
@@ -1111,7 +1118,7 @@ export function ContractsWidget({ data }: { data: DashboardData }) {
                   </span>
                   <ChevronRight
                     size={14}
-                    className="mt-0.5 shrink-0 text-tr-muted opacity-0 group-hover:opacity-100"
+                    className="mt-0.5 shrink-0 text-tr-muted opacity-100 hoverable:opacity-0 hoverable:group-hover:opacity-100"
                     aria-hidden="true"
                   />
                 </Link>
@@ -1173,7 +1180,7 @@ export function RecentActivityWidget({ interactions }: { interactions: Interacti
                 </span>
                 <ChevronRight
                   size={14}
-                  className="mt-0.5 shrink-0 text-tr-muted opacity-0 group-hover:opacity-100"
+                  className="mt-0.5 shrink-0 text-tr-muted opacity-100 hoverable:opacity-0 hoverable:group-hover:opacity-100"
                   aria-hidden="true"
                 />
               </Link>
@@ -1233,7 +1240,7 @@ export function BoardSummaryWidget({ boards }: { boards: DashboardData['recent_b
                 </span>
                 <ChevronRight
                   size={14}
-                  className="shrink-0 text-tr-muted opacity-0 group-hover:opacity-100"
+                  className="shrink-0 text-tr-muted opacity-100 hoverable:opacity-0 hoverable:group-hover:opacity-100"
                   aria-hidden="true"
                 />
               </Link>

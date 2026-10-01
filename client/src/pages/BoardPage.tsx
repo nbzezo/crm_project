@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   Building2,
+  ChevronLeft,
   Filter,
   FolderKanban,
   MoreHorizontal,
@@ -10,19 +11,26 @@ import {
   Star,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
-import { BoardView } from '../components/kanban/BoardView';
+import { BoardView, matchesFilters } from '../components/kanban/BoardView';
+import { useAssignees } from '../components/tasks/AssigneePicker';
 import { BoardMenu } from '../components/kanban/BoardMenu';
 import { BoardFilter } from '../components/kanban/BoardFilter';
-import { BoardViewChip, BoardViewDock, type BoardViewMode } from '../components/kanban/BoardViews';
+import {
+  BoardViewChip,
+  BoardViewDock,
+  BoardViewSegmented,
+  type BoardViewMode,
+} from '../components/kanban/BoardViews';
 import { LazyCalendarView } from '../components/calendar/LazyCalendarView';
 import { TimelineBoard } from '../components/views/TimelineBoard';
 import { TaskTable } from '../components/tasks/TaskTable';
 import { usePopover } from '../components/common/Popover';
 import { ErrorState, Skeleton } from '../components/common/ui';
-import { backgroundStyle } from '../lib/backgrounds';
+import { backgroundStyle, boardScrim } from '../lib/backgrounds';
 import { t } from '../i18n/vi';
 import { countActiveFilters, useUiStore } from '../stores/uiStore';
 import { STAR_COLOR } from '../theme/palettes';
+import { COARSE_QUERY, useMediaQuery } from '../lib/useMediaQuery';
 import type { BoardFull, TaskRow } from '../types';
 
 const VIEW_MODES: BoardViewMode[] = ['board', 'calendar', 'timeline', 'table'];
@@ -36,13 +44,24 @@ export default function BoardPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [activeList, setActiveList] = useState({ index: 0, total: 0 });
+  const onActiveListChange = useCallback(
+    (index: number, total: number) =>
+      setActiveList((prev) =>
+        prev.index === index && prev.total === total ? prev : { index, total }
+      ),
+    []
+  );
   const filterPopover = usePopover();
+  const coarsePointer = useMediaQuery(COARSE_QUERY);
 
   const filters = useUiStore((s) => s.boardFilters);
   const resetFilters = useUiStore((s) => s.resetBoardFilters);
   const labelText = useUiStore((s) => s.labelText);
   const toggleLabelText = useUiStore((s) => s.toggleLabelText);
   const activeFilters = countActiveFilters(filters);
+  const { data: assignees } = useAssignees();
+  const meContactId = assignees?.find((person) => person.is_me)?.id ?? null;
 
   // Dang xem luu trong URL de F5 hoac chia se link van giu nguyen
   const viewParam = searchParams.get('view') as BoardViewMode | null;
@@ -65,6 +84,12 @@ export default function BoardPage() {
     queryFn: () => api.get<BoardFull>(`/api/boards/${id}/full`),
     enabled: Number.isFinite(id),
   });
+  const matchCount =
+    board?.lists.reduce(
+      (sum, list) =>
+        sum + list.cards.filter((card) => matchesFilters(card, filters, meContactId)).length,
+      0
+    ) ?? 0;
 
   // Dang bang tinh lay du lieu phang cua rieng bang nay
   const { data: boardTasks = [] } = useQuery({
@@ -113,11 +138,18 @@ export default function BoardPage() {
   return (
     <div className="relative flex h-full flex-col" style={backgroundStyle(board.background)}>
       <header
-        className="flex min-h-12 shrink-0 flex-wrap items-center gap-1.5 px-2 py-1.5 text-white sm:h-12 sm:flex-nowrap sm:gap-2 sm:px-3 sm:py-0"
+        className="flex min-h-12 shrink-0 flex-wrap items-center gap-1.5 bg-tr-nav px-2 py-1.5 text-white pt-[max(0.375rem,env(safe-area-inset-top))] md:bg-[var(--board-scrim)] md:pt-1.5 sm:h-12 sm:flex-nowrap sm:gap-2 sm:px-3 sm:py-0"
         /* Lop phu lam dam anh nen bang de chu trang doc duoc — dung token de con
            chinh duoc mot cho, xem --tr-board-scrim trong index.css. */
-        style={{ backgroundColor: 'var(--tr-board-scrim)' }}
+        style={{ '--board-scrim': boardScrim(board.background) } as React.CSSProperties}
       >
+        <Link
+          to={board.project_id ? `/projects/${board.project_id}` : '/boards'}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded md:hidden"
+          aria-label="Quay lại danh sách bảng"
+        >
+          <ChevronLeft size={22} />
+        </Link>
         {editingName ? (
           <input
             autoFocus
@@ -134,6 +166,10 @@ export default function BoardPage() {
             }}
             className="min-w-0 max-w-[55vw] rounded border-2 border-white bg-white/95 px-2 py-1 text-base font-bold text-tr-text outline-none sm:max-w-xs"
           />
+        ) : coarsePointer ? (
+          <span className="min-w-0 max-w-[55vw] truncate px-2 py-1 text-base font-bold sm:max-w-xs">
+            {board.name}
+          </span>
         ) : (
           <button
             onClick={() => {
@@ -146,7 +182,7 @@ export default function BoardPage() {
           </button>
         )}
 
-        <div className="hidden sm:block">
+        <div className="hidden md:block">
           <BoardViewChip value={view} onChange={setView} />
         </div>
 
@@ -190,7 +226,7 @@ export default function BoardPage() {
             <>
               <button
                 onClick={toggleLabelText}
-                className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 fine:h-8 fine:w-8"
+                className="hidden h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 md:flex fine:h-8 fine:w-8"
                 aria-label={labelText ? 'Thu gọn chữ trên nhãn' : 'Hiện chữ trên nhãn'}
                 title={labelText ? 'Nhãn đang hiện chữ' : 'Nhãn đang thu gọn'}
               >
@@ -220,24 +256,50 @@ export default function BoardPage() {
             <MoreHorizontal size={18} />
           </button>
         </div>
+        <div className="basis-full pb-1 md:hidden">
+          <div className="mb-1 px-2 text-xs text-white/85">
+            {board.project_name ?? board.customer_name ?? 'Bảng'} ·{' '}
+            {board.lists.reduce((sum, list) => sum + list.cards.length, 0)} thẻ
+          </div>
+          <BoardViewSegmented value={view} onChange={setView} />
+        </div>
       </header>
 
+      {view === 'board' && activeList.total > 0 && (
+        <div
+          className="flex items-center justify-between px-3 py-2 text-sm font-semibold text-white md:hidden"
+          aria-live="polite"
+          style={{ backgroundColor: boardScrim(board.background) }}
+        >
+          <span>
+            {board.lists[activeList.index]?.name} · {activeList.index + 1}/{activeList.total}
+          </span>
+          <span className="flex gap-1.5" aria-hidden="true">
+            {board.lists.map((list, index) => (
+              <span
+                key={list.id}
+                className={`h-1.5 rounded-full ${index === activeList.index ? 'w-4.5 bg-white' : 'w-1.5 bg-white/45'}`}
+              />
+            ))}
+          </span>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto">
-        {view === 'board' && <BoardView board={board} />}
+        {view === 'board' && <BoardView board={board} onActiveListChange={onActiveListChange} />}
         {view === 'calendar' && (
           /* Cung cong thuc full-height nhu trang Lich. Giu `pb-20` vi
              BoardViewDock noi o day — khong co no thi hang cuoi bi che khuat. */
-          <div className="flex h-full min-h-[520px] flex-col p-4 pb-20">
+          <div className="flex h-full min-h-[520px] flex-col p-4 pb-4 md:pb-20">
             <LazyCalendarView boardId={id} />
           </div>
         )}
         {view === 'timeline' && (
-          <div className="p-4 pb-20">
+          <div className="p-4 pb-4 md:pb-20">
             <TimelineBoard boardId={id} />
           </div>
         )}
         {view === 'table' && (
-          <div className="p-4 pb-20">
+          <div className="p-4 pb-4 md:pb-20">
             <TaskTable tasks={boardTasks} />
           </div>
         )}
@@ -250,12 +312,20 @@ export default function BoardPage() {
         anchor={filterPopover.anchor}
         onClose={filterPopover.close}
         labels={board.labels}
+        matchCount={matchCount}
       />
 
       <BoardMenu
         board={board}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        onRename={() => {
+          setMenuOpen(false);
+          setNameDraft(board.name);
+          setEditingName(true);
+        }}
+        labelText={labelText}
+        onToggleLabelText={toggleLabelText}
         onDeleted={() => navigate('/boards')}
       />
     </div>

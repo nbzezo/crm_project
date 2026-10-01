@@ -159,7 +159,7 @@ export function RiskRegister({ projectId, risks }: { projectId: number; risks: P
                     type="button"
                     onClick={() => remove.mutate(risk.id)}
                     aria-label={`Xóa: ${risk.title}`}
-                    className={`shrink-0 rounded p-1 text-tr-muted opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 hover:text-tr-danger ${focusRing}`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted opacity-100 transition hover:text-tr-danger hoverable:opacity-0 hoverable:group-hover:opacity-100 hoverable:focus-visible:opacity-100 fine:h-7 fine:w-7 ${focusRing}`}
                   >
                     <Trash2 size={14} aria-hidden="true" />
                   </button>

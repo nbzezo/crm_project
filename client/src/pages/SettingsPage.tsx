@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
+  ChevronLeft,
   Database,
   Download,
   GanttChartSquare,
@@ -244,7 +245,7 @@ function DataSettings() {
 
         {/* NFR-06: xuất CSV mở được bằng Excel */}
         <div className="mt-4">
-          <h3 className="mb-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase">
+          <h3 className="mb-2 text-xs font-semibold text-tr-subtle">
             {t.settings.exportCsv}
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -262,7 +263,7 @@ function DataSettings() {
 
         {backups.length > 0 && (
           <div className="mt-4">
-            <h3 className="mb-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase">
+            <h3 className="mb-2 text-xs font-semibold text-tr-subtle">
               {t.settings.backupList}
             </h3>
             <ul className="divide-y divide-tr-border rounded-lg border border-tr-border">
@@ -314,6 +315,7 @@ export default function SettingsPage() {
     requested && visibleTabs.some((item) => item.key === requested)
       ? requested
       : (visibleTabs[0]?.key ?? 'users');
+  const validSelection = requested && visibleTabs.some((item) => item.key === requested);
 
   const setTab = (next: SettingsTab) => {
     setParams((prev) => {
@@ -336,10 +338,27 @@ export default function SettingsPage() {
     <PageShell width="wide" spacing="none">
       <PageHeader title={t.settings.pageTitle} className="mb-5" />
 
+      {validSelection && (
+        <button
+          type="button"
+          onClick={() =>
+            setParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('tab');
+              return next;
+            })
+          }
+          className="mb-3 flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-medium text-tr-primary md:hidden"
+        >
+          <ChevronLeft size={18} aria-hidden="true" /> Cài đặt
+        </button>
+      )}
+
       <Tabs
         value={activeTab}
         onChange={setTab}
         orientation="vertical"
+        mobileListMode={validSelection ? 'panel' : 'list'}
         items={visibleTabs.map((item, index) => ({
           value: item.key,
           label: item.label,

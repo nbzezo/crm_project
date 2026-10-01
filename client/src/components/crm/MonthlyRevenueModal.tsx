@@ -117,7 +117,7 @@ export function MonthlyRevenueModal({
           <button
             key={stage}
             onClick={() => setStageForAll(stage)}
-            className="inline-flex items-center gap-1 rounded border border-tr-border px-2 py-0.5 transition hover:bg-tr-hover"
+            className="inline-flex min-h-11 items-center gap-1 rounded-control border border-tr-border px-2 py-0.5 transition hover:bg-tr-hover fine:min-h-0"
           >
             <span
               className="inline-block h-2 w-2 rounded-full"
@@ -128,7 +128,58 @@ export function MonthlyRevenueModal({
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-tr-border">
+      <div className="space-y-2 md:hidden">
+        {rows.map((row, i) => (
+          <div key={i} className="rounded-panel border border-tr-border bg-tr-panel p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold text-tr-text">
+                {t.revenue.month} {i + 1}
+              </span>
+              <Select
+                value={row.stage}
+                onChange={(e) => setRow(i, { stage: e.target.value as RevenueStage })}
+                aria-label={`Trạng thái tháng ${i + 1}`}
+                className="min-h-11 w-auto rounded-full text-sm"
+              >
+                {REVENUE_STAGE_ORDER.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {t.revenueStage[stage]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-tr-muted">
+                {t.revenue.forecast}
+                <Input
+                  inputMode="numeric"
+                  value={formatVNDInput(row.forecast_vnd)}
+                  onChange={(e) => setRow(i, { forecast_vnd: parseVNDInput(e.target.value) })}
+                  className="mt-1 text-right"
+                />
+              </label>
+              <label className="text-xs text-tr-muted">
+                {t.revenue.amount}
+                <Input
+                  inputMode="numeric"
+                  value={formatVNDInput(row.amount_vnd)}
+                  onChange={(e) => setRow(i, { amount_vnd: parseVNDInput(e.target.value) })}
+                  className="mt-1 text-right"
+                />
+              </label>
+            </div>
+            <label className="mt-2 block text-xs text-tr-muted">
+              Ghi chú
+              <Input
+                value={row.note}
+                onChange={(e) => setRow(i, { note: e.target.value })}
+                className="mt-1"
+              />
+            </label>
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto rounded-lg border border-tr-border md:block">
         <table className="w-full text-sm">
           <thead className="bg-tr-surface text-xs text-tr-subtle">
             <tr>

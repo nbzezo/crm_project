@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { Button, Field, FormError, Input } from '../components/common/ui';
 import { t } from '../i18n/vi';
@@ -28,6 +29,8 @@ export default function ResetPasswordPage() {
   const [info, setInfo] = useState<TokenInfo | null>(null);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -93,7 +96,7 @@ export default function ResetPasswordPage() {
   const subtitle = info?.kind === 'invite' ? t.auth.activateSubtitle : (info?.email ?? '');
 
   return (
-    <div className="tr-app-stage flex min-h-dvh items-center justify-center bg-tr-surface px-4">
+    <div className="tr-app-stage flex min-h-dvh items-center justify-center bg-tr-surface px-4 py-[max(1rem,env(safe-area-inset-top))]">
       <div className="w-full max-w-sm rounded-modal border border-tr-border bg-tr-panel p-6 shadow-lg">
         <div className="mb-5 flex flex-col items-center gap-2 text-center">
           <Logo className="h-10 w-10" />
@@ -137,30 +140,54 @@ export default function ResetPasswordPage() {
           <form onSubmit={submit} className="space-y-3">
             <FormError error={error} />
             <Field label={t.auth.newPassword} hint={t.auth.newPasswordHint} required>
-              <Input
-                name="new-password"
-                type="password"
-                autoComplete="new-password"
-                autoFocus
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  name="new-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  autoFocus
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-12"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
+                  aria-pressed={showPassword}
+                  className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-control text-tr-muted"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </Field>
             <Field
               label={t.auth.confirmPassword}
               error={mismatch ? t.auth.passwordMismatch : undefined}
               required
             >
-              <Input
-                name="confirm-password"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  name="confirm-password"
+                  type={showConfirm ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className="pr-12"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((value) => !value)}
+                  aria-label={showConfirm ? 'Ẩn xác nhận mật khẩu' : 'Hiện xác nhận mật khẩu'}
+                  aria-pressed={showConfirm}
+                  className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-control text-tr-muted"
+                >
+                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </Field>
             <Button
               type="submit"

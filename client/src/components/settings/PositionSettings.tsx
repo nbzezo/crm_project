@@ -279,7 +279,7 @@ export function PositionSettings() {
               {permissions.data
                 ? RESOURCE_GROUPS.map((group) => (
                     <section key={group.id} className="mb-5">
-                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+                      <h4 className="mb-2 text-xs font-semibold text-tr-muted">
                         {RESOURCE_GROUP_LABELS[group.id] ?? group.id}
                       </h4>
                       {/* Ma tran co sau cot; tren man hep no PHAI cuon ngang chu

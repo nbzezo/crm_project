@@ -4,6 +4,8 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import {
   ArrowDownAZ,
+  ArrowLeft,
+  ArrowRight,
   ArrowDownWideNarrow,
   CalendarClock,
   ChevronsLeftRight,
@@ -13,6 +15,7 @@ import {
   MoreHorizontal,
   GripVertical,
   Plus,
+  Pencil,
   Trash2,
   X,
 } from 'lucide-react';
@@ -21,6 +24,7 @@ import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Button, focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
+import { COARSE_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { CARD_STATUS_TEXT, CARD_STATUS_TONE } from '../tasks/CardStatusControl';
 import { CARD_STATUSES } from '@workflow/contracts';
 import type { Card, CardStatus, Label, List } from '../../types';
@@ -41,6 +45,9 @@ interface Props {
   onCollapseList: (listId: number, collapsed: boolean) => void;
   /** Khai báo cột này nghĩa là trạng thái nào (v19); `null` = không mang nghĩa. */
   onMapStatus: (listId: number, status: CardStatus | null) => void;
+  onMoveList: (listId: number, direction: -1 | 1) => void;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
 }
 
 export const ListColumn = memo(function ListColumn({
@@ -56,6 +63,9 @@ export const ListColumn = memo(function ListColumn({
   onSortList,
   onCollapseList,
   onMapStatus,
+  onMoveList,
+  canMoveLeft,
+  canMoveRight,
 }: Props) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
@@ -66,6 +76,7 @@ export const ListColumn = memo(function ListColumn({
   const [statusMenu, setStatusMenu] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
+  const coarsePointer = useMediaQuery(COARSE_QUERY);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `list-${list.id}`,
@@ -83,7 +94,6 @@ export const ListColumn = memo(function ListColumn({
     transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    touchAction: 'none' as const,
   };
 
   const submitCard = () => {
@@ -106,7 +116,7 @@ export const ListColumn = memo(function ListColumn({
           type="button"
           {...attributes}
           {...listeners}
-          className={`flex h-11 w-11 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing fine:h-8 ${focusRing}`}
+          className={`touch-none flex h-11 w-11 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing fine:h-8 ${focusRing}`}
           aria-label={`Di chuyển danh sách ${list.name}`}
         >
           <GripVertical size={16} aria-hidden="true" />
@@ -137,7 +147,7 @@ export const ListColumn = memo(function ListColumn({
         style={style}
         role="group"
         aria-label={`Danh sách ${list.name}`}
-        className={`flex max-h-full w-[272px] shrink-0 flex-col rounded-panel bg-tr-list transition-[box-shadow] ${
+        className={`flex max-h-full w-[min(calc(100vw-3rem),340px)] shrink-0 snap-start flex-col rounded-panel bg-tr-list transition-[box-shadow] md:w-[272px] ${
           isOver ? 'ring-2 ring-tr-primary' : ''
         }`}
       >
@@ -146,7 +156,7 @@ export const ListColumn = memo(function ListColumn({
             type="button"
             {...attributes}
             {...listeners}
-            className={`flex h-11 w-11 shrink-0 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing fine:h-8 fine:w-7 ${focusRing}`}
+            className={`touch-none hidden h-11 w-11 shrink-0 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing hoverable:flex fine:h-8 fine:w-7 ${focusRing}`}
             aria-label={`Di chuyển danh sách ${list.name}`}
           >
             <GripVertical size={15} aria-hidden="true" />
@@ -172,6 +182,20 @@ export const ListColumn = memo(function ListColumn({
               aria-label="Tên danh sách"
               className="w-full rounded-control border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm font-semibold text-tr-text outline-none"
             />
+          ) : coarsePointer ? (
+            <span className="flex-1 truncate px-2 py-1 text-sm font-semibold text-tr-text">
+              {list.name}{' '}
+              <span className="text-xs font-normal text-tr-muted">
+                {hiddenCount > 0 ? `${cards.length}/${cards.length + hiddenCount}` : cards.length}
+              </span>
+              {list.status_mapping && (
+                <span
+                  className={`ml-1.5 rounded-full bg-tr-panel px-1.5 py-0.5 text-xs ${CARD_STATUS_TEXT[list.status_mapping]}`}
+                >
+                  {t.cardStatus[list.status_mapping]}
+                </span>
+              )}
+            </span>
           ) : (
             <button
               type="button"
@@ -201,7 +225,7 @@ export const ListColumn = memo(function ListColumn({
           <button
             type="button"
             onClick={menu.toggle}
-            className="rounded-control p-1.5 text-tr-subtle transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
+            className="flex h-11 w-11 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover fine:h-8 fine:w-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
             aria-label={`Thao tác với danh sách ${list.name}`}
             aria-haspopup="dialog"
             aria-expanded={menu.open}
@@ -303,6 +327,42 @@ export const ListColumn = memo(function ListColumn({
         onClose={menu.close}
         title="Thao tác với danh sách"
       >
+        <PopoverItem
+          icon={<Pencil size={15} />}
+          onClick={() => {
+            menu.close();
+            setNameDraft(list.name);
+            // Popover trả focus về nút mở khi đóng; chờ frame sau rồi mới
+            // autoFocus input, nếu không onBlur sẽ đóng editor ngay lập tức.
+            requestAnimationFrame(() => setEditingName(true));
+          }}
+        >
+          Đổi tên danh sách
+        </PopoverItem>
+        {coarsePointer && (
+          <>
+            <PopoverItem
+              icon={<ArrowLeft size={15} />}
+              disabled={!canMoveLeft}
+              onClick={() => {
+                menu.close();
+                onMoveList(list.id, -1);
+              }}
+            >
+              Chuyển sang trái
+            </PopoverItem>
+            <PopoverItem
+              icon={<ArrowRight size={15} />}
+              disabled={!canMoveRight}
+              onClick={() => {
+                menu.close();
+                onMoveList(list.id, 1);
+              }}
+            >
+              Chuyển sang phải
+            </PopoverItem>
+          </>
+        )}
         <PopoverItem
           icon={<Plus size={15} />}
           onClick={() => {

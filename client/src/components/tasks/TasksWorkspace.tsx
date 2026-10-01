@@ -201,7 +201,7 @@ function WorkspaceSidebar({
   const setBoard = useUiStore((state) => state.setTaskFilters);
   return (
     <aside
-      className={`${collapsed ? 'w-14' : 'w-full lg:w-56'} shrink-0 border-b border-tr-border bg-tr-surface transition-[width] lg:border-r lg:border-b-0`}
+      className={`max-lg:hidden ${collapsed ? 'w-14' : 'w-full lg:w-56'} shrink-0 border-b border-tr-border bg-tr-surface transition-[width] lg:border-r lg:border-b-0`}
       aria-label="Điều hướng công việc"
     >
       <div className="flex h-14 items-center justify-between border-b border-tr-border px-3">
@@ -244,9 +244,7 @@ function WorkspaceSidebar({
         {!collapsed && (
           <>
             <div className="my-3 border-t border-tr-border" />
-            <h3 className="px-2 text-xs font-semibold uppercase tracking-wide text-tr-muted">
-              Truy cập nhanh
-            </h3>
+            <h3 className="px-2 text-xs font-semibold text-tr-muted">Truy cập nhanh</h3>
             <div className="mt-1 space-y-0.5">
               {savedViews.length === 0 && (
                 <p className="px-2 py-2 text-xs text-tr-muted">Chưa có chế độ xem đã lưu.</p>
@@ -278,9 +276,7 @@ function WorkspaceSidebar({
               ))}
             </div>
             <div className="my-3 border-t border-tr-border" />
-            <h3 className="px-2 text-xs font-semibold uppercase tracking-wide text-tr-muted">
-              Danh sách công việc
-            </h3>
+            <h3 className="px-2 text-xs font-semibold text-tr-muted">Danh sách công việc</h3>
             <div className="mt-1 space-y-0.5">
               {boards.slice(0, 10).map((board) => (
                 <button
@@ -557,7 +553,7 @@ function FilterPanel({ onClose }: { onClose: () => void }) {
           ariaLabel="Dự án"
         />
       </label>
-      <div className="flex justify-between border-t border-tr-border pt-3 sm:col-span-2">
+      <div className="hidden justify-between border-t border-tr-border pt-3 sm:col-span-2 lg:flex">
         <Button variant="ghost" onClick={reset}>
           Xóa bộ lọc
         </Button>
@@ -688,16 +684,30 @@ export function TasksWorkspace() {
           <header className="shrink-0 border-b border-tr-border bg-tr-panel">
             <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-3 lg:px-5">
               <div className="flex min-w-0 items-center gap-2">
+                <select
+                  value={scope}
+                  onChange={(event) => applyScope(event.target.value as TaskScope)}
+                  aria-label="Phạm vi công việc"
+                  className="tr-field-control min-h-11 max-w-[15rem] truncate rounded-control border border-tr-border bg-tr-panel px-2 text-base font-semibold text-tr-text lg:hidden"
+                >
+                  <option value="owned">Đang mở</option>
+                  <option value="assigned">Được giao cho tôi</option>
+                  <option value="created">Tôi đã tạo</option>
+                  <option value="watching">Đang theo dõi</option>
+                  <option value="completed">Công việc hoàn thành</option>
+                  <option value="activity">Hoạt động công việc</option>
+                  <option value="all">Tất cả công việc</option>
+                </select>
                 <button
                   type="button"
                   onClick={() => setSidebarCollapsed((value) => !value)}
-                  className={`rounded-control p-2 text-tr-muted hover:bg-tr-hover lg:hidden ${focusRing}`}
+                  className={`hidden rounded-control p-2 text-tr-muted hover:bg-tr-hover lg:hidden ${focusRing}`}
                   aria-label="Mở điều hướng"
                 >
                   <Menu size={18} />
                 </button>
                 <div className="min-w-0">
-                  <h1 className="truncate text-lg font-semibold text-tr-text">
+                  <h1 className="hidden truncate text-lg font-semibold text-tr-text lg:block">
                     {scope === 'activity'
                       ? 'Hoạt động công việc'
                       : scope === 'completed'
@@ -746,7 +756,7 @@ export function TasksWorkspace() {
                     role="tab"
                     aria-selected={mode === value}
                     onClick={() => setMode(value)}
-                    className={`relative inline-flex min-h-10 items-center gap-1.5 px-3 text-xs font-medium ${focusRing} ${mode === value ? 'text-tr-primary' : 'text-tr-muted hover:text-tr-text'}`}
+                    className={`relative inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 px-3 text-sm font-medium lg:min-h-10 lg:flex-none lg:text-xs ${focusRing} ${mode === value ? 'text-tr-primary' : 'text-tr-muted hover:text-tr-text'}`}
                   >
                     {icon}
                     {label}
@@ -764,7 +774,7 @@ export function TasksWorkspace() {
           {scope !== 'activity' && (
             <div className="border-b border-tr-border bg-tr-surface/70 px-3 py-2 lg:px-5">
               <div className="flex flex-wrap items-center gap-2">
-                <label className="relative min-w-56 flex-1 lg:max-w-80">
+                <label className="relative basis-full flex-1 lg:min-w-56 lg:max-w-80">
                   <span className="sr-only">Tìm công việc</span>
                   <Search
                     size={15}
@@ -774,17 +784,18 @@ export function TasksWorkspace() {
                     ref={searchRef}
                     value={filters.q}
                     onChange={(event) => setFilters({ q: event.target.value })}
-                    placeholder="Tìm công việc…  /"
-                    className={`h-9 w-full rounded-control border border-tr-border bg-tr-panel pr-3 pl-8 text-sm text-tr-text outline-none placeholder:text-tr-muted focus:border-tr-primary ${focusRing}`}
+                    placeholder="Tìm công việc…"
+                    className={`tr-field-control h-11 w-full rounded-control border border-tr-border bg-tr-panel pr-3 pl-8 text-tr-text outline-none placeholder:text-tr-muted focus:border-tr-primary lg:h-9 ${focusRing}`}
                   />
                 </label>
                 <button
                   type="button"
                   onClick={filterPopover.toggle}
                   aria-expanded={filterPopover.open}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-control border px-3 text-xs font-medium ${focusRing} ${filterCount ? 'border-tr-primary/30 bg-tr-primary/10 text-tr-primary' : 'border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'}`}
+                  className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-control border px-3 text-sm font-medium lg:min-h-9 lg:flex-none lg:text-xs ${focusRing} ${filterCount ? 'border-tr-primary/30 bg-tr-primary/10 text-tr-primary' : 'border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'}`}
                 >
-                  <Filter size={14} /> Bộ lọc nâng cao{' '}
+                  <Filter size={14} /> <span className="lg:hidden">Lọc & sắp xếp</span>
+                  <span className="hidden lg:inline">Bộ lọc nâng cao</span>{' '}
                   {filterCount > 0 && (
                     <span className="rounded-full bg-tr-primary px-1.5 text-tr-on-primary">
                       {filterCount}
@@ -799,8 +810,76 @@ export function TasksWorkspace() {
                   width={420}
                 >
                   <FilterPanel onClose={filterPopover.close} />
+                  <div className="mt-4 space-y-3 border-t border-tr-border pt-3 lg:hidden">
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-tr-subtle">Sắp xếp</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            ['due_asc', 'Hạn: sớm nhất'],
+                            ['due_desc', 'Hạn: muộn nhất'],
+                            ['created_desc', 'Mới tạo'],
+                            ['priority_desc', 'Ưu tiên cao'],
+                            ['title_asc', 'Tên A–Z'],
+                          ] as [TaskSort, string][]
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={sort === value}
+                            onClick={() => setSort(value)}
+                            className={`min-h-10 rounded-full border px-3.5 text-sm ${sort === value ? 'border-tr-primary bg-tr-primary text-tr-on-primary' : 'border-tr-border text-tr-subtle'}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-tr-subtle">Nhóm theo</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            ['due', 'Hạn'],
+                            ['status', 'Trạng thái'],
+                            ['priority', 'Ưu tiên'],
+                            ['assignee', 'Phụ trách'],
+                            ['board', 'Bảng'],
+                            ['customer', 'Khách hàng'],
+                            ['none', 'Không nhóm'],
+                          ] as [TaskGroup, string][]
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={group === value}
+                            onClick={() => setGroup(value)}
+                            className={`min-h-10 rounded-full border px-3.5 text-sm ${group === value ? 'border-tr-primary bg-tr-primary text-tr-on-primary' : 'border-tr-border text-tr-subtle'}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="sticky bottom-0 grid grid-cols-[1fr_2fr] gap-2 border-t border-tr-border bg-tr-panel py-2">
+                      <button
+                        type="button"
+                        onClick={resetFilters}
+                        className="min-h-11 rounded-control bg-tr-hover text-sm text-tr-text"
+                      >
+                        Xóa lọc
+                      </button>
+                      <button
+                        type="button"
+                        onClick={filterPopover.close}
+                        className="min-h-11 rounded-control bg-tr-primary text-sm font-semibold text-tr-on-primary"
+                      >
+                        Xem {tasks.length} công việc
+                      </button>
+                    </div>
+                  </div>
                 </Popover>
-                <label className="inline-flex h-9 items-center gap-1 rounded-control border border-tr-border bg-tr-panel px-2 text-xs text-tr-subtle">
+                <label className="hidden h-9 items-center gap-1 rounded-control border border-tr-border bg-tr-panel px-2 text-xs text-tr-subtle lg:inline-flex">
                   <SlidersHorizontal size={14} />
                   <span className="sr-only">Sắp xếp</span>
                   <select
@@ -815,7 +894,7 @@ export function TasksWorkspace() {
                     <option value="title_asc">Tên A–Z</option>
                   </select>
                 </label>
-                <label className="inline-flex h-9 items-center gap-1 rounded-control border border-tr-border bg-tr-panel px-2 text-xs text-tr-subtle">
+                <label className="hidden h-9 items-center gap-1 rounded-control border border-tr-border bg-tr-panel px-2 text-xs text-tr-subtle lg:inline-flex">
                   <Columns3 size={14} />
                   <span className="sr-only">Nhóm theo</span>
                   <select
@@ -836,7 +915,7 @@ export function TasksWorkspace() {
                   type="button"
                   onClick={columnPopover.toggle}
                   aria-expanded={columnPopover.open}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs font-medium text-tr-subtle hover:bg-tr-hover ${focusRing}`}
+                  className={`hidden h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs font-medium text-tr-subtle hover:bg-tr-hover lg:inline-flex ${focusRing}`}
                 >
                   <Columns3 size={14} /> Tùy chỉnh cột
                 </button>
@@ -880,7 +959,7 @@ export function TasksWorkspace() {
                 <button
                   type="button"
                   onClick={() => setSavingView((value) => !value)}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs font-medium text-tr-subtle hover:bg-tr-hover ${focusRing}`}
+                  className={`hidden h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs font-medium text-tr-subtle hover:bg-tr-hover lg:inline-flex ${focusRing}`}
                 >
                   <Save size={14} /> Lưu chế độ xem
                 </button>

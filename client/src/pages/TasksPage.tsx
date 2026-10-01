@@ -512,7 +512,7 @@ function TaskSummaryBar() {
       aria-label="Tổng quan công việc"
       className="flex flex-wrap items-center gap-1 rounded-panel border border-tr-border bg-tr-panel p-2 shadow-sm"
     >
-      <span className="px-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase">
+      <span className="px-2 text-xs font-semibold text-tr-subtle">
         Cần chú ý
       </span>
       {summary.map((item) => {

@@ -16,6 +16,7 @@ import { EmptyState, InlineDate, focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { undoableDelete } from '../../lib/undo';
+import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { useUiStore } from '../../stores/uiStore';
 import type { Customer, Label, TaskRow } from '../../types';
 import {
@@ -28,6 +29,7 @@ import {
 } from './TaskPresentation';
 import { AssigneeSelect } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
+import { TaskCardRow } from './TaskCardRow';
 
 interface TaskColumns {
   priority?: boolean;
@@ -89,6 +91,7 @@ export function TaskTree({
   emptyAction?: React.ReactNode;
   onChanged?: () => void;
 }) {
+  const isWide = useMediaQuery(MD_QUERY);
   const queryClient = useQueryClient();
   const openCard = useUiStore((s) => s.openCard);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -392,93 +395,133 @@ export function TaskTree({
           {showDetails ? 'Ẩn cột chi tiết' : 'Cột chi tiết'}
         </button>
       </div>
-      <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-        <div className={showDetails ? 'min-w-[1000px] lg:min-w-[1390px]' : 'min-w-[900px]'}>
-          <div
-            className={`sticky top-0 z-10 grid ${gridTemplate} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-xs font-semibold tracking-wide text-tr-subtle uppercase`}
-          >
-            <span className="w-5" />
-            {/* Khong dat `sr-only` truc tiep tren grid item: class nay dung position:absolute,
-                lam mat cot checkbox va day toan bo header sang trai. */}
-            <span
-              className="flex w-4 items-center justify-center text-tr-muted"
-              title="Đánh dấu hoàn thành"
-            >
-              <CheckCircle2 size={13} aria-hidden="true" />
-              <span className="sr-only">Hoàn thành</span>
-            </span>
-            <span>Công việc</span>
-            {visibleCols.priority && <span>Ưu tiên</span>}
-            {visibleCols.startDate && <span>Bắt đầu</span>}
-            {visibleCols.dueDate && <span>Hạn hoàn thành</span>}
-            {visibleCols.assignee && <span>Người phụ trách</span>}
-            {showDetails && (
-              <span className="hidden lg:block">{cols.customer ? 'Khách hàng' : ''}</span>
-            )}
-            {showDetails && <span className="hidden lg:block">{cols.board ? 'Bảng' : ''}</span>}
-            <span>Trạng thái</span>
-            {showDetails && <span>Danh sách / Nhãn</span>}
-            <span className="text-right">Thao tác</span>
-          </div>
-          <div className="divide-y divide-tr-border">
-            {tree.map(({ task, children }) => (
-              <div key={task.id}>
-                {renderRow(task, false, children.length)}
-
-                {expanded.has(task.id) && (
-                  <div className="border-t border-tr-border">
-                    {children.map((child) => renderRow(child, true, 0))}
-
-                    {addingUnder === task.id ? (
-                      <div className="flex items-center gap-2 py-2 pr-3 pl-12">
-                        <CornerDownRight size={13} className="shrink-0 text-tr-muted" />
-                        <input
-                          autoFocus
-                          value={subtaskDraft}
-                          placeholder="Tên việc con…"
-                          onChange={(e) => setSubtaskDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && subtaskDraft.trim())
-                              addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() });
-                            if (e.key === 'Escape') setAddingUnder(null);
-                          }}
-                          className="flex-1 rounded-control border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm text-tr-text outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            subtaskDraft.trim() &&
-                            addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() })
-                          }
-                          className="rounded-control bg-tr-primary px-2.5 py-1 text-xs font-medium text-tr-on-primary"
-                        >
-                          {t.common.add}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAddingUnder(null)}
-                          className="rounded-control p-1 text-tr-muted hover:bg-tr-hover"
-                          aria-label={t.common.cancel}
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startAddingSubtask(task.id)}
-                        className="flex w-full items-center gap-1.5 py-1.5 pl-12 text-xs text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
-                      >
-                        <Plus size={13} /> Thêm việc con
-                      </button>
-                    )}
-                  </div>
+      {!isWide ? (
+        <div className="rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+          {tree.map(({ task, children }) => (
+            <div key={task.id}>
+              <div className="flex items-center">
+                {children.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpanded((current) => {
+                        const next = new Set(current);
+                        if (next.has(task.id)) next.delete(task.id);
+                        else next.add(task.id);
+                        return next;
+                      })
+                    }
+                    aria-label={`${expanded.has(task.id) ? 'Thu gọn' : 'Mở'} việc con của ${task.title}`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center text-tr-muted"
+                  >
+                    {expanded.has(task.id) ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </button>
                 )}
+                <div className="min-w-0 flex-1">
+                  <TaskCardRow task={task} onOpen={() => openCard(task.id, 'drawer')} />
+                </div>
               </div>
-            ))}
+              {expanded.has(task.id) &&
+                children.map((child) => (
+                  <div key={child.id} className="pl-4">
+                    <TaskCardRow task={child} onOpen={() => openCard(child.id, 'drawer')} />
+                  </div>
+                ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+          <div className={showDetails ? 'min-w-[1000px] lg:min-w-[1390px]' : 'min-w-[900px]'}>
+            <div
+              className={`sticky top-0 z-10 grid ${gridTemplate} items-center gap-2 border-b border-tr-border bg-tr-surface px-3 py-2 text-xs font-semibold text-tr-subtle`}
+            >
+              <span className="w-5" />
+              {/* Khong dat `sr-only` truc tiep tren grid item: class nay dung position:absolute,
+                lam mat cot checkbox va day toan bo header sang trai. */}
+              <span
+                className="flex w-4 items-center justify-center text-tr-muted"
+                title="Đánh dấu hoàn thành"
+              >
+                <CheckCircle2 size={13} aria-hidden="true" />
+                <span className="sr-only">Hoàn thành</span>
+              </span>
+              <span>Công việc</span>
+              {visibleCols.priority && <span>Ưu tiên</span>}
+              {visibleCols.startDate && <span>Bắt đầu</span>}
+              {visibleCols.dueDate && <span>Hạn hoàn thành</span>}
+              {visibleCols.assignee && <span>Người phụ trách</span>}
+              {showDetails && (
+                <span className="hidden lg:block">{cols.customer ? 'Khách hàng' : ''}</span>
+              )}
+              {showDetails && <span className="hidden lg:block">{cols.board ? 'Bảng' : ''}</span>}
+              <span>Trạng thái</span>
+              {showDetails && <span>Danh sách / Nhãn</span>}
+              <span className="text-right">Thao tác</span>
+            </div>
+            <div className="divide-y divide-tr-border">
+              {tree.map(({ task, children }) => (
+                <div key={task.id}>
+                  {renderRow(task, false, children.length)}
+
+                  {expanded.has(task.id) && (
+                    <div className="border-t border-tr-border">
+                      {children.map((child) => renderRow(child, true, 0))}
+
+                      {addingUnder === task.id ? (
+                        <div className="flex items-center gap-2 py-2 pr-3 pl-12">
+                          <CornerDownRight size={13} className="shrink-0 text-tr-muted" />
+                          <input
+                            autoFocus
+                            value={subtaskDraft}
+                            placeholder="Tên việc con…"
+                            onChange={(e) => setSubtaskDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && subtaskDraft.trim())
+                                addSubtask.mutate({
+                                  parentId: task.id,
+                                  title: subtaskDraft.trim(),
+                                });
+                              if (e.key === 'Escape') setAddingUnder(null);
+                            }}
+                            className="flex-1 rounded-control border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm text-tr-text outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              subtaskDraft.trim() &&
+                              addSubtask.mutate({ parentId: task.id, title: subtaskDraft.trim() })
+                            }
+                            className="rounded-control bg-tr-primary px-2.5 py-1 text-xs font-medium text-tr-on-primary"
+                          >
+                            {t.common.add}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAddingUnder(null)}
+                            className="rounded-control p-1 text-tr-muted hover:bg-tr-hover"
+                            aria-label={t.common.cancel}
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startAddingSubtask(task.id)}
+                          className="flex w-full items-center gap-1.5 py-1.5 pl-12 text-xs text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
+                        >
+                          <Plus size={13} /> Thêm việc con
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         open={deleteTask !== null}

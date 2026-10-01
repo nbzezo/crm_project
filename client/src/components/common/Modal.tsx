@@ -52,7 +52,7 @@ export function Modal({
      xem giai thich chi tiet hon trong Drawer.tsx, cung mot van de. */
   return createPortal(
     <div
-      className="tr-anim-fade fixed inset-0 z-modal flex items-start justify-center bg-tr-overlay p-4 sm:p-8"
+      className="tr-anim-fade fixed inset-0 z-modal flex items-stretch justify-center bg-tr-overlay p-0 sm:items-start sm:p-8"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) requestClose();
       }}
@@ -66,16 +66,16 @@ export function Modal({
            cuon ben trong lop phu, nen voi bieu mau dai hon man hinh thi tieu de
            va nut dong troi han khoi tam nhin — nguoi dung mat ca ngu canh lan
            loi thoat. Drawer.tsx da dung dung hinh dang nay tu truoc. */
-        className={`tr-modal tr-anim-pop flex max-h-full w-full flex-col ${width} rounded-modal bg-tr-panel shadow-2xl`}
+        className={`tr-modal tr-anim-pop flex h-full max-h-full w-full flex-col ${width} rounded-none bg-tr-panel shadow-2xl sm:h-auto sm:rounded-modal`}
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-tr-border px-5 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-tr-border px-5 py-4 pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-4">
           <div id={titleId} className="min-w-0 flex-1 text-lg font-semibold text-tr-text">
             {title}
           </div>
           <button
             type="button"
             onClick={requestClose}
-            className={`rounded-panel p-1.5 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
+            className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-text fine:h-8 fine:w-8 ${focusRing}`}
             aria-label={t.common.close}
           >
             <X size={18} aria-hidden="true" />
@@ -83,7 +83,7 @@ export function Modal({
         </div>
         <div className="tr-scroll min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-tr-border px-5 py-3">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-tr-border px-5 py-3 pb-[calc(0.75rem+var(--tr-safe-bottom))] sm:pb-3">
             {footer}
           </div>
         )}

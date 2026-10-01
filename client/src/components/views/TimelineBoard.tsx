@@ -33,7 +33,11 @@ interface TimelineResponse {
 export function TimelineBoard({ boardId, projectId }: { boardId?: number; projectId?: number }) {
   const openCard = useUiStore((state) => state.openCard);
   const [groupBy, setGroupBy] = useState<'board' | 'customer'>('board');
-  const [zoom, setZoom] = useState<Zoom>('month');
+  const [zoom, setZoom] = useState<Zoom>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+      ? 'week'
+      : 'month'
+  );
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState<Priority | ''>('');
   const [showUnscheduled, setShowUnscheduled] = useState(true);
@@ -90,7 +94,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
       <div className="mb-4 rounded-modal border border-tr-border bg-tr-panel p-3 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+            <p className="mb-1.5 text-xs font-semibold text-tr-muted">
               Cách nhóm
             </p>
             <Segmented
@@ -105,7 +109,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
           </div>
 
           <div className="sm:text-right">
-            <p className="mb-1.5 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+            <p className="mb-1.5 text-xs font-semibold text-tr-muted">
               Thang thời gian
             </p>
             <Segmented

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import {
-  ArrowLeft,
   Building2,
   FileSignature,
   Globe,
@@ -25,6 +24,7 @@ import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { AiBrief } from '../components/ai/AiBrief';
 import { CustomerServices } from '../components/crm/CustomerServices';
+import { DetailHeader } from '../components/crm/DetailHeader';
 import { TaskTree } from '../components/tasks/TaskTree';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import { Modal } from '../components/common/Modal';
@@ -37,7 +37,6 @@ import {
   IconButton,
   Skeleton,
   TableHead,
-  focusRing,
 } from '../components/common/ui';
 import {
   ACCOUNT_STATUS_COLORS,
@@ -137,21 +136,18 @@ export default function CustomerDetailPage() {
   ];
 
   return (
-    <div className="p-6">
-      <Breadcrumbs
-        items={[{ label: t.nav.customers, to: '/customers' }, { label: customer.name }]}
-      />
-      <div className="mt-2 mb-4 flex items-start gap-3">
-        <Link
-          to="/customers"
-          aria-label={`Quay lại ${t.nav.customers}`}
-          className={`mt-1 rounded-control p-1 text-tr-muted hover:bg-tr-hover ${focusRing}`}
-        >
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-tr-text">{customer.name}</h2>
+    <div className="p-4 md:p-6">
+      <DetailHeader
+        backTo="/customers"
+        backLabel={`Quay lại ${t.nav.customers}`}
+        breadcrumbs={
+          <Breadcrumbs
+            items={[{ label: t.nav.customers, to: '/customers' }, { label: customer.name }]}
+          />
+        }
+        title={customer.name}
+        badges={
+          <>
             {customer.short_name && (
               <span className="text-sm text-tr-muted">({customer.short_name})</span>
             )}
@@ -166,12 +162,15 @@ export default function CustomerDetailPage() {
                 {customer.size}
               </span>
             )}
-          </div>
-          {/* FR-TAG-06: gắn/gỡ nhãn ngay trên hồ sơ, không cần mở biểu mẫu sửa */}
+          </>
+        }
+        labels={
           <div className="mt-1.5">
             <EntityLabels entityType="customer" entityId={id} />
           </div>
-          <div className="mt-1 flex flex-wrap gap-4 text-sm text-tr-muted">
+        }
+        meta={
+          <>
             <span>
               {t.customer.totalWon}:{' '}
               <strong className="text-tr-success">{formatVND(customer.total_won_vnd)}</strong>
@@ -185,18 +184,23 @@ export default function CustomerDetailPage() {
                 Hợp đồng hiệu lực: <strong>{customer.active_contract_count}</strong>
               </span>
             )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <AiBrief contextType="customer" contextId={id} />
-          <Button onClick={() => setEditing(true)}>
+          </>
+        }
+        primaryAction={
+          <Button className="w-full" onClick={() => setEditing(true)}>
             <Pencil size={15} /> {t.common.edit}
           </Button>
-          <Button variant="ghost" className="text-tr-danger" onClick={() => setConfirmDelete(true)}>
-            <Trash2 size={15} />
-          </Button>
-        </div>
-      </div>
+        }
+        supportingAction={<AiBrief contextType="customer" contextId={id} />}
+        secondaryActions={[
+          {
+            label: t.common.delete,
+            icon: <Trash2 size={15} aria-hidden="true" />,
+            danger: true,
+            onClick: () => setConfirmDelete(true),
+          },
+        ]}
+      />
 
       <Tabs
         value={tab}
@@ -261,6 +265,29 @@ export default function CustomerDetailPage() {
               'Next Action',
               '',
             ]}
+            mobileChildren={customer.deals.map((deal) => (
+              <MobileRecordCard
+                key={deal.id}
+                title={deal.title}
+                badge={
+                  <ColorBadge color={STAGE_COLORS[deal.stage]}>{t.stage[deal.stage]}</ColorBadge>
+                }
+                facts={[
+                  ['Giá trị', formatVND(deal.value_vnd)],
+                  ['Xác suất', `${deal.probability}%`],
+                  ['Dự kiến chốt', formatDate(deal.expected_close_date) || '—'],
+                  ['Next Action', deal.next_action || '—'],
+                ]}
+                actions={
+                  <IconButton
+                    onClick={() => setDealForm({ open: true, deal })}
+                    label={`${t.common.edit}: ${deal.title}`}
+                  >
+                    <Pencil size={15} aria-hidden="true" />
+                  </IconButton>
+                }
+              />
+            ))}
           >
             {customer.deals.map((d) => (
               <tr key={d.id} className="hover:bg-tr-hover">
@@ -308,6 +335,39 @@ export default function CustomerDetailPage() {
               'Trạng thái',
               '',
             ]}
+            mobileChildren={customer.quotations?.map((quotation) => (
+              <MobileRecordCard
+                key={quotation.id}
+                title={`${quotation.code || 'Không mã'} · v${quotation.version}`}
+                subtitle={quotation.deal_title ?? undefined}
+                badge={
+                  <ColorBadge color={QUOTATION_STATUS_COLORS[quotation.status]}>
+                    {t.quotationStatus[quotation.status]}
+                  </ColorBadge>
+                }
+                facts={[
+                  ['Giá trị', formatVND(quotation.value_vnd)],
+                  ['Ngày báo giá', formatDate(quotation.quote_date) || '—'],
+                  ['Hiệu lực đến', formatDate(quotation.valid_until) || '—'],
+                ]}
+                actions={
+                  <div className="flex gap-1">
+                    <IconButton
+                      onClick={() => openTaskComposer({ context: { quotation_id: quotation.id } })}
+                      label={`Tạo công việc cho báo giá ${quotation.code || quotation.id}`}
+                    >
+                      <ListPlus size={15} aria-hidden="true" />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => setQuoteForm({ open: true, quotation })}
+                      label={`${t.common.edit}: ${quotation.code || 'báo giá'}`}
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </IconButton>
+                  </div>
+                }
+              />
+            ))}
           >
             {customer.quotations?.map((q) => (
               <tr key={q.id} className="hover:bg-tr-hover">
@@ -353,6 +413,41 @@ export default function CustomerDetailPage() {
             empty="Chưa có hợp đồng nào."
             isEmpty={(customer.contracts?.length ?? 0) === 0}
             headers={['Hợp đồng', 'Giá trị', 'Hiệu lực', 'Còn lại', 'Trạng thái', '']}
+            mobileChildren={customer.contracts?.map((contract) => (
+              <MobileRecordCard
+                key={contract.id}
+                title={contract.name}
+                subtitle={contract.number ? `Số ${contract.number}` : undefined}
+                badge={
+                  <ColorBadge color={CONTRACT_STATUS_COLORS[contract.status]}>
+                    {t.contractStatus[contract.status]}
+                  </ColorBadge>
+                }
+                facts={[
+                  ['Giá trị', formatVND(contract.value_vnd)],
+                  [
+                    'Hiệu lực',
+                    `${formatDate(contract.start_date) || '—'} → ${formatDate(contract.end_date) || '—'}`,
+                  ],
+                  [
+                    'Còn lại',
+                    contract.days_left == null
+                      ? '—'
+                      : contract.days_left < 0
+                        ? `Quá ${-contract.days_left} ngày`
+                        : `${contract.days_left} ngày`,
+                  ],
+                ]}
+                actions={
+                  <IconButton
+                    onClick={() => setContractForm({ open: true, contract })}
+                    label={`${t.common.edit}: ${contract.name}`}
+                  >
+                    <Pencil size={15} aria-hidden="true" />
+                  </IconButton>
+                }
+              />
+            ))}
           >
             {customer.contracts?.map((c) => (
               <tr key={c.id} className="hover:bg-tr-hover">
@@ -496,6 +591,7 @@ function TableSection({
   addLabel,
   empty,
   isEmpty,
+  mobileChildren,
 }: {
   headers: string[];
   children: React.ReactNode;
@@ -503,6 +599,7 @@ function TableSection({
   addLabel: string;
   empty: string;
   isEmpty: boolean;
+  mobileChildren?: React.ReactNode;
 }) {
   return (
     <div>
@@ -514,22 +611,66 @@ function TableSection({
       {isEmpty ? (
         <EmptyState message={empty} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-tr-border bg-tr-panel">
-          <table className="w-full text-sm">
-            <TableHead>
-              <tr>
-                {headers.map((h, i) => (
-                  <th scope="col" key={i} className="px-4 py-2.5 whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </TableHead>
-            <tbody className="divide-y divide-tr-border">{children}</tbody>
-          </table>
-        </div>
+        <>
+          {mobileChildren && (
+            <div className="divide-y divide-tr-border overflow-hidden rounded-panel border border-tr-border bg-tr-panel md:hidden">
+              {mobileChildren}
+            </div>
+          )}
+          <div
+            className={`${mobileChildren ? 'hidden md:block' : ''} overflow-x-auto rounded-lg border border-tr-border bg-tr-panel`}
+          >
+            <table className="w-full text-sm">
+              <TableHead>
+                <tr>
+                  {headers.map((h, i) => (
+                    <th scope="col" key={i} className="px-4 py-2.5 whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </TableHead>
+              <tbody className="divide-y divide-tr-border">{children}</tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+function MobileRecordCard({
+  title,
+  subtitle,
+  badge,
+  facts,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  facts: [string, string][];
+  actions?: React.ReactNode;
+}) {
+  return (
+    <article className="space-y-3 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-sm font-semibold text-tr-text">{title}</h3>
+          {subtitle && <p className="truncate text-xs text-tr-muted">{subtitle}</p>}
+        </div>
+        {badge}
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        {facts.map(([label, value]) => (
+          <div key={label} className="min-w-0">
+            <dt className="text-xs text-tr-muted">{label}</dt>
+            <dd className="break-words font-medium text-tr-subtle">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {actions && <div className="flex justify-end border-t border-tr-border pt-2">{actions}</div>}
+    </article>
   );
 }
 

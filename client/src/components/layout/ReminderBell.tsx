@@ -382,7 +382,7 @@ export function ReminderBell() {
 
             {settingsOpen && (
               <div className="mt-3 rounded-panel border border-tr-border bg-tr-surface p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-tr-subtle">
+                <p className="mb-2 text-xs font-semibold text-tr-subtle">
                   Nguồn hiển thị
                 </p>
                 <div className="grid gap-1.5 sm:grid-cols-2">
@@ -518,7 +518,7 @@ export function ReminderBell() {
                   <div className="sticky top-0 z-10 flex items-center justify-between border-y border-tr-border bg-tr-surface/95 px-3 py-1.5 backdrop-blur first:border-t-0">
                     <h3
                       id={`notification-group-${group.key}`}
-                      className="text-xs font-semibold uppercase tracking-wide text-tr-subtle"
+                      className="text-xs font-semibold text-tr-subtle"
                     >
                       {group.label}
                     </h3>

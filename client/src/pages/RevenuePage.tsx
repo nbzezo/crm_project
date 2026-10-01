@@ -19,6 +19,7 @@ import {
   Download,
   FileText,
   Info,
+  MoreHorizontal,
   Plus,
   Settings2,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
 import {
   Button,
   EmptyState,
+  IconButton,
   Input,
   Panel,
   Segmented,
@@ -258,6 +260,16 @@ export default function RevenuePage() {
         align="center"
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <IconButton
+              label="Thao tác doanh thu"
+              className="md:hidden"
+              onClick={(event) => {
+                setBulkMonth(null);
+                bulkPopover.show(event);
+              }}
+            >
+              <MoreHorizontal size={18} aria-hidden="true" />
+            </IconButton>
             <a
               href="/api/export/revenues.csv"
               className={`inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
@@ -454,7 +466,48 @@ export default function RevenuePage() {
               ))}
             </span>
           </div>
-          <div className="tr-scroll max-h-[70vh] overflow-auto">
+          <div className="divide-y divide-tr-border md:hidden">
+            {lines.map((line) => {
+              const paid = MONTHS.filter(
+                (month) => line.months[periodOf(year, month)]?.stage === 'paid'
+              ).length;
+              return (
+                <button
+                  key={line.id}
+                  type="button"
+                  onClick={() => setMonthsFor(line)}
+                  className="flex min-h-24 w-full flex-col gap-2 px-3 py-3 text-left text-tr-text"
+                >
+                  <span className="flex w-full items-start justify-between gap-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">
+                        {line.customer_name}
+                      </span>
+                      <span className="block truncate text-xs text-tr-muted">
+                        {line.service_name ?? 'Chưa gán dịch vụ'}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatVNDShort(line.totals.amount_vnd)}
+                    </span>
+                  </span>
+                  <span className="grid h-2 w-full grid-cols-12 gap-0.5" aria-hidden="true">
+                    {MONTHS.map((month) => {
+                      const stage = line.months[periodOf(year, month)]?.stage;
+                      return (
+                        <span
+                          key={month}
+                          className={`rounded-full ${stage === 'paid' ? 'bg-tr-success' : stage ? 'bg-tr-warning' : 'bg-tr-hover-strong'}`}
+                        />
+                      );
+                    })}
+                  </span>
+                  <span className="text-xs text-tr-muted">Đã thu {paid}/12 tháng</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="tr-scroll hidden max-h-[70vh] overflow-auto md:block">
             <table className="w-full text-sm">
               <TableHead className="sticky top-0 z-20 shadow-[0_1px_0_var(--tr-border)]">
                 <tr>
@@ -600,36 +653,58 @@ export default function RevenuePage() {
 
       {/* Chuyển trạng thái toàn bộ một tháng */}
       <Popover
-        open={bulkPopover.open && bulkMonth !== null}
+        open={bulkPopover.open}
         anchor={bulkPopover.anchor}
         onClose={() => {
           bulkPopover.close();
           setBulkMonth(null);
         }}
-        title={`${t.revenue.setStageForMonth} ${bulkMonth}/${year}`}
+        title={
+          bulkMonth === null
+            ? 'Chuyển trạng thái theo tháng'
+            : `${t.revenue.setStageForMonth} ${bulkMonth}/${year}`
+        }
+        onBack={bulkMonth === null ? undefined : () => setBulkMonth(null)}
         width={260}
       >
-        <p className="mb-2 text-xs text-tr-muted">
-          Áp dụng cho {lines.length} dòng đang hiển thị, chỉ với tháng đã có số liệu.
-        </p>
-        {REVENUE_STAGE_ORDER.map((stage) => (
-          <PopoverItem
-            key={stage}
-            icon={
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
-              />
-            }
-            onClick={() => {
-              if (bulkMonth) bulkStage.mutate({ period: periodOf(year, bulkMonth), stage });
-              bulkPopover.close();
-              setBulkMonth(null);
-            }}
-          >
-            {t.revenueStage[stage]}
-          </PopoverItem>
-        ))}
+        {bulkMonth === null ? (
+          <div className="grid grid-cols-3 gap-1">
+            {MONTHS.map((month) => (
+              <button
+                key={month}
+                type="button"
+                onClick={() => setBulkMonth(month)}
+                className={`min-h-11 rounded-control text-sm text-tr-text hover:bg-tr-hover ${focusRing}`}
+              >
+                Tháng {month}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <p className="mb-2 text-xs text-tr-muted">
+              Áp dụng cho {lines.length} dòng đang hiển thị, chỉ với tháng đã có số liệu.
+            </p>
+            {REVENUE_STAGE_ORDER.map((stage) => (
+              <PopoverItem
+                key={stage}
+                icon={
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
+                  />
+                }
+                onClick={() => {
+                  bulkStage.mutate({ period: periodOf(year, bulkMonth), stage });
+                  bulkPopover.close();
+                  setBulkMonth(null);
+                }}
+              >
+                {t.revenueStage[stage]}
+              </PopoverItem>
+            ))}
+          </>
+        )}
       </Popover>
 
       <Suspense fallback={null}>

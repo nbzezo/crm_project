@@ -38,6 +38,26 @@ interface SearchResults {
   quickNotes: { id: number; title: string; updated_at: string }[];
 }
 
+interface RecentResult {
+  kind: 'card' | 'quickNote' | 'path';
+  id: number | string;
+  title: string;
+  meta: string;
+}
+const RECENT_KEY = 'workflow-search-recent-v1';
+function loadRecent(): RecentResult[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    return Array.isArray(value)
+      ? value
+          .filter((item) => item && typeof item.title === 'string' && typeof item.kind === 'string')
+          .slice(0, 5)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function SearchBox() {
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
@@ -46,6 +66,25 @@ export function SearchBox() {
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [recent, setRecent] = useState<RecentResult[]>(loadRecent);
+  const remember = (item: RecentResult) => {
+    const next = [
+      item,
+      ...recent.filter((entry) => entry.kind !== item.kind || entry.id !== item.id),
+    ].slice(0, 5);
+    setRecent(next);
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch {
+      /* Private mode */
+    }
+  };
+  const openRecent = (item: RecentResult) => {
+    if (item.kind === 'card') openCard(Number(item.id));
+    else if (item.kind === 'quickNote') openQuickNotesBoard({ focusId: Number(item.id) });
+    else navigate(String(item.id));
+    close();
+  };
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(term), 250);
@@ -86,18 +125,18 @@ export function SearchBox() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`tr-search-trigger flex h-11 w-full max-w-lg items-center gap-2 rounded-control border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text fine:h-8 ${focusRing}`}
+        className={`tr-search-trigger max-md:hidden flex h-11 w-full max-w-lg items-center gap-2 rounded-control border border-tr-border bg-tr-panel px-3 text-sm text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text fine:h-8 ${focusRing}`}
       >
         <Search size={15} aria-hidden="true" />
         <span className="flex-1 truncate text-left">{t.search.placeholder}</span>
-        <kbd className="hidden rounded-full border border-tr-border bg-tr-list px-2 py-0.5 text-xs text-tr-muted sm:inline">
+        <kbd className="hidden rounded-full border border-tr-border bg-tr-list px-2 py-0.5 text-xs text-tr-muted fine:inline">
           Ctrl K
         </kbd>
       </button>
 
       {open && (
         <div
-          className="tr-anim-fade fixed inset-0 z-modal flex items-start justify-center bg-tr-overlay p-4 pt-16 sm:pt-24"
+          className="tr-anim-fade fixed inset-0 z-modal flex items-stretch justify-center bg-tr-overlay p-0 sm:items-start sm:p-4 sm:pt-24"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) close();
           }}
@@ -107,9 +146,9 @@ export function SearchBox() {
             role="dialog"
             aria-modal="true"
             aria-label={t.search.placeholder}
-            className="tr-search-dialog tr-anim-pop w-full max-w-xl overflow-hidden rounded-modal bg-tr-panel shadow-2xl"
+            className="tr-search-dialog tr-anim-pop flex h-[100dvh] w-full max-w-none flex-col overflow-hidden rounded-none bg-tr-panel shadow-2xl sm:h-auto sm:max-w-xl sm:rounded-modal"
           >
-            <div className="flex items-center gap-2 border-b border-tr-border px-4">
+            <div className="flex items-center gap-2 border-b border-tr-border px-4 pt-[env(safe-area-inset-top)] sm:pt-0">
               <Search size={17} className="text-tr-muted" aria-hidden="true" />
               <input
                 value={term}
@@ -128,11 +167,22 @@ export function SearchBox() {
                 }}
                 placeholder={t.search.placeholder}
                 aria-label={t.search.placeholder}
-                className="w-full bg-transparent py-3.5 text-sm text-tr-text outline-none"
+                className="tr-field-control w-full bg-transparent py-3.5 text-tr-text outline-none"
               />
+              <button
+                type="button"
+                onClick={close}
+                className={`min-h-11 px-2 text-sm font-medium text-tr-primary sm:hidden ${focusRing}`}
+              >
+                {t.common.cancel}
+              </button>
             </div>
 
-            <div className="tr-scroll max-h-96 overflow-y-auto" role="listbox" aria-label="Kết quả">
+            <div
+              className="tr-scroll min-h-0 flex-1 overflow-y-auto sm:max-h-96 sm:flex-none"
+              role="listbox"
+              aria-label="Kết quả"
+            >
               {total > 0 && (
                 <p className="sr-only" aria-live="polite">
                   {`${total} kết quả`}
@@ -141,6 +191,45 @@ export function SearchBox() {
               {debounced && total === 0 && (
                 <p className="px-4 py-8 text-center text-sm text-tr-muted">{t.search.noResults}</p>
               )}
+              {!term.trim() && recent.length > 0 && (
+                <div className="md:hidden">
+                  <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                    <h3 className="text-sm font-semibold text-tr-muted">Gần đây</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecent([]);
+                        try {
+                          localStorage.removeItem(RECENT_KEY);
+                        } catch {
+                          /* Private mode */
+                        }
+                      }}
+                      className="min-h-11 px-2 text-sm text-tr-primary"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                  {recent.map((item) => (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      key={`${item.kind}:${item.id}`}
+                      onClick={() => openRecent(item)}
+                      className="flex min-h-14 w-full items-center gap-3 px-4 text-left hover:bg-tr-hover"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-tr-primary/10 text-tr-primary">
+                        <Search size={17} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm text-tr-text">{item.title}</span>
+                        <span className="block truncate text-xs text-tr-muted">{item.meta}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {data && data.cards.length > 0 && (
                 <Group title={t.search.cards}>
@@ -148,6 +237,7 @@ export function SearchBox() {
                     <Row
                       key={c.id}
                       onClick={() => {
+                        remember({ kind: 'card', id: c.id, title: c.title, meta: c.board_name });
                         openCard(c.id);
                         close();
                       }}
@@ -164,6 +254,12 @@ export function SearchBox() {
                     <Row
                       key={c.id}
                       onClick={() => {
+                        remember({
+                          kind: 'path',
+                          id: `/customers/${c.id}`,
+                          title: c.name,
+                          meta: 'Khách hàng',
+                        });
                         navigate(`/customers/${c.id}`);
                         close();
                       }}
@@ -180,6 +276,12 @@ export function SearchBox() {
                     <Row
                       key={c.id}
                       onClick={() => {
+                        remember({
+                          kind: 'path',
+                          id: `/customers/${c.customer_id}?contact=${c.id}`,
+                          title: c.full_name,
+                          meta: c.customer_name,
+                        });
                         navigate(`/customers/${c.customer_id}?contact=${c.id}`);
                         close();
                       }}
@@ -196,6 +298,12 @@ export function SearchBox() {
                     <Row
                       key={d.id}
                       onClick={() => {
+                        remember({
+                          kind: 'path',
+                          id: `/deals/${d.id}`,
+                          title: d.title,
+                          meta: d.customer_name,
+                        });
                         navigate(`/deals/${d.id}`);
                         close();
                       }}
@@ -212,6 +320,12 @@ export function SearchBox() {
                     <Row
                       key={c.id}
                       onClick={() => {
+                        remember({
+                          kind: 'path',
+                          id: `/contracts?focus=${c.id}`,
+                          title: c.name,
+                          meta: 'Hợp đồng',
+                        });
                         navigate(`/contracts?focus=${c.id}`);
                         close();
                       }}
@@ -230,6 +344,12 @@ export function SearchBox() {
                     <Row
                       key={d.id}
                       onClick={() => {
+                        remember({
+                          kind: 'path',
+                          id: `/documents?tab=files&focus=${d.id}`,
+                          title: d.name,
+                          meta: 'Tài liệu',
+                        });
                         navigate(`/documents?tab=files&focus=${d.id}`);
                         close();
                       }}
@@ -248,6 +368,12 @@ export function SearchBox() {
                     <Row
                       key={n.id}
                       onClick={() => {
+                        remember({
+                          kind: 'quickNote',
+                          id: n.id,
+                          title: n.title || 'Ghi chú không tiêu đề',
+                          meta: 'Ghi chú nhanh',
+                        });
                         openQuickNotesBoard({ focusId: n.id });
                         close();
                       }}
@@ -281,7 +407,7 @@ export function SearchBox() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-1">
-      <div className="px-4 py-1 text-xs font-semibold tracking-wide text-tr-muted uppercase">
+      <div className="px-4 py-1 text-xs font-semibold text-tr-muted">
         {title}
       </div>
       {children}
@@ -320,7 +446,7 @@ function Row({
         rows[(next + rows.length) % rows.length]?.focus();
       }}
       onClick={onClick}
-      className="flex w-full flex-col items-start px-4 py-2 text-left transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary"
+      className="flex min-h-11 w-full flex-col items-start px-4 py-2 text-left transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary fine:min-h-0"
     >
       <span className="truncate text-sm text-tr-text">{primary}</span>
       {secondary && <span className="truncate text-xs text-tr-muted">{secondary}</span>}

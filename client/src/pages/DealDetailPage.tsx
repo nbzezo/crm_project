@@ -8,10 +8,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
-import { ArrowLeft, FolderKanban, Pencil, Plus, RefreshCw } from 'lucide-react';
+import { FolderKanban, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { DealForm } from '../components/crm/DealForm';
 import { DealStageStepper } from '../components/crm/DealStageStepper';
+import { DetailHeader } from '../components/crm/DetailHeader';
 import { DealSmartButtons } from '../components/crm/DealSmartButtons';
 import { DealActivitySidebar } from '../components/crm/DealActivitySidebar';
 import { HandoverPanel } from '../components/crm/HandoverPanel';
@@ -130,31 +131,26 @@ export default function DealDetailPage() {
   const pendingHandover = deal.stage === 'won' && !deal.handover_ready;
 
   return (
-    <div className="p-6">
-      {/* Chuoi ba tang that su cua co hoi la Khach hang → Ho so → Co hoi; di
-          qua Pipeline chi la mot loi vao khac. */}
-      <Breadcrumbs
-        items={[
-          { label: t.nav.customers, to: '/customers' },
-          // Ten khach hang khong phai luc nao cung co trong payload; thieu thi bo
-          // han bac do thay vi hien mot muc trong.
-          ...(deal.customer_name
-            ? [{ label: deal.customer_name, to: `/customers/${deal.customer_id}` }]
-            : []),
-          { label: deal.title },
-        ]}
-      />
-      <div className="mt-2 mb-4 flex items-start gap-3">
-        <Link
-          to="/pipeline"
-          aria-label={`Quay lại ${t.nav.pipeline}`}
-          className={`mt-1 rounded-control p-1 text-tr-muted hover:bg-tr-hover ${focusRing}`}
-        >
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-tr-text">{deal.title}</h2>
+    <div className="p-4 md:p-6">
+      <DetailHeader
+        backTo="/pipeline"
+        backLabel={`Quay lại ${t.nav.pipeline}`}
+        breadcrumbs={
+          <Breadcrumbs
+            items={[
+              { label: t.nav.customers, to: '/customers' },
+              // Ten khach hang khong phai luc nao cung co trong payload; thieu thi bo
+              // han bac do thay vi hien mot muc trong.
+              ...(deal.customer_name
+                ? [{ label: deal.customer_name, to: `/customers/${deal.customer_id}` }]
+                : []),
+              { label: deal.title },
+            ]}
+          />
+        }
+        title={deal.title}
+        badges={
+          <>
             {card && (
               <ColorBadge color={QUADRANT_COLORS[card.quadrant]}>
                 Scoring: {QUADRANT_LABELS[card.quadrant]}
@@ -172,8 +168,10 @@ export default function DealDetailPage() {
                 <RefreshCw size={12} /> Gia hạn
               </span>
             )}
-          </div>
-          <div className="mt-1 flex flex-wrap gap-4 text-sm text-tr-muted">
+          </>
+        }
+        meta={
+          <>
             <Link
               to={`/customers/${deal.customer_id}`}
               className={`text-tr-primary hover:underline ${focusRing}`}
@@ -189,22 +187,27 @@ export default function DealDetailPage() {
             {deal.expected_close_date && (
               <span>Dự kiến chốt: {formatDate(deal.expected_close_date)}</span>
             )}
-          </div>
+          </>
+        }
+        labels={
           <div className="mt-1.5">
             <EntityLabels entityType="deal" entityId={id} />
           </div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <AiBrief contextType="deal" contextId={id} />
-          {/* Cong viec tao tu day tu mang theo khach hang va nguoi lien he cua co hoi. */}
-          <Button onClick={() => openTaskComposer({ context: { deal_id: id } })}>
+        }
+        primaryAction={
+          <Button className="w-full" onClick={() => openTaskComposer({ context: { deal_id: id } })}>
             <Plus size={15} /> Tạo công việc
           </Button>
-          <Button onClick={() => setEditing(true)}>
-            <Pencil size={15} /> {t.common.edit}
-          </Button>
-        </div>
-      </div>
+        }
+        supportingAction={<AiBrief contextType="deal" contextId={id} />}
+        secondaryActions={[
+          {
+            label: t.common.edit,
+            icon: <Pencil size={15} aria-hidden="true" />,
+            onClick: () => setEditing(true),
+          },
+        ]}
+      />
 
       <div className="mb-4">
         <DealStageStepper deal={deal} />

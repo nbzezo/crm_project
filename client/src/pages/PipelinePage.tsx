@@ -3,7 +3,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCorners,
   useDroppable,
@@ -68,11 +68,25 @@ export default function PipelinePage() {
   const [labelFilter, setLabelFilter] = useState<LabelFilterState>(EMPTY_LABEL_FILTER);
   /** v23: chỉ hiện cơ hội đã thắng nhưng hồ sơ bàn giao chưa đủ. */
   const [pendingHandoverOnly, setPendingHandoverOnly] = useState(false);
-  const [view, setView] = useState<'board' | 'list'>(() =>
-    window.matchMedia('(max-width: 639px)').matches ? 'list' : 'board'
-  );
+  const [view, setView] = useState<'board' | 'list'>(() => {
+    try {
+      const saved = localStorage.getItem('workflow-pipeline-view-v1');
+      if (saved === 'board' || saved === 'list') return saved;
+    } catch {
+      // Storage bị chặn: vẫn dùng mặc định phù hợp kích thước màn hình.
+    }
+    return window.matchMedia('(max-width: 639px)').matches ? 'list' : 'board';
+  });
   const [stageFilter, setStageFilter] = useState<Stage | 'all'>('all');
   const labelMap = useLabelMap('deal');
+  const changeView = (next: 'board' | 'list') => {
+    setView(next);
+    try {
+      localStorage.setItem('workflow-pipeline-view-v1', next);
+    } catch {
+      // Không để lỗi storage chặn thao tác đổi dạng xem.
+    }
+  };
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['deals'],
@@ -104,7 +118,7 @@ export default function PipelinePage() {
 
   /* Cung bo sensor voi bang Kanban: chuot, cam ung va ban phim. */
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
@@ -333,10 +347,10 @@ export default function PipelinePage() {
         <div className="inline-flex rounded-control border border-tr-border bg-tr-panel p-0.5">
           <button
             type="button"
-            onClick={() => setView('board')}
+            onClick={() => changeView('board')}
             aria-label="Xem dạng pipeline"
             aria-pressed={view === 'board'}
-            className={`flex h-8 items-center gap-1 rounded-control px-2 text-xs ${focusRing} ${
+            className={`flex h-11 items-center gap-1 rounded-control px-2 text-xs fine:h-8 ${focusRing} ${
               view === 'board' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
             }`}
           >
@@ -344,10 +358,10 @@ export default function PipelinePage() {
           </button>
           <button
             type="button"
-            onClick={() => setView('list')}
+            onClick={() => changeView('list')}
             aria-label="Xem dạng danh sách"
             aria-pressed={view === 'list'}
-            className={`flex h-8 items-center gap-1 rounded-control px-2 text-xs ${focusRing} ${
+            className={`flex h-11 items-center gap-1 rounded-control px-2 text-xs fine:h-8 ${focusRing} ${
               view === 'list' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
             }`}
           >
@@ -369,7 +383,7 @@ export default function PipelinePage() {
             restoreDragSnapshot();
           }}
         >
-          <div className="tr-scroll flex flex-1 items-start gap-3 overflow-x-auto p-4">
+          <div className="tr-scroll flex snap-x snap-mandatory flex-1 items-start gap-3 overflow-x-auto p-4">
             {STAGE_ORDER.map((stage) => (
               <StageColumn
                 key={stage}
@@ -474,7 +488,7 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
         <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm">
           <table className="w-full min-w-[760px] text-sm">
             <caption className="sr-only">Danh sách cơ hội bán hàng</caption>
-            <thead className="bg-tr-surface text-left text-xs tracking-wide text-tr-subtle uppercase">
+            <thead className="bg-tr-surface text-left text-xs text-tr-subtle">
               <tr>
                 <th scope="col" className="px-3 py-2">
                   Cơ hội
@@ -625,7 +639,7 @@ function StageColumn({
       >
         <span className="text-xs font-semibold [writing-mode:vertical-rl]">{t.stage[stage]}</span>
         <span className="text-xs text-tr-muted">{deals.length}</span>
-        <span className="text-[10px] text-tr-muted">{formatVNDShort(total)}</span>
+        <span className="text-xs text-tr-muted">{formatVNDShort(total)}</span>
       </button>
     );
   }
@@ -633,7 +647,7 @@ function StageColumn({
   return (
     <div
       ref={setNodeRef}
-      className="flex max-h-full w-[272px] shrink-0 flex-col rounded-panel bg-tr-list"
+      className="flex max-h-full w-[min(272px,calc(100vw-2rem))] shrink-0 snap-start flex-col rounded-panel bg-tr-list"
     >
       <header className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
         <span

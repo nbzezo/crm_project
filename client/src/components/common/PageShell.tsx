@@ -34,7 +34,7 @@ export function PageShell({
        cuon het duoc noi dung. */
     <div
       {...props}
-      className={`${WIDTHS[width]} ${SPACING[spacing]} p-4 pb-24 sm:p-6 sm:pb-28 ${className}`}
+      className={`${WIDTHS[width]} ${SPACING[spacing]} p-4 pb-6 md:p-6 md:pb-28 ${className}`}
     />
   );
 }

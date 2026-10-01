@@ -48,7 +48,10 @@ export function mindmapSlashMenuItem(
 ): DefaultReactSuggestionItem {
   return {
     title: 'Sơ đồ tư duy',
-    subtext: 'Vẽ mindmap — Tab thêm nhánh con, Enter thêm nhánh ngang',
+    subtext:
+      typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+        ? 'Chạm một nhánh để thêm nhánh con hoặc ngang'
+        : 'Vẽ mindmap — Tab thêm nhánh con, Enter thêm nhánh ngang',
     aliases: ['mindmap', 'mind map', 'so do tu duy', 'tu duy'],
     group: 'Sơ đồ',
     icon: <BrainCircuit size={18} />,

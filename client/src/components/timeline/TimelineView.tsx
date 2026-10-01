@@ -11,10 +11,17 @@ import {
 import { createPortal } from 'react-dom';
 import { addDays, differenceInCalendarDays, eachDayOfInterval, format, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk, formatDate, todayStr } from '../../lib/format';
 import type { TimelineDependency, TimelineItem } from '../../types';
+import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { EmptyState, focusRing } from '../common/ui';
 
 export type Zoom = 'week' | 'month' | 'quarter';
@@ -109,11 +116,13 @@ const TimelineTaskBar = memo(function TimelineTaskBar({
   item,
   left,
   width,
+  forceLabel = false,
   onOpenCard,
 }: {
   item: TimelineItem;
   left: number;
   width: number;
+  forceLabel?: boolean;
   onOpenCard: (id: number) => void;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -182,8 +191,9 @@ const TimelineTaskBar = memo(function TimelineTaskBar({
     );
   }
 
-  const label =
-    width >= 150 && progress !== null
+  const label = forceLabel
+    ? item.title
+    : width >= 150 && progress !== null
       ? `${item.title} ${progress}%`
       : width >= 72
         ? item.title
@@ -254,7 +264,8 @@ function layoutBars(
   groups: TimelineGroup[],
   collapsed: Set<string>,
   dayWidth: number,
-  startDate: Date
+  startDate: Date,
+  rowHeight: number
 ): Map<number, BarBox> {
   const boxes = new Map<number, BarBox>();
   let y = 0;
@@ -269,9 +280,9 @@ function layoutBars(
       boxes.set(item.id, {
         left: offset * dayWidth + 1,
         right: offset * dayWidth + Math.max(span * dayWidth - 2, 8),
-        centerY: y + ROW_HEIGHT / 2,
+        centerY: y + rowHeight / 2,
       });
-      y += ROW_HEIGHT;
+      y += rowHeight;
     }
   }
   return boxes;
@@ -292,10 +303,14 @@ export function TimelineView({
   emptyMessage?: string;
   emptyHint?: string;
 }) {
+  const isNarrow = !useMediaQuery(MD_QUERY);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [labelWidth, setLabelWidth] = useState(DEFAULT_LABEL_WIDTH);
+  const [showLabels, setShowLabels] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
+  const effectiveLabelWidth = isNarrow ? 136 : labelWidth;
+  const rowHeight = isNarrow ? 44 : ROW_HEIGHT;
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -349,7 +364,7 @@ export function TimelineView({
    */
   const dependencyEdges = useMemo(() => {
     if (dependencies.length === 0) return [];
-    const boxes = layoutBars(groups, collapsedGroups, dayWidth, startDate);
+    const boxes = layoutBars(groups, collapsedGroups, dayWidth, startDate, rowHeight);
     const GAP = 8;
     return dependencies
       .map((edge) => {
@@ -366,7 +381,7 @@ export function TimelineView({
         };
       })
       .filter((edge): edge is NonNullable<typeof edge> => edge !== null);
-  }, [dependencies, groups, collapsedGroups, dayWidth, startDate]);
+  }, [dependencies, groups, collapsedGroups, dayWidth, startDate, rowHeight]);
 
   const months = useMemo(() => {
     const result: { label: string; span: number }[] = [];
@@ -400,6 +415,7 @@ export function TimelineView({
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault();
       const startX = event.clientX;
+      if (isNarrow) return;
       const startWidth = labelWidth;
       const onMove = (moveEvent: globalThis.PointerEvent) => {
         setLabelWidth(
@@ -417,7 +433,7 @@ export function TimelineView({
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
     },
-    [labelWidth]
+    [isNarrow, labelWidth]
   );
 
   const resizeLabelWithKeyboard = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
@@ -465,6 +481,20 @@ export function TimelineView({
         </div>
         <button
           type="button"
+          onClick={() => setShowLabels((value) => !value)}
+          aria-pressed={!showLabels}
+          aria-label={showLabels ? 'Ẩn cột tên công việc' : 'Hiện cột tên công việc'}
+          title={showLabels ? 'Ẩn cột tên công việc' : 'Hiện cột tên công việc'}
+          className={`ml-auto flex h-11 w-11 items-center justify-center rounded-control text-tr-muted transition hover:bg-tr-hover hover:text-tr-text fine:h-8 fine:w-8 ${focusRing}`}
+        >
+          {showLabels ? (
+            <PanelLeftClose size={18} aria-hidden="true" />
+          ) : (
+            <PanelLeftOpen size={18} aria-hidden="true" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={scrollToToday}
           disabled={!todayVisible}
           title={
@@ -472,89 +502,97 @@ export function TimelineView({
               ? 'Đưa ngày hôm nay vào giữa màn hình'
               : 'Hôm nay nằm ngoài phạm vi đang hiển thị'
           }
-          className={`ml-auto rounded-control px-2.5 py-1 text-xs font-medium text-tr-primary transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:text-tr-muted disabled:opacity-60 ${focusRing}`}
+          className={`min-h-11 rounded-control px-2.5 py-1 text-xs font-medium text-tr-primary transition hover:bg-tr-hover disabled:cursor-not-allowed disabled:text-tr-muted disabled:opacity-60 fine:min-h-8 ${focusRing}`}
         >
           {t.common.today}
         </button>
       </div>
 
       <div className="flex min-w-0">
-        <div
-          data-testid="timeline-label-column"
-          className="relative shrink-0 border-r border-tr-border bg-tr-surface"
-          style={{ width: labelWidth }}
-        >
+        {showLabels && (
           <div
-            className="flex items-end justify-between border-b border-tr-border px-4 pb-2"
-            style={{ height: HEADER_HEIGHT }}
+            data-testid="timeline-label-column"
+            className="relative shrink-0 border-r border-tr-border bg-tr-surface"
+            style={{ width: effectiveLabelWidth }}
           >
-            <span className="text-xs font-semibold tracking-wide text-tr-subtle uppercase">
-              Công việc
-            </span>
-            <span className="text-xs text-tr-muted">{items.length}</span>
-          </div>
-          {groups.map((group) => {
-            const collapsed = collapsedGroups.has(group.key);
-            return (
-              <div key={group.key}>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(group.key)}
-                  aria-expanded={!collapsed}
-                  title={group.name}
-                  className={`flex w-full items-center gap-2 border-b border-tr-border bg-tr-hover-strong px-3 text-left text-xs font-semibold text-tr-text transition hover:brightness-110 ${focusRing}`}
-                  style={{ height: GROUP_HEIGHT }}
-                >
-                  {collapsed ? (
-                    <ChevronRight size={15} className="shrink-0 text-tr-muted" aria-hidden="true" />
-                  ) : (
-                    <ChevronDown size={15} className="shrink-0 text-tr-muted" aria-hidden="true" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                  <span className="shrink-0 rounded-full bg-tr-panel px-1.5 py-0.5 text-xs font-medium text-tr-muted">
-                    {group.items.length}
-                  </span>
-                </button>
-                {!collapsed &&
-                  group.items.map((item) => (
-                    <button
-                      type="button"
-                      key={item.id}
-                      onClick={() => onOpenCard(item.id)}
-                      className={`flex w-full items-center gap-2 border-b border-tr-border px-4 text-left text-xs text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
-                      style={{ height: ROW_HEIGHT }}
-                      title={item.title}
-                    >
-                      <span
+            <div
+              className="flex items-end justify-between border-b border-tr-border px-4 pb-2"
+              style={{ height: HEADER_HEIGHT }}
+            >
+              <span className="text-xs font-semibold text-tr-subtle">Công việc</span>
+              <span className="text-xs text-tr-muted">{items.length}</span>
+            </div>
+            {groups.map((group) => {
+              const collapsed = collapsedGroups.has(group.key);
+              return (
+                <div key={group.key}>
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.key)}
+                    aria-expanded={!collapsed}
+                    title={group.name}
+                    className={`flex w-full items-center gap-2 border-b border-tr-border bg-tr-hover-strong px-3 text-left text-xs font-semibold text-tr-text transition hover:brightness-110 ${focusRing}`}
+                    style={{ height: GROUP_HEIGHT }}
+                  >
+                    {collapsed ? (
+                      <ChevronRight
+                        size={15}
+                        className="shrink-0 text-tr-muted"
                         aria-hidden="true"
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: PRIORITY_COLORS[item.priority] }}
                       />
-                      <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                      {progressFor(item) !== null && (
-                        <span className="shrink-0 text-xs tabular-nums text-tr-muted">
-                          {progressFor(item)}%
-                        </span>
-                      )}
-                    </button>
-                  ))}
-              </div>
-            );
-          })}
+                    ) : (
+                      <ChevronDown
+                        size={15}
+                        className="shrink-0 text-tr-muted"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                    <span className="shrink-0 rounded-full bg-tr-panel px-1.5 py-0.5 text-xs font-medium text-tr-muted">
+                      {group.items.length}
+                    </span>
+                  </button>
+                  {!collapsed &&
+                    group.items.map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => onOpenCard(item.id)}
+                        className={`flex w-full items-center gap-2 border-b border-tr-border px-4 text-left text-xs text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
+                        style={{ height: rowHeight }}
+                        title={item.title}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: PRIORITY_COLORS[item.priority] }}
+                        />
+                        <span className="line-clamp-2 min-w-0 flex-1">{item.title}</span>
+                        {progressFor(item) !== null && (
+                          <span className="shrink-0 text-xs tabular-nums text-tr-muted">
+                            {progressFor(item)}%
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                </div>
+              );
+            })}
 
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Thay đổi độ rộng cột công việc"
-            aria-valuemin={MIN_LABEL_WIDTH}
-            aria-valuemax={MAX_LABEL_WIDTH}
-            aria-valuenow={labelWidth}
-            tabIndex={0}
-            onPointerDown={startLabelResize}
-            onKeyDown={resizeLabelWithKeyboard}
-            className={`absolute inset-y-0 -right-1 z-40 w-2 cursor-ew-resize touch-none bg-transparent transition hover:bg-tr-primary/40 ${focusRing}`}
-          />
-        </div>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Thay đổi độ rộng cột công việc"
+              aria-valuemin={isNarrow ? 136 : MIN_LABEL_WIDTH}
+              aria-valuemax={isNarrow ? 136 : MAX_LABEL_WIDTH}
+              aria-valuenow={effectiveLabelWidth}
+              tabIndex={0}
+              onPointerDown={startLabelResize}
+              onKeyDown={resizeLabelWithKeyboard}
+              className={`absolute inset-y-0 -right-1 z-40 w-3 cursor-ew-resize touch-none bg-transparent transition hover:bg-tr-primary/40 ${isNarrow ? 'hidden' : ''} ${focusRing}`}
+            />
+          </div>
+        )}
 
         <div
           ref={scrollRef}
@@ -679,12 +717,13 @@ export function TimelineView({
                             <div
                               key={item.id}
                               className="relative border-b border-tr-border/70"
-                              style={{ height: ROW_HEIGHT }}
+                              style={{ height: rowHeight }}
                             >
                               <TimelineTaskBar
                                 item={item}
                                 left={offset * dayWidth + 1}
                                 width={Math.max(span * dayWidth - 2, 8)}
+                                forceLabel={!showLabels}
                                 onOpenCard={onOpenCard}
                               />
                             </div>
