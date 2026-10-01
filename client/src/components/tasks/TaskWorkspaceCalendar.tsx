@@ -17,6 +17,7 @@ import { useUiStore } from '../../stores/uiStore';
 import type { TaskRow } from '../../types';
 import { Button, focusRing } from '../common/ui';
 import { TaskCardRow } from './TaskCardRow';
+import { flattenHierarchy } from './taskHierarchy';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -38,8 +39,17 @@ export function TaskWorkspaceCalendar({ tasks }: { tasks: TaskRow[] }) {
       const key = task.due_date.slice(0, 10);
       map.set(key, [...(map.get(key) ?? []), task]);
     }
+    // Trong mỗi ngày, việc con đi ngay dưới việc cha (nếu cùng ngày).
+    for (const [key, list] of map)
+      map.set(
+        key,
+        flattenHierarchy(list).map((row) => row.task)
+      );
     return map;
   }, [tasks]);
+  const parentTitle = useMemo(() => new Map(tasks.map((task) => [task.id, task.title])), [tasks]);
+  const depthOf = (task: TaskRow, dayTasks: TaskRow[]) =>
+    task.parent_id && dayTasks.some((other) => other.id === task.parent_id) ? 1 : 0;
   const today = new Date();
 
   return (
@@ -82,8 +92,13 @@ export function TaskWorkspaceCalendar({ tasks }: { tasks: TaskRow[] }) {
               <h3 className="sticky top-0 z-10 bg-tr-surface px-3 py-2 text-sm font-semibold text-tr-text">
                 {format(day, 'EEEE, d/M', { locale: vi })}
               </h3>
-              {(byDay.get(format(day, 'yyyy-MM-dd')) ?? []).map((task) => (
-                <TaskCardRow key={task.id} task={task} onOpen={() => openCard(task.id, 'drawer')} />
+              {(byDay.get(format(day, 'yyyy-MM-dd')) ?? []).map((task, _i, list) => (
+                <TaskCardRow
+                  key={task.id}
+                  task={task}
+                  depth={depthOf(task, list)}
+                  onOpen={() => openCard(task.id, 'drawer')}
+                />
               ))}
             </div>
           ))}
@@ -111,17 +126,23 @@ export function TaskWorkspaceCalendar({ tasks }: { tasks: TaskRow[] }) {
                   {format(day, 'd')}
                 </span>
                 <div className="mt-1 space-y-1">
-                  {dayTasks.slice(0, 3).map((task) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => openCard(task.id, 'drawer')}
-                      className={`block w-full truncate rounded-control border-l-2 px-1.5 py-1 text-left text-xs ${task.is_done ? 'border-tr-success bg-tr-success/10 text-tr-muted line-through' : 'border-tr-primary bg-tr-primary/10 text-tr-text'} hover:bg-tr-hover ${focusRing}`}
-                      title={task.title}
-                    >
-                      {task.title}
-                    </button>
-                  ))}
+                  {dayTasks.slice(0, 3).map((task) => {
+                    const nested = depthOf(task, dayTasks) > 0;
+                    const orphanOf =
+                      !nested && task.parent_id ? parentTitle.get(task.parent_id) : undefined;
+                    return (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => openCard(task.id, 'drawer')}
+                        className={`block w-full truncate rounded-control border-l-2 px-1.5 py-1 text-left text-xs ${nested ? 'ml-3 w-[calc(100%-0.75rem)]' : ''} ${task.is_done ? 'border-tr-success bg-tr-success/10 text-tr-muted line-through' : 'border-tr-primary bg-tr-primary/10 text-tr-text'} hover:bg-tr-hover ${focusRing}`}
+                        title={orphanOf ? `${task.title} (việc con của ${orphanOf})` : task.title}
+                      >
+                        {(nested || orphanOf) && <span className="mr-1 text-tr-muted">↳</span>}
+                        {task.title}
+                      </button>
+                    );
+                  })}
                   {dayTasks.length > 3 && (
                     <span className="block px-1 text-xs text-tr-muted">
                       +{dayTasks.length - 3} việc
