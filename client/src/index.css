@@ -616,8 +616,16 @@
   text-transform: uppercase; /* Ngoai le co chu dich, ghi trong docs/DESIGN-SYSTEM.md */
 }
 
+/* O tieu de the la <input>, khong xuong dong duoc: tren mobile giu co chu vua
+   man hinh, 28px chi tu sm tro len (mockup 2c). */
 [data-theme='mono'] .tr-card-title {
-  font-size: 28px;
+  font-size: 22px;
+}
+
+@media (min-width: 640px) {
+  [data-theme='mono'] .tr-card-title {
+    font-size: 28px;
+  }
 }
 
 [data-theme='mono'] .tr-rule {
@@ -678,17 +686,19 @@
   color: #ffffff;
 }
 
+/* 15px (khong phai 16px): o 272px, ten cot + so dem + chip trang thai phai vua
+   nhu o theme Sang, khong thi chip bi cat. */
 [data-theme='mono'] .tr-list-title {
   font-weight: 900;
   font-stretch: 72%;
-  font-size: 16px;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
 }
 
 /* So dem va chip trang thai nam trong cung phan tu: tra ve kieu thuong. */
 [data-theme='mono'] .tr-list-title > span {
-  font-stretch: 100%;
+  font-stretch: 87.5%;
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;

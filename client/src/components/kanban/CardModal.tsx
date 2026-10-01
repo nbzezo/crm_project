@@ -299,8 +299,10 @@ export function CardModal() {
                   aria-label="Tiêu đề thẻ"
                   className="tr-display tr-card-title w-full rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
                 />
-                <span className="tr-rule ml-1.5" aria-hidden="true" />
               </div>
+              {/* tr-rule: moc theme Don sac, nam DUOI hang tieu de (khong trong hang
+                  flex), le trai = nut hoan thanh + gap-3 + px-1.5 cua o tieu de. */}
+              <span className="tr-rule ml-[62px] fine:ml-[38px]" aria-hidden="true" />
 
               <div className="mt-2.5 mb-4">
                 <Button variant="ghost" onClick={addPop.toggle}>
