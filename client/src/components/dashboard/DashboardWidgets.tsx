@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import {
   Activity,
   AlertTriangle,
   Bell,
+  BellRing,
   CheckCircle2,
   ChevronRight,
   Columns3,
-  FileSignature,
   Layers,
   ListTodo,
   ShieldAlert,
@@ -22,6 +23,8 @@ import {
 import { OPEN_STAGES, STAGE_COLORS, t } from '../../i18n/vi';
 import { formatDate, formatDateShort, formatVNDShort } from '../../lib/format';
 import { AssigneeChip } from '../tasks/AssigneePicker';
+import { api } from '../../api/client';
+import { selectNeedsNudge } from '../../lib/followUp';
 import type { Interaction, OrgKind, Reminder, Stage, TaskRow } from '../../types';
 
 interface AttentionDeal {
@@ -71,7 +74,15 @@ export interface DashboardData {
     overdue_task_count: number;
     expiring_contract_count: number;
   };
-  task_counts: { overdue: number; today: number; tomorrow: number; week: number; open: number };
+  task_counts: {
+    overdue: number;
+    today: number;
+    tomorrow: number;
+    week: number;
+    open: number;
+    /** Viec hoan thanh trong hom nay (theo completed_at). */
+    done_today: number;
+  };
   tasks: { overdue: TaskRow[]; today: TaskRow[]; tomorrow: TaskRow[]; next7: TaskRow[] };
   /** Việc đang mở gom theo người phụ trách; dòng `assignee_contact_id = null` là chưa giao. */
   workload: WorkloadRow[];
@@ -115,85 +126,89 @@ interface MetricItem {
   tone: MetricTone;
   to?: string;
   onClick?: () => void;
+  /** Ten truy cap day du khi o chi hien mot phan so lieu (vd. Pipeline). */
+  ariaLabel?: string;
 }
 
 export function KpiSummary({
   data,
-  onOpenOverdueTasks,
+  onOpenTasks,
 }: {
   data: DashboardData;
-  onOpenOverdueTasks: () => void;
+  onOpenTasks: (bucket: 'today' | 'overdue') => void;
 }) {
-  const metrics: MetricItem[] = [
-    {
-      icon: AlertTriangle,
-      label: 'Công việc quá hạn',
-      value: String(data.kpi.overdue_task_count),
-      hint: data.kpi.overdue_task_count > 0 ? 'Cần xử lý ngay' : 'Đang kiểm soát tốt',
-      tone: data.kpi.overdue_task_count > 0 ? 'danger' : 'business',
-      onClick: onOpenOverdueTasks,
-    },
-    {
-      icon: FileSignature,
-      label: 'Hợp đồng sắp hết hạn',
-      value: String(data.kpi.expiring_contract_count),
-      hint: 'Trong 90 ngày',
-      tone: data.kpi.expiring_contract_count > 0 ? 'warning' : 'business',
-      to: '/contracts',
-    },
-  ];
+  /* Chung query voi badge "Cần theo dõi" o sidebar/thanh tab (navConfig) nen
+     React Query gop thanh mot request. */
+  const { data: openTasks } = useQuery({
+    queryKey: ['tasks', 'follow-up'],
+    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
+    staleTime: 60_000,
+  });
+  const followUp = openTasks ? selectNeedsNudge(openTasks) : [];
+  const followUpToday = followUp.filter((task) => daysFromToday(task.due_date) === 0).length;
+  // Bucket qua han sap theo han tang dan (server), nen phan tu dau la viec tre lau nhat.
+  const oldestOverdueDays = Math.abs(daysFromToday(data.tasks.overdue[0]?.due_date) ?? 0);
+  const overdue = data.task_counts.overdue;
 
   /*
-   * Dien tich phai theo TINH HANH DONG, khong theo do to cua con so.
-   *
-   * Truoc day "Tổng pipeline" chiem mot o ~790x180px cho dung mot con so, con
-   * "Công việc quá hạn" — thu thuc su doi nguoi dung lam gi do — bi don thanh o
-   * nho ben canh. Nay sau o bang nhau, va chi so nao dang canh bao thi len dau.
+   * Bon o bang nhau, thu tu co dinh theo nhip mot ngay lam viec (mockup 2a):
+   * viec hom nay -> qua han -> can theo doi -> pipeline. O qua han tu doi sang
+   * tone canh bao khi co viec tre, nen van noi bat ma khong phai doi cho.
+   * "Hợp đồng sắp hết hạn" van co widget rieng ben duoi.
    */
-  const ordered = [...metrics].sort((a, b) => Number(alerting(b)) - Number(alerting(a)));
+  const metrics: MetricItem[] = [
+    {
+      icon: ListTodo,
+      label: 'Việc hôm nay',
+      value: String(data.task_counts.today),
+      hint: `${data.task_counts.done_today} đã xong`,
+      tone: 'business',
+      onClick: () => onOpenTasks('today'),
+    },
+    {
+      icon: AlertTriangle,
+      label: 'Quá hạn',
+      value: String(overdue),
+      hint: overdue > 0 ? `cũ nhất ${oldestOverdueDays} ngày` : 'Đang kiểm soát tốt',
+      tone: overdue > 0 ? 'danger' : 'business',
+      onClick: () => onOpenTasks('overdue'),
+    },
+    {
+      icon: BellRing,
+      label: 'Cần theo dõi',
+      value: String(followUp.length),
+      hint: `${followUpToday} hôm nay`,
+      tone: 'business',
+      to: '/follow-up',
+    },
+    {
+      icon: Layers,
+      label: 'Pipeline',
+      value: formatVNDShort(data.kpi.pipeline_vnd),
+      hint: `có trọng số ${formatVNDShort(data.kpi.weighted_pipeline_vnd)}`,
+      tone: 'business',
+      to: '/pipeline',
+      ariaLabel: `Pipeline: ${formatVNDShort(data.kpi.pipeline_vnd)}, ${data.kpi.open_opportunity_count} cơ hội đang mở, có trọng số ${formatVNDShort(data.kpi.weighted_pipeline_vnd)}, chốt tháng này ${data.kpi.closing_this_month_count} (${formatVNDShort(data.kpi.closing_this_month_vnd)})`,
+    },
+  ];
 
   return (
     <section aria-labelledby="kpi-summary-title">
       <h2 id="kpi-summary-title" className="sr-only">
-        Tình hình kinh doanh và cảnh báo chính
+        Tình hình công việc và kinh doanh hôm nay
       </h2>
       {/* tr-kpi-grid: moc theme Don sac — o KPI dinh vien thanh mot luoi (mockup 1a/2a). */}
       <div className="tr-kpi-grid grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        {ordered.map((metric) => (
+        {metrics.map((metric) => (
           <Metric key={metric.label} {...metric} />
         ))}
-        <Link
-          to="/pipeline"
-          className={`tr-bento-card-interactive col-span-2 flex min-w-0 flex-col justify-between rounded-panel border border-tr-border bg-tr-panel p-3 text-left ${focusRing}`}
-          aria-label={`Pipeline: ${formatVNDShort(data.kpi.pipeline_vnd)}, ${data.kpi.open_opportunity_count} cơ hội đang mở, có trọng số ${formatVNDShort(data.kpi.weighted_pipeline_vnd)}, chốt tháng này ${data.kpi.closing_this_month_count} (${formatVNDShort(data.kpi.closing_this_month_vnd)})`}
-        >
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-tr-subtle">
-            <Layers size={15} aria-hidden="true" /> Pipeline
-          </span>
-          <span className="mt-1 text-2xl font-bold tabular-nums text-tr-text">
-            {formatVNDShort(data.kpi.pipeline_vnd)}
-          </span>
-          <span className="mt-1 hidden text-xs text-tr-muted sm:block">
-            {data.kpi.open_opportunity_count} cơ hội đang mở · Có trọng số{' '}
-            {formatVNDShort(data.kpi.weighted_pipeline_vnd)} · Chốt tháng này{' '}
-            {data.kpi.closing_this_month_count} ({formatVNDShort(data.kpi.closing_this_month_vnd)})
-          </span>
-          <span className="mt-1 flex justify-between text-xs text-tr-muted sm:hidden">
-            <span>{data.kpi.open_opportunity_count} cơ hội</span>
-            <span>Có trọng số {formatVNDShort(data.kpi.weighted_pipeline_vnd)}</span>
-          </span>
-        </Link>
       </div>
     </section>
   );
 }
 
-/** Chi so dang o trang thai can hanh dong (qua han, sap het han). */
-function alerting(metric: MetricItem): boolean {
-  return metric.tone === 'danger' || metric.tone === 'warning';
-}
-
-function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricItem) {
+function Metric({ icon: Icon, label, value, hint, tone, to, onClick, ariaLabel }: MetricItem) {
+  const name = ariaLabel ?? `${label}: ${value}`;
   const toneClass =
     tone === 'danger'
       ? 'bg-tr-danger/10 text-tr-danger hover:bg-tr-danger/15'
@@ -230,7 +245,7 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
 
   if (to)
     return (
-      <Link to={to} className={className} data-tone={tone} aria-label={`${label}: ${value}`}>
+      <Link to={to} className={className} data-tone={tone} aria-label={name}>
         {content}
       </Link>
     );
@@ -240,7 +255,7 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
       onClick={onClick}
       className={className}
       data-tone={tone}
-      aria-label={`${label}: ${value}`}
+      aria-label={name}
     >
       {content}
     </button>

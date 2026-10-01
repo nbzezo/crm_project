@@ -158,7 +158,7 @@ export default function DashboardPage() {
         overdueCount={data.kpi.overdue_task_count}
       />
 
-      <KpiSummary data={data} onOpenOverdueTasks={() => openTaskBucket('overdue')} />
+      <KpiSummary data={data} onOpenTasks={openTaskBucket} />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-7">

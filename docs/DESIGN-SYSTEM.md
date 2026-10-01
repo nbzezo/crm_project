@@ -68,7 +68,7 @@ Component chỉ gắn class/thuộc tính trung tính; class đó chỉ có styl
 | `tr-kpi-value` | Số trong `Metric` | 30 px, hẹp 80% |
 | `tr-rank` | Ô số trong danh sách ưu tiên | Ô vuông đen |
 | `tr-list-title` | Tên cột Kanban, cột Pipeline, nhóm Kanban công việc | 15 px in hoa hẹp; số đếm/chip con trở về kiểu thường |
-| `tr-card-title` | Ô tiêu đề trong cửa sổ thẻ | 22 px (mobile), 28 px từ `sm` |
+| `tr-card-title` | Ô tiêu đề (`<textarea>` tự giãn) trong cửa sổ thẻ | 26 px (mobile), 36 px từ `sm` |
 | `tr-modal-title` | Tiêu đề `Modal` | 24 px in hoa hẹp |
 | `tr-stage-stepper` + `data-active` | Thanh giai đoạn cơ hội | Viên thuốc đánh số, bước hiện tại tô đen |
 | `data-passed` | Nút các bước đã qua trong thanh giai đoạn | Dưới `md`: thanh gọn — bước đã qua là vòng đen có dấu tick, bước sau là vòng số, chỉ bước hiện tại giữ nhãn (mockup 1e) |
@@ -106,6 +106,12 @@ Font riêng của theme khai trong `client/src/lib/themeFonts.ts` (`FONT_URLS`) 
 phải tải. Font phải có dải tiếng Việt U+1EA0–1EF9 (Archivo có), nếu không chữ có
 dấu bị trộn font. Đặt `--font-sans` trong khối theme, giữ Plus Jakarta Sans làm
 dự phòng.
+
+## Cửa sổ thẻ
+
+- Hộp thoại trên `lg`: tiêu đề trải hết bề ngang; cột trái là nhãn, mô tả, các mục rồi nhận xét; cột phải (`aside` "Thuộc tính thẻ", nền `--tr-surface`) là Trạng thái, Ưu tiên, Ngày, Người phụ trách, Dự án, Khách hàng và nút Lưu trữ/Xoá.
+- Dưới `lg` và ở dạng drawer: một cột, thuộc tính xếp "nhãn — giá trị" ngay dưới tiêu đề; Lưu trữ/Xoá chỉ nằm trong menu "Thao tác khác".
+- Tiêu đề là `<textarea>` tự giãn: Enter lưu (không xuống dòng), dán nhiều dòng được gộp thành một.
 
 ## Quy tắc tương tác
 
