@@ -21,7 +21,7 @@ export function AboutSettings() {
                 </div>
                 <p className="mt-1 text-sm text-tr-subtle">
                   Quản lý công việc, khách hàng và hoạt động kinh doanh trên một nền tảng thống
-                  nhất.
+                  nhất, ở cả máy tính và điện thoại.
                 </p>
               </div>
             </div>
@@ -51,6 +51,11 @@ export function AboutSettings() {
           <p>
             Dữ liệu được kết nối xuyên suốt giữa đội ngũ, quy trình và báo cáo, giúp mỗi người nắm
             rõ việc cần làm còn nhà quản lý có đủ thông tin để ra quyết định.
+          </p>
+          <p>
+            Phiên bản 1.1 mang đến trải nghiệm mobile toàn diện: điều hướng bằng tabbar, thao tác
+            cảm ứng rõ ràng, nội dung thích ứng theo màn hình và hỗ trợ safe-area cùng bàn phím ảo
+            trên thiết bị di động.
           </p>
         </div>
       </Panel>

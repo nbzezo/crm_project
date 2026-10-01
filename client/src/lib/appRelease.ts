@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-01';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.1.0',
+    date: '2026-10-01',
+    title: 'Trải nghiệm mobile toàn diện',
+    changes: [
+      'Thiết kế lại điều hướng mobile với tabbar năm mục, menu mở rộng và luồng Tạo nhanh dạng bottom sheet.',
+      'Tối ưu Kanban, Công việc, CRM, Timeline, Ghi nhanh và Trợ lý AI cho màn hình điện thoại.',
+      'Chuẩn hóa modal, popover và biểu mẫu với vùng chạm tối thiểu 44 px, safe-area và bàn phím ảo.',
+      'Bổ sung giao diện thẻ mobile cho dữ liệu nghiệp vụ, bộ lọc cảm ứng và thao tác luôn hiển thị không phụ thuộc hover.',
+      'Tăng khả năng truy cập với focus trap, nhãn hỗ trợ, tương phản màu và kiểm thử chống tràn ngang.',
+    ],
+  },
+  {
     version: '1.0.1',
     date: '2026-10-01',
     title: 'Cải thiện khả năng đọc giao diện',
@@ -25,9 +37,6 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       'Tăng độ tương phản của chữ phụ, placeholder và thanh điều hướng trong giao diện Sáng.',
       'Làm đường viền, trạng thái hover và mũi tên chọn rõ ràng hơn.',
       'Gộp Tài liệu và Trang tài liệu thành một mục, chia hai tab: Trang tài liệu và Tệp tải lên.',
-      'Chuẩn hóa panel, điều hướng, KPI Tổng quan và các control theo hệ token giao diện mới.',
-      'Tối ưu toàn bộ khung điều hướng, Kanban, Công việc, CRM, Timeline, Ghi nhanh và Trợ lý AI cho điện thoại.',
-      'Bổ sung bottom sheet dùng chung, vùng chạm 44 px, safe-area và xử lý bàn phím ảo trên mobile.',
     ],
   },
   {
