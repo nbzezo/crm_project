@@ -184,3 +184,44 @@ test('TB nam truoc: nhap tay, tu dien khong ghi de, xoa bang null', async () => 
     null
   );
 });
+
+test('tao dong Nen kem AM la nguoi dung va TB thang nam truoc', async () => {
+  const userId = Number(
+    db
+      .prepare(
+        `INSERT INTO users (username, password_hash, password_salt, email, full_name) VALUES ('hoa', 'x', 'x', 'hoa@congty.vn', 'Trần Hoa')`
+      )
+      .run().lastInsertRowid
+  );
+  const created = await call('POST', '/api/revenues/lines', {
+    customer_id: customerId,
+    am_user_id: userId,
+    revenue_anchor_mode: 'base',
+    baseline: { year: 2026, avg_monthly_vnd: 30 },
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.data.am_name, 'Trần Hoa');
+  assert.equal(created.data.am, 'Trần Hoa');
+  assert.equal(created.data.anchor.mode, 'base');
+  assert.equal(created.data.groups[`${new Date().getFullYear()}-01`], 'base');
+
+  const line = await call('GET', `/api/revenues/lines/${created.data.id}?year=2026`);
+  assert.equal(line.data.baseline_avg_vnd, 30);
+
+  const filtered = await call('GET', `/api/revenues/lines?year=2026&am_user_id=${userId}`);
+  assert.deepEqual(
+    filtered.data.lines.map((l: { id: number }) => l.id),
+    [created.data.id]
+  );
+
+  const badAm = await call('POST', '/api/revenues/lines', {
+    customer_id: customerId,
+    am_user_id: 99999,
+  });
+  assert.equal(badAm.status, 422);
+  const noMonth = await call('POST', '/api/revenues/lines', {
+    customer_id: customerId,
+    revenue_anchor_mode: 'manual',
+  });
+  assert.equal(noMonth.status, 422);
+});

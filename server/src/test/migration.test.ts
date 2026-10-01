@@ -210,3 +210,57 @@ test('v43 giu ghi chu cu trong nhom bien ban hop', () => {
     db.close();
   }
 });
+
+test('v47 ghep AM chu tu do voi nguoi dung, chuyen chi tieu KPI sang am_user_id', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 46);
+  const user = Number(
+    db
+      .prepare(
+        `INSERT INTO users (username, password_hash, password_salt, email, full_name) VALUES ('lan.nt', 'x', 'x', 'lan@congty.vn', 'Nguyễn Thị Lan')`
+      )
+      .run().lastInsertRowid
+  );
+  const customer = Number(
+    db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('A', 'customer')`).run()
+      .lastInsertRowid
+  );
+  const addLine = (am: string) =>
+    Number(
+      db.prepare(`INSERT INTO customer_services (customer_id, am) VALUES (?, ?)`).run(customer, am)
+        .lastInsertRowid
+    );
+  const byName = addLine('nguyen thi lan');
+  const byUsername = addLine('LAN.NT');
+  const unknown = addLine('Người cũ');
+  const target = db.prepare(
+    `INSERT INTO revenue_kpi_targets (am, period, target_vnd) VALUES (?, '2026-01', ?)`
+  );
+  target.run('Nguyễn Thị Lan', 100);
+  target.run('', 50);
+  target.run('Người cũ', 70);
+
+  migrate(db);
+  const amOf = (id: number) =>
+    (
+      db.prepare(`SELECT am_user_id, am FROM customer_services WHERE id = ?`).get(id) as {
+        am_user_id: number | null;
+        am: string;
+      }
+    ).am_user_id;
+  assert.equal(amOf(byName), user);
+  assert.equal(amOf(byUsername), user);
+  assert.equal(amOf(unknown), null);
+  assert.deepEqual(
+    db
+      .prepare(`SELECT am_user_id, target_vnd FROM revenue_kpi_targets ORDER BY am_user_id`)
+      .all()
+      .map((r) => ({ ...(r as object) })),
+    [
+      { am_user_id: 0, target_vnd: 50 },
+      { am_user_id: user, target_vnd: 100 },
+    ]
+  );
+  db.close();
+});

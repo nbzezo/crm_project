@@ -29,6 +29,9 @@ let server: Server;
 let baseUrl = '';
 let cookie = '';
 
+db.prepare(
+  `INSERT INTO users (username, password_hash, password_salt, email, full_name) VALUES ('minh', 'x', 'x', 'minh@congty.vn', 'Nguyễn Minh')`
+).run();
 const alpha = Number(
   db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Công ty Alpha', 'customer')`).run()
     .lastInsertRowid
@@ -178,7 +181,7 @@ test('xem truoc khong ghi gi; ghi thi bo qua dong loi, ghi dong hop le', async (
       `SELECT cs.contract_kind, cs.am FROM customer_services cs JOIN customers c ON c.id = cs.customer_id WHERE c.name = 'Beta'`
     )
     .get() as { contract_kind: string; am: string };
-  assert.deepEqual({ ...created }, { contract_kind: 'expansion', am: 'Minh' });
+  assert.deepEqual({ ...created }, { contract_kind: 'expansion', am: 'Nguyễn Minh' });
 
   // Nhap lai cung file: dong Beta da co nen thanh cap nhat, khong tao trung.
   const again = await upload(wb, false);

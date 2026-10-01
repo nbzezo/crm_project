@@ -29,15 +29,27 @@ let server: Server;
 let baseUrl = '';
 let cookie = '';
 
+function addUser(name: string): number {
+  return Number(
+    db
+      .prepare(
+        `INSERT INTO users (username, password_hash, password_salt, email, full_name) VALUES (?, 'x', 'x', ?, ?)`
+      )
+      .run(name.toLowerCase(), `${name.toLowerCase()}@congty.vn`, name).lastInsertRowid
+  );
+}
+const lan = addUser('Lan');
+const minh = addUser('Minh');
+
 const customer = Number(
   db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Khách A', 'customer')`).run()
     .lastInsertRowid
 );
-function addLine(am: string, kind = 'new', mode = 'auto'): number {
+function addLine(am: number, kind = 'new', mode = 'auto'): number {
   return Number(
     db
       .prepare(
-        `INSERT INTO customer_services (customer_id, am, contract_kind, revenue_anchor_mode) VALUES (?, ?, ?, ?)`
+        `INSERT INTO customer_services (customer_id, am_user_id, contract_kind, revenue_anchor_mode) VALUES (?, ?, ?, ?)`
       )
       .run(customer, am, kind, mode).lastInsertRowid
   );
@@ -48,14 +60,14 @@ function rev(line: number, period: string, amount: number, stage = 'paid'): void
   ).run(line, period, amount, amount, stage);
 }
 
-const lan1 = addLine('Lan');
+const lan1 = addLine(lan);
 rev(lan1, '2026-02', 30);
-const lanBase = addLine('Lan', 'new', 'base');
+const lanBase = addLine(lan, 'new', 'base');
 rev(lanBase, '2026-02', 26);
 db.prepare(
   `INSERT INTO revenue_baselines (line_id, year, avg_monthly_vnd) VALUES (?, 2026, 20)`
 ).run(lanBase);
-const minhBase = addLine('Minh', 'new', 'base');
+const minhBase = addLine(minh, 'new', 'base');
 rev(minhBase, '2025-02', 55);
 rev(minhBase, '2026-02', 50);
 rev(minhBase, '2026-03', 40, 'forecast');
@@ -100,8 +112,16 @@ async function call(method: string, pathname: string, body?: unknown): Promise<J
 }
 
 test('chi tieu theo AM: tong khi khong loc, chi AM do khi loc', async () => {
-  await call('PUT', '/api/revenues/kpi-targets', { am: 'Lan', period: '2026-02', target_vnd: 60 });
-  await call('PUT', '/api/revenues/kpi-targets', { am: 'Minh', period: '2026-02', target_vnd: 40 });
+  await call('PUT', '/api/revenues/kpi-targets', {
+    am_user_id: lan,
+    period: '2026-02',
+    target_vnd: 60,
+  });
+  await call('PUT', '/api/revenues/kpi-targets', {
+    am_user_id: minh,
+    period: '2026-02',
+    target_vnd: 40,
+  });
 
   const all = await call('GET', '/api/revenues/kpi?year=2026');
   const feb = all.months.find((m: Json) => m.period === '2026-02');
@@ -113,22 +133,22 @@ test('chi tieu theo AM: tong khi khong loc, chi AM do khi loc', async () => {
   const mar = all.months.find((m: Json) => m.period === '2026-03');
   assert.equal(mar.pending_count, 1);
   assert.deepEqual(
-    all.by_am.map((a: Json) => a.am),
+    all.by_am.filter((a: Json) => a.am_user_id !== 1).map((a: Json) => a.am_name),
     ['Lan', 'Minh']
   );
 
-  const minh = await call('GET', '/api/revenues/kpi?year=2026&am=Minh');
-  const minhFeb = minh.months.find((m: Json) => m.period === '2026-02');
+  const onlyMinh = await call('GET', `/api/revenues/kpi?year=2026&am_user_id=${minh}`);
+  const minhFeb = onlyMinh.months.find((m: Json) => m.period === '2026-02');
   assert.equal(minhFeb.target_vnd, 40);
   assert.equal(minhFeb.total_vnd, 0);
   assert.equal(minhFeb.lost_vnd, 5);
 
   await call('PUT', '/api/revenues/kpi-targets', {
-    am: 'Minh',
+    am_user_id: minh,
     period: '2026-02',
     target_vnd: null,
   });
-  const after = await call('GET', '/api/revenues/kpi?year=2026&am=Minh');
+  const after = await call('GET', `/api/revenues/kpi?year=2026&am_user_id=${minh}`);
   assert.equal(after.months.find((m: Json) => m.period === '2026-02').target_vnd, 0);
 });
 
@@ -139,11 +159,16 @@ test('nhap chi tieu tu sheet KPI cua file mau', async () => {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(await res.arrayBuffer());
   const ws = wb.getWorksheet('Chỉ tiêu KPI')!;
-  assert.equal(ws.getCell('A2').value, 'Lan');
-  assert.equal(ws.getCell('C2').value, 60);
-  ws.getCell('D2').value = 70; // Lan T3
-  ws.getCell('C2').value = 0; // xoa Lan T2
-  ws.getRow(4).values = ['', 5];
+  let lanRow = 0;
+  ws.eachRow((row, n) => {
+    if (row.getCell(1).value === 'Lan') lanRow = n;
+  });
+  assert.ok(lanRow > 1);
+  assert.equal(ws.getCell(lanRow, 3).value, 60);
+  ws.getCell(lanRow, 4).value = 70; // Lan T3
+  ws.getCell(lanRow, 3).value = 0; // xoa Lan T2
+  ws.getRow(ws.rowCount + 1).values = ['', 5]; // thieu ten AM
+  ws.getRow(ws.rowCount + 1).values = ['Không có người này', 5];
 
   const form = new FormData();
   form.append('file', new Blob([await wb.xlsx.writeBuffer()]), 'kpi.xlsx');
@@ -155,9 +180,11 @@ test('nhap chi tieu tu sheet KPI cua file mau', async () => {
     })
   ).json()) as Json;
   assert.equal(done.kpi.cells, 2);
-  assert.equal(done.kpi.errors.length, 1);
+  assert.equal(done.kpi.errors.length, 2);
   const rows = db
-    .prepare(`SELECT period, target_vnd FROM revenue_kpi_targets WHERE am = 'Lan' ORDER BY period`)
+    .prepare(
+      `SELECT period, target_vnd FROM revenue_kpi_targets WHERE am_user_id = ${lan} ORDER BY period`
+    )
     .all();
   assert.deepEqual(
     rows.map((r) => ({ ...(r as object) })),

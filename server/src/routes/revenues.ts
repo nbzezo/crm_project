@@ -41,14 +41,46 @@ const lineSchema = z.object({
   customer_id: z.number().int(),
   service_id: z.number().int().nullable().optional(),
   contract_id: z.number().int().nullable().optional(),
-  am: z.string().nullable().optional(),
+  /** AM la mot nguoi dung cua he thong; cot chu `am` tu dong bo theo ten nguoi do. */
+  am_user_id: z.number().int().positive().nullable().optional(),
   contract_kind: z.enum(CONTRACT_KINDS).optional(),
   contract_term: z.enum(CONTRACT_TERMS).optional(),
   status: z.enum(SERVICE_STATUSES).optional(),
   start_date: dateOnly.optional(),
   end_date: dateOnly.optional(),
   notes: z.string().optional(),
+  /** Moc phan nhom; doi o form sua thi giao dien da xem truoc va hoi lai. */
+  revenue_anchor_mode: z.enum(['auto', 'manual', 'base']).optional(),
+  revenue_anchor_period: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM')
+    .nullable()
+    .optional(),
+  /** Chi khi tao dong: TB thang nam truoc cua dong Nen. */
+  baseline: z
+    .object({
+      year: z.number().int().min(2000).max(2100),
+      avg_monthly_vnd: z.number().int().min(0),
+    })
+    .optional(),
 });
+
+/** Ten hien thi cua nguoi dung lam AM; nem 422 neu khong co nguoi do. */
+function amUserName(id: number | null | undefined): string | null {
+  if (id === null || id === undefined) return null;
+  const user = db
+    .prepare(
+      `SELECT COALESCE(NULLIF(TRIM(full_name), ''), username) AS name FROM users WHERE id = ?`
+    )
+    .get(id) as { name: string } | undefined;
+  if (!user) throw new HttpError(422, 'AM phải là một người dùng trong hệ thống');
+  return user.name;
+}
+
+function assertAnchor(mode: unknown, period: unknown): void {
+  if (mode === 'manual' && !period)
+    throw new HttpError(422, 'Chọn tháng mốc khi đặt mốc phân nhóm bằng tay');
+}
 
 const revenueSchema = z.object({
   period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM'),
@@ -70,11 +102,13 @@ function assertLineDates(value: Record<string, unknown>): void {
 
 const LINE_SELECT = `
   SELECT cs.*, c.name AS customer_name, c.short_name AS customer_short_name, c.status AS customer_status,
-         s.name AS service_name, k.name AS contract_name, k.number AS contract_number
+         s.name AS service_name, k.name AS contract_name, k.number AS contract_number,
+         COALESCE(NULLIF(TRIM(au.full_name), ''), au.username) AS am_name
     FROM customer_services cs
     JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
     LEFT JOIN services s ON s.id = cs.service_id
-    LEFT JOIN contracts k ON k.id = cs.contract_id`;
+    LEFT JOIN contracts k ON k.id = cs.contract_id
+    LEFT JOIN users au ON au.id = cs.am_user_id`;
 
 /**
  * Tong cua mot pham vi: so tien tong + so du kien ban dau + so tien dang nam o tung giai doan
@@ -144,9 +178,11 @@ function buildFilters(req: Request): { sql: string; params: unknown[] } {
     where.push('cs.contract_term = ?');
     params.push(String(query.contract_term));
   }
-  if (query.am) {
-    where.push('cs.am = ?');
-    params.push(String(query.am));
+  if (query.am_user_id === 'none') {
+    where.push('cs.am_user_id IS NULL');
+  } else if (query.am_user_id) {
+    where.push('cs.am_user_id = ?');
+    params.push(Number(query.am_user_id));
   }
   pushScope(where, params, scopeWhereOrUnowned(req, 'revenues', 'read', 'cs.owner_contact_id'));
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
@@ -296,28 +332,44 @@ router.post('/lines', (req, res) => {
   assertEntityLinks(db, body);
   assertCrmCustomer(db, body.customer_id);
   assertLineDates(body);
+  assertAnchor(body.revenue_anchor_mode, body.revenue_anchor_period);
+  const am = amUserName(body.am_user_id);
+  const anchorMode = body.revenue_anchor_mode ?? 'auto';
   const info = db
     .prepare(
-      `INSERT INTO customer_services (customer_id, service_id, contract_id, am, contract_kind,
+      `INSERT INTO customer_services (customer_id, service_id, contract_id, am, am_user_id, contract_kind,
                                       contract_term, status, start_date, end_date, notes, search_text,
-                                      owner_contact_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                      owner_contact_id, revenue_anchor_mode, revenue_anchor_period,
+                                      revenue_anchor_updated_by, revenue_anchor_updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               CASE WHEN ? = 'auto' THEN NULL ELSE datetime('now','localtime') END)`
     )
     .run(
       body.customer_id,
       body.service_id ?? null,
       body.contract_id ?? null,
-      body.am ?? null,
+      am,
+      body.am_user_id ?? null,
       body.contract_kind ?? 'new',
       body.contract_term ?? 'long',
       body.status ?? 'using',
       body.start_date ?? null,
       body.end_date ?? null,
       body.notes ?? '',
-      buildSearchText(body.am, body.notes),
-      defaultOwner(req)
+      buildSearchText(am, body.notes),
+      defaultOwner(req),
+      anchorMode,
+      anchorMode === 'manual' ? body.revenue_anchor_period : null,
+      anchorMode === 'auto' ? null : actorContactId(req),
+      anchorMode
     );
-  res.status(201).json(reloadLine(Number(info.lastInsertRowid), new Date().getFullYear()));
+  const id = Number(info.lastInsertRowid);
+  if (body.baseline) {
+    db.prepare(
+      `INSERT INTO revenue_baselines (line_id, year, avg_monthly_vnd) VALUES (?, ?, ?)`
+    ).run(id, body.baseline.year, body.baseline.avg_monthly_vnd);
+  }
+  res.status(201).json(reloadLine(id, new Date().getFullYear()));
 });
 
 router.get('/lines/:id', (req, res) => {
@@ -341,9 +393,25 @@ router.patch('/lines/:id', (req, res) => {
   });
   assertCrmCustomer(db, merged.customer_id as number);
   assertLineDates(merged);
+  const am =
+    body.am_user_id !== undefined ? amUserName(body.am_user_id) : (current.am as string | null);
+
+  if (body.revenue_anchor_mode !== undefined) {
+    assertAnchor(body.revenue_anchor_mode, body.revenue_anchor_period);
+    db.prepare(
+      `UPDATE customer_services SET revenue_anchor_mode = ?, revenue_anchor_period = ?,
+              revenue_anchor_updated_by = ?, revenue_anchor_updated_at = datetime('now','localtime')
+        WHERE id = ?`
+    ).run(
+      body.revenue_anchor_mode,
+      body.revenue_anchor_mode === 'manual' ? body.revenue_anchor_period : null,
+      actorContactId(req),
+      id
+    );
+  }
 
   db.prepare(
-    `UPDATE customer_services SET customer_id = ?, service_id = ?, contract_id = ?, am = ?,
+    `UPDATE customer_services SET customer_id = ?, service_id = ?, contract_id = ?, am = ?, am_user_id = ?,
             contract_kind = ?, contract_term = ?, status = ?, start_date = ?, end_date = ?,
             notes = ?, search_text = ?, updated_at = datetime('now','localtime')
       WHERE id = ?`
@@ -351,14 +419,15 @@ router.patch('/lines/:id', (req, res) => {
     merged.customer_id,
     merged.service_id ?? null,
     merged.contract_id ?? null,
-    merged.am ?? null,
+    am,
+    merged.am_user_id ?? null,
     merged.contract_kind ?? 'new',
     merged.contract_term ?? 'long',
     merged.status ?? 'using',
     merged.start_date ?? null,
     merged.end_date ?? null,
     merged.notes ?? '',
-    buildSearchText(merged.am as string, merged.notes as string),
+    buildSearchText(am, merged.notes as string),
     id
   );
   res.json(reloadLine(id, resolveYear(req.query.year)));
@@ -609,7 +678,8 @@ router.get('/comparison', (req, res) => {
 
 /* ---------- KPI doanh thu theo AM ---------- */
 
-const NO_AM = '';
+/** am_user_id cua nhom "Chua gan AM" trong KPI. */
+const NO_AM = 0;
 
 /** TB thang nam truoc cua tung dong: so nhap tay, khong co thi tu tinh tu nam truoc. */
 function prevAverages(ids: number[], year: number): Map<number, number | null> {
@@ -631,9 +701,23 @@ function prevAverages(ids: number[], year: number): Map<number, number | null> {
   );
 }
 
+/** Ten hien thi cua moi nguoi dung — AM tren KPI, file mau va bo loc. */
+function userNames(): Map<number, { name: string; active: boolean }> {
+  return new Map(
+    (
+      db
+        .prepare(
+          `SELECT id, COALESCE(NULLIF(TRIM(full_name), ''), username) AS name, is_active FROM users`
+        )
+        .all() as { id: number; name: string; is_active: number }[]
+    ).map((u) => [u.id, { name: u.name, active: u.is_active === 1 }])
+  );
+}
+
 /**
  * KPI cua nam: 12 thang (chi tieu, Moi, Mo rong, Mo rong tu Nen, Lost), bang theo
- * AM va chi tiet tung dong. Loc theo AM thi chi tieu cung chi lay cua AM do.
+ * AM va chi tiet tung dong. AM la nguoi dung; 0 = "Chua gan AM". Loc theo AM thi
+ * chi tieu cung chi lay cua AM do.
  */
 router.get('/kpi', (req, res) => {
   const year = resolveYear(req.query.year);
@@ -650,7 +734,7 @@ router.get('/kpi', (req, res) => {
   const entries = computeKpi(
     lines.map((line) => ({
       line_id: Number(line.id),
-      am: ((line.am as string | null) ?? '').trim(),
+      am_user_id: Number(line.am_user_id ?? NO_AM),
       groups: line.groups,
       cells: line.months,
       prev_avg_vnd: prev.get(Number(line.id)) ?? null,
@@ -659,43 +743,56 @@ router.get('/kpi', (req, res) => {
     current
   );
 
-  const amFilter = typeof req.query.am === 'string' && req.query.am ? req.query.am : null;
+  const filter = req.query.am_user_id;
+  const amFilter = filter === 'none' ? NO_AM : filter ? Number(filter) : null;
   const targetRows = db
     .prepare(
-      `SELECT am, period, target_vnd FROM revenue_kpi_targets
-        WHERE period LIKE ? ${amFilter ? 'AND am = ?' : ''}`
+      `SELECT am_user_id, period, target_vnd FROM revenue_kpi_targets
+        WHERE period LIKE ? ${amFilter !== null ? 'AND am_user_id = ?' : ''}`
     )
-    .all(`${year}-%`, ...(amFilter ? [amFilter] : [])) as {
-    am: string;
+    .all(`${year}-%`, ...(amFilter !== null ? [amFilter] : [])) as {
+    am_user_id: number;
     period: string;
     target_vnd: number;
   }[];
 
-  /* AM hien trong bang chi tieu: moi AM co dong doanh thu hoac da co chi tieu. */
-  const amNames = new Set<string>(targetRows.map((t) => t.am));
-  for (const line of lines) amNames.add(((line.am as string | null) ?? '').trim());
-  if (amFilter) {
-    amNames.clear();
-    amNames.add(amFilter);
+  /* AM hien trong bang chi tieu: nguoi co dong doanh thu, co chi tieu, hoac moi
+     nguoi dung dang hoat dong — de dat chi tieu truoc khi co doanh thu. */
+  const names = userNames();
+  const amIds = new Set<number>(targetRows.map((t) => t.am_user_id));
+  for (const line of lines) amIds.add(Number(line.am_user_id ?? NO_AM));
+  if (amFilter !== null) {
+    amIds.clear();
+    amIds.add(amFilter);
+  } else {
+    for (const [id, user] of names) if (user.active) amIds.add(id);
   }
+  const nameOf = (id: number) => (id === NO_AM ? '' : (names.get(id)?.name ?? `#${id}`));
 
   const targetsTotal: Record<string, number> = {};
-  const targetsByAm = new Map<string, Record<string, number>>();
+  const targetsByAm = new Map<number, Record<string, number>>();
   for (const t of targetRows) {
     targetsTotal[t.period] = (targetsTotal[t.period] ?? 0) + t.target_vnd;
-    const own = targetsByAm.get(t.am) ?? {};
+    const own = targetsByAm.get(t.am_user_id) ?? {};
     own[t.period] = t.target_vnd;
-    targetsByAm.set(t.am, own);
+    targetsByAm.set(t.am_user_id, own);
   }
 
-  const byAm = [...amNames]
-    .sort((a, b) => (a === NO_AM ? 1 : b === NO_AM ? -1 : a.localeCompare(b, 'vi')))
+  const byAm = [...amIds]
+    .map((id) => ({ am_user_id: id, am_name: nameOf(id) }))
+    .sort((a, b) =>
+      a.am_user_id === NO_AM
+        ? 1
+        : b.am_user_id === NO_AM
+          ? -1
+          : a.am_name.localeCompare(b.am_name, 'vi')
+    )
     .map((am) => ({
-      am,
+      ...am,
       months: summarizeKpi(
-        entries.filter((e) => e.am === am),
+        entries.filter((e) => e.am_user_id === am.am_user_id),
         year,
-        targetsByAm.get(am) ?? {}
+        targetsByAm.get(am.am_user_id) ?? {}
       ),
     }));
 
@@ -709,6 +806,7 @@ router.get('/kpi', (req, res) => {
       const line = info.get(e.line_id)!;
       return {
         ...e,
+        am_name: nameOf(e.am_user_id),
         customer_id: line.customer_id,
         customer_name: line.customer_name,
         service_name: line.service_name,
@@ -718,27 +816,31 @@ router.get('/kpi', (req, res) => {
 });
 
 const upsertKpiTarget = db.prepare(
-  `INSERT INTO revenue_kpi_targets (am, period, target_vnd, updated_by) VALUES (?, ?, ?, ?)
-   ON CONFLICT(am, period) DO UPDATE SET target_vnd = excluded.target_vnd,
+  `INSERT INTO revenue_kpi_targets (am_user_id, period, target_vnd, updated_by) VALUES (?, ?, ?, ?)
+   ON CONFLICT(am_user_id, period) DO UPDATE SET target_vnd = excluded.target_vnd,
      updated_by = excluded.updated_by, updated_at = datetime('now','localtime')`
 );
 
+/** Dat / xoa chi tieu mot thang cua mot AM (am_user_id = 0: doanh thu chua gan AM). */
 router.put('/kpi-targets', (req, res) => {
   const body = parseBody(
     z.object({
-      am: z.string().max(200),
+      am_user_id: z.number().int().min(0),
       period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM'),
       target_vnd: z.number().int().min(0).nullable(),
     }),
     req
   );
-  const am = body.am.trim();
+  if (body.am_user_id !== NO_AM) amUserName(body.am_user_id);
   if (body.target_vnd === null) {
-    db.prepare(`DELETE FROM revenue_kpi_targets WHERE am = ? AND period = ?`).run(am, body.period);
+    db.prepare(`DELETE FROM revenue_kpi_targets WHERE am_user_id = ? AND period = ?`).run(
+      body.am_user_id,
+      body.period
+    );
   } else {
-    upsertKpiTarget.run(am, body.period, body.target_vnd, actorContactId(req));
+    upsertKpiTarget.run(body.am_user_id, body.period, body.target_vnd, actorContactId(req));
   }
-  res.json({ am, period: body.period, target_vnd: body.target_vnd });
+  res.json(body);
 });
 
 /* ---------- Moc phan nhom (sua tay, co canh bao) ---------- */
@@ -896,7 +998,7 @@ router.get('/import-template.xlsx', async (req, res) => {
     id: Number(line.id),
     customer_name: line.customer_name as string,
     service_name: (line.service_name as string | null) ?? null,
-    am: (line.am as string | null) ?? null,
+    am: (line.am_name as string | null) ?? null,
     contract_kind: line.contract_kind as ContractKind,
     contract_term: line.contract_term as ContractTerm,
     status: line.status as ServiceStatus,
@@ -928,21 +1030,30 @@ router.get('/import-template.xlsx', async (req, res) => {
     }[]
   ).map((r) => r.name);
 
+  /* Sheet KPI: moi nguoi dung dang hoat dong + AM da co chi tieu / doanh thu. */
+  const names = userNames();
   const kpiRows = db
-    .prepare(`SELECT am, period, target_vnd FROM revenue_kpi_targets WHERE period LIKE ?`)
-    .all(`${year}-%`) as { am: string; period: string; target_vnd: number }[];
-  const kpiAms = new Set<string>(kpiRows.map((r) => r.am));
-  for (const line of lines) if (line.am?.trim()) kpiAms.add(line.am.trim());
-  const kpi = [...kpiAms]
-    .sort((a, b) => a.localeCompare(b, 'vi'))
-    .map((am) => ({
-      am,
+    .prepare(`SELECT am_user_id, period, target_vnd FROM revenue_kpi_targets WHERE period LIKE ?`)
+    .all(`${year}-%`) as { am_user_id: number; period: string; target_vnd: number }[];
+  const kpiIds = new Set<number>(kpiRows.map((r) => r.am_user_id));
+  for (const line of raw) if (line.am_user_id) kpiIds.add(Number(line.am_user_id));
+  for (const [id, user] of names) if (user.active) kpiIds.add(id);
+  const kpi = [...kpiIds]
+    .map((id) => ({ id, am: id === NO_AM ? '' : (names.get(id)?.name ?? '') }))
+    .filter((k) => k.id === NO_AM || k.am)
+    .sort((a, b) => (a.id === NO_AM ? 1 : b.id === NO_AM ? -1 : a.am.localeCompare(b.am, 'vi')))
+    .map((k) => ({
+      am: k.am,
       months: yearPeriods(year).map(
-        (p) => kpiRows.find((r) => r.am === am && r.period === p)?.target_vnd
+        (p) => kpiRows.find((r) => r.am_user_id === k.id && r.period === p)?.target_vnd
       ),
     }));
+  const amChoices = [...names.values()]
+    .filter((u) => u.active)
+    .map((u) => u.name)
+    .sort((a, b) => a.localeCompare(b, 'vi'));
 
-  const buffer = await buildTemplate(year, lines, customers, services, kpi);
+  const buffer = await buildTemplate(year, lines, customers, services, kpi, amChoices);
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -988,6 +1099,9 @@ type PlannedRow = ParsedRow & {
   customer_id?: number;
   service_id?: number | null;
   customer_name?: string;
+  /** AM da ghep voi nguoi dung (null = bo trong o AM de go AM). */
+  am_user_id?: number | null;
+  am_name?: string | null;
   service_name?: string | null;
 };
 
@@ -1037,6 +1151,23 @@ function planImport(req: Request, parsedRows: ParsedRow[], year: number): Planne
     .all(`${year}-%`) as { line_id: number; period: string; amount_vnd: number }[])
     currentAmounts.set(`${cell.line_id}:${Number(cell.period.slice(5, 7))}`, cell.amount_vnd);
 
+  /* AM ghep theo ho ten, ten dang nhap hoac email — giong cach v47 ghep du lieu cu. */
+  const usersByKey = new Map<string, Set<number>>();
+  const userNameById = new Map<number, string>();
+  for (const u of db
+    .prepare(
+      `SELECT id, username, email, COALESCE(NULLIF(TRIM(full_name), ''), username) AS name FROM users`
+    )
+    .all() as { id: number; username: string; email: string | null; name: string }[]) {
+    userNameById.set(u.id, u.name);
+    for (const key of [u.name, u.username, u.email]) {
+      const folded = fold(key?.trim());
+      if (!folded) continue;
+      if (!usersByKey.has(folded)) usersByKey.set(folded, new Set());
+      usersByKey.get(folded)!.add(u.id);
+    }
+  }
+
   const claimed = new Map<number, number>();
   return parsedRows.map((row): PlannedRow => {
     const planned: PlannedRow = {
@@ -1054,6 +1185,15 @@ function planImport(req: Request, parsedRows: ParsedRow[], year: number): Planne
       if (unique.length === 0) err(`Không tìm thấy khách hàng "${row.customer}" trong CRM`);
       else if (unique.length > 1) err(`Có ${unique.length} khách hàng tên "${row.customer}"`);
       else customerId = unique[0].id;
+    }
+    if (row.am !== undefined) {
+      const ids = usersByKey.get(fold(row.am.trim()));
+      if (!ids || ids.size === 0) err(`AM "${row.am}" không phải người dùng trong hệ thống`);
+      else if (ids.size > 1) err(`Có ${ids.size} người dùng khớp AM "${row.am}"`);
+      else {
+        planned.am_user_id = [...ids][0];
+        planned.am_name = userNameById.get(planned.am_user_id) ?? row.am;
+      }
     }
     let serviceId: number | null | undefined;
     if (row.service !== undefined) {
@@ -1115,20 +1255,21 @@ function applyRow(req: Request, row: PlannedRow, year: number): number {
     lineId = Number(
       db
         .prepare(
-          `INSERT INTO customer_services (customer_id, service_id, am, contract_kind, contract_term,
+          `INSERT INTO customer_services (customer_id, service_id, am, am_user_id, contract_kind, contract_term,
                                           status, start_date, end_date, notes, search_text, owner_contact_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)`
         )
         .run(
           row.customer_id,
           row.service_id ?? null,
-          row.am ?? null,
+          row.am_name ?? null,
+          row.am_user_id ?? null,
           row.contract_kind ?? 'new',
           row.contract_term ?? 'long',
           row.status ?? 'using',
           row.start_date ?? null,
           row.end_date ?? null,
-          buildSearchText(row.am),
+          buildSearchText(row.am_name),
           defaultOwner(req)
         ).lastInsertRowid
     );
@@ -1141,7 +1282,10 @@ function applyRow(req: Request, row: PlannedRow, year: number): number {
       values.push(value);
     };
     if (row.service !== undefined) set('service_id', row.service_id);
-    set('am', row.am);
+    if (row.am_user_id !== undefined) {
+      set('am', row.am_name);
+      set('am_user_id', row.am_user_id);
+    }
     set('contract_kind', row.contract_kind);
     set('contract_term', row.contract_term);
     set('status', row.status);
@@ -1151,12 +1295,12 @@ function applyRow(req: Request, row: PlannedRow, year: number): number {
       db.prepare(
         `UPDATE customer_services SET ${sets.join(', ')}, updated_at = datetime('now','localtime') WHERE id = ?`
       ).run(...values, lineId);
-      if (row.am !== undefined) {
+      if (row.am_user_id !== undefined) {
         const { notes } = db
           .prepare(`SELECT notes FROM customer_services WHERE id = ?`)
           .get(lineId) as { notes: string };
         db.prepare(`UPDATE customer_services SET search_text = ? WHERE id = ?`).run(
-          buildSearchText(row.am, notes),
+          buildSearchText(row.am_name, notes),
           lineId
         );
       }
@@ -1207,27 +1351,43 @@ router.post('/import', acceptImportFile, async (req, res) => {
   const currentTargets = new Map(
     (
       db
-        .prepare(`SELECT am, period, target_vnd FROM revenue_kpi_targets WHERE period LIKE ?`)
-        .all(`${year}-%`) as { am: string; period: string; target_vnd: number }[]
-    ).map((r) => [`${r.am}|${r.period}`, r.target_vnd])
+        .prepare(
+          `SELECT am_user_id, period, target_vnd FROM revenue_kpi_targets WHERE period LIKE ?`
+        )
+        .all(`${year}-%`) as { am_user_id: number; period: string; target_vnd: number }[]
+    ).map((r) => [`${r.am_user_id}|${r.period}`, r.target_vnd])
   );
-  const seenAm = new Map<string, number>();
-  const kpiChanges: { am: string; period: string; value: number }[] = [];
+  const userIdByName = new Map<string, number[]>();
+  for (const [id, user] of userNames()) {
+    const key = fold(user.name.trim());
+    userIdByName.set(key, [...(userIdByName.get(key) ?? []), id]);
+  }
+  const seenAm = new Map<number, number>();
+  const kpiChanges: { am_user_id: number; period: string; value: number }[] = [];
   const kpiErrors: { row: number; am: string; errors: string[] }[] = [];
   for (const item of parsed.kpi) {
     const errors = [...item.errors];
-    const earlier = seenAm.get(item.am);
-    if (earlier !== undefined) errors.push(`Trùng AM với dòng ${earlier} trong sheet KPI`);
-    else seenAm.set(item.am, item.row);
-    if (errors.length) {
+    let amId: number | null = NO_AM;
+    if (item.am) {
+      const ids = userIdByName.get(fold(item.am)) ?? [];
+      amId = ids.length === 1 ? ids[0] : null;
+      if (ids.length === 0) errors.push(`AM "${item.am}" không phải người dùng trong hệ thống`);
+      else if (ids.length > 1) errors.push(`Có ${ids.length} người dùng tên "${item.am}"`);
+    }
+    if (amId !== null) {
+      const earlier = seenAm.get(amId);
+      if (earlier !== undefined) errors.push(`Trùng AM với dòng ${earlier} trong sheet KPI`);
+      else seenAm.set(amId, item.row);
+    }
+    if (errors.length || amId === null) {
       kpiErrors.push({ row: item.row, am: item.am, errors });
       continue;
     }
     for (const [month, value] of item.months) {
       const period = `${year}-${String(month).padStart(2, '0')}`;
-      const now = currentTargets.get(`${item.am}|${period}`);
+      const now = currentTargets.get(`${amId}|${period}`);
       if (value === 0 ? now !== undefined : now !== value)
-        kpiChanges.push({ am: item.am, period, value });
+        kpiChanges.push({ am_user_id: amId, period, value });
     }
   }
 
@@ -1238,11 +1398,12 @@ router.post('/import', acceptImportFile, async (req, res) => {
       }
       for (const change of kpiChanges) {
         if (change.value === 0)
-          db.prepare(`DELETE FROM revenue_kpi_targets WHERE am = ? AND period = ?`).run(
-            change.am,
+          db.prepare(`DELETE FROM revenue_kpi_targets WHERE am_user_id = ? AND period = ?`).run(
+            change.am_user_id,
             change.period
           );
-        else upsertKpiTarget.run(change.am, change.period, change.value, actorContactId(req));
+        else
+          upsertKpiTarget.run(change.am_user_id, change.period, change.value, actorContactId(req));
       }
     })();
   }
@@ -1262,7 +1423,7 @@ router.post('/import', acceptImportFile, async (req, res) => {
     },
     kpi: {
       cells: kpiChanges.length,
-      ams: new Set(kpiChanges.map((c) => c.am)).size,
+      ams: new Set(kpiChanges.map((c) => c.am_user_id)).size,
       errors: kpiErrors,
     },
     rows: planned.map((r) => ({
@@ -1293,16 +1454,21 @@ router.get('/years', (_req, res) => {
   res.json(years.sort((a, b) => b - a));
 });
 
-/** Danh sach AM da nhap — goi y cho o loc va o nhap. */
+/**
+ * AM chon duoc: nguoi dung dang hoat dong, cong nhung nguoi da nghi nhung con
+ * dung tren dong doanh thu (de bo loc va form sua van hien dung ten).
+ */
 router.get('/ams', (_req, res) => {
   res.json(
-    (
-      db
-        .prepare(
-          `SELECT DISTINCT am FROM customer_services WHERE am IS NOT NULL AND am <> '' ORDER BY am`
-        )
-        .all() as { am: string }[]
-    ).map((r) => r.am)
+    db
+      .prepare(
+        `SELECT u.id, COALESCE(NULLIF(TRIM(u.full_name), ''), u.username) AS name,
+                u.is_active = 1 AS is_active
+           FROM users u
+          WHERE u.is_active = 1 OR u.id IN (SELECT am_user_id FROM customer_services)
+          ORDER BY u.is_active DESC, name COLLATE NOCASE`
+      )
+      .all()
   );
 });
 
