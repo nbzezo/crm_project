@@ -92,6 +92,48 @@ export function groupWorkspaceTasks(
     .map(([label, groupTasks]) => ({ key: label, label, tasks: groupTasks }));
 }
 
+interface TaskRowNode {
+  task: TaskRow;
+  depth: number;
+  childCount: number;
+}
+
+/** Gom việc con vào nhóm của việc cha và trả về danh sách phẳng theo thứ tự cha → con. */
+function nestTasks(
+  tasks: TaskRow[],
+  group: TaskGroup,
+  sort: TaskSort,
+  collapsedParents: Set<number>
+): Array<TaskGroupRows & { rows: TaskRowNode[]; total: number }> {
+  const sorted = sortTasks(tasks, sort);
+  const ids = new Set(sorted.map((task) => task.id));
+  const childrenOf = new Map<number, TaskRow[]>();
+  const roots: TaskRow[] = [];
+  for (const task of sorted) {
+    if (task.parent_id && ids.has(task.parent_id)) {
+      childrenOf.set(task.parent_id, [...(childrenOf.get(task.parent_id) ?? []), task]);
+    } else {
+      roots.push(task);
+    }
+  }
+  return groupWorkspaceTasks(roots, group, sort).map((taskGroup) => {
+    const rows: TaskRowNode[] = [];
+    const walk = (task: TaskRow, depth: number) => {
+      const children = childrenOf.get(task.id) ?? [];
+      rows.push({ task, depth, childCount: children.length });
+      if (!collapsedParents.has(task.id)) for (const child of children) walk(child, depth + 1);
+    };
+    for (const task of taskGroup.tasks) walk(task, 0);
+    const count = (task: TaskRow): number =>
+      1 + (childrenOf.get(task.id) ?? []).reduce((sum, child) => sum + count(child), 0);
+    return {
+      ...taskGroup,
+      rows,
+      total: taskGroup.tasks.reduce((sum, root) => sum + count(root), 0),
+    };
+  });
+}
+
 function ProgressCell({ task }: { task: TaskRow }) {
   const total = task.subtask_total ?? 0;
   const done = task.subtask_done ?? 0;
@@ -238,7 +280,18 @@ export function TaskWorkspaceList({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set(['done']));
   const [editingId, setEditingId] = useState<number | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
-  const groups = useMemo(() => groupWorkspaceTasks(tasks, group, sort), [tasks, group, sort]);
+  const [collapsedParents, setCollapsedParents] = useState<Set<number>>(new Set());
+  const groups = useMemo(
+    () => nestTasks(tasks, group, sort, collapsedParents),
+    [tasks, group, sort, collapsedParents]
+  );
+  const toggleParent = (id: number) =>
+    setCollapsedParents((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const patchTask = useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
@@ -313,14 +366,18 @@ export function TaskWorkspaceList({
                     <ChevronDown size={16} />
                   )}
                   <span className="tr-eyebrow flex-1">{taskGroup.label}</span>
-                  <span className="text-xs text-tr-muted">{taskGroup.tasks.length}</span>
+                  <span className="text-xs text-tr-muted">{taskGroup.total}</span>
                 </button>
                 {!collapsed.has(taskGroup.key) && (
                   <div className="divide-y divide-tr-border">
-                    {taskGroup.tasks.map((task) => (
+                    {taskGroup.rows.map(({ task, depth, childCount }) => (
                       <TaskCardRow
                         key={task.id}
                         task={task}
+                        depth={depth}
+                        childCount={childCount}
+                        childrenCollapsed={collapsedParents.has(task.id)}
+                        onToggleChildren={() => toggleParent(task.id)}
                         onOpen={() =>
                           selected.size > 0 ? toggleOne(task.id) : openCard(task.id, 'drawer')
                         }
@@ -452,12 +509,12 @@ export function TaskWorkspaceList({
                           <ChevronDown size={14} />
                         )}
                         {taskGroup.label}
-                        <span className="font-normal text-tr-muted">{taskGroup.tasks.length}</span>
+                        <span className="font-normal text-tr-muted">{taskGroup.total}</span>
                       </button>
                     </td>
                   </tr>
                   {!collapsed.has(taskGroup.key) &&
-                    taskGroup.tasks.map((task) => (
+                    taskGroup.rows.map(({ task, depth, childCount }) => (
                       <tr key={task.id} className="group h-11 hover:bg-tr-hover">
                         <td className="sticky left-0 z-10 border-b border-tr-border bg-tr-panel px-2 group-hover:bg-tr-hover">
                           <input
@@ -469,7 +526,27 @@ export function TaskWorkspaceList({
                           />
                         </td>
                         <td className="sticky left-10 z-10 border-b border-tr-border bg-tr-panel px-2 group-hover:bg-tr-hover">
-                          <div className="flex min-w-0 items-center gap-1">
+                          <div
+                            className="flex min-w-0 items-center gap-1"
+                            style={{ paddingLeft: depth * 24 }}
+                          >
+                            {childCount > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleParent(task.id)}
+                                aria-expanded={!collapsedParents.has(task.id)}
+                                aria-label={`${collapsedParents.has(task.id) ? 'Mở' : 'Thu gọn'} việc con của ${task.title}`}
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover-strong ${focusRing}`}
+                              >
+                                {collapsedParents.has(task.id) ? (
+                                  <ChevronRight size={14} />
+                                ) : (
+                                  <ChevronDown size={14} />
+                                )}
+                              </button>
+                            ) : (
+                              <span className="w-6 shrink-0" aria-hidden="true" />
+                            )}
                             <button
                               type="button"
                               onClick={() =>
@@ -520,6 +597,11 @@ export function TaskWorkspaceList({
                                   <span className="mr-2 text-tr-muted">↳</span>
                                 ) : null}
                                 {task.title}
+                                {childCount > 0 && (
+                                  <span className="ml-2 text-xs font-normal text-tr-muted">
+                                    ({childCount} việc con)
+                                  </span>
+                                )}
                               </button>
                             )}
                             <button

@@ -1,4 +1,4 @@
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 import { formatDateShort } from '../../lib/format';
 import { t } from '../../i18n/vi';
@@ -13,6 +13,10 @@ export function TaskCardRow({
   onSelect,
   onComplete,
   selectionMode = false,
+  depth = 0,
+  childCount = 0,
+  childrenCollapsed = false,
+  onToggleChildren,
 }: {
   task: TaskRow;
   onOpen: () => void;
@@ -20,6 +24,11 @@ export function TaskCardRow({
   onSelect?: () => void;
   onComplete?: () => void;
   selectionMode?: boolean;
+  /** Cấp lồng nhau: 0 = việc cha, ≥1 = việc con. */
+  depth?: number;
+  childCount?: number;
+  childrenCollapsed?: boolean;
+  onToggleChildren?: () => void;
 }) {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
@@ -31,6 +40,7 @@ export function TaskCardRow({
   return (
     <article
       className="flex min-w-0 items-start gap-2 border-b border-tr-border bg-tr-panel px-3 py-2"
+      style={depth > 0 ? { paddingLeft: 12 + depth * 20 } : undefined}
       onPointerDown={(event) => {
         if (!onSelect || event.pointerType === 'mouse') return;
         pointerStart.current = { x: event.clientX, y: event.clientY };
@@ -108,7 +118,19 @@ export function TaskCardRow({
           )}
         </span>
       </button>
-      <ChevronRight size={16} className="mt-3 shrink-0 text-tr-muted" aria-hidden="true" />
+      {childCount > 0 && onToggleChildren ? (
+        <button
+          type="button"
+          onClick={onToggleChildren}
+          aria-expanded={!childrenCollapsed}
+          aria-label={`${childrenCollapsed ? 'Mở' : 'Thu gọn'} ${childCount} việc con của ${task.title}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted ${focusRing}`}
+        >
+          {childrenCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+        </button>
+      ) : (
+        <ChevronRight size={16} className="mt-3 shrink-0 text-tr-muted" aria-hidden="true" />
+      )}
     </article>
   );
 }
