@@ -104,6 +104,10 @@
   --z-index-modal-nested: 55;
   --z-index-toast: 60;
   --z-index-popover: 70;
+  /* Toast duoi md: popover thanh bottom sheet co lop phu toan man hinh o
+     z-popover, nen toast phai nam tren no thi nut "Hoàn tác" moi bam duoc. Tang
+     moi chen giua, khong doi thu tu cac tang cu; desktop van dung z-toast. */
+  --z-index-toast-mobile: 75;
   --z-index-tooltip: 80;
   --z-index-skip-link: 100;
 
