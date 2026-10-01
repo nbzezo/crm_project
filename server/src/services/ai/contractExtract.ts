@@ -266,43 +266,63 @@ export async function extractContract(
     ? `Công ty của người dùng (KHÔNG phải đối tác): ${input.ownNames.join('; ')}.\n`
     : '';
 
-  const { data, meta } = await runStructured(
-    db,
-    {
-      task: 'contract_extract',
-      mode: 'balanced',
-      contextType: 'contract',
-      maxOutputTokens: 2000,
-      timeoutMs: 120_000,
-      requiresCapability: attachments ? 'documentInput' : undefined,
-      attachments,
-      system:
-        'Bạn đọc hợp đồng kinh doanh tiếng Việt và trích xuất thông tin có cấu trúc. Chỉ dùng thông tin có ' +
-        'trong văn bản, không suy đoán; không thấy thì để null. Ngày phải đúng YYYY-MM-DD. ' +
-        'Chỉ trả về một đối tượng JSON.',
-      prompt:
-        own +
-        'Xác định bên ĐỐI TÁC (khách hàng) — bên còn lại trong hợp đồng, không phải công ty của người dùng. ' +
-        'Nếu không rõ công ty nào là của người dùng thì lấy bên mua/bên sử dụng dịch vụ (thường là Bên A).\n' +
-        'Trả JSON đúng cấu trúc:\n' +
-        '{"contract":{"name":"tên/tiêu đề hợp đồng","number":"số hợp đồng","value":"tổng giá trị hợp đồng (số, gồm VAT nếu ghi tổng)",' +
-        '"currency":"VND|USD|...","sign_date":null,"start_date":null,"end_date":null,"duration_months":null,' +
-        '"payment_terms":"tóm tắt tiến độ/điều khoản thanh toán","is_signed":true,"auto_renew":null},' +
-        '"customer":{"name":"tên pháp nhân đầy đủ","tax_code":"mã số thuế","address":null,"phone":null,"email":null,' +
-        '"representative":"người đại diện ký","representative_title":"chức vụ"},' +
-        '"summary":"tóm tắt 2-3 câu phạm vi/đối tượng hợp đồng",' +
-        '"key_points":["điều khoản quan trọng: SLA, bảo hành, bảo mật, gia hạn…"],' +
-        '"risks":["điều khoản cần lưu ý: phạt vi phạm, tự động gia hạn, đơn phương chấm dứt, giới hạn trách nhiệm…"],' +
-        '"confidence":0.0}\n' +
-        '"is_signed" = văn bản có dấu hiệu đã ký/đóng dấu hay chỉ là bản dự thảo. ' +
-        '"duration_months" chỉ điền khi hợp đồng nêu thời hạn mà không có ngày kết thúc cụ thể.\n' +
-        `Tên tệp: ${input.fileName}\n` +
-        (usable
-          ? `Nội dung (đã trích bằng ${method}):\n${text.slice(0, MAX_PROMPT_CHARS)}`
-          : 'Nội dung tệp được gửi kèm.'),
-    },
-    aiResponse
-  );
+  const ask = (files: typeof attachments) =>
+    runStructured(
+      db,
+      {
+        task: 'contract_extract',
+        mode: 'balanced',
+        contextType: 'contract',
+        maxOutputTokens: 2000,
+        timeoutMs: 120_000,
+        requiresCapability: files ? 'documentInput' : undefined,
+        tryUnconfirmedCapability: true,
+        attachments: files,
+        system:
+          'Bạn đọc hợp đồng kinh doanh tiếng Việt và trích xuất thông tin có cấu trúc. Chỉ dùng thông tin có ' +
+          'trong văn bản, không suy đoán; không thấy thì để null. Ngày phải đúng YYYY-MM-DD. ' +
+          'Chỉ trả về một đối tượng JSON.',
+        prompt:
+          own +
+          'Xác định bên ĐỐI TÁC (khách hàng) — bên còn lại trong hợp đồng, không phải công ty của người dùng. ' +
+          'Nếu không rõ công ty nào là của người dùng thì lấy bên mua/bên sử dụng dịch vụ (thường là Bên A).\n' +
+          'Trả JSON đúng cấu trúc:\n' +
+          '{"contract":{"name":"tên/tiêu đề hợp đồng","number":"số hợp đồng","value":"tổng giá trị hợp đồng (số, gồm VAT nếu ghi tổng)",' +
+          '"currency":"VND|USD|...","sign_date":null,"start_date":null,"end_date":null,"duration_months":null,' +
+          '"payment_terms":"tóm tắt tiến độ/điều khoản thanh toán","is_signed":true,"auto_renew":null},' +
+          '"customer":{"name":"tên pháp nhân đầy đủ","tax_code":"mã số thuế","address":null,"phone":null,"email":null,' +
+          '"representative":"người đại diện ký","representative_title":"chức vụ"},' +
+          '"summary":"tóm tắt 2-3 câu phạm vi/đối tượng hợp đồng",' +
+          '"key_points":["điều khoản quan trọng: SLA, bảo hành, bảo mật, gia hạn…"],' +
+          '"risks":["điều khoản cần lưu ý: phạt vi phạm, tự động gia hạn, đơn phương chấm dứt, giới hạn trách nhiệm…"],' +
+          '"confidence":0.0}\n' +
+          '"is_signed" = văn bản có dấu hiệu đã ký/đóng dấu hay chỉ là bản dự thảo. ' +
+          '"duration_months" chỉ điền khi hợp đồng nêu thời hạn mà không có ngày kết thúc cụ thể.\n' +
+          `Tên tệp: ${input.fileName}\n` +
+          (files
+            ? 'Nội dung tệp được gửi kèm.' +
+              (text.trim() ? `\nChữ trích được một phần:\n${text.slice(0, MAX_PROMPT_CHARS)}` : '')
+            : `Nội dung (đã trích bằng ${method}):\n${text.slice(0, MAX_PROMPT_CHARS)}`),
+      },
+      aiResponse
+    );
+
+  let result;
+  try {
+    result = await ask(attachments);
+  } catch (error) {
+    /*
+     * Model khong nhan duoc tep (400, khong ho tro PDF...) nhung co tach duoc IT chu:
+     * thu lai chi bang chu con hon bo cuoc — hop dong scan co dau moc van thuong lo tieu de, so, ngay.
+     */
+    if (!attachments || text.trim().length < 50) throw error;
+    warnings.push(
+      'AI không nhận được tệp đính kèm nên chỉ đọc phần chữ tách được — kết quả có thể thiếu.'
+    );
+    attachments = undefined;
+    result = await ask(undefined);
+  }
+  const { data, meta } = result;
 
   const c = data.contract;
   const sign = normalizeDate(c.sign_date);

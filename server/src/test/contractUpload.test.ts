@@ -254,6 +254,54 @@ test('loi nha cung cap AI tra ve mo ta cu the, khong phai 502 tro tron', async (
   globalThis.fetch = realFetch;
 });
 
+test('ban scan: model chua xac nhan nang luc van duoc thu, loi thi quay ve doc chu', async () => {
+  const answer = {
+    contract: { name: 'HĐ scan', number: 'S-1' },
+    customer: { name: 'Khách Scan' },
+    confidence: 0.6,
+  };
+  const SCAN_TEXT = 'HOP DONG DICH VU SO 01 giua hai ben A va B - ban scan chat luong thap';
+  const bodies: string[] = [];
+  const respond = (status: number, payload: unknown) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+
+  // 1) Model chua co dong nang luc trong ai_models van nhan duoc tep dinh kem.
+  globalThis.fetch = async (input, init) => {
+    if (String(input).startsWith(baseUrl)) return realFetch(input, init);
+    bodies.push(String(init?.body ?? ''));
+    return respond(200, {
+      candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }],
+      usageMetadata: {},
+    });
+  };
+  let res = await post('/api/contracts/extract', multipart({ name: 'scan.txt', body: SCAN_TEXT }));
+  assert.equal(res.status, 200, JSON.stringify(res.data));
+  assert.equal(res.data.contract.name, 'HĐ scan');
+  assert.match(bodies[0], /inline_data|inlineData/, 'tep duoc gui kem');
+
+  // 2) Nha cung cap tu choi tep (400) nhung co chu tach duoc -> thu lai chi bang chu.
+  bodies.length = 0;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).startsWith(baseUrl)) return realFetch(input, init);
+    const body = String(init?.body ?? '');
+    bodies.push(body);
+    return /inline_data|inlineData/.test(body)
+      ? respond(400, { error: { message: 'khong ho tro mime' } })
+      : respond(200, {
+          candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }],
+          usageMetadata: {},
+        });
+  };
+  res = await post('/api/contracts/extract', multipart({ name: 'scan.txt', body: SCAN_TEXT }));
+  assert.equal(res.status, 200, JSON.stringify(res.data));
+  assert.equal(bodies.length, 2, 'lan 1 co tep, lan 2 chi chu');
+  assert.ok(res.data.warnings.some((w: string) => /chỉ đọc phần chữ/.test(w)));
+  globalThis.fetch = realFetch;
+});
+
 test('khach hang chua co: tao moi cung hop dong, tep va nguoi dai dien', async () => {
   globalThis.fetch = realFetch;
   const saved = await post(
