@@ -3,6 +3,7 @@ import { t } from '../../i18n/vi';
 import { useAuthStore } from '../../stores/authStore';
 import LoginPage from '../../pages/LoginPage';
 import ResetPasswordPage from '../../pages/ResetPasswordPage';
+import ForceChangePasswordPage from '../../pages/ForceChangePasswordPage';
 
 /**
  * Cong xac thuc toan cuc — bao ngoai RouterProvider trong main.tsx.
@@ -19,6 +20,7 @@ const RESET_PATH = '/reset-password';
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
+  const mustChangePassword = useAuthStore((s) => Boolean(s.user?.must_change_password));
   const checkSession = useAuthStore((s) => s.checkSession);
   const onResetRoute = window.location.pathname === RESET_PATH;
 
@@ -40,6 +42,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (status === 'anonymous') return <LoginPage />;
+
+  /* Mat khau tam do quan tri dat — may chu chan moi route nghiep vu cho toi khi
+     doi xong, nen vao app luc nay chi gap mot loat loi 403. */
+  if (mustChangePassword) return <ForceChangePasswordPage />;
 
   return <>{children}</>;
 }

@@ -95,3 +95,17 @@ export function consumeToken(token: string): void {
 export function purgeExpiredTokens(): void {
   db.prepare(`DELETE FROM password_reset_tokens WHERE expires_at < ?`).run(Date.now());
 }
+
+/**
+ * Vo hieu MOI lien ket con song cua mot nguoi — thu moi lan dat lai mat khau.
+ *
+ * Goi khi quan tri dat mat khau thay: lien ket cu trong hop thu khong duoc phep
+ * con la mot duong vao thu hai, song song voi mat khau vua dat.
+ */
+export function revokeTokens(userId: number): void {
+  db.prepare(
+    `UPDATE password_reset_tokens
+        SET used_at = datetime('now','localtime')
+      WHERE user_id = ? AND used_at IS NULL`
+  ).run(userId);
+}

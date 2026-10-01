@@ -126,12 +126,173 @@ function AccessDialog({ user, onClose }: { user: UserRow; onClose: () => void })
   );
 }
 
+/** Ai dang giu contact nao — de o chon khong moi nguoi ta bam vao mot 409. */
+function takenContacts(users: UserRow[] | undefined, exceptUserId?: number): Set<number> {
+  return new Set(
+    (users ?? [])
+      .filter((row) => row.id !== exceptUserId && row.contact_id != null)
+      .map((row) => row.contact_id as number)
+  );
+}
+
+function ContactOptions({ staff, taken }: { staff: Assignee[]; taken: Set<number> }) {
+  return (
+    <>
+      <option value="">{t.users.noContact}</option>
+      {staff.map((person) => (
+        <option key={person.id} value={person.id} disabled={taken.has(person.id)}>
+          {person.full_name}
+          {taken.has(person.id) ? ` ${t.users.contactTaken}` : ''}
+        </option>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Sua thong tin mot tai khoan, va (chi quan tri he thong) dat mat khau moi.
+ *
+ * Hai phan luu rieng: thong tin la PATCH /api/users/:id, mat khau la mot lenh co
+ * hau qua rieng (huy moi phien, huy lien ket moi) nen co nut rieng — khong de no
+ * xay ra chi vi ai do bam "Luu" sau khi sua mot chu trong ten.
+ */
+function InfoDialog({
+  user,
+  staff,
+  taken,
+  canSetPassword,
+  onClose,
+}: {
+  user: UserRow;
+  staff: Assignee[];
+  taken: Set<number>;
+  canSetPassword: boolean;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const pushToast = useUiStore((s) => s.pushToast);
+  const [email, setEmail] = useState(user.email ?? '');
+  const [fullName, setFullName] = useState(user.full_name ?? '');
+  const [contactId, setContactId] = useState(user.contact_id ? String(user.contact_id) : '');
+  const [password, setPassword] = useState('');
+  const [requireChange, setRequireChange] = useState(true);
+  const [generated, setGenerated] = useState<string | null>(null);
+
+  const body: Record<string, unknown> = {};
+  if (email.trim() !== (user.email ?? '')) body.email = email.trim();
+  if (fullName.trim() !== (user.full_name ?? '')) body.full_name = fullName.trim();
+  if (contactId !== (user.contact_id ? String(user.contact_id) : '')) {
+    body.contact_id = contactId ? Number(contactId) : null;
+  }
+  const dirty = Object.keys(body).length > 0;
+
+  const save = useMutation({
+    mutationFn: () => api.patch<UserRow>(`/api/users/${user.id}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['users'] });
+      pushToast(t.users.infoSaved, 'success');
+      onClose();
+    },
+  });
+
+  const setPw = useMutation({
+    mutationFn: () =>
+      api.post<UserRow & { generated_password: string | null }>(`/api/users/${user.id}/password`, {
+        ...(password ? { password } : {}),
+        require_change: requireChange,
+      }),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ['users'] });
+      setPassword('');
+      setGenerated(data.generated_password);
+      pushToast(t.users.passwordSet, 'success');
+    },
+  });
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      dirty={dirty}
+      title={t.users.editInfoTitle.replace('{name}', user.full_name ?? user.username)}
+      footer={
+        <>
+          <Button onClick={onClose}>{generated ? t.common.close : t.common.cancel}</Button>
+          <Button
+            variant="primary"
+            disabled={save.isPending || !dirty || !email.trim() || !fullName.trim()}
+            onClick={() => save.mutate()}
+          >
+            {save.isPending ? t.common.saving : t.common.save}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <FormError error={save.error} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t.users.email} required>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label={t.users.fullName} required>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </Field>
+        </div>
+        <Field label={t.users.linkedContact} hint={t.users.contactChangeHint}>
+          <Select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+            <ContactOptions staff={staff} taken={taken} />
+          </Select>
+        </Field>
+
+        {canSetPassword ? (
+          <div className="space-y-3 border-t border-tr-border pt-4">
+            <h3 className="text-sm font-semibold text-tr-text">{t.users.setPassword}</h3>
+            <p className="text-xs text-tr-muted">{t.users.setPasswordHint}</p>
+            <FormError error={setPw.error} />
+            <Field label={t.users.newPassword} hint={t.auth.newPasswordHint}>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm text-tr-text">
+              <input
+                type="checkbox"
+                checked={requireChange}
+                onChange={(e) => setRequireChange(e.target.checked)}
+              />
+              {t.users.requireChange}
+            </label>
+            <Button
+              variant="secondary"
+              disabled={setPw.isPending || (password.length > 0 && password.length < 8)}
+              onClick={() => setPw.mutate()}
+            >
+              {setPw.isPending ? t.common.saving : t.users.setPasswordSubmit}
+            </Button>
+            {generated ? (
+              <div className="rounded-control border border-tr-border bg-tr-surface p-3">
+                <p className="mb-1 text-sm text-tr-text">{t.users.generatedPassword}</p>
+                <code className="block break-all text-sm font-semibold text-tr-text">
+                  {generated}
+                </code>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </Modal>
+  );
+}
+
 /**
  * Quan ly tai khoan dang nhap.
  *
- * Khong co o nhap mat khau: tao tai khoan xong he thong gui lien ket kich hoat,
- * chu tai khoan tu dat mat khau. Nguoi quan tri khong bao gio biet mat khau cua
- * ai — ke ca cua nguoi minh vua tao.
+ * Tao tai khoan khong co o nhap mat khau: he thong gui lien ket kich hoat, chu
+ * tai khoan tu dat mat khau. Ngoai le duy nhat la "Dat mat khau moi" trong hop
+ * thoai Sua, chi cho quan tri he thong — va mac dinh bat nguoi do doi lai.
  */
 export function UserSettings() {
   const queryClient = useQueryClient();
@@ -144,12 +305,21 @@ export function UserSettings() {
   const [orgUnitId, setOrgUnitId] = useState('');
   const [positions, setPositions] = useState<PositionChoice[]>([]);
   const [editing, setEditing] = useState<UserRow | null>(null);
+  const [editingInfo, setEditingInfo] = useState<UserRow | null>(null);
+  /* Dat mat khau cho nguoi khac = dang nhap duoc duoi ten ho, nen may chu doi CA
+     quan tri nguoi dung lan phan quyen o muc `all` (routes/users.ts). */
+  const permissions = useAuthStore((s) => s.user?.permissions);
+  const canSetPassword =
+    permissions?.['admin.users:update'] === 'all' &&
+    permissions?.['admin.positions:update'] === 'all';
   /* Tai khoan vua tao ma chua co vi tri: nhac ngay, kem nut gan — mot toast se
      troi mat truoc khi nguoi ta kip doc. */
   const [unassigned, setUnassigned] = useState<UserRow | null>(null);
   const access = useAccessOptions();
-  /* Chi hien khi chua cau hinh SMTP — luc do khong con duong nao khac de kich hoat. */
+  /* Chi hien khi khong gui duoc thu (chua cau hinh SMTP hoac SMTP loi) — luc do
+     khong con duong nao khac de kich hoat. */
   const [manualLink, setManualLink] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const users = useQuery({ queryKey: ['users'], queryFn: () => api.get<UserRow[]>('/api/users') });
 
@@ -165,7 +335,9 @@ export function UserSettings() {
 
   const create = useMutation({
     mutationFn: () =>
-      api.post<UserRow & { invite_link: string | null; warnings: string[] }>('/api/users', {
+      api.post<
+        UserRow & { invite_link: string | null; invite_error: string | null; warnings: string[] }
+      >('/api/users', {
         email: email.trim(),
         full_name: fullName.trim(),
         contact_id: contactId ? Number(contactId) : null,
@@ -174,6 +346,7 @@ export function UserSettings() {
       }),
     onSuccess: (created) => {
       setManualLink(created.invite_link);
+      setInviteError(created.invite_error);
       setEmail('');
       setFullName('');
       setContactId('');
@@ -195,9 +368,13 @@ export function UserSettings() {
 
   const invite = useMutation({
     mutationFn: (id: number) =>
-      api.post<{ invite_link: string | null }>(`/api/users/${id}/invite`, {}),
+      api.post<{ invite_link: string | null; invite_error: string | null }>(
+        `/api/users/${id}/invite`,
+        {}
+      ),
     onSuccess: (data) => {
       setManualLink(data.invite_link);
+      setInviteError(data.invite_error);
       if (!data.invite_link) pushToast(t.users.inviteSent, 'success');
     },
   });
@@ -226,7 +403,11 @@ export function UserSettings() {
 
       {manualLink ? (
         <div className="mb-4 rounded-control border border-tr-border bg-tr-surface p-3">
-          <p className="mb-1 text-sm text-tr-text">{t.users.inviteLinkManual}</p>
+          <p className="mb-1 text-sm text-tr-text">
+            {inviteError
+              ? t.users.inviteFailed.replace('{error}', inviteError)
+              : t.users.inviteLinkManual}
+          </p>
           <code className="block break-all text-xs text-tr-subtle">{manualLink}</code>
           <Button className="mt-2" variant="secondary" onClick={() => setManualLink(null)}>
             {t.common.close}
@@ -278,12 +459,7 @@ export function UserSettings() {
                 if (person?.email && !email.trim()) setEmail(person.email);
               }}
             >
-              <option value="">{t.users.noContact}</option>
-              {(staff.data ?? []).map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.full_name}
-                </option>
-              ))}
+              <ContactOptions staff={staff.data ?? []} taken={takenContacts(users.data)} />
             </Select>
           </Field>
           <OrgUnitField
@@ -377,6 +553,8 @@ export function UserSettings() {
                   <td className="py-2 pr-3">
                     {!user.is_active ? (
                       <span className="text-tr-danger">{t.users.locked}</span>
+                    ) : user.must_change_password ? (
+                      <span className="text-tr-warning">{t.users.mustChangePassword}</span>
                     ) : user.pending_invite ? (
                       <span className="text-tr-warning">{t.users.pendingInvite}</span>
                     ) : (
@@ -388,6 +566,9 @@ export function UserSettings() {
                   </td>
                   <td className="py-2">
                     <div className="flex flex-wrap justify-end gap-1">
+                      <Button size="sm" variant="secondary" onClick={() => setEditingInfo(user)}>
+                        {t.users.editInfo}
+                      </Button>
                       {access.canAssign || access.canPlace ? (
                         <Button size="sm" variant="secondary" onClick={() => setEditing(user)}>
                           {t.users.editAccess}
@@ -435,6 +616,15 @@ export function UserSettings() {
       ) : null}
 
       {editing ? <AccessDialog user={editing} onClose={() => setEditing(null)} /> : null}
+      {editingInfo ? (
+        <InfoDialog
+          user={editingInfo}
+          staff={staff.data ?? []}
+          taken={takenContacts(users.data, editingInfo.id)}
+          canSetPassword={canSetPassword && editingInfo.id !== myId}
+          onClose={() => setEditingInfo(null)}
+        />
+      ) : null}
     </Panel>
   );
 }

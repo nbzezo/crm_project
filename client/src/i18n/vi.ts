@@ -139,6 +139,12 @@ export const t = {
     resetInvalid: 'Liên kết đã hết hạn hoặc đã được dùng',
     resetInvalidHint: 'Hãy yêu cầu một liên kết mới từ màn hình đăng nhập.',
     resetDone: 'Đã đặt mật khẩu mới. Đang đưa bạn vào ứng dụng…',
+
+    forceChangeTitle: 'Đổi mật khẩu để tiếp tục',
+    forceChangeSubtitle:
+      'Quản trị viên vừa đặt mật khẩu tạm cho tài khoản này. Hãy đặt mật khẩu của riêng bạn.',
+    temporaryPassword: 'Mật khẩu tạm',
+    forceChangeFailed: 'Không đổi được mật khẩu',
   },
 
   permissions: {
@@ -235,6 +241,22 @@ export const t = {
     noPositionWarning:
       'Tài khoản chưa có vị trí nào nên đăng nhập vào sẽ không dùng được chức năng nào. Bấm "Phân quyền" để gán.',
     noPositionAccess: 'Bạn không có quyền gán vị trí — nhờ người quản trị phân quyền sau khi tạo.',
+    inviteFailed: 'Không gửi được thư mời ({error}). Sao chép liên kết này gửi cho họ:',
+    contactTaken: '(đã có tài khoản)',
+    editInfo: 'Sửa',
+    editInfoTitle: 'Thông tin tài khoản — {name}',
+    infoSaved: 'Đã cập nhật thông tin tài khoản',
+    contactChangeHint:
+      'Đơn vị của tài khoản nằm trên người trong sổ danh bạ — đổi người là đổi luôn đơn vị.',
+    setPassword: 'Đặt mật khẩu mới',
+    setPasswordHint:
+      'Để trống để hệ thống tự sinh mật khẩu tạm. Mọi phiên đăng nhập và liên kết mời cũ của họ sẽ bị huỷ.',
+    newPassword: 'Mật khẩu mới',
+    requireChange: 'Bắt đổi mật khẩu ở lần đăng nhập tới',
+    setPasswordSubmit: 'Đặt mật khẩu',
+    passwordSet: 'Đã đặt mật khẩu mới',
+    generatedPassword: 'Mật khẩu tạm — chỉ hiện một lần, hãy gửi cho họ qua kênh riêng:',
+    mustChangePassword: 'Chờ đổi mật khẩu',
   },
 
   emailSettings: {

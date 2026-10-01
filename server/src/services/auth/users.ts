@@ -1,6 +1,7 @@
 import { db } from '../../db/connection.ts';
 import { HttpError } from '../../lib/validate.ts';
 import { hashPassword } from './passwords.ts';
+import { revokeTokens } from './tokens.ts';
 
 /*
  * Tai khoan dang nhap.
@@ -133,6 +134,20 @@ export function countUsers(): number {
 
 export function findUserByUsername(username: string): UserRow | undefined {
   return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as UserRow | undefined;
+}
+
+/**
+ * Ten dang nhap chua ai dung, suy tu `base`.
+ *
+ * `username` suy tu phan truoc @ cua email nen `an@congty.vn` va `an@gmail.com`
+ * dung nhau, trong khi man Nguoi dung khong co o nao de sua no. Them hau to so
+ * thay vi bao loi: day la cot di san, khong ai go no de dang nhap nua.
+ */
+export function uniqueUsername(base: string): string {
+  const root = base.trim() || 'user';
+  let candidate = root;
+  for (let n = 2; findUserByUsername(candidate); n += 1) candidate = `${root}${n}`;
+  return candidate;
 }
 
 export function findUserByEmail(email: string): UserRow | undefined {
@@ -286,6 +301,31 @@ export async function setPassword(userId: number, password: string): Promise<voi
             updated_at = datetime('now','localtime')
       WHERE id = ?`
   ).run(hash, salt, userId);
+}
+
+/**
+ * Quan tri dat mat khau thay cho mot nguoi.
+ *
+ * `requireChange` bat nguoi do doi lai o lan dang nhap ke tiep — mat khau quan
+ * tri biet thi khong nen song lau. Moi phien dang mo va moi lien ket moi/dat lai
+ * con song deu bi huy: sau thao tac nay chi con DUNG MOT duong vao tai khoan.
+ */
+export async function setPasswordByAdmin(
+  userId: number,
+  password: string,
+  requireChange: boolean
+): Promise<void> {
+  const { hash, salt } = await hashPassword(password);
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE users
+          SET password_hash = ?, password_salt = ?, must_change_password = ?,
+              updated_at = datetime('now','localtime')
+        WHERE id = ?`
+    ).run(hash, salt, requireChange ? 1 : 0, userId);
+    revokeTokens(userId);
+    deleteUserSessions(userId);
+  })();
 }
 
 export function touchLastLogin(userId: number): void {

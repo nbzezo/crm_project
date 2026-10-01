@@ -35,8 +35,21 @@ function fallbackContactId(): number | null {
 export function attachCurrentUser(req: Request, _res: Response, next: NextFunction): void {
   const userId = req.session?.userId;
   if (userId) {
-    const row = db.prepare('SELECT contact_id FROM users WHERE id = ?').get(userId) as
-      { contact_id: number | null } | undefined;
+    const row = db
+      .prepare('SELECT contact_id, must_change_password FROM users WHERE id = ?')
+      .get(userId) as { contact_id: number | null; must_change_password: number } | undefined;
+    /* Mat khau do quan tri dat thay (POST /api/users/:id/password): chan moi route
+       nghiep vu cho toi khi chu tai khoan doi lai. `/api/auth` nam TRUOC middleware
+       nay nen /me va /password van mo. Chan o may chu chu khong chi o client — an
+       mot man hinh khong phai la chan. */
+    if (row?.must_change_password) {
+      next(
+        new HttpError(403, 'Bạn cần đổi mật khẩu trước khi tiếp tục', {
+          code: 'must_change_password',
+        })
+      );
+      return;
+    }
     req.currentUser = buildAccess(userId, row?.contact_id ?? null);
   } else {
     req.currentUser = { ...SYSTEM_ACCESS, contactId: fallbackContactId() };

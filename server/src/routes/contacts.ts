@@ -1,10 +1,42 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import type { PermissionAction } from '@workflow/contracts';
 import { actorContactId } from '../middleware/currentUser.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { assertInScope } from '../lib/scope.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 
 const router = Router();
+
+/**
+ * Kiem pham vi truoc khi sua/xoa mot nguoi lien he.
+ *
+ * Contact khong co chu rieng — no thuoc ve to chuc (`customers.owner_contact_id`),
+ * giong cach route khach hang kiem. Truoc day chi co rao TINH NANG
+ * (`requireResource('contacts')`), nen mot nhan vien voi quyen `own` sua/xoa
+ * duoc nguoi lien he cua bat ky ai. Ngoai le: ai cung sua duoc dong danh ba cua
+ * CHINH MINH, ke ca khi to chuc "cong ty minh" khong do ho lam chu.
+ */
+function assertContactInScope(
+  req: Request,
+  contactId: number,
+  action: PermissionAction
+): { customer_id: number } {
+  const row = required(
+    db
+      .prepare(
+        `SELECT ct.customer_id, c.owner_contact_id
+           FROM contacts ct JOIN customers c ON c.id = ct.customer_id
+          WHERE ct.id = ?`
+      )
+      .get(contactId),
+    'Khong tim thay nguoi lien he'
+  ) as { customer_id: number; owner_contact_id: number | null };
+  if (contactId !== actorContactId(req)) {
+    assertInScope(req, 'contacts', action, row.owner_contact_id, 'Khong tim thay nguoi lien he');
+  }
+  return row;
+}
 
 const contactSchema = z.object({
   full_name: z.string().trim().min(1).optional(),
@@ -87,6 +119,7 @@ router.get('/:id/full', (req, res) => {
 
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertContactInScope(req, id, 'update');
   const body = parseBody(contactSchema, req);
   const current = required(
     db.prepare(`SELECT * FROM contacts WHERE id = ?`).get(id),
@@ -129,6 +162,16 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertContactInScope(req, id, 'delete');
+  /* `users.contact_id` la ON DELETE SET NULL: xoa am tham se de lai mot tai khoan
+     van dang nhap duoc nhung mat don vi, mat pham vi du lieu va mat ten trong
+     "Viec cua toi". Bat go lien ket o man Nguoi dung truoc — noi co rao quyen. */
+  if (db.prepare('SELECT 1 FROM users WHERE contact_id = ?').get(id)) {
+    throw new HttpError(
+      409,
+      'Người này đang có tài khoản đăng nhập — gỡ liên kết ở màn Người dùng trước'
+    );
+  }
   db.prepare(`DELETE FROM contacts WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

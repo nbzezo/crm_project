@@ -425,6 +425,20 @@ router.delete('/:id', (req, res) => {
     'Khong tim thay khach hang'
   ) as { owner_contact_id: number | null };
   assertInScope(req, 'customers', 'delete', current.owner_contact_id);
+  /* Xoa to chuc keo theo moi contact (ON DELETE CASCADE) — voi "cong ty minh" la
+     ca danh ba nhan su. Cung rao nhu DELETE /api/contacts/:id. */
+  const linked = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM users u JOIN contacts ct ON ct.id = u.contact_id
+        WHERE ct.customer_id = ?`
+    )
+    .get(id) as { n: number };
+  if (linked.n > 0) {
+    throw new HttpError(
+      409,
+      `Tổ chức này có ${linked.n} người đang có tài khoản đăng nhập — gỡ liên kết ở màn Người dùng trước`
+    );
+  }
   db.prepare(`DELETE FROM customers WHERE id = ?`).run(id);
   res.json({ ok: true });
 });
