@@ -24,6 +24,7 @@ import type { Priority, TaskRow } from '../../types';
 import { Button, focusRing } from '../common/ui';
 import { CARD_STATUS_TONE } from './CardStatusControl';
 import { getDeadlinePresentation } from './TaskPresentation';
+import { splitByParent } from './taskHierarchy';
 import type { TaskGroup } from './TaskWorkspaceTypes';
 
 interface Lane {
@@ -80,9 +81,14 @@ function TaskCardContent({
   task,
   onOpen,
   dragHandle,
+  subtasks = [],
+  onOpenTask,
 }: {
   task: TaskRow;
   onOpen: () => void;
+  /** Việc con hiển thị lồng bên trong thẻ cha. */
+  subtasks?: TaskRow[];
+  onOpenTask?: (id: number) => void;
   dragHandle?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }) {
   const deadline = getDeadlinePresentation(task.due_date, Boolean(task.is_done));
@@ -125,11 +131,49 @@ function TaskCardContent({
           </span>
         )}
       </div>
+      {subtasks.length > 0 && (
+        <ul
+          className="mt-3 space-y-1 border-t border-tr-border pt-2"
+          aria-label={`Việc con của ${task.title}`}
+        >
+          {subtasks.map((child) => (
+            <li key={child.id}>
+              <button
+                type="button"
+                onClick={() => onOpenTask?.(child.id)}
+                className={`flex w-full min-w-0 items-center gap-2 rounded-control border-l-2 border-tr-primary/40 bg-tr-surface px-2 py-1 text-left text-xs hover:bg-tr-hover ${focusRing}`}
+                title={child.title}
+              >
+                <span
+                  className={`min-w-0 flex-1 truncate ${child.is_done ? 'text-tr-muted line-through' : 'text-tr-text'}`}
+                >
+                  {child.title}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 ${CARD_STATUS_TONE[child.status ?? 'todo']}`}
+                >
+                  {t.cardStatus[child.status ?? 'todo']}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   );
 }
 
-function DraggableTaskCard({ task, onOpen }: { task: TaskRow; onOpen: () => void }) {
+function DraggableTaskCard({
+  task,
+  subtasks,
+  onOpen,
+  onOpenTask,
+}: {
+  task: TaskRow;
+  subtasks: TaskRow[];
+  onOpen: () => void;
+  onOpenTask: (id: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `task-${task.id}`,
     data: { taskId: task.id },
@@ -140,12 +184,26 @@ function DraggableTaskCard({ task, onOpen }: { task: TaskRow; onOpen: () => void
       style={{ transform: CSS.Translate.toString(transform) }}
       className={isDragging ? 'opacity-30' : ''}
     >
-      <TaskCardContent task={task} onOpen={onOpen} dragHandle={{ ...listeners, ...attributes }} />
+      <TaskCardContent
+        task={task}
+        onOpen={onOpen}
+        dragHandle={{ ...listeners, ...attributes }}
+        subtasks={subtasks}
+        onOpenTask={onOpenTask}
+      />
     </div>
   );
 }
 
-function KanbanLane({ lane, onOpen }: { lane: Lane; onOpen: (id: number) => void }) {
+function KanbanLane({
+  lane,
+  childrenOf,
+  onOpen,
+}: {
+  lane: Lane;
+  childrenOf: Map<number, TaskRow[]>;
+  onOpen: (id: number) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: `lane-${lane.key}`, data: { lane } });
   const statusTone = CARD_STATUSES.includes(lane.key as CardStatus)
     ? CARD_STATUS_TONE[lane.key as CardStatus]
@@ -165,7 +223,13 @@ function KanbanLane({ lane, onOpen }: { lane: Lane; onOpen: (id: number) => void
       </header>
       <div className="mt-1 min-h-24 space-y-2">
         {lane.tasks.map((task) => (
-          <DraggableTaskCard key={task.id} task={task} onOpen={() => onOpen(task.id)} />
+          <DraggableTaskCard
+            key={task.id}
+            task={task}
+            subtasks={childrenOf.get(task.id) ?? []}
+            onOpen={() => onOpen(task.id)}
+            onOpenTask={onOpen}
+          />
         ))}
       </div>
       <Button variant="ghost" className="mt-2 w-full justify-start text-xs" disabled>
@@ -179,7 +243,9 @@ export function TaskWorkspaceKanban({ tasks, group }: { tasks: TaskRow[]; group:
   const queryClient = useQueryClient();
   const openCard = useUiStore((state) => state.openCard);
   const [active, setActive] = useState<TaskRow | null>(null);
-  const lanes = useMemo(() => lanesFor(tasks, group), [tasks, group]);
+  // Việc con nằm trong thẻ của việc cha, nên cột chỉ chứa việc cấp trên cùng.
+  const { roots, childrenOf } = useMemo(() => splitByParent(tasks), [tasks]);
+  const lanes = useMemo(() => lanesFor(roots, group), [roots, group]);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
@@ -213,13 +279,22 @@ export function TaskWorkspaceKanban({ tasks, group }: { tasks: TaskRow[]; group:
         className={`tr-scroll flex min-h-[520px] snap-x snap-mandatory items-start gap-3 overflow-x-auto pb-3 md:snap-none ${active ? 'snap-none' : ''}`}
       >
         {lanes.map((lane) => (
-          <KanbanLane key={lane.key} lane={lane} onOpen={(id) => openCard(id, 'drawer')} />
+          <KanbanLane
+            key={lane.key}
+            lane={lane}
+            childrenOf={childrenOf}
+            onOpen={(id) => openCard(id, 'drawer')}
+          />
         ))}
       </div>
       <DragOverlay>
         {active ? (
           <div className="w-[276px]">
-            <TaskCardContent task={active} onOpen={() => {}} />
+            <TaskCardContent
+              task={active}
+              onOpen={() => {}}
+              subtasks={childrenOf.get(active.id) ?? []}
+            />
           </div>
         ) : null}
       </DragOverlay>
