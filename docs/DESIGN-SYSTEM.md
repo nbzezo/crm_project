@@ -40,7 +40,69 @@ nhãn trang trí.
 ### Quy tắc chữ
 
 Nhãn tiếng Việt dùng kiểu viết hoa chữ đầu câu, không dùng `uppercase` hoặc
-tracking giãn cách để tạo cảm giác trang trí.
+tracking giãn cách để tạo cảm giác trang trí. Ngoại lệ duy nhất là theme Đơn
+sắc (xem mục dưới): chữ in hoa chỉ bật bằng CSS dưới `[data-theme='mono']`,
+không bao giờ bằng class trong `.tsx`.
+
+## Theme Đơn sắc
+
+Bộ theme: Sáng, Tối, Ubuntu 26, Đơn sắc và Theo hệ thống. Đơn sắc
+(`data-theme="mono"`) là theme nền sáng đen trắng: bản sắc nằm ở tương phản và
+cấu trúc (nền đen đảo ngược, viền 1 px, tiêu đề khối in hoa hẹp), không ở màu.
+Người dùng còn lưu theme cũ đã gỡ được đưa về Sáng (`REMOVED_LIGHT_THEMES` trong
+`stores/themeStore.ts`).
+
+### Móc cấu trúc
+
+Component chỉ gắn class/thuộc tính trung tính; class đó chỉ có style dưới
+`[data-theme='mono']`, nên ba theme còn lại không đổi.
+
+| Móc | Gắn vào | Ở theme Đơn sắc |
+|---|---|---|
+| `tr-display` | `<h1>` của `PageHeader`, Dashboard, `DetailHeader`, trang không qua `PageHeader`, tên bảng, tiêu đề `Drawer`, ô tiêu đề thẻ | Archivo đậm 900, hẹp 72%, in hoa, `line-height` 1.08 |
+| `tr-display-page` | Thêm cạnh `tr-display` ở `<h1>` cấp trang (`PageHeader`, Tổng quan, `DetailHeader`, chi tiết dự án) | 36 px mobile, 44 px từ `md`, 56 px từ `xl` |
+| `tr-rule` | `<span aria-hidden>` ngay dưới tiêu đề | Vạch đen 32 × 2 px. Theme khác: `display: none` (luật duy nhất ngoài khối mono) |
+| `tr-eyebrow` | Tiêu đề `Panel`, nhóm sidebar, nhóm công việc, "Nên ưu tiên" | 12 px, đậm 800, giãn 0.16em, in hoa |
+| `tr-group-title` | Tiêu đề nhóm ở trang công việc cũ | Bỏ viền viên thuốc |
+| `tr-kpi` + `data-tone` | Ô `Metric` trên Tổng quan | Tone `danger`/`warning` đảo nền đen |
+| `tr-kpi-value` | Số trong `Metric` | 30 px, hẹp 80% |
+| `tr-rank` | Ô số trong danh sách ưu tiên | Ô vuông đen |
+| `tr-list-title` | Tên cột Kanban, cột Pipeline, nhóm Kanban công việc | 15 px in hoa hẹp; số đếm/chip con trở về kiểu thường |
+| `tr-card-title` | Ô tiêu đề trong cửa sổ thẻ | 22 px (mobile), 28 px từ `sm` |
+| `tr-modal-title` | Tiêu đề `Modal` | 24 px in hoa hẹp |
+| `tr-stage-stepper` + `data-active` | Thanh giai đoạn cơ hội | Viên thuốc đánh số, bước hiện tại tô đen |
+
+Thành phần dùng chung đã có class định danh (`.tr-button-*`, `.tr-modal`,
+`.tr-tab`, `table > thead`, `.tr-empty-state`) được skin thẳng trong khối mono,
+không cần móc mới.
+
+### Quy tắc
+
+- **Chữ in hoa:** chỉ trong CSS dưới `[data-theme='mono']`. `check-ui-system`
+  chặn mọi `text-transform: uppercase` ở `index.css` nằm ngoài selector đó;
+  trong `.tsx` vẫn cấm `uppercase`/`tracking-wide`.
+- **Màu dữ liệu giữ nguyên:** nhãn, nền bảng, ưu tiên, `STAGE_COLORS`,
+  `REVENUE_STAGE_COLORS`, màu cover thẻ, loại sự kiện lịch, trạng thái dịch vụ
+  và chuỗi biểu đồ mang nghĩa nên không khai báo lại trong khối mono.
+- **Ngoại lệ `!important`:** bước giai đoạn hiện tại đặt màu bằng style inline
+  (`STAGE_COLORS`); chỉ luật `.tr-stage-stepper > button[data-active='true']`
+  được dùng `!important` để tô đen.
+- **`--tr-primary` là đen** trong theme này — ngoại lệ có chủ đích so với ghi chú
+  ở `:root`. `--tr-danger` vẫn đỏ cho thao tác xoá và lỗi; `ErrorState` (`role="alert"`) giữ viền đỏ, không bị skin trạng thái rỗng đổi sang đen. Huy hiệu hợp đồng ≤30 ngày (`tr-badge-warn`) giữ nền nâu nhạt từ `--tr-warning`.
+- **Remap cục bộ phải lặp `--color-tr-*`:** Tailwind v4 tính `--color-tr-*` một
+  lần ở `:root`, nên khi đổi token trên phần tử con (`.tr-bento-dark`,
+  `.tr-kpi[data-tone]`) phải khai cả `--tr-*` lẫn `--color-tr-*`.
+- **Tương phản:** `check-contrast` đo mọi theme, gồm các cặp chữ trên nền đặc
+  (`--tr-on-primary`/`--tr-primary`, huy hiệu hạn, mục nav đang chọn). Trượt thì
+  chỉnh giá trị token, không hạ ngưỡng.
+
+### Theme có font riêng
+
+Font riêng của theme khai trong `client/src/lib/themeFonts.ts` (`FONT_URLS`) và
+được `applyTheme` tải bằng `<link>` khi theme bật lần đầu; các theme khác không
+phải tải. Font phải có dải tiếng Việt U+1EA0–1EF9 (Archivo có), nếu không chữ có
+dấu bị trộn font. Đặt `--font-sans` trong khối theme, giữ Plus Jakarta Sans làm
+dự phòng.
 
 ## Quy tắc tương tác
 

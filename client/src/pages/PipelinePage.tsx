@@ -654,7 +654,9 @@ function StageColumn({
           className="h-2.5 w-2.5 rounded-full"
           style={{ backgroundColor: STAGE_COLORS[stage] }}
         />
-        <span className="flex-1 text-sm font-semibold text-tr-text">{t.stage[stage]}</span>
+        <span className="tr-list-title flex-1 text-sm font-semibold text-tr-text">
+          {t.stage[stage]}
+        </span>
         <span className="text-xs text-tr-muted">{deals.length}</span>
       </header>
 

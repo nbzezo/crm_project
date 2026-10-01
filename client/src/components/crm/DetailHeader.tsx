@@ -50,9 +50,12 @@ export function DetailHeader({
 
         <div className="min-w-0 flex-1 max-md:order-2 max-md:basis-full">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="min-w-0 text-xl font-semibold text-tr-text">{title}</h1>
+            <h1 className="tr-display tr-display-page min-w-0 text-xl font-semibold text-tr-text">
+              {title}
+            </h1>
             {badges}
           </div>
+          <span className="tr-rule" aria-hidden="true" />
           {labels}
           {meta && (
             <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-tr-muted md:flex md:flex-wrap md:gap-4">

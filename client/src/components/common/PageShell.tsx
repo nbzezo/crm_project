@@ -68,9 +68,11 @@ export function PageHeader({
       className={`${actions ? `flex flex-wrap justify-between gap-4 ${align === 'center' ? 'items-center' : 'items-start'}` : ''} ${className}`}
     >
       <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-tr-text">
+        {/* tr-display / tr-rule: moc cho theme Don sac, khong co style o theme khac */}
+        <h1 className="tr-display tr-display-page text-2xl font-semibold tracking-tight text-tr-text">
           {title ?? routeTitle}
         </h1>
+        <span className="tr-rule" aria-hidden="true" />
         {description && <p className="mt-1 text-sm text-tr-muted">{description}</p>}
       </div>
       {actions}

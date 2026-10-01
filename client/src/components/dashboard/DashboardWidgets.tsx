@@ -199,7 +199,7 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
       : tone === 'warning'
         ? 'bg-tr-warning/10 text-tr-warning hover:bg-tr-warning/15'
         : 'bg-tr-panel text-tr-text hover:bg-tr-hover';
-  const className = `tr-bento-card-interactive group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border p-3 text-left min-h-[88px] md:col-span-1 ${toneClass} ${focusRing}`;
+  const className = `tr-kpi tr-bento-card-interactive group flex min-w-0 flex-col justify-between rounded-panel border border-tr-border p-3 text-left min-h-[88px] md:col-span-1 ${toneClass} ${focusRing}`;
   const supportingTextClass = tone === 'business' ? 'text-tr-muted' : 'text-tr-subtle';
   const content = (
     <>
@@ -213,7 +213,7 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
         <span className="truncate">{label}</span>
       </span>
       <span className="mt-1.5 flex min-w-0 items-end justify-between gap-1.5">
-        <span className="truncate text-2xl font-bold tracking-[-0.035em] tabular-nums">
+        <span className="tr-kpi-value truncate text-2xl font-bold tracking-[-0.035em] tabular-nums">
           {value}
         </span>
         {hint && (
@@ -229,12 +229,18 @@ function Metric({ icon: Icon, label, value, hint, tone, to, onClick }: MetricIte
 
   if (to)
     return (
-      <Link to={to} className={className} aria-label={`${label}: ${value}`}>
+      <Link to={to} className={className} data-tone={tone} aria-label={`${label}: ${value}`}>
         {content}
       </Link>
     );
   return (
-    <button type="button" onClick={onClick} className={className} aria-label={`${label}: ${value}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={className}
+      data-tone={tone}
+      aria-label={`${label}: ${value}`}
+    >
       {content}
     </button>
   );
@@ -426,7 +432,7 @@ export function ActionWidget({
     >
       {recommendations.length > 0 && (
         <div className="mb-3 rounded-panel bg-tr-hover p-2.5">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-tr-subtle">
+          <div className="tr-eyebrow mb-1.5 flex items-center gap-1.5 text-xs font-bold text-tr-subtle">
             <ShieldAlert size={13} className="text-tr-warning" aria-hidden="true" /> Nên ưu tiên
           </div>
           <ol className="grid gap-1 sm:grid-cols-3">
@@ -503,7 +509,7 @@ function RecommendationItem({
   const content = (
     <>
       <span
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+        className={`tr-rank flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
           item.tone === 'danger'
             ? 'bg-tr-danger/15 text-tr-danger'
             : item.tone === 'warning'

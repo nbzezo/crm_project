@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm rounded-modal border border-tr-border bg-tr-panel p-6 shadow-lg">
         <div className="mb-5 flex flex-col items-center gap-2 text-center">
           <Logo className="h-10 w-10" />
-          <h1 className="text-lg font-bold text-tr-text">
+          <h1 className="tr-display text-lg font-bold text-tr-text">
             {phase === 'invalid' ? t.auth.resetInvalid : title}
           </h1>
           {phase === 'ready' && subtitle ? (

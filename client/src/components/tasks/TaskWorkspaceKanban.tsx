@@ -156,7 +156,9 @@ function KanbanLane({ lane, onOpen }: { lane: Lane; onOpen: (id: number) => void
       className={`w-[min(calc(100vw-3rem),340px)] shrink-0 snap-start rounded-panel border p-2 transition md:w-[292px] ${isOver ? 'border-tr-primary bg-tr-primary/5' : 'border-tr-border bg-tr-surface'}`}
     >
       <header className="flex h-9 items-center justify-between px-1">
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusTone}`}>
+        <span
+          className={`tr-list-title rounded-full px-2 py-0.5 text-xs font-semibold ${statusTone}`}
+        >
           {lane.label}
         </span>
         <span className="text-xs tabular-nums text-tr-muted">{lane.tasks.length}</span>

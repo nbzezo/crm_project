@@ -245,9 +245,7 @@ function DataSettings() {
 
         {/* NFR-06: xuất CSV mở được bằng Excel */}
         <div className="mt-4">
-          <h3 className="mb-2 text-xs font-semibold text-tr-subtle">
-            {t.settings.exportCsv}
-          </h3>
+          <h3 className="mb-2 text-xs font-semibold text-tr-subtle">{t.settings.exportCsv}</h3>
           <div className="flex flex-wrap gap-2">
             {CSV_EXPORTS.map(([entity, label]) => (
               <a
@@ -263,9 +261,7 @@ function DataSettings() {
 
         {backups.length > 0 && (
           <div className="mt-4">
-            <h3 className="mb-2 text-xs font-semibold text-tr-subtle">
-              {t.settings.backupList}
-            </h3>
+            <h3 className="mb-2 text-xs font-semibold text-tr-subtle">{t.settings.backupList}</h3>
             <ul className="divide-y divide-tr-border rounded-lg border border-tr-border">
               {backups.map((file) => (
                 <li key={file.name} className="flex items-center gap-3 px-3 py-2 text-sm">

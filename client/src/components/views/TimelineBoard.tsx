@@ -94,9 +94,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
       <div className="mb-4 rounded-modal border border-tr-border bg-tr-panel p-3 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-tr-muted">
-              Cách nhóm
-            </p>
+            <p className="mb-1.5 text-xs font-semibold text-tr-muted">Cách nhóm</p>
             <Segmented
               label="Cách nhóm công việc"
               value={groupBy}
@@ -109,9 +107,7 @@ export function TimelineBoard({ boardId, projectId }: { boardId?: number; projec
           </div>
 
           <div className="sm:text-right">
-            <p className="mb-1.5 text-xs font-semibold text-tr-muted">
-              Thang thời gian
-            </p>
+            <p className="mb-1.5 text-xs font-semibold text-tr-muted">Thang thời gian</p>
             <Segmented
               label="Thang thời gian"
               value={zoom}

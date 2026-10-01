@@ -82,6 +82,13 @@ for (const file of await walk(sourceRoot)) {
   const codeLines = blankComments(source).split(/\r?\n/);
 
   lines.forEach((line, index) => {
+    if (relative === 'index.css' && /text-transform:\s*uppercase/.test(codeLines[index] ?? '')) {
+      let open = index;
+      while (open > 0 && !/\{\s*$/.test(codeLines[open])) open--;
+      if (!codeLines[open].trimStart().startsWith("[data-theme='mono']")) {
+        findings.push(`index.css:${index + 1} chữ hoa chỉ được bật trong theme Đơn sắc.`);
+      }
+    }
     if (/rounded-\[3px\]/.test(line)) {
       findings.push(`${relative}:${index + 1} dùng rounded-[3px]; hãy dùng rounded-compact.`);
     }

@@ -185,7 +185,7 @@ export default function OrgDirectoryPage() {
   if (isLoading || error) {
     return (
       <div className="space-y-4 p-4 sm:p-6">
-        <p className="text-base font-bold text-tr-text">{t.nav.orgDirectory}</p>
+        <p className="tr-display text-base font-bold text-tr-text">{t.nav.orgDirectory}</p>
         {isLoading ? (
           <div className="rounded-panel border border-tr-border bg-tr-panel">
             <SkeletonRows rows={5} cols={3} />
@@ -201,7 +201,7 @@ export default function OrgDirectoryPage() {
     <div className="space-y-4 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-base font-bold text-tr-text">{t.nav.orgDirectory}</p>
+          <p className="tr-display text-base font-bold text-tr-text">{t.nav.orgDirectory}</p>
           <p className="text-xs text-tr-muted">
             Quản lý công ty, đối tác, nhà cung cấp và người liên hệ.
           </p>

@@ -312,7 +312,7 @@ export function TaskWorkspaceList({
                   ) : (
                     <ChevronDown size={16} />
                   )}
-                  <span className="flex-1">{taskGroup.label}</span>
+                  <span className="tr-eyebrow flex-1">{taskGroup.label}</span>
                   <span className="text-xs text-tr-muted">{taskGroup.tasks.length}</span>
                 </button>
                 {!collapsed.has(taskGroup.key) && (
@@ -443,7 +443,7 @@ export function TaskWorkspaceList({
                             return next;
                           })
                         }
-                        className={`inline-flex min-h-7 items-center gap-1.5 rounded-control text-xs font-semibold text-tr-text ${focusRing}`}
+                        className={`tr-eyebrow inline-flex min-h-7 items-center gap-1.5 rounded-control text-xs font-semibold text-tr-text ${focusRing}`}
                         aria-expanded={!collapsed.has(taskGroup.key)}
                       >
                         {collapsed.has(taskGroup.key) ? (

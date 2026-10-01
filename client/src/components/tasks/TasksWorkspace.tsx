@@ -707,7 +707,7 @@ export function TasksWorkspace() {
                   <Menu size={18} />
                 </button>
                 <div className="min-w-0">
-                  <h1 className="hidden truncate text-lg font-semibold text-tr-text lg:block">
+                  <h1 className="tr-display hidden truncate text-lg font-semibold text-tr-text lg:block">
                     {scope === 'activity'
                       ? 'Hoạt động công việc'
                       : scope === 'completed'

@@ -51,9 +51,11 @@ function DashboardHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
+        {/* tr-display / tr-rule: moc cho theme Don sac */}
+        <h1 className="tr-display tr-display-page text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
           Tổng quan
         </h1>
+        <span className="tr-rule" aria-hidden="true" />
         <p className="mt-0.5 text-sm text-tr-muted">Toàn cảnh công việc &amp; kinh doanh của bạn</p>
       </div>
       <div className="flex w-full items-center gap-2 self-start sm:w-auto sm:self-auto">

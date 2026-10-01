@@ -149,9 +149,7 @@ function FilterPopover({
 
         {tags.length > 0 && (
           <div className="mt-2 border-t border-tr-border pt-2">
-            <div className="mb-1.5 px-1 text-xs font-semibold text-tr-muted">
-              Tag
-            </div>
+            <div className="mb-1.5 px-1 text-xs font-semibold text-tr-muted">Tag</div>
             <div className="flex flex-wrap gap-1.5">
               {tags.map((tag) => (
                 <button

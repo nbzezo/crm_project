@@ -183,7 +183,7 @@ export const ListColumn = memo(function ListColumn({
               className="w-full rounded-control border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm font-semibold text-tr-text outline-none"
             />
           ) : coarsePointer ? (
-            <span className="flex-1 truncate px-2 py-1 text-sm font-semibold text-tr-text">
+            <span className="tr-list-title flex-1 truncate px-2 py-1 text-sm font-semibold text-tr-text">
               {list.name}{' '}
               <span className="text-xs font-normal text-tr-muted">
                 {hiddenCount > 0 ? `${cards.length}/${cards.length + hiddenCount}` : cards.length}
@@ -201,7 +201,7 @@ export const ListColumn = memo(function ListColumn({
               type="button"
               onClick={() => setEditingName(true)}
               aria-label={`Đổi tên danh sách ${list.name}`}
-              className="flex-1 truncate rounded-control px-2 py-1 text-left text-sm font-semibold text-tr-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary"
+              className="tr-list-title flex-1 truncate rounded-control px-2 py-1 text-left text-sm font-semibold text-tr-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary"
             >
               {list.name}
               <span className="ml-1.5 text-xs font-normal text-tr-muted">

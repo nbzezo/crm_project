@@ -512,9 +512,7 @@ function TaskSummaryBar() {
       aria-label="Tổng quan công việc"
       className="flex flex-wrap items-center gap-1 rounded-panel border border-tr-border bg-tr-panel p-2 shadow-sm"
     >
-      <span className="px-2 text-xs font-semibold text-tr-subtle">
-        Cần chú ý
-      </span>
+      <span className="px-2 text-xs font-semibold text-tr-subtle">Cần chú ý</span>
       {summary.map((item) => {
         /* Chip dem 0 phai TRONG nhat hon, nhung khong duoc lam bang `opacity`:
            `--tr-subtle` von chi vua du AA, ha 55% la rot xuong 2,39:1 (axe do
@@ -673,7 +671,7 @@ export function LegacyTasksPage() {
           {groups.map((group) => (
             <section key={group.key}>
               {group.label && (
-                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-tr-text">
+                <h3 className="tr-eyebrow tr-group-title mb-2 flex items-center gap-2 text-sm font-semibold text-tr-text">
                   <span className="rounded-full border border-tr-border bg-tr-panel px-2.5 py-1">
                     {group.label}
                   </span>
