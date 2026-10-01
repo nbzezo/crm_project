@@ -729,6 +729,78 @@
   font-weight: 800;
 }
 
+/* Nut: phang, vien dam. Tailwind `shadow-sm` o VARIANTS bi luat nay de. */
+[data-theme='mono'] .tr-button {
+  box-shadow: none;
+}
+
+[data-theme='mono'] .tr-button-secondary {
+  border: 1.5px solid #111111;
+}
+
+[data-theme='mono'] .tr-button-secondary:hover {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+[data-theme='mono'] .tr-button-danger {
+  background-color: transparent;
+  color: var(--tr-danger);
+  border: 1.5px solid var(--tr-danger);
+  filter: none;
+}
+
+[data-theme='mono'] .tr-button-danger:hover {
+  background-color: var(--tr-danger);
+  color: var(--tr-on-danger);
+}
+
+/* Hop thoai */
+[data-theme='mono'] .tr-modal {
+  border: 1.5px solid #111111;
+  box-shadow: 0 24px 60px rgba(17, 17, 17, 0.3);
+}
+
+[data-theme='mono'] .tr-modal-title {
+  font-size: 24px;
+  font-weight: 900;
+  font-stretch: 72%;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* Tab: gach chan day (ngang), vach den ben trai (doc). */
+[data-theme='mono'] .tr-tabs:not([aria-orientation]) .tr-tab[aria-selected='true'] {
+  border-bottom-width: 3px;
+  font-weight: 800;
+  color: var(--tr-text);
+}
+
+[data-theme='mono'] .tr-tabs[aria-orientation='vertical'] .tr-tab[aria-selected='true'] {
+  box-shadow: inset 3px 0 0 #111111;
+  font-weight: 800;
+  color: var(--tr-text);
+}
+
+/* Moi bang: dau cot chu hoa nho, ke duoi dam. Ap cho ca <thead> thuan lan TableHead. */
+[data-theme='mono'] table > thead > tr > th {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tr-text);
+}
+
+[data-theme='mono'] table > thead {
+  box-shadow: 0 1.5px 0 #111111;
+}
+
+/* Trang thai rong: net dut den. */
+[data-theme='mono'] .tr-empty-state {
+  border-color: #111111;
+  border-style: dashed;
+}
+
 /* ---------- Con tro chuot tren phan tu bam duoc ----------
    Preflight cua Tailwind v3 co luat `button { cursor: pointer }`; ban v4 da bo,
    va trinh duyet khong tu dat pointer cho <button>. Neu khong khai bao lai o day

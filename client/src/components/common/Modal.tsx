@@ -69,7 +69,10 @@ export function Modal({
         className={`tr-modal tr-anim-pop flex h-full max-h-full w-full flex-col ${width} rounded-none bg-tr-panel shadow-2xl sm:h-auto sm:rounded-modal`}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-tr-border px-5 py-4 pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-4">
-          <div id={titleId} className="min-w-0 flex-1 text-lg font-semibold text-tr-text">
+          <div
+            id={titleId}
+            className="tr-modal-title min-w-0 flex-1 text-lg font-semibold text-tr-text"
+          >
             {title}
           </div>
           <button
