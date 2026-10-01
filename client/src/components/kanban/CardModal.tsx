@@ -297,8 +297,9 @@ export function CardModal() {
                     if (e.key === 'Escape') setTitle(card.title);
                   }}
                   aria-label="Tiêu đề thẻ"
-                  className="w-full rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
+                  className="tr-display tr-card-title w-full rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
                 />
+                <span className="tr-rule ml-1.5" aria-hidden="true" />
               </div>
 
               <div className="mt-2.5 mb-4">

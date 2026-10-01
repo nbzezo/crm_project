@@ -336,7 +336,7 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
                       className={`shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
                       aria-hidden="true"
                     />
-                    <span className="truncate">{group.label}</span>
+                    <span className="tr-eyebrow truncate">{group.label}</span>
                   </button>
                 </h3>
                 {editMode && !isGroupDefaultOrder(group.id, order) && (

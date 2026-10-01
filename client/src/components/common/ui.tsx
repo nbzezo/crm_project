@@ -664,7 +664,7 @@ export function Panel({
           tran co hoi" tren /pipeline-health. */}
       {(title || action) && (
         <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="min-w-0 text-base font-semibold tracking-[-0.01em] text-tr-text">
+          <h2 className="tr-eyebrow min-w-0 text-base font-semibold tracking-[-0.01em] text-tr-text">
             {title}
           </h2>
           {action}
