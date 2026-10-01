@@ -34,6 +34,8 @@ interface ImportResult {
     amount_vnd: number;
   };
   rows: ImportRow[];
+  /** Sheet "Chỉ tiêu KPI": số ô chỉ tiêu mới / thay đổi và dòng lỗi. */
+  kpi: { cells: number; ams: number; errors: { row: number; am: string; errors: string[] }[] };
 }
 
 const ACTION_LABEL: Record<ImportRow['action'], string> = {
@@ -84,6 +86,7 @@ export function RevenueImportDialog({
   const result = commit.data ?? preview.data;
   const done = Boolean(commit.data);
   const okCount = result ? result.summary.create + result.summary.update : 0;
+  const kpiCells = result?.kpi.cells ?? 0;
   const templateUrl = `/api/revenues/import-template.xlsx${qs({ year, ...filters })}`;
 
   const pick = (next: File | undefined) => {
@@ -110,12 +113,19 @@ export function RevenueImportDialog({
             <Button onClick={onClose}>{t.common.cancel}</Button>
             <Button
               variant="primary"
-              disabled={!file || !result || okCount === 0 || commit.isPending || preview.isPending}
+              disabled={
+                !file ||
+                !result ||
+                okCount + kpiCells === 0 ||
+                commit.isPending ||
+                preview.isPending
+              }
               onClick={() => file && commit.mutate(file)}
             >
               {result && result.summary.error > 0
                 ? `Nhập ${okCount} dòng hợp lệ, bỏ qua ${result.summary.error} dòng lỗi`
                 : `Nhập ${okCount} dòng`}
+              {kpiCells > 0 ? ` + ${kpiCells} ô chỉ tiêu KPI` : ''}
             </Button>
           </>
         )
@@ -206,6 +216,25 @@ export function RevenueImportDialog({
                 {formatVND(result.summary.amount_vnd)}
               </span>
             </div>
+
+            {(kpiCells > 0 || result.kpi.errors.length > 0) && (
+              <div className="rounded-control border border-tr-border px-3 py-2 text-xs">
+                <p className="text-tr-subtle">
+                  Sheet “Chỉ tiêu KPI”: {kpiCells} ô chỉ tiêu mới / thay đổi của {result.kpi.ams}{' '}
+                  AM.
+                </p>
+                {result.kpi.errors.length > 0 && (
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4 text-tr-danger">
+                    {result.kpi.errors.map((e) => (
+                      <li key={e.row}>
+                        Dòng {e.row}
+                        {e.am ? ` (${e.am})` : ''}: {e.errors.join('; ')}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             {result.rows.length === 0 ? (
               <p className="text-tr-muted">File không có dòng dữ liệu nào.</p>

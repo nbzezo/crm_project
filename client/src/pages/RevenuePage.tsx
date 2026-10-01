@@ -30,6 +30,7 @@ import { RevenueLineActions } from '../components/crm/RevenueLineActions';
 import { RevenueFunnelCards } from '../components/crm/RevenueFunnelCards';
 import { RevenueGroupOverview } from '../components/crm/RevenueGroupOverview';
 import { RevenueBaseComparison } from '../components/crm/RevenueBaseComparison';
+import { RevenueKpiView } from '../components/crm/RevenueKpiView';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { PageHeader, PageShell } from '../components/common/PageShell';
 import { Popover, PopoverItem, usePopover } from '../components/common/Popover';
@@ -104,19 +105,21 @@ const AXIS_PROPS = {
   tickLine: false,
 };
 
-type RevenueView = 'total' | 'new' | 'base';
+type RevenueView = 'total' | 'new' | 'base' | 'kpi';
 type KindFilter = 'new_expansion' | 'new' | 'expansion';
 
 const VIEW_OPTIONS: { value: RevenueView; label: string }[] = [
   { value: 'total', label: t.revenueView.total },
   { value: 'new', label: t.revenueView.new },
   { value: 'base', label: t.revenueView.base },
+  { value: 'kpi', label: 'KPI' },
 ];
 
 const VIEW_DESCRIPTION: Record<RevenueView, string> = {
   total: 'Gộp doanh thu Mới, Mở rộng và Nền.',
   new: 'Doanh thu trong 12 tháng đầu kể từ tháng phát sinh doanh thu đầu tiên của hợp đồng mới hoặc mở rộng.',
   base: 'Doanh thu của hợp đồng từ tháng thứ 13 trở đi, so với năm trước.',
+  kpi: 'Chỉ tiêu theo AM; ghi nhận doanh thu mới, mở rộng và mở rộng từ Nền (đã đối soát).',
 };
 
 const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
@@ -127,7 +130,7 @@ const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
 
 function groupSetOf(view: RevenueView, kind: KindFilter): Set<RevenueGroup> | null {
   if (view === 'base') return new Set(['base']);
-  if (view === 'total') return null;
+  if (view === 'total' || view === 'kpi') return null;
   return kind === 'new_expansion' ? new Set(['new', 'expansion']) : new Set([kind]);
 }
 
@@ -141,10 +144,12 @@ export default function RevenuePage() {
   const navigate = useNavigate();
   const params = useParams();
   const view: RevenueView =
-    params.view === 'new' ? 'new' : params.view === 'base' ? 'base' : 'total';
+    params.view === 'new' || params.view === 'base' || params.view === 'kpi'
+      ? params.view
+      : 'total';
   const [kind, setKind] = useState<KindFilter>('new_expansion');
   const groupSet = groupSetOf(view, kind);
-  const group = view === 'total' ? undefined : view === 'base' ? 'base' : kind;
+  const group = view === 'total' || view === 'kpi' ? undefined : view === 'base' ? 'base' : kind;
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
@@ -200,12 +205,14 @@ export default function RevenuePage() {
 
   const { data, isLoading } = useQuery({
     queryKey: listKey,
+    enabled: view !== 'kpi',
     queryFn: () => api.get<RevenueLinesResponse>(`/api/revenues/lines${qs({ year, ...filters })}`),
   });
   const lines = data?.lines ?? [];
 
   const { data: summary } = useQuery({
     queryKey: ['revenues', 'summary', year, filters],
+    enabled: view !== 'kpi',
     queryFn: () => api.get<RevenueSummary>(`/api/revenues/summary${qs({ year, ...filters })}`),
   });
 
@@ -216,7 +223,7 @@ export default function RevenuePage() {
       api.get<RevenueComparisonResponse>(
         `/api/revenues/comparison${qs({ year, ...filters, group: view === 'base' ? 'base' : 'all' })}`
       ),
-    enabled: view !== 'new',
+    enabled: view === 'total' || view === 'base',
   });
 
   const { data: years = [] } = useQuery({
@@ -470,315 +477,334 @@ export default function RevenuePage() {
         )}
       </div>
 
-      {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
-      <RevenueFunnelCards total={total} detailed lineCount={summary?.line_count ?? 0} year={year} />
+      {view === 'kpi' ? (
+        <RevenueKpiView year={year} filters={{ q: term, status, service_id: serviceId, am }} />
+      ) : (
+        <>
+          {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
+          <RevenueFunnelCards
+            total={total}
+            detailed
+            lineCount={summary?.line_count ?? 0}
+            year={year}
+          />
 
-      {view === 'total' && (
-        <RevenueGroupOverview year={year} summary={summary} comparison={comparison} />
-      )}
-      {view === 'base' && (
-        <RevenueBaseComparison year={year} data={comparison} isLoading={comparisonLoading} />
-      )}
+          {view === 'total' && (
+            <RevenueGroupOverview year={year} summary={summary} comparison={comparison} />
+          )}
+          {view === 'base' && (
+            <RevenueBaseComparison year={year} data={comparison} isLoading={comparisonLoading} />
+          )}
 
-      <Panel
-        title={`Doanh thu theo tháng — năm ${year}`}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              aria-expanded={chartOpen}
-              onClick={toggleChart}
-              className={`rounded-control px-2.5 py-1 text-xs font-medium text-tr-subtle hover:bg-tr-hover ${focusRing}`}
-            >
-              {chartOpen ? 'Ẩn biểu đồ' : 'Hiện biểu đồ'}
-            </button>
+          <Panel
+            title={`Doanh thu theo tháng — năm ${year}`}
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  aria-expanded={chartOpen}
+                  onClick={toggleChart}
+                  className={`rounded-control px-2.5 py-1 text-xs font-medium text-tr-subtle hover:bg-tr-hover ${focusRing}`}
+                >
+                  {chartOpen ? 'Ẩn biểu đồ' : 'Hiện biểu đồ'}
+                </button>
+                {chartOpen && (
+                  <Segmented
+                    label="Chế độ xem biểu đồ"
+                    value={chartView}
+                    onChange={setChartView}
+                    options={CHART_VIEW_OPTIONS}
+                  />
+                )}
+              </div>
+            }
+          >
             {chartOpen && (
-              <Segmented
-                label="Chế độ xem biểu đồ"
-                value={chartView}
-                onChange={setChartView}
-                options={CHART_VIEW_OPTIONS}
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartView === 'monthly' ? chartData : cumulativeChartData}
+                    margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
+                  >
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="name" {...AXIS_PROPS} />
+                    <YAxis
+                      {...AXIS_PROPS}
+                      tickFormatter={(v: number) => formatVNDShort(v)}
+                      width={64}
+                    />
+                    <Tooltip content={<RevenueChartTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    {REVENUE_STAGE_ORDER.map((stage) => (
+                      <Bar
+                        key={stage}
+                        dataKey={stage}
+                        stackId="revenue"
+                        name={t.revenueStage[stage]}
+                        fill={REVENUE_STAGE_COLORS[stage]}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {/* Bieu do cot chong 4 giai doan: khong the doc bang ban phim hay trinh
+            doc man hinh neu khong co bang kem theo. */}
+            {chartOpen && (
+              <ChartDataTable
+                caption={`Doanh thu ${year} theo tháng — ${chartView === 'monthly' ? 'theo tháng' : 'lũy kế'}`}
+                valueLabel="Tổng"
+                rows={(chartView === 'monthly' ? chartData : cumulativeChartData).map((row) => ({
+                  name: row.name,
+                  value: REVENUE_STAGE_ORDER.map(
+                    (stage) => `${t.revenueStage[stage]} ${formatVNDShort(row[stage])}`
+                  ).join(' · '),
+                }))}
               />
             )}
-          </div>
-        }
-      >
-        {chartOpen && (
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartView === 'monthly' ? chartData : cumulativeChartData}
-                margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
-              >
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="name" {...AXIS_PROPS} />
-                <YAxis
-                  {...AXIS_PROPS}
-                  tickFormatter={(v: number) => formatVNDShort(v)}
-                  width={64}
-                />
-                <Tooltip content={<RevenueChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                {REVENUE_STAGE_ORDER.map((stage) => (
-                  <Bar
-                    key={stage}
-                    dataKey={stage}
-                    stackId="revenue"
-                    name={t.revenueStage[stage]}
-                    fill={REVENUE_STAGE_COLORS[stage]}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-        {/* Bieu do cot chong 4 giai doan: khong the doc bang ban phim hay trinh
-            doc man hinh neu khong co bang kem theo. */}
-        {chartOpen && (
-          <ChartDataTable
-            caption={`Doanh thu ${year} theo tháng — ${chartView === 'monthly' ? 'theo tháng' : 'lũy kế'}`}
-            valueLabel="Tổng"
-            rows={(chartView === 'monthly' ? chartData : cumulativeChartData).map((row) => ({
-              name: row.name,
-              value: REVENUE_STAGE_ORDER.map(
-                (stage) => `${t.revenueStage[stage]} ${formatVNDShort(row[stage])}`
-              ).join(' · '),
-            }))}
-          />
-        )}
-      </Panel>
+          </Panel>
 
-      {/* Bảng nhập doanh thu 12 tháng */}
-      {isLoading ? (
-        <div className="rounded-panel border border-tr-border bg-tr-panel">
-          <SkeletonRows rows={6} cols={6} />
-        </div>
-      ) : lines.length === 0 ? (
-        hasActiveFilters ? (
-          <EmptyState
-            message={t.revenue.noResults}
-            action={
-              <Button variant="secondary" onClick={clearFilters}>
-                {t.common.clearFilter}
-              </Button>
-            }
-          />
-        ) : (
-          <EmptyState
-            message={t.revenue.noLines}
-            action={
-              <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
-                <Plus size={16} /> {t.revenue.newLine}
-              </Button>
-            }
-          />
-        )
-      ) : (
-        <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-tr-border px-3 py-2 text-xs text-tr-muted">
-            <span className="inline-flex items-center gap-1.5" title={t.revenue.guideFlow}>
-              <Info size={12} className="shrink-0" aria-hidden="true" />
-              {t.revenue.guide}
-            </span>
-            <span className="flex flex-wrap items-center gap-3">
-              {REVENUE_STAGE_ORDER.map((stage) => (
-                <span key={stage} className="flex items-center gap-1.5">
-                  <RevenueStageGlyph stage={stage} />
-                  {t.revenueStage[stage]}
+          {/* Bảng nhập doanh thu 12 tháng */}
+          {isLoading ? (
+            <div className="rounded-panel border border-tr-border bg-tr-panel">
+              <SkeletonRows rows={6} cols={6} />
+            </div>
+          ) : lines.length === 0 ? (
+            hasActiveFilters ? (
+              <EmptyState
+                message={t.revenue.noResults}
+                action={
+                  <Button variant="secondary" onClick={clearFilters}>
+                    {t.common.clearFilter}
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                message={t.revenue.noLines}
+                action={
+                  <Button variant="primary" onClick={() => setLineForm({ open: true, line: null })}>
+                    <Plus size={16} /> {t.revenue.newLine}
+                  </Button>
+                }
+              />
+            )
+          ) : (
+            <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-tr-border px-3 py-2 text-xs text-tr-muted">
+                <span className="inline-flex items-center gap-1.5" title={t.revenue.guideFlow}>
+                  <Info size={12} className="shrink-0" aria-hidden="true" />
+                  {t.revenue.guide}
                 </span>
-              ))}
-            </span>
-          </div>
-          <div className="divide-y divide-tr-border md:hidden">
-            {lines.map((line) => {
-              const paid = MONTHS.filter(
-                (month) => line.months[periodOf(year, month)]?.stage === 'paid'
-              ).length;
-              return (
-                <button
-                  key={line.id}
-                  type="button"
-                  onClick={() => setMonthsFor(line)}
-                  className="flex min-h-24 w-full flex-col gap-2 px-3 py-3 text-left text-tr-text"
-                >
-                  <span className="flex w-full items-start justify-between gap-3">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">
-                        {line.customer_name}
-                      </span>
-                      <span className="block truncate text-xs text-tr-muted">
-                        {line.service_name ?? 'Chưa gán dịch vụ'}
-                      </span>
+                <span className="flex flex-wrap items-center gap-3">
+                  {REVENUE_STAGE_ORDER.map((stage) => (
+                    <span key={stage} className="flex items-center gap-1.5">
+                      <RevenueStageGlyph stage={stage} />
+                      {t.revenueStage[stage]}
                     </span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums">
-                      {formatVNDShort(line.totals.amount_vnd)}
-                    </span>
-                  </span>
-                  <span className="grid h-2 w-full grid-cols-12 gap-0.5" aria-hidden="true">
-                    {MONTHS.map((month) => {
-                      const stage = line.months[periodOf(year, month)]?.stage;
-                      return (
-                        <span
-                          key={month}
-                          className={`rounded-full ${stage === 'paid' ? 'bg-tr-success' : stage ? 'bg-tr-warning' : 'bg-tr-hover-strong'}`}
-                        />
-                      );
-                    })}
-                  </span>
-                  <span className="text-xs text-tr-muted">Đã thu {paid}/12 tháng</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="tr-scroll hidden max-h-[70vh] overflow-auto md:block">
-            <table className="w-full text-sm">
-              <TableHead className="sticky top-0 z-20 shadow-[0_1px_0_var(--tr-border)]">
-                <tr>
-                  <th
-                    scope="col"
-                    className="sticky top-0 left-0 z-30 min-w-56 border-r border-tr-border bg-tr-surface px-3 py-2.5"
-                  >
-                    {t.card.customer}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
-                    {t.revenue.am}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
-                    {t.revenue.contractKind}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
-                    {t.revenue.contractTerm}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
-                    {t.revenue.service}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
-                    {t.revenue.status}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
-                    {t.revenue.total}
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
-                    {t.revenue.receivable}
-                  </th>
-                  {MONTHS.map((m) => (
-                    <th scope="col" key={m} className="px-2 py-2.5 text-right whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          setBulkMonth(m);
-                          bulkPopover.show(e);
-                        }}
-                        title={t.revenue.setStageForMonth}
-                        aria-label={`${t.revenue.setStageForMonth}: ${t.revenue.month} ${m}`}
-                        className={`rounded-control-inner px-1 py-0.5 transition hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
-                      >
-                        {t.revenue.month} {m}
-                      </button>
-                    </th>
                   ))}
-                  <th scope="col" className="px-2 py-2.5"></th>
-                </tr>
-              </TableHead>
-              <tbody className="divide-y divide-tr-border">
-                {lines.map((line) => (
-                  <tr key={line.id} className="group hover:bg-tr-hover">
-                    <td className="sticky left-0 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
-                      <Link
-                        to={`/customers/${line.customer_id}`}
-                        className="font-medium text-tr-text hover:text-tr-primary hover:underline"
-                      >
-                        {line.customer_name}
-                      </Link>
-                      {line.contract_name && (
-                        <div className="text-xs text-tr-muted">{line.contract_name}</div>
-                      )}
-                      <GroupBadge line={line} year={year} onEdit={() => setAnchorFor(line)} />
-                    </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                      {line.am || '—'}
-                    </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                      {t.contractKind[line.contract_kind]}
-                    </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                      {t.contractTerm[line.contract_term]}
-                    </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap text-tr-text">
-                      {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <StatusChip status={line.status}>{t.serviceStatus[line.status]}</StatusChip>
-                    </td>
-                    <td
-                      className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
-                      title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
+                </span>
+              </div>
+              <div className="divide-y divide-tr-border md:hidden">
+                {lines.map((line) => {
+                  const paid = MONTHS.filter(
+                    (month) => line.months[periodOf(year, month)]?.stage === 'paid'
+                  ).length;
+                  return (
+                    <button
+                      key={line.id}
+                      type="button"
+                      onClick={() => setMonthsFor(line)}
+                      className="flex min-h-24 w-full flex-col gap-2 px-3 py-3 text-left text-tr-text"
                     >
-                      {formatVNDInput(line.totals.amount_vnd) || '0'}
-                    </td>
-                    <td
-                      className="bg-tr-surface px-3 py-1.5 text-right tabular-nums"
-                      title={t.revenue.receivableHint}
-                    >
-                      {receivable(line.totals) > 0 ? (
-                        <span className="font-semibold text-tr-warning">
-                          {formatVNDInput(receivable(line.totals))}
+                      <span className="flex w-full items-start justify-between gap-3">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">
+                            {line.customer_name}
+                          </span>
+                          <span className="block truncate text-xs text-tr-muted">
+                            {line.service_name ?? 'Chưa gán dịch vụ'}
+                          </span>
                         </span>
-                      ) : (
-                        <span className="text-tr-muted">—</span>
-                      )}
-                    </td>
-                    {MONTHS.map((m) => {
-                      const period = periodOf(year, m);
-                      const cell = line.months[period];
-                      return (
-                        <MonthCell
+                        <span className="shrink-0 text-sm font-semibold tabular-nums">
+                          {formatVNDShort(line.totals.amount_vnd)}
+                        </span>
+                      </span>
+                      <span className="grid h-2 w-full grid-cols-12 gap-0.5" aria-hidden="true">
+                        {MONTHS.map((month) => {
+                          const stage = line.months[periodOf(year, month)]?.stage;
+                          return (
+                            <span
+                              key={month}
+                              className={`rounded-full ${stage === 'paid' ? 'bg-tr-success' : stage ? 'bg-tr-warning' : 'bg-tr-hover-strong'}`}
+                            />
+                          );
+                        })}
+                      </span>
+                      <span className="text-xs text-tr-muted">Đã thu {paid}/12 tháng</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="tr-scroll hidden max-h-[70vh] overflow-auto md:block">
+                <table className="w-full text-sm">
+                  <TableHead className="sticky top-0 z-20 shadow-[0_1px_0_var(--tr-border)]">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="sticky top-0 left-0 z-30 min-w-56 border-r border-tr-border bg-tr-surface px-3 py-2.5"
+                      >
+                        {t.card.customer}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                        {t.revenue.am}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                        {t.revenue.contractKind}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                        {t.revenue.contractTerm}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                        {t.revenue.service}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
+                        {t.revenue.status}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
+                        {t.revenue.total}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
+                        {t.revenue.receivable}
+                      </th>
+                      {MONTHS.map((m) => (
+                        <th
+                          scope="col"
                           key={m}
-                          cell={cell}
-                          monthLabel={`T${m}`}
-                          outOfGroup={
-                            outOfGroup(line, period)
-                              ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period]]}`
-                              : undefined
-                          }
-                          onAmount={(amount_vnd) => saveAmount(line, period, amount_vnd)}
-                          onStage={(stage) => saveCell.mutate({ lineId: line.id, period, stage })}
-                        />
-                      );
-                    })}
-                    <td className="px-2 py-1.5">
-                      <RevenueLineActions
-                        line={line}
-                        onMonths={setMonthsFor}
-                        onAnchor={setAnchorFor}
-                        onEdit={(next) => setLineForm({ open: true, line: next })}
-                        onDelete={(next) => setDeleteId(next.id)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="sticky bottom-0 z-20 bg-tr-surface text-sm font-semibold shadow-[0_-1px_0_var(--tr-border)]">
-                <tr>
-                  <td className="sticky bottom-0 left-0 z-30 border-r border-tr-border bg-tr-surface px-3 py-2 text-tr-subtle">
-                    {t.revenue.grandTotal}
-                  </td>
-                  {/* AM, loại HĐ, thời hạn, dịch vụ, tình trạng */}
-                  <td colSpan={5} />
-                  <td className="px-3 py-2 text-right tabular-nums text-tr-text">
-                    {formatVNDInput(grandTotal) || '0'}
-                  </td>
-                  <td />
-                  {monthTotals.map((value, i) => (
-                    <td key={i} className="px-2 py-2 text-right tabular-nums text-tr-text">
-                      {formatVNDInput(value) || '—'}
-                    </td>
-                  ))}
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+                          className="px-2 py-2.5 text-right whitespace-nowrap"
+                        >
+                          <button
+                            onClick={(e) => {
+                              setBulkMonth(m);
+                              bulkPopover.show(e);
+                            }}
+                            title={t.revenue.setStageForMonth}
+                            aria-label={`${t.revenue.setStageForMonth}: ${t.revenue.month} ${m}`}
+                            className={`rounded-control-inner px-1 py-0.5 transition hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+                          >
+                            {t.revenue.month} {m}
+                          </button>
+                        </th>
+                      ))}
+                      <th scope="col" className="px-2 py-2.5"></th>
+                    </tr>
+                  </TableHead>
+                  <tbody className="divide-y divide-tr-border">
+                    {lines.map((line) => (
+                      <tr key={line.id} className="group hover:bg-tr-hover">
+                        <td className="sticky left-0 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
+                          <Link
+                            to={`/customers/${line.customer_id}`}
+                            className="font-medium text-tr-text hover:text-tr-primary hover:underline"
+                          >
+                            {line.customer_name}
+                          </Link>
+                          {line.contract_name && (
+                            <div className="text-xs text-tr-muted">{line.contract_name}</div>
+                          )}
+                          <GroupBadge line={line} year={year} onEdit={() => setAnchorFor(line)} />
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+                          {line.am || '—'}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+                          {t.contractKind[line.contract_kind]}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+                          {t.contractTerm[line.contract_term]}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-text">
+                          {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <StatusChip status={line.status}>
+                            {t.serviceStatus[line.status]}
+                          </StatusChip>
+                        </td>
+                        <td
+                          className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
+                          title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
+                        >
+                          {formatVNDInput(line.totals.amount_vnd) || '0'}
+                        </td>
+                        <td
+                          className="bg-tr-surface px-3 py-1.5 text-right tabular-nums"
+                          title={t.revenue.receivableHint}
+                        >
+                          {receivable(line.totals) > 0 ? (
+                            <span className="font-semibold text-tr-warning">
+                              {formatVNDInput(receivable(line.totals))}
+                            </span>
+                          ) : (
+                            <span className="text-tr-muted">—</span>
+                          )}
+                        </td>
+                        {MONTHS.map((m) => {
+                          const period = periodOf(year, m);
+                          const cell = line.months[period];
+                          return (
+                            <MonthCell
+                              key={m}
+                              cell={cell}
+                              monthLabel={`T${m}`}
+                              outOfGroup={
+                                outOfGroup(line, period)
+                                  ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period]]}`
+                                  : undefined
+                              }
+                              onAmount={(amount_vnd) => saveAmount(line, period, amount_vnd)}
+                              onStage={(stage) =>
+                                saveCell.mutate({ lineId: line.id, period, stage })
+                              }
+                            />
+                          );
+                        })}
+                        <td className="px-2 py-1.5">
+                          <RevenueLineActions
+                            line={line}
+                            onMonths={setMonthsFor}
+                            onAnchor={setAnchorFor}
+                            onEdit={(next) => setLineForm({ open: true, line: next })}
+                            onDelete={(next) => setDeleteId(next.id)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-20 bg-tr-surface text-sm font-semibold shadow-[0_-1px_0_var(--tr-border)]">
+                    <tr>
+                      <td className="sticky bottom-0 left-0 z-30 border-r border-tr-border bg-tr-surface px-3 py-2 text-tr-subtle">
+                        {t.revenue.grandTotal}
+                      </td>
+                      {/* AM, loại HĐ, thời hạn, dịch vụ, tình trạng */}
+                      <td colSpan={5} />
+                      <td className="px-3 py-2 text-right tabular-nums text-tr-text">
+                        {formatVNDInput(grandTotal) || '0'}
+                      </td>
+                      <td />
+                      {monthTotals.map((value, i) => (
+                        <td key={i} className="px-2 py-2 text-right tabular-nums text-tr-text">
+                          {formatVNDInput(value) || '—'}
+                        </td>
+                      ))}
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Chuyển trạng thái toàn bộ một tháng */}

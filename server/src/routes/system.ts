@@ -54,6 +54,8 @@ export const EXPORT_TABLES = [
   'service_revenues',
   // v45 — TB thang nam truoc de so sanh doanh thu Nen
   'revenue_baselines',
+  // v46 — chi tieu KPI doanh thu theo AM
+  'revenue_kpi_targets',
   'boards',
   'lists',
   'cards',

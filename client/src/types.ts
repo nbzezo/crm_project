@@ -1379,3 +1379,41 @@ export interface ScoringSettings {
   challengeThresholdVnd: number;
   winlossMinDeals: number;
 }
+
+/** Một tháng KPI doanh thu: chỉ tiêu, ba nguồn ghi nhận và Lost (không trừ KPI). */
+export interface RevenueKpiMonth {
+  period: string;
+  target_vnd: number;
+  new_vnd: number;
+  expansion_vnd: number;
+  base_growth_vnd: number;
+  total_vnd: number;
+  lost_vnd: number;
+  pending_count: number;
+  missing_baseline_count: number;
+}
+
+export type RevenueKpiStatus = 'counted' | 'base_growth' | 'lost' | 'pending' | 'missing_baseline';
+
+export interface RevenueKpiEntry {
+  line_id: number;
+  am: string;
+  period: string;
+  group: RevenueGroup;
+  status: RevenueKpiStatus;
+  revenue_vnd: number;
+  prev_avg_vnd: number | null;
+  kpi_vnd: number;
+  lost_vnd: number;
+  customer_id: number;
+  customer_name: string;
+  service_name: string | null;
+}
+
+export interface RevenueKpiResponse {
+  year: number;
+  current_period: string;
+  months: RevenueKpiMonth[];
+  by_am: { am: string; months: RevenueKpiMonth[] }[];
+  entries: RevenueKpiEntry[];
+}

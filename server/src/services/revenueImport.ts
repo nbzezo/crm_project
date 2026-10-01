@@ -13,6 +13,9 @@ import type { AnchorMode } from './revenueSegments.ts';
  */
 
 export const IMPORT_SHEET = 'Doanh thu';
+export const KPI_SHEET = 'Chỉ tiêu KPI';
+/** Ten hien thi cua nhom AM rong trong file. */
+export const NO_AM_LABEL = '(Chưa gán AM)';
 const META_SHEET = '_meta';
 
 const KIND_LABELS: Record<ContractKind, string> = { new: 'Mới', expansion: 'Mở rộng' };
@@ -97,11 +100,18 @@ function listValidation(values: string[]): ExcelJS.DataValidation {
 }
 
 /** File mau cua nam `year`, dien san cac dong dang co de sua thang tren do. */
+export interface TemplateKpi {
+  am: string;
+  /** Chi tieu thang 1..12 (undefined = chua dat). */
+  months: (number | undefined)[];
+}
+
 export async function buildTemplate(
   year: number,
   lines: TemplateLine[],
   customers: string[],
-  services: string[]
+  services: string[],
+  kpi: TemplateKpi[] = []
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'WorkFlow';
@@ -178,6 +188,26 @@ export async function buildTemplate(
     }
   }
 
+  const kpiSheet = wb.addWorksheet(KPI_SHEET, {
+    views: [{ state: 'frozen', xSplit: 1, ySplit: 1 }],
+  });
+  kpiSheet.columns = [
+    { header: 'AM', key: 'am', width: 22 },
+    ...Array.from({ length: 12 }, (_, i) => ({ header: `T${i + 1}`, key: `m${i + 1}`, width: 14 })),
+  ];
+  kpiSheet.getRow(1).font = { bold: true };
+  kpiSheet.getCell('A1').note =
+    'Mỗi dòng một AM, ghi đúng tên AM như trên dòng doanh thu. Ô để trống = giữ nguyên; điền 0 để xoá chỉ tiêu.';
+  for (const item of kpi) {
+    const row: Record<string, unknown> = { am: item.am || NO_AM_LABEL };
+    item.months.forEach((value, i) => {
+      if (value !== undefined) row[`m${i + 1}`] = value;
+    });
+    kpiSheet.addRow(row);
+  }
+  for (let r = 2; r <= Math.max(kpi.length + 1, 50); r += 1)
+    for (let c = 2; c <= 13; c += 1) kpiSheet.getCell(r, c).numFmt = '#,##0';
+
   const guide = wb.addWorksheet('Hướng dẫn');
   guide.getColumn(1).width = 110;
   [
@@ -189,6 +219,7 @@ export async function buildTemplate(
     `Mốc phân nhóm: "${ANCHOR_AUTO}" (12 tháng đầu là Mới / Mở rộng, sau đó là Nền), "${ANCHOR_BASE}", hoặc tháng mốc MM/YYYY.`,
     `TB tháng năm trước: mức so sánh của doanh thu Nền năm ${year} (TB tháng năm ${year - 1}).`,
     'Chỉ những ô tháng có số tiền mới hoặc khác số đang có mới được ghi. "Trạng thái doanh thu" áp dụng cho chính các ô đó — tháng giữ nguyên số tiền thì giữ nguyên trạng thái.',
+    `Sheet "${KPI_SHEET}": chỉ tiêu KPI doanh thu năm ${year} theo từng AM và từng tháng. Dòng "${NO_AM_LABEL}" là chỉ tiêu cho doanh thu chưa gán AM.`,
     'Sau khi tải lên, hệ thống cho xem trước từng dòng (thêm / sửa / lỗi) rồi mới ghi.',
   ].forEach((text, i) => {
     guide.getCell(i + 1, 1).value = text;
@@ -206,9 +237,18 @@ export async function buildTemplate(
 
 export type RawRow = { row: number } & Partial<Record<ColumnKey, unknown>>;
 
+export interface KpiRow {
+  row: number;
+  am: string;
+  /** Thang (1..12) -> chi tieu; 0 = xoa chi tieu. */
+  months: Map<number, number>;
+  errors: string[];
+}
+
 export interface ParsedWorkbook {
   year: number | null;
   rows: RawRow[];
+  kpi: KpiRow[];
 }
 
 /** Gia tri thuan cua mot o: bo cong thuc, rich text, hyperlink. */
@@ -232,7 +272,7 @@ export async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer as unknown as ArrayBuffer);
   const ws = wb.getWorksheet(IMPORT_SHEET) ?? wb.worksheets.find((s) => s.state === 'visible');
-  if (!ws) return { year: null, rows: [] };
+  if (!ws) return { year: null, rows: [], kpi: [] };
 
   const metaYear = Number(plain(wb.getWorksheet(META_SHEET)?.getCell('B1').value ?? null));
   const columnOf = new Map<ColumnKey, number>();
@@ -263,6 +303,7 @@ export async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   return {
     year: Number.isInteger(metaYear) && metaYear >= 2000 && metaYear <= 2100 ? metaYear : null,
     rows,
+    kpi: parseKpiSheet(wb.getWorksheet(KPI_SHEET)),
   };
 }
 
@@ -400,4 +441,38 @@ export function validateRow(raw: RawRow): ParsedRow {
     else out.months.set(m, value);
   }
   return out;
+}
+
+/** Sheet chi tieu KPI: cot "AM" + T1..T12, doc theo tieu de. */
+function parseKpiSheet(ws: ExcelJS.Worksheet | undefined): KpiRow[] {
+  if (!ws) return [];
+  const columnOf = new Map<string, number>();
+  ws.getRow(1).eachCell((cell, col) => {
+    columnOf.set(fold(String(plain(cell.value) ?? '').trim()), col);
+  });
+  const amCol = columnOf.get('am');
+  if (!amCol) return [];
+  const rows: KpiRow[] = [];
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const name = String(plain(row.getCell(amCol).value) ?? '').trim();
+    const item: KpiRow = {
+      row: rowNumber,
+      am: name === NO_AM_LABEL ? '' : name,
+      months: new Map(),
+      errors: [],
+    };
+    for (let m = 1; m <= 12; m += 1) {
+      const col = columnOf.get(`t${m}`);
+      if (!col) continue;
+      const value = plain(row.getCell(col).value);
+      if (isBlank(value)) continue;
+      const amount = parseAmount(value);
+      if (amount === null) item.errors.push(`T${m}: "${String(value)}" không phải số tiền hợp lệ`);
+      else item.months.set(m, amount);
+    }
+    if (!name && item.months.size > 0) item.errors.push('Thiếu tên AM');
+    if (name || item.months.size > 0 || item.errors.length > 0) rows.push(item);
+  });
+  return rows;
 }

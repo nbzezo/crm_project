@@ -21,6 +21,7 @@ import {
   type RevenueGroup,
 } from '../services/revenueSegments.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
+import { computeKpi, summarizeKpi } from '../services/revenueKpi.ts';
 import {
   buildTemplate,
   parseWorkbook,
@@ -606,6 +607,140 @@ router.get('/comparison', (req, res) => {
   res.json({ year, current_period: current, lines: rows });
 });
 
+/* ---------- KPI doanh thu theo AM ---------- */
+
+const NO_AM = '';
+
+/** TB thang nam truoc cua tung dong: so nhap tay, khong co thi tu tinh tu nam truoc. */
+function prevAverages(ids: number[], year: number): Map<number, number | null> {
+  const manual = loadBaselines(ids, year);
+  const sums = new Map<number, { total: number; months: number }>();
+  for (const cell of loadCells(ids, `${year - 1}-%`)) {
+    if (cell.amount_vnd <= 0) continue;
+    const s = sums.get(cell.line_id) ?? { total: 0, months: 0 };
+    s.total += cell.amount_vnd;
+    s.months += 1;
+    sums.set(cell.line_id, s);
+  }
+  return new Map(
+    ids.map((id) => {
+      if (manual.has(id)) return [id, manual.get(id)!];
+      const s = sums.get(id);
+      return [id, s ? Math.round(s.total / s.months) : null];
+    })
+  );
+}
+
+/**
+ * KPI cua nam: 12 thang (chi tieu, Moi, Mo rong, Mo rong tu Nen, Lost), bang theo
+ * AM va chi tiet tung dong. Loc theo AM thi chi tieu cung chi lay cua AM do.
+ */
+router.get('/kpi', (req, res) => {
+  const year = resolveYear(req.query.year);
+  const { sql, params } = buildFilters(req);
+  const raw = db
+    .prepare(`${LINE_SELECT} ${sql} ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE, cs.id`)
+    .all(...params) as Record<string, unknown>[];
+  const lines = attachMonths(raw, year);
+  const prev = prevAverages(
+    lines.map((l) => Number(l.id)),
+    year
+  );
+  const current = currentPeriod();
+  const entries = computeKpi(
+    lines.map((line) => ({
+      line_id: Number(line.id),
+      am: ((line.am as string | null) ?? '').trim(),
+      groups: line.groups,
+      cells: line.months,
+      prev_avg_vnd: prev.get(Number(line.id)) ?? null,
+    })),
+    year,
+    current
+  );
+
+  const amFilter = typeof req.query.am === 'string' && req.query.am ? req.query.am : null;
+  const targetRows = db
+    .prepare(
+      `SELECT am, period, target_vnd FROM revenue_kpi_targets
+        WHERE period LIKE ? ${amFilter ? 'AND am = ?' : ''}`
+    )
+    .all(`${year}-%`, ...(amFilter ? [amFilter] : [])) as {
+    am: string;
+    period: string;
+    target_vnd: number;
+  }[];
+
+  /* AM hien trong bang chi tieu: moi AM co dong doanh thu hoac da co chi tieu. */
+  const amNames = new Set<string>(targetRows.map((t) => t.am));
+  for (const line of lines) amNames.add(((line.am as string | null) ?? '').trim());
+  if (amFilter) {
+    amNames.clear();
+    amNames.add(amFilter);
+  }
+
+  const targetsTotal: Record<string, number> = {};
+  const targetsByAm = new Map<string, Record<string, number>>();
+  for (const t of targetRows) {
+    targetsTotal[t.period] = (targetsTotal[t.period] ?? 0) + t.target_vnd;
+    const own = targetsByAm.get(t.am) ?? {};
+    own[t.period] = t.target_vnd;
+    targetsByAm.set(t.am, own);
+  }
+
+  const byAm = [...amNames]
+    .sort((a, b) => (a === NO_AM ? 1 : b === NO_AM ? -1 : a.localeCompare(b, 'vi')))
+    .map((am) => ({
+      am,
+      months: summarizeKpi(
+        entries.filter((e) => e.am === am),
+        year,
+        targetsByAm.get(am) ?? {}
+      ),
+    }));
+
+  const info = new Map(lines.map((l) => [Number(l.id), l]));
+  res.json({
+    year,
+    current_period: current,
+    months: summarizeKpi(entries, year, targetsTotal),
+    by_am: byAm,
+    entries: entries.map((e) => {
+      const line = info.get(e.line_id)!;
+      return {
+        ...e,
+        customer_id: line.customer_id,
+        customer_name: line.customer_name,
+        service_name: line.service_name,
+      };
+    }),
+  });
+});
+
+const upsertKpiTarget = db.prepare(
+  `INSERT INTO revenue_kpi_targets (am, period, target_vnd, updated_by) VALUES (?, ?, ?, ?)
+   ON CONFLICT(am, period) DO UPDATE SET target_vnd = excluded.target_vnd,
+     updated_by = excluded.updated_by, updated_at = datetime('now','localtime')`
+);
+
+router.put('/kpi-targets', (req, res) => {
+  const body = parseBody(
+    z.object({
+      am: z.string().max(200),
+      period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM'),
+      target_vnd: z.number().int().min(0).nullable(),
+    }),
+    req
+  );
+  const am = body.am.trim();
+  if (body.target_vnd === null) {
+    db.prepare(`DELETE FROM revenue_kpi_targets WHERE am = ? AND period = ?`).run(am, body.period);
+  } else {
+    upsertKpiTarget.run(am, body.period, body.target_vnd, actorContactId(req));
+  }
+  res.json({ am, period: body.period, target_vnd: body.target_vnd });
+});
+
 /* ---------- Moc phan nhom (sua tay, co canh bao) ---------- */
 
 const anchorSchema = z
@@ -793,7 +928,21 @@ router.get('/import-template.xlsx', async (req, res) => {
     }[]
   ).map((r) => r.name);
 
-  const buffer = await buildTemplate(year, lines, customers, services);
+  const kpiRows = db
+    .prepare(`SELECT am, period, target_vnd FROM revenue_kpi_targets WHERE period LIKE ?`)
+    .all(`${year}-%`) as { am: string; period: string; target_vnd: number }[];
+  const kpiAms = new Set<string>(kpiRows.map((r) => r.am));
+  for (const line of lines) if (line.am?.trim()) kpiAms.add(line.am.trim());
+  const kpi = [...kpiAms]
+    .sort((a, b) => a.localeCompare(b, 'vi'))
+    .map((am) => ({
+      am,
+      months: yearPeriods(year).map(
+        (p) => kpiRows.find((r) => r.am === am && r.period === p)?.target_vnd
+      ),
+    }));
+
+  const buffer = await buildTemplate(year, lines, customers, services, kpi);
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -1054,10 +1203,46 @@ router.post('/import', acceptImportFile, async (req, res) => {
   const planned = planImport(req, parsed.rows.map(validateRow), year);
   const commit = req.query.commit === '1';
 
+  /* Chi tieu KPI: chi ghi o khac so dang co; 0 = xoa chi tieu. */
+  const currentTargets = new Map(
+    (
+      db
+        .prepare(`SELECT am, period, target_vnd FROM revenue_kpi_targets WHERE period LIKE ?`)
+        .all(`${year}-%`) as { am: string; period: string; target_vnd: number }[]
+    ).map((r) => [`${r.am}|${r.period}`, r.target_vnd])
+  );
+  const seenAm = new Map<string, number>();
+  const kpiChanges: { am: string; period: string; value: number }[] = [];
+  const kpiErrors: { row: number; am: string; errors: string[] }[] = [];
+  for (const item of parsed.kpi) {
+    const errors = [...item.errors];
+    const earlier = seenAm.get(item.am);
+    if (earlier !== undefined) errors.push(`Trùng AM với dòng ${earlier} trong sheet KPI`);
+    else seenAm.set(item.am, item.row);
+    if (errors.length) {
+      kpiErrors.push({ row: item.row, am: item.am, errors });
+      continue;
+    }
+    for (const [month, value] of item.months) {
+      const period = `${year}-${String(month).padStart(2, '0')}`;
+      const now = currentTargets.get(`${item.am}|${period}`);
+      if (value === 0 ? now !== undefined : now !== value)
+        kpiChanges.push({ am: item.am, period, value });
+    }
+  }
+
   if (commit) {
     db.transaction(() => {
       for (const row of planned) {
         if (row.action !== 'error') row.target_id = applyRow(req, row, year);
+      }
+      for (const change of kpiChanges) {
+        if (change.value === 0)
+          db.prepare(`DELETE FROM revenue_kpi_targets WHERE am = ? AND period = ?`).run(
+            change.am,
+            change.period
+          );
+        else upsertKpiTarget.run(change.am, change.period, change.value, actorContactId(req));
       }
     })();
   }
@@ -1074,6 +1259,11 @@ router.post('/import', acceptImportFile, async (req, res) => {
       error: planned.filter((r) => r.action === 'error').length,
       cells: ok.reduce((sum, r) => sum + r.months.size, 0),
       amount_vnd: ok.reduce((sum, r) => sum + [...r.months.values()].reduce((a, b) => a + b, 0), 0),
+    },
+    kpi: {
+      cells: kpiChanges.length,
+      ams: new Set(kpiChanges.map((c) => c.am)).size,
+      errors: kpiErrors,
     },
     rows: planned.map((r) => ({
       row: r.row,
