@@ -17,6 +17,7 @@ import {
   CircleCheck,
   CircleDot,
   Download,
+  FileSpreadsheet,
   FileText,
   Info,
   MoreHorizontal,
@@ -80,6 +81,11 @@ const MonthlyRevenueModal = lazy(() =>
 const RevenueAnchorDialog = lazy(() =>
   import('../components/crm/RevenueAnchorDialog').then((module) => ({
     default: module.RevenueAnchorDialog,
+  }))
+);
+const RevenueImportDialog = lazy(() =>
+  import('../components/crm/RevenueImportDialog').then((module) => ({
+    default: module.RevenueImportDialog,
   }))
 );
 const ServiceCatalog = lazy(() =>
@@ -159,6 +165,7 @@ export default function RevenuePage() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [anchorFor, setAnchorFor] = useState<RevenueLine | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   /** Nhập bù một tháng trước mốc tự động — chờ người dùng xác nhận. */
   const [retroSave, setRetroSave] = useState<{
     line: RevenueLine;
@@ -369,6 +376,9 @@ export default function RevenuePage() {
             >
               <Download size={15} aria-hidden="true" /> Xuất CSV
             </a>
+            <Button onClick={() => setImportOpen(true)}>
+              <FileSpreadsheet size={15} aria-hidden="true" /> Nhập Excel
+            </Button>
             <Button onClick={() => setCatalogOpen(true)}>
               <Settings2 size={15} aria-hidden="true" /> {t.service.manage}
             </Button>
@@ -840,6 +850,13 @@ export default function RevenuePage() {
           />
         )}
         {catalogOpen && <ServiceCatalog open onClose={() => setCatalogOpen(false)} />}
+        {importOpen && (
+          <RevenueImportDialog
+            year={year}
+            filters={{ q: term, status, service_id: serviceId, am }}
+            onClose={() => setImportOpen(false)}
+          />
+        )}
         {anchorFor !== null && (
           <RevenueAnchorDialog line={anchorFor} year={year} onClose={() => setAnchorFor(null)} />
         )}

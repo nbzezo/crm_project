@@ -1,4 +1,5 @@
-import { Router, type Request } from 'express';
+import { Router, type Request, type RequestHandler } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
@@ -20,7 +21,13 @@ import {
   type RevenueGroup,
 } from '../services/revenueSegments.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
-import type { ContractKind, ServiceStatus } from '@workflow/contracts';
+import {
+  buildTemplate,
+  parseWorkbook,
+  validateRow,
+  type ParsedRow,
+} from '../services/revenueImport.ts';
+import type { ContractKind, ContractTerm, ServiceStatus } from '@workflow/contracts';
 
 const router = Router();
 
@@ -739,6 +746,348 @@ router.post('/baselines/fill', (req, res) => {
     }
   })();
   res.json({ filled, no_data: body.line_ids.length - rows.length });
+});
+
+/* ---------- Nhap / xuat Excel ---------- */
+
+/** File mau cua nam, dien san cac dong theo bo loc dang xem. */
+router.get('/import-template.xlsx', async (req, res) => {
+  const year = resolveYear(req.query.year);
+  const { sql, params } = buildFilters(req);
+  const raw = db
+    .prepare(`${LINE_SELECT} ${sql} ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE, cs.id`)
+    .all(...params) as Record<string, unknown>[];
+  const lines = attachMonths(raw, year).map((line) => ({
+    id: Number(line.id),
+    customer_name: line.customer_name as string,
+    service_name: (line.service_name as string | null) ?? null,
+    am: (line.am as string | null) ?? null,
+    contract_kind: line.contract_kind as ContractKind,
+    contract_term: line.contract_term as ContractTerm,
+    status: line.status as ServiceStatus,
+    start_date: (line.start_date as string | null) ?? null,
+    end_date: (line.end_date as string | null) ?? null,
+    revenue_anchor_mode: line.anchor.mode,
+    revenue_anchor_period: line.anchor.manual_period,
+    baseline_avg_vnd: line.baseline_avg_vnd,
+    months: yearPeriods(year).map((p) => line.months[p]?.amount_vnd),
+  }));
+
+  const customerWhere: string[] = [`c.org_kind = 'customer'`];
+  const customerParams: unknown[] = [];
+  pushScope(
+    customerWhere,
+    customerParams,
+    scopeWhereOrUnowned(req, 'customers', 'read', 'c.owner_contact_id')
+  );
+  const customers = (
+    db
+      .prepare(
+        `SELECT c.name FROM customers c WHERE ${customerWhere.join(' AND ')} ORDER BY c.name COLLATE NOCASE`
+      )
+      .all(...customerParams) as { name: string }[]
+  ).map((r) => r.name);
+  const services = (
+    db.prepare(`SELECT name FROM services ORDER BY name COLLATE NOCASE`).all() as {
+      name: string;
+    }[]
+  ).map((r) => r.name);
+
+  const buffer = await buildTemplate(year, lines, customers, services);
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  res.setHeader('Content-Disposition', `attachment; filename=nhap-doanh-thu-${year}.xlsx`);
+  res.send(buffer);
+});
+
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!/\.xlsx$/i.test(file.originalname))
+      return cb(new HttpError(422, 'Chỉ nhận file Excel .xlsx (tải file mẫu để điền)'));
+    cb(null, true);
+  },
+});
+
+/** Loi cua multer (qua dung luong...) thanh 422 co loi nhan doc duoc, khong phai 500. */
+const acceptImportFile: RequestHandler = (req, res, next) =>
+  importUpload.single('file')(req, res, (error: unknown) =>
+    next(
+      error instanceof multer.MulterError
+        ? new HttpError(
+            422,
+            error.code === 'LIMIT_FILE_SIZE' ? 'File vượt quá 5 MB' : error.message
+          )
+        : error
+    )
+  );
+
+interface ExistingLine {
+  id: number;
+  customer_id: number;
+  service_id: number | null;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+type PlannedRow = ParsedRow & {
+  action: 'create' | 'update' | 'error';
+  target_id?: number;
+  customer_id?: number;
+  service_id?: number | null;
+  customer_name?: string;
+  service_name?: string | null;
+};
+
+/**
+ * Ghep tung dong Excel voi du lieu that: tim khach hang, dich vu, dong dang co.
+ * Chi khop voi dong ma nguoi dung duoc phep sua — mot ma dong ngoai pham vi
+ * duoc bao "khong tim thay", khong lo ra la no ton tai.
+ */
+function planImport(req: Request, parsedRows: ParsedRow[], year: number): PlannedRow[] {
+  const customers = new Map<string, { id: number; name: string }[]>();
+  for (const c of db
+    .prepare(`SELECT id, name, short_name FROM customers WHERE org_kind = 'customer'`)
+    .all() as { id: number; name: string; short_name: string | null }[]) {
+    for (const key of new Set([fold(c.name.trim()), fold(c.short_name?.trim())])) {
+      if (!key) continue;
+      customers.set(key, [...(customers.get(key) ?? []), { id: c.id, name: c.name }]);
+    }
+  }
+  const services = new Map<string, { id: number; name: string }>();
+  for (const s of db.prepare(`SELECT id, name FROM services`).all() as {
+    id: number;
+    name: string;
+  }[])
+    services.set(fold(s.name.trim()), s);
+
+  const where: string[] = [];
+  const params: unknown[] = [];
+  pushScope(where, params, scopeWhereOrUnowned(req, 'revenues', 'update', 'cs.owner_contact_id'));
+  const existing = db
+    .prepare(
+      `SELECT cs.id, cs.customer_id, cs.service_id, cs.start_date, cs.end_date
+         FROM customer_services cs
+         JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
+        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}`
+    )
+    .all(...params) as ExistingLine[];
+  const byId = new Map(existing.map((l) => [l.id, l]));
+  const customerNames = new Map<number, string>();
+  for (const list of customers.values()) for (const c of list) customerNames.set(c.id, c.name);
+  const serviceNames = new Map([...services.values()].map((s) => [s.id, s.name]));
+
+  /* So tien dang co cua nam: file mau dien san moi thang, nen o trung so cu phai
+     bo qua — neu khong, cot "Trang thai" se ghi de len ca nhung thang khong sua. */
+  const currentAmounts = new Map<string, number>();
+  for (const cell of db
+    .prepare(`SELECT line_id, period, amount_vnd FROM service_revenues WHERE period LIKE ?`)
+    .all(`${year}-%`) as { line_id: number; period: string; amount_vnd: number }[])
+    currentAmounts.set(`${cell.line_id}:${Number(cell.period.slice(5, 7))}`, cell.amount_vnd);
+
+  const claimed = new Map<number, number>();
+  return parsedRows.map((row): PlannedRow => {
+    const planned: PlannedRow = {
+      ...row,
+      months: new Map(row.months),
+      errors: [...row.errors],
+      action: 'error',
+    };
+    const err = (text: string) => planned.errors.push(text);
+
+    let customerId: number | undefined;
+    if (row.customer !== undefined) {
+      const matches = customers.get(fold(row.customer)) ?? [];
+      const unique = [...new Map(matches.map((m) => [m.id, m])).values()];
+      if (unique.length === 0) err(`Không tìm thấy khách hàng "${row.customer}" trong CRM`);
+      else if (unique.length > 1) err(`Có ${unique.length} khách hàng tên "${row.customer}"`);
+      else customerId = unique[0].id;
+    }
+    let serviceId: number | null | undefined;
+    if (row.service !== undefined) {
+      const service = services.get(fold(row.service));
+      if (!service) err(`Dịch vụ "${row.service}" chưa có trong danh mục dịch vụ`);
+      else serviceId = service.id;
+    }
+
+    let target: ExistingLine | undefined;
+    if (row.line_id !== undefined) {
+      target = byId.get(row.line_id);
+      if (!target) err(`Mã dòng ${row.line_id} không tồn tại hoặc bạn không có quyền sửa`);
+      else if (customerId !== undefined && customerId !== target.customer_id)
+        err(`Mã dòng ${row.line_id} thuộc khách hàng khác — không đổi khách hàng qua file`);
+    } else if (customerId !== undefined) {
+      const candidates = existing.filter(
+        (l) => l.customer_id === customerId && l.service_id === (serviceId ?? null)
+      );
+      if (candidates.length > 1)
+        err(
+          `Có ${candidates.length} dòng cùng khách hàng và dịch vụ — điền "Mã dòng" để chọn đúng dòng`
+        );
+      else target = candidates[0];
+    }
+
+    if (target) {
+      for (const [month, amount] of planned.months) {
+        if (currentAmounts.get(`${target.id}:${month}`) === amount) planned.months.delete(month);
+      }
+      const start = row.start_date ?? target.start_date;
+      const end = row.end_date ?? target.end_date;
+      if (start && end && end < start)
+        err('Ngày kết thúc trước ngày bắt đầu (so với dữ liệu đang có)');
+      const earlier = claimed.get(target.id);
+      if (earlier !== undefined) err(`Trùng dòng với dòng ${earlier} trong file`);
+      else claimed.set(target.id, row.row);
+    }
+
+    planned.customer_id = target?.customer_id ?? customerId;
+    planned.service_id = serviceId !== undefined ? serviceId : (target?.service_id ?? null);
+    planned.customer_name = planned.customer_id
+      ? customerNames.get(planned.customer_id)
+      : row.customer;
+    planned.service_name =
+      planned.service_id !== null && planned.service_id !== undefined
+        ? serviceNames.get(planned.service_id)
+        : (row.service ?? null);
+    if (planned.errors.length === 0) {
+      planned.action = target ? 'update' : 'create';
+      planned.target_id = target?.id;
+    }
+    return planned;
+  });
+}
+
+function applyRow(req: Request, row: PlannedRow, year: number): number {
+  let lineId = row.target_id;
+  if (row.action === 'create') {
+    lineId = Number(
+      db
+        .prepare(
+          `INSERT INTO customer_services (customer_id, service_id, am, contract_kind, contract_term,
+                                          status, start_date, end_date, notes, search_text, owner_contact_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)`
+        )
+        .run(
+          row.customer_id,
+          row.service_id ?? null,
+          row.am ?? null,
+          row.contract_kind ?? 'new',
+          row.contract_term ?? 'long',
+          row.status ?? 'using',
+          row.start_date ?? null,
+          row.end_date ?? null,
+          buildSearchText(row.am),
+          defaultOwner(req)
+        ).lastInsertRowid
+    );
+  } else {
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    const set = (column: string, value: unknown) => {
+      if (value === undefined) return;
+      sets.push(`${column} = ?`);
+      values.push(value);
+    };
+    if (row.service !== undefined) set('service_id', row.service_id);
+    set('am', row.am);
+    set('contract_kind', row.contract_kind);
+    set('contract_term', row.contract_term);
+    set('status', row.status);
+    set('start_date', row.start_date);
+    set('end_date', row.end_date);
+    if (sets.length) {
+      db.prepare(
+        `UPDATE customer_services SET ${sets.join(', ')}, updated_at = datetime('now','localtime') WHERE id = ?`
+      ).run(...values, lineId);
+      if (row.am !== undefined) {
+        const { notes } = db
+          .prepare(`SELECT notes FROM customer_services WHERE id = ?`)
+          .get(lineId) as { notes: string };
+        db.prepare(`UPDATE customer_services SET search_text = ? WHERE id = ?`).run(
+          buildSearchText(row.am, notes),
+          lineId
+        );
+      }
+    }
+  }
+  const id = lineId as number;
+
+  if (row.anchor) {
+    db.prepare(
+      `UPDATE customer_services SET revenue_anchor_mode = ?, revenue_anchor_period = ?,
+              revenue_anchor_updated_by = ?, revenue_anchor_updated_at = datetime('now','localtime')
+        WHERE id = ?`
+    ).run(row.anchor.mode, row.anchor.period, actorContactId(req), id);
+  }
+  if (row.baseline !== undefined) {
+    db.prepare(
+      `INSERT INTO revenue_baselines (line_id, year, avg_monthly_vnd, note) VALUES (?, ?, ?, 'Nhập từ Excel')
+       ON CONFLICT(line_id, year) DO UPDATE SET avg_monthly_vnd = excluded.avg_monthly_vnd,
+         note = excluded.note, updated_at = datetime('now','localtime')`
+    ).run(id, year, row.baseline);
+  }
+  for (const [month, amount] of row.months) {
+    const period = `${year}-${String(month).padStart(2, '0')}`;
+    const next = mergeRevenueCell(readCell(id, period), { amount_vnd: amount, stage: row.stage });
+    upsertCell.run(id, period, next.amount_vnd, next.forecast_vnd, next.stage, next.note);
+  }
+  return id;
+}
+
+/**
+ * Nhap file. `?commit=1` moi ghi; mac dinh chi xem truoc. Khi ghi, cac dong loi
+ * bi bo qua, cac dong hop le ghi trong mot giao dich.
+ */
+router.post('/import', acceptImportFile, async (req, res) => {
+  if (!req.file) throw new HttpError(422, 'Chưa chọn file');
+  let parsed;
+  try {
+    parsed = await parseWorkbook(req.file.buffer);
+  } catch {
+    throw new HttpError(422, 'Không đọc được file Excel — hãy dùng file mẫu .xlsx');
+  }
+  const year = parsed.year ?? resolveYear(req.query.year);
+  if (parsed.rows.length > 5000) throw new HttpError(422, 'File quá 5.000 dòng');
+  const planned = planImport(req, parsed.rows.map(validateRow), year);
+  const commit = req.query.commit === '1';
+
+  if (commit) {
+    db.transaction(() => {
+      for (const row of planned) {
+        if (row.action !== 'error') row.target_id = applyRow(req, row, year);
+      }
+    })();
+  }
+
+  const ok = planned.filter((r) => r.action !== 'error');
+  res.json({
+    year,
+    year_from_file: parsed.year !== null,
+    committed: commit,
+    summary: {
+      total: planned.length,
+      create: planned.filter((r) => r.action === 'create').length,
+      update: planned.filter((r) => r.action === 'update').length,
+      error: planned.filter((r) => r.action === 'error').length,
+      cells: ok.reduce((sum, r) => sum + r.months.size, 0),
+      amount_vnd: ok.reduce((sum, r) => sum + [...r.months.values()].reduce((a, b) => a + b, 0), 0),
+    },
+    rows: planned.map((r) => ({
+      row: r.row,
+      action: r.action,
+      line_id: r.target_id ?? r.line_id ?? null,
+      customer_name: r.customer_name ?? null,
+      service_name: r.service_name ?? null,
+      months: r.months.size,
+      amount_vnd: [...r.months.values()].reduce((a, b) => a + b, 0),
+      baseline: r.baseline ?? null,
+      anchor: r.anchor ?? null,
+      errors: r.errors,
+    })),
+  });
 });
 
 /** Cac nam da co so lieu — dung cho o chon nam. */

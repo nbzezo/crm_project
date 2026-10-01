@@ -17,6 +17,7 @@
   "dependencies": {
     "@workflow/contracts": "*",
     "better-sqlite3": "^12.2.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
