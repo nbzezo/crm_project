@@ -493,6 +493,116 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
+/* ---------- Don sac: hoc tu ban "cheat sheet" den trang. Ban sac nam o TUONG
+   PHAN va CAU TRUC, khong o mau: nhan manh bang nen den dao nguoc, nhom bang
+   vien 1px, tieu de khoi dam hep (Archivo, truc wdth). --tr-primary la den: ngoai
+   le co chu dich so voi ghi chu o :root, chi trong theme nay. Mau du lieu (nhan,
+   nen bang, uu tien, giai doan, lich, trang thai dich vu, interaction) KHONG khai
+   bao o day — ke thua :root vi chung mang nghia. */
+[data-theme='mono'] {
+  color-scheme: light;
+  --tr-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235c5c59' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --font-sans:
+    'Archivo', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+  --radius-compact: 2px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-modal: 16px;
+
+  --tr-page-bg: #d9d9d6;
+  --tr-shell-gradient: linear-gradient(120deg, #f3f3f1 0%, #f3f3f1 100%);
+  --tr-shell-border: rgba(17, 17, 17, 0.12);
+  --tr-shell-shadow: none;
+
+  --tr-nav: #111111;
+  --tr-surface: #f3f3f1;
+  --tr-panel: #ffffff;
+  --tr-list: #f3f3f1;
+  --tr-card: #ffffff;
+  --tr-text: #111111;
+  --tr-subtle: #3d3d3b;
+  --tr-muted: #5c5c59;
+  --tr-border: rgba(17, 17, 17, 0.14);
+  --tr-primary: #111111;
+  --tr-primary-hover: #333333;
+  --tr-on-primary: #ffffff;
+  --tr-danger: #b3261e;
+  --tr-on-danger: #ffffff;
+  --tr-success: #1f5e3a;
+  --tr-on-success: #ffffff;
+  --tr-warning: #6b4e00;
+  --tr-hover: rgba(17, 17, 17, 0.05);
+  --tr-hover-strong: rgba(17, 17, 17, 0.1);
+  --tr-overlay: rgba(17, 17, 17, 0.5);
+  /* Nhom bang VIEN 1px chu khong bang bong: dung chinh token bong de moi noi dang
+     dung .tr-card-shadow / .tr-bento-card tu co vien, khong phai sua component. */
+  --tr-card-shadow: 0 0 0 1px rgba(17, 17, 17, 0.14);
+  --tr-popover-shadow: 0 0 0 1px rgba(17, 17, 17, 0.14), 0 12px 32px rgba(17, 17, 17, 0.14);
+  --tr-scroll-thumb: rgba(17, 17, 17, 0.2);
+  --tr-scroll-thumb-hover: rgba(17, 17, 17, 0.36);
+  --tr-badge-done-bg: #e9e9e6;
+  --tr-badge-done-fg: #3d3d3b;
+  --tr-badge-overdue-bg: #111111;
+  --tr-badge-overdue-fg: #ffffff;
+  --tr-badge-soon-bg: #ffffff;
+  --tr-badge-soon-fg: #111111;
+
+  --tr-navfg: #111111;
+  --tr-navfg-muted: #5c5c59;
+  --tr-navfg-border: rgba(17, 17, 17, 0.14);
+  --tr-nav-panel: rgba(255, 255, 255, 0.7);
+  --tr-nav-text: #3d3d3b;
+  --tr-nav-border: rgba(17, 17, 17, 0.12);
+  --tr-nav-hover: rgba(17, 17, 17, 0.06);
+  --tr-nav-active-bg: #111111;
+  --tr-nav-active-text: #ffffff;
+}
+
+/* Khoi neo dashboard: den dac. `--color-tr-*` duoc Tailwind tinh mot lan o :root
+   nen phan tu con phai lap lai chung, khong tu doi theo `--tr-*`. */
+[data-theme='mono'] .tr-bento-dark {
+  --tr-panel: #111111;
+  --tr-text: #ffffff;
+  --tr-subtle: #d6d6d3;
+  --tr-muted: #b4b4b0;
+  --tr-border: rgba(255, 255, 255, 0.16);
+  --tr-hover: rgba(255, 255, 255, 0.08);
+  --tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --tr-primary: #ffffff;
+  --tr-primary-hover: #e9e9e6;
+  --tr-on-primary: #111111;
+  --tr-danger: #ff9a8f;
+  --tr-success: #8bdd9f;
+  --tr-warning: #f5cd47;
+  --color-tr-panel: #111111;
+  --color-tr-text: #ffffff;
+  --color-tr-subtle: #d6d6d3;
+  --color-tr-muted: #b4b4b0;
+  --color-tr-border: rgba(255, 255, 255, 0.16);
+  --color-tr-hover: rgba(255, 255, 255, 0.08);
+  --color-tr-hover-strong: rgba(255, 255, 255, 0.14);
+  --color-tr-primary: #ffffff;
+  --color-tr-primary-hover: #e9e9e6;
+  --color-tr-on-primary: #111111;
+  --color-tr-danger: #ff9a8f;
+  --color-tr-success: #8bdd9f;
+  --color-tr-warning: #f5cd47;
+  background-color: #111111;
+}
+
+[data-theme='mono'] .tr-bento-dark :focus-visible {
+  outline-color: #ffffff;
+}
+
+[data-theme='mono'] :where(input[type='checkbox'], input[type='radio']) {
+  accent-color: #111111;
+}
+
+[data-theme='mono'] ::selection {
+  background: rgba(17, 17, 17, 0.16);
+}
+
 /* ---------- Con tro chuot tren phan tu bam duoc ----------
    Preflight cua Tailwind v3 co luat `button { cursor: pointer }`; ban v4 da bo,
    va trinh duyet khong tu dat pointer cho <button>. Neu khong khai bao lai o day

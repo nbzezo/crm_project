@@ -30,6 +30,7 @@ const THEMES = [
   { name: 'Sáng', selector: ':root' },
   { name: 'Tối', selector: "[data-theme='dark']" },
   { name: 'Ubuntu 26', selector: "[data-theme='ubuntu']" },
+  { name: 'Đơn sắc', selector: "[data-theme='mono']" },
 ];
 
 /** Muc chu x be mat can dat AA. */
@@ -56,6 +57,19 @@ const TINTED = ['--tr-danger', '--tr-success', '--tr-warning', '--tr-primary'];
 /* Hai muc pha loang that su duoc dung trong ma nguon: `/10` va `/15`. Muc `/15`
    nhat hon nen kho hon o theme toi — phai kiem ca hai. */
 const TINT_ALPHAS = [0.1, 0.15];
+
+/* Cap chu / nen DAC: nut chinh, huy hieu han, muc nav dang chon. TINTED chi do
+   chu tren nen PHA; cac cap nay la chu dat thang len nen dac cua chinh token kia
+   (vd. theme Don sac: nen den chu trang), nen phai do rieng. */
+const PAIRS = [
+  ['--tr-on-primary', '--tr-primary'],
+  ['--tr-on-danger', '--tr-danger'],
+  ['--tr-on-success', '--tr-success'],
+  ['--tr-badge-overdue-fg', '--tr-badge-overdue-bg'],
+  ['--tr-badge-soon-fg', '--tr-badge-soon-bg'],
+  ['--tr-badge-done-fg', '--tr-badge-done-bg'],
+  ['--tr-nav-active-text', '--tr-nav-active-bg'],
+];
 
 function parseBlocks(css) {
   const blocks = new Map();
@@ -196,6 +210,12 @@ for (const { name, selector } of THEMES) {
       const tint = flatten({ ...fg, a: alpha }, panel);
       check(name, `${token} trên nền ${token}/${alpha * 100}`, fg, tint);
     }
+  }
+
+  for (const [fgToken, bgToken] of PAIRS) {
+    const fg = parseColor(tokenValue(blocks, selector, fgToken));
+    const bg = parseColor(tokenValue(blocks, selector, bgToken));
+    if (fg && bg) check(name, `${fgToken} trên ${bgToken}`, fg, bg);
   }
 
   for (const layer of LAYERED) {
