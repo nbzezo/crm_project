@@ -52,6 +52,8 @@ export const EXPORT_TABLES = [
   'services',
   'customer_services',
   'service_revenues',
+  // v45 — TB thang nam truoc de so sanh doanh thu Nen
+  'revenue_baselines',
   'boards',
   'lists',
   'cards',
