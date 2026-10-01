@@ -1,0 +1,7 @@
+# Moi file van ban luu LF trong repo va ca o thu muc lam viec: prettier (endOfLine lf)
+# va check format khong bao loi gia tren Windows co core.autocrlf=true.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
