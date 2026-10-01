@@ -167,7 +167,7 @@ export default function BoardPage() {
             className="min-w-0 max-w-[55vw] rounded border-2 border-white bg-white/95 px-2 py-1 text-base font-bold text-tr-text outline-none sm:max-w-xs"
           />
         ) : coarsePointer ? (
-          <span className="min-w-0 max-w-[55vw] truncate px-2 py-1 text-base font-bold sm:max-w-xs">
+          <span className="tr-display min-w-0 max-w-[55vw] truncate px-2 py-1 text-base font-bold sm:max-w-xs">
             {board.name}
           </span>
         ) : (
@@ -176,7 +176,7 @@ export default function BoardPage() {
               setNameDraft(board.name);
               setEditingName(true);
             }}
-            className="min-h-11 min-w-0 max-w-[55vw] truncate rounded px-2 py-1 text-left text-base font-bold transition hover:bg-white/20 fine:min-h-0 sm:max-w-xs"
+            className="tr-display min-h-11 min-w-0 max-w-[55vw] truncate rounded px-2 py-1 text-left text-base font-bold transition hover:bg-white/20 fine:min-h-0 sm:max-w-xs"
           >
             {board.name}
           </button>
