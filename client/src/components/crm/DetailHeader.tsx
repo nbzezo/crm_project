@@ -50,7 +50,9 @@ export function DetailHeader({
 
         <div className="min-w-0 flex-1 max-md:order-2 max-md:basis-full">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="tr-display min-w-0 text-xl font-semibold text-tr-text">{title}</h1>
+            <h1 className="tr-display tr-display-page min-w-0 text-xl font-semibold text-tr-text">
+              {title}
+            </h1>
             {badges}
           </div>
           <span className="tr-rule" aria-hidden="true" />

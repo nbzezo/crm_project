@@ -69,7 +69,7 @@ export function PageHeader({
     >
       <div className="min-w-0 flex-1">
         {/* tr-display / tr-rule: moc cho theme Don sac, khong co style o theme khac */}
-        <h1 className="tr-display text-2xl font-semibold tracking-tight text-tr-text">
+        <h1 className="tr-display tr-display-page text-2xl font-semibold tracking-tight text-tr-text">
           {title ?? routeTitle}
         </h1>
         <span className="tr-rule" aria-hidden="true" />

@@ -616,6 +616,24 @@
   text-transform: uppercase; /* Ngoai le co chu dich, ghi trong docs/DESIGN-SYSTEM.md */
 }
 
+/* Tieu de cap trang (PageHeader, Tong quan, chi tiet co hoi/khach hang/du an):
+   co lon theo mockup 1a/1e (mobile) va 2a/2d/2e (desktop). */
+[data-theme='mono'] .tr-display-page {
+  font-size: 36px;
+}
+
+@media (min-width: 768px) {
+  [data-theme='mono'] .tr-display-page {
+    font-size: 44px;
+  }
+}
+
+@media (min-width: 1280px) {
+  [data-theme='mono'] .tr-display-page {
+    font-size: 56px;
+  }
+}
+
 /* O tieu de the la <input>, khong xuong dong duoc: tren mobile giu co chu vua
    man hinh, 28px chi tu sm tro len (mockup 2c). */
 [data-theme='mono'] .tr-card-title {

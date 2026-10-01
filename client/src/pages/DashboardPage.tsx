@@ -52,7 +52,7 @@ function DashboardHeader({
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {/* tr-display / tr-rule: moc cho theme Don sac */}
-        <h1 className="tr-display text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
+        <h1 className="tr-display tr-display-page text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
           Tổng quan
         </h1>
         <span className="tr-rule" aria-hidden="true" />

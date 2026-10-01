@@ -103,7 +103,7 @@ export default function ProjectDetailPage() {
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-56 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="tr-display text-2xl font-semibold tracking-tight text-tr-text">
+            <h1 className="tr-display tr-display-page text-2xl font-semibold tracking-tight text-tr-text">
               {project.name}
             </h1>
             <HealthBadge health={project.health} />

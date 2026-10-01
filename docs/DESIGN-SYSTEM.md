@@ -60,6 +60,7 @@ Component chỉ gắn class/thuộc tính trung tính; class đó chỉ có styl
 | Móc | Gắn vào | Ở theme Đơn sắc |
 |---|---|---|
 | `tr-display` | `<h1>` của `PageHeader`, Dashboard, `DetailHeader`, trang không qua `PageHeader`, tên bảng, tiêu đề `Drawer`, ô tiêu đề thẻ | Archivo đậm 900, hẹp 72%, in hoa, `line-height` 1.08 |
+| `tr-display-page` | Thêm cạnh `tr-display` ở `<h1>` cấp trang (`PageHeader`, Tổng quan, `DetailHeader`, chi tiết dự án) | 36 px mobile, 44 px từ `md`, 56 px từ `xl` |
 | `tr-rule` | `<span aria-hidden>` ngay dưới tiêu đề | Vạch đen 32 × 2 px. Theme khác: `display: none` (luật duy nhất ngoài khối mono) |
 | `tr-eyebrow` | Tiêu đề `Panel`, nhóm sidebar, nhóm công việc, "Nên ưu tiên" | 12 px, đậm 800, giãn 0.16em, in hoa |
 | `tr-group-title` | Tiêu đề nhóm ở trang công việc cũ | Bỏ viền viên thuốc |
