@@ -199,15 +199,17 @@ async function extractPdf(buffer: Buffer): Promise<string> {
 export async function extractText(
   filePath: string,
   mime: string | null,
-  fileName: string
+  fileName: string,
+  /** Nang tran dung luong cho noi goi can doc tep to (vd. hop dong scan). */
+  maxBytes: number = MAX_EXTRACT_BYTES
 ): Promise<ExtractResult> {
   if (!fs.existsSync(filePath)) return { text: '', method: 'none', reason: 'Không tìm thấy tệp' };
   const { size } = fs.statSync(filePath);
-  if (size > MAX_EXTRACT_BYTES) {
+  if (size > maxBytes) {
     return {
       text: '',
       method: 'none',
-      reason: `Tệp lớn hơn ${MAX_EXTRACT_BYTES / 1024 / 1024} MB`,
+      reason: `Tệp lớn hơn ${maxBytes / 1024 / 1024} MB`,
     };
   }
 

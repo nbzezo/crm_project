@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
@@ -77,7 +78,11 @@ export default function ContractsPage() {
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('');
   const [deadline, setDeadline] = useState<DeadlineFilter>('');
-  const [form, setForm] = useState<{ open: boolean; contract?: Contract | null }>({ open: false });
+  const [form, setForm] = useState<{ open: boolean; contract?: Contract | null; upload?: boolean }>(
+    {
+      open: false,
+    }
+  );
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [menuFor, setMenuFor] = useState<{ id: number; anchor: HTMLElement } | null>(null);
   const focusId = Number(searchParams.get('focus')) || null;
@@ -243,7 +248,10 @@ export default function ContractsPage() {
             ))}
           </Select>
         </div>
-        <Button variant="primary" className="ml-auto" onClick={() => setForm({ open: true })}>
+        <Button className="ml-auto" onClick={() => setForm({ open: true, upload: true })}>
+          <Sparkles size={16} /> Tải hợp đồng (AI điền)
+        </Button>
+        <Button variant="primary" onClick={() => setForm({ open: true })}>
           <Plus size={16} /> Thêm hợp đồng
         </Button>
       </div>
@@ -451,7 +459,12 @@ export default function ContractsPage() {
 
       <Suspense fallback={null}>
         {form.open && (
-          <ContractForm open contract={form.contract} onClose={() => setForm({ open: false })} />
+          <ContractForm
+            open
+            contract={form.contract}
+            startWithUpload={form.upload}
+            onClose={() => setForm({ open: false })}
+          />
         )}
       </Suspense>
       <ConfirmDialog

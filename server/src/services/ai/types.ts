@@ -84,6 +84,13 @@ export interface AiRunRequest {
    * roi that bai.
    */
   requiresCapability?: keyof ModelCapabilities;
+  /**
+   * Model chua duoc xac nhan co nang luc tren van duoc THU (xep sau cac model da xac nhan)
+   * thay vi bi bo qua. Nang luc chi la suy doan tu ten model, nen mot model dat ten rieng
+   * (vd. 9Router tro vao mot model da phuong thuc) se bi loai oan; that bai thi nha cung
+   * cap tra ve loi cu the con hon mot thong bao "khong ho tro" do chinh ta doan.
+   */
+  tryUnconfirmedCapability?: boolean;
 }
 
 export interface AiRunResult extends GenerateResult {

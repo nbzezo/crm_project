@@ -1,7 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { Router, type Request } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { assertInScope, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
+import { accessOf } from '../middleware/currentUser.ts';
+import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
@@ -12,6 +16,10 @@ import {
   assertProjectCustomerLink,
 } from '../lib/entityRelations.ts';
 import { listTasksByLink } from '../services/cardService.ts';
+import { createDocument, DOCUMENT_TEMP_DIR } from '../services/documentService.ts';
+import { extractContract } from '../services/ai/contractExtract.ts';
+import { describeAiError } from '../services/ai/describeError.ts';
+import { insertCustomer } from './customers.ts';
 
 const router = Router();
 
@@ -142,6 +150,232 @@ router.get('/expiring', (req, res) => {
       )
       .all(within)
   );
+});
+
+/* ---------- Tai tep hop dong len: AI tu dien form ---------- */
+
+const CONTRACT_FILE_EXTENSIONS = new Set([
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.txt',
+  '.png',
+  '.jpg',
+  '.jpeg',
+]);
+
+const contractUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, DOCUMENT_TEMP_DIR),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!CONTRACT_FILE_EXTENSIONS.has(ext))
+      return cb(new Error(`Định dạng ${ext || 'không xác định'} không dùng được cho hợp đồng`));
+    cb(null, true);
+  },
+});
+
+/** Co it nhat mot nha cung cap AI da bat va ket noi duoc? Giao dien dung de chon luong AI / nhap tay. */
+router.get('/ai-status', (_req, res) => {
+  const row = db
+    .prepare(`SELECT COUNT(*) AS n FROM ai_provider_configs WHERE enabled = 1 AND status = 'ready'`)
+    .get() as { n: number };
+  res.json({ available: row.n > 0 });
+});
+
+/**
+ * AI doc tep hop dong va TRA DE XUAT — khong ghi gi. Tep chi nam tam trong kho
+ * tam de doc roi xoa; nguoi dung duyet form xong moi gui lai tep qua /from-file.
+ */
+router.post('/extract', contractUpload.single('file'), async (req, res) => {
+  const file = req.file;
+  if (!file) throw new HttpError(400, 'Chưa chọn tệp hợp đồng');
+  try {
+    const where = [`c.org_kind = 'customer'`];
+    const params: unknown[] = [];
+    pushScope(where, params, scopeWhereOrUnowned(req, 'customers', 'read', 'c.owner_contact_id'));
+    const customers = db
+      .prepare(`SELECT c.id, c.name, c.tax_code FROM customers c WHERE ${where.join(' AND ')}`)
+      .all(...params) as { id: number; name: string; tax_code: string | null }[];
+    const ownNames = (
+      db.prepare(`SELECT name FROM customers WHERE org_kind = 'own'`).all() as { name: string }[]
+    ).map((r) => r.name);
+    const today = (db.prepare(`SELECT date('now','localtime') AS d`).get() as { d: string }).d;
+
+    const result = await extractContract(db, {
+      filePath: file.path,
+      fileName: file.originalname,
+      mime: file.mimetype,
+      size: file.size,
+      customers,
+      ownNames,
+      today,
+    });
+
+    /* Goi y co hoi: dung gia tri hop dong, hoac co hoi mo duy nhat cua khach hang. */
+    const customerId = result.customer_match?.id;
+    if (customerId) {
+      const deals = db
+        .prepare(
+          `SELECT id, value_vnd FROM deals WHERE customer_id = ? AND stage NOT IN ('won','lost')
+            ORDER BY updated_at DESC`
+        )
+        .all(customerId) as { id: number; value_vnd: number }[];
+      const byValue = result.contract.value_vnd
+        ? deals.find((d) => d.value_vnd === result.contract.value_vnd)
+        : undefined;
+      result.suggested_deal_id = byValue?.id ?? (deals.length === 1 ? deals[0].id : null);
+      if (result.contract.number) {
+        const dup = db
+          .prepare(`SELECT name FROM contracts WHERE customer_id = ? AND number = ? LIMIT 1`)
+          .get(customerId, result.contract.number) as { name: string } | undefined;
+        if (dup)
+          result.warnings.push(
+            `Số hợp đồng ${result.contract.number} đã có trong hệ thống (“${dup.name}”) — kiểm tra trùng.`
+          );
+      }
+    }
+    res.json(result);
+  } catch (error) {
+    throw describeAiError(error) ?? error;
+  } finally {
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+  }
+});
+
+const fromFileSchema = z.object({
+  contract: contractSchema.omit({ customer_id: true }).extend({
+    customer_id: z.number().int().nullable().optional(),
+  }),
+  /** Khach hang chua co trong so — tao cung luc voi hop dong. */
+  new_customer: z
+    .object({
+      name: z.string().trim().min(1, 'Tên khách hàng không được để trống'),
+      tax_code: z.string().nullable().optional(),
+      address: z.string().nullable().optional(),
+      phone: z.string().nullable().optional(),
+      email: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  /** Nguoi dai dien ky hop dong — tao thanh nguoi lien he chinh cua khach hang moi. */
+  new_contact: z
+    .object({
+      full_name: z.string().trim().min(1),
+      title: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+});
+
+/**
+ * Tao hop dong + (tuy chon) khach hang moi + dinh kem chinh tep do vao Tai lieu.
+ * Khach hang va hop dong cung mot transaction: hop dong loi thi khong de lai khach
+ * hang "mo coi". Tep dinh kem la buoc sau — loi o do khong huy hop dong, chi bao lai.
+ */
+router.post('/from-file', contractUpload.single('file'), (req, res) => {
+  /* Tep la tuy chon: nguoi dung co the bo tep sau khi AI da doc, hoac chi muon tao khach hang moi. */
+  const file = req.file;
+  let created: { contractId: number; customerId: number; customerCreated: boolean };
+  try {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String((req.body as { payload?: string }).payload ?? ''));
+    } catch {
+      throw new HttpError(400, 'Dữ liệu hợp đồng không hợp lệ');
+    }
+    const parsed = fromFileSchema.safeParse(raw);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      throw new HttpError(400, `Du lieu khong hop le: ${first.path.join('.')} — ${first.message}`);
+    }
+    const body = parsed.data;
+    if (body.new_customer && !accessOf(req).can('customers', 'create')) {
+      throw new HttpError(403, 'Bạn không có quyền tạo khách hàng mới');
+    }
+    if (!body.new_customer && !body.contract.customer_id) {
+      throw new HttpError(400, 'Chọn khách hàng hoặc tạo khách hàng mới cho hợp đồng');
+    }
+
+    created = db.transaction(() => {
+      let customerId = body.contract.customer_id ?? 0;
+      let customerCreated = false;
+      if (body.new_customer) {
+        const customer = insertCustomer(
+          { ...body.new_customer, status: 'customer', source: 'Hợp đồng' },
+          defaultOwner(req)
+        );
+        customerId = customer.id;
+        customerCreated = true;
+        if (body.new_contact) {
+          db.prepare(
+            `INSERT INTO contacts (customer_id, full_name, title, is_primary, is_active, notes)
+             VALUES (?, ?, ?, 1, 1, 'Người đại diện ký hợp đồng')`
+          ).run(customerId, body.new_contact.full_name, body.new_contact.title ?? null);
+        }
+      }
+      const contract = { ...body.contract, customer_id: customerId };
+      assertEntityLinks(db, contract);
+      assertCrmCustomer(db, customerId);
+      assertProjectCustomerLink(db, contract, 'Hợp đồng');
+      assertContractDates(contract);
+      const info = db
+        .prepare(
+          `INSERT INTO contracts (customer_id, deal_id, name, number, value_vnd, sign_date, start_date,
+                                  end_date, status, payment_terms, notes, project_id, search_text)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          customerId,
+          contract.deal_id ?? null,
+          contract.name,
+          contract.number ?? null,
+          contract.value_vnd ?? 0,
+          contract.sign_date ?? null,
+          contract.start_date ?? null,
+          contract.end_date ?? null,
+          contract.status ?? 'draft',
+          contract.payment_terms ?? null,
+          contract.notes ?? '',
+          contract.project_id ?? null,
+          buildSearchText(contract.name, contract.number, contract.notes)
+        );
+      return { contractId: Number(info.lastInsertRowid), customerId, customerCreated };
+    })();
+  } catch (error) {
+    // Giao dich loi thi tep van nam o kho tam — don di, tranh rac tich luy.
+    if (file && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    throw error;
+  }
+
+  let documentError: string | null = null;
+  if (file) {
+    try {
+      const row = db
+        .prepare(`SELECT name, deal_id FROM contracts WHERE id = ?`)
+        .get(created.contractId) as { name: string; deal_id: number | null };
+      createDocument(file, {
+        name: row.name,
+        doc_type: 'contract',
+        customer_id: created.customerId,
+        contract_id: created.contractId,
+        deal_id: row.deal_id,
+      });
+    } catch (error) {
+      documentError = error instanceof Error ? error.message : 'Không đính kèm được tệp';
+    }
+  }
+  res.status(201).json({
+    ...(reload(created.contractId) as Record<string, unknown>),
+    customer_created: created.customerCreated,
+    document_error: documentError,
+  });
 });
 
 router.post('/', (req, res) => {

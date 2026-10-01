@@ -179,6 +179,16 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
   let lastProvider: AiProviderName | undefined;
   let lastModel: string | undefined;
 
+  // Model da xac nhan co nang luc duoc thu truoc; chi co tac dung khi cho phep thu model chua xac nhan.
+  const needs = request.requiresCapability;
+  if (needs && request.tryUnconfirmedCapability && !pinned) {
+    const confirmed = (config: GatewayConfig) => {
+      const model = modelFor(config, request);
+      return model ? modelSupports(db, config.provider, model, needs) : false;
+    };
+    ordered.sort((a, b) => Number(confirmed(b)) - Number(confirmed(a)));
+  }
+
   for (const config of ordered) {
     const model = modelFor(config, request);
     const connection = providerConnection(db, config.provider);
@@ -188,11 +198,14 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
     // Nguoi dung ghim model thi tin lua chon do: bang nang luc chi la suy doan tu ten model.
     if (
       !pinned &&
+      !request.tryUnconfirmedCapability &&
       request.requiresCapability &&
       !modelSupports(db, config.provider, model, request.requiresCapability)
     ) {
       skipError ??= new AiProviderError(
-        `Model ${model} (${config.provider}) không đọc được tệp đính kèm. Chọn model đọc được audio trong Cài đặt hoặc bấm "Đồng bộ model".`,
+        request.requiresCapability === 'audioInput'
+          ? `Model ${model} (${config.provider}) không đọc được tệp đính kèm. Chọn model đọc được audio trong Cài đặt hoặc bấm "Đồng bộ model".`
+          : `Model ${model} (${config.provider}) chưa được xác nhận đọc được tài liệu/ảnh đính kèm. Chọn model có hỗ trợ PDF/ảnh (Gemini, Claude…) trong Cài đặt hoặc bấm "Đồng bộ model".`,
         'capability_missing'
       );
       fallbackCount += 1;
