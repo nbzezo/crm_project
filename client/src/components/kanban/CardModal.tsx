@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlignLeft,
@@ -70,6 +70,7 @@ export function CardModal() {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [mobileTab, setMobileTab] = useState<'detail' | 'activity'>('detail');
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
 
   const addPop = usePopover();
   const labelPop = usePopover();
@@ -90,6 +91,37 @@ export function CardModal() {
     queryFn: () => api.get<CardDetail>(`/api/cards/${cardId}`),
     enabled: cardId !== null,
   });
+
+  /* O tieu de la <textarea> tu gian theo noi dung (mockup 1d/2c): tieu de dai
+     xuong dong thay vi bi cat ngang nhu <input>. Do lai khi doi chu va doi the. */
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = 'auto';
+      // border-box: scrollHeight khong tinh vien (border-2) nen phai cong vao, neu
+      // khong dau duoi chu (ị, ụ, g, p) bi cat.
+      el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+    };
+    fit();
+    // Do lai khi webfont tai xong (font du phong thap hon -> cat dau duoi chu)
+    // va khi be ngang o doi (cua so, chuyen tab mobile, mo drawer).
+    let alive = true;
+    void document.fonts?.ready.then(() => alive && fit());
+    // Chi phan ung khi BE NGANG doi: chinh fit() doi chieu cao, neu nghe ca chieu
+    // cao thi observer tu kich hoat lai chinh no.
+    let lastWidth = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) return;
+      lastWidth = el.clientWidth;
+      fit();
+    });
+    observer.observe(el);
+    return () => {
+      alive = false;
+      observer.disconnect();
+    };
+  }, [title, card?.id]);
 
   useEffect(() => {
     if (card) {
@@ -185,6 +217,10 @@ export function CardModal() {
     card.start_date && card.due_date
       ? `${formatDate(card.start_date)} → ${formatDate(card.due_date)}`
       : formatDate(card.due_date ?? card.start_date);
+  // Hai cot chi khi la hop thoai; drawer luon mot cot.
+  const wide = presentation !== 'drawer';
+  const detailVisibility = mobileTab === 'activity' ? 'hidden lg:block' : '';
+  const activityVisibility = mobileTab === 'detail' ? 'hidden lg:block' : '';
 
   return (
     <>
@@ -265,13 +301,26 @@ export function CardModal() {
             </button>
           </div>
 
+          {/*
+           * Bo cuc theo mockup 2c. Tren lg (dang hop thoai): tieu de trai het be
+           * ngang; cot trai la noi dung roi nhan xet, cot phai nen xam la thuoc
+           * tinh va thao tac. Duoi lg va o dang drawer: mot cot, thuoc tinh nam ngay
+           * duoi tieu de (mockup 1d), tab Chi tiet/Hoat dong giu nguyen.
+           */}
           <div
-            className={`min-h-0 flex-1 overflow-y-auto grid grid-cols-1 gap-6 px-4 pt-3 pb-6 sm:min-h-0 sm:flex-none sm:overflow-visible sm:px-6 ${
-              presentation === 'drawer' ? '' : 'lg:grid-cols-[minmax(0,1fr)_340px]'
+            className={`min-h-0 flex-1 overflow-y-auto grid grid-cols-1 sm:min-h-0 sm:flex-none sm:overflow-visible ${
+              wide ? 'lg:grid-cols-[minmax(0,1fr)_300px]' : ''
             }`}
           >
-            {/* ================= Cot trai ================= */}
-            <div className={`min-w-0 ${mobileTab === 'activity' ? 'hidden lg:block' : ''}`}>
+            {/* ================= Tieu de ================= */}
+            <div
+              className={`px-4 pt-3 pb-4 sm:px-6 ${wide ? 'lg:col-span-2 lg:border-b lg:border-tr-border' : ''} ${detailVisibility}`}
+            >
+              {card.board && (
+                <p className="tr-eyebrow mb-1 truncate text-xs font-semibold text-tr-muted">
+                  {card.board.name} · {card.board.list_name}
+                </p>
+              )}
               <div className="flex items-start gap-3">
                 <button
                   type="button"
@@ -286,25 +335,166 @@ export function CardModal() {
                     <Check size={13} aria-hidden="true" />
                   </span>
                 </button>
-                <input
+                <textarea
+                  ref={titleRef}
+                  rows={1}
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  // Tieu de la mot dong logic: dan chuoi nhieu dong thi gop thanh mot.
+                  onChange={(e) => setTitle(e.target.value.replace(/\s*\n\s*/g, ' '))}
                   onBlur={() =>
                     title.trim() && title !== card.title && update.mutate({ title: title.trim() })
                   }
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.nativeEvent.isComposing) return;
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
                     if (e.key === 'Escape') setTitle(card.title);
                   }}
                   aria-label="Tiêu đề thẻ"
-                  className="tr-display tr-card-title w-full rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
+                  className="tr-display tr-card-title w-full resize-none overflow-hidden rounded-control border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xl leading-tight font-semibold text-tr-text outline-none focus:border-tr-primary focus:bg-tr-surface"
                 />
               </div>
               {/* tr-rule: moc theme Don sac, nam DUOI hang tieu de (khong trong hang
                   flex), le trai = nut hoan thanh + gap-3 + px-1.5 cua o tieu de. */}
               <span className="tr-rule ml-[62px] fine:ml-[38px]" aria-hidden="true" />
+            </div>
 
-              <div className="mt-2.5 mb-4">
+            {/* ================= Thuoc tinh (cot phai) ================= */}
+            <aside
+              aria-label="Thuộc tính thẻ"
+              className={`flex flex-col gap-4 px-4 pb-4 sm:px-6 ${
+                wide
+                  ? 'lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:border-l lg:border-tr-border lg:bg-tr-surface lg:px-5 lg:py-5'
+                  : ''
+              } ${mobileTab === 'activity' ? 'hidden lg:flex' : ''}`}
+            >
+              {/* Luon hien, ke ca khi chua giao: viec khong co nguoi phu trach la
+                  thu can nhin thay chu khong phai thu nen an di. */}
+              <Field row label="Trạng thái">
+                <button
+                  onClick={statusPop.toggle}
+                  className={`inline-flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${CARD_STATUS_TONE[card.status ?? 'todo']}`}
+                >
+                  {t.cardStatus[card.status ?? 'todo']}
+                </button>
+              </Field>
+
+              <Field row label={t.card.priority}>
+                <button
+                  onClick={priorityPop.toggle}
+                  className="inline-flex min-h-7 items-center rounded px-2.5 text-xs font-medium"
+                  style={{
+                    backgroundColor: PRIORITY_COLORS[card.priority],
+                    color: contrastInk(PRIORITY_COLORS[card.priority]),
+                  }}
+                >
+                  {t.priority[card.priority]}
+                </button>
+              </Field>
+
+              <Field row label="Ngày">
+                <button
+                  type="button"
+                  onClick={datePop.toggle}
+                  aria-haspopup="dialog"
+                  className={`inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                >
+                  {card.start_date || card.due_date ? (
+                    dateLabel
+                  ) : (
+                    <span className="text-tr-muted">Chưa đặt ngày</span>
+                  )}
+                  {!!card.is_done && (
+                    <span className="tr-badge-done rounded px-1.5 text-xs font-medium">
+                      {t.common.done}
+                    </span>
+                  )}
+                </button>
+              </Field>
+
+              <Field row label={t.card.assignee}>
+                <button
+                  onClick={assigneePop.toggle}
+                  className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
+                >
+                  {card.assignee_name ? (
+                    <AssigneeChip
+                      name={card.assignee_name}
+                      orgKind={card.assignee_org_kind}
+                      orgName={card.assignee_org_name}
+                    />
+                  ) : (
+                    <>
+                      <UserRound size={13} />
+                      <span className="text-tr-muted">{t.card.unassigned}</span>
+                    </>
+                  )}
+                </button>
+              </Field>
+
+              <Field row label={t.nav.projects}>
+                <button
+                  type="button"
+                  onClick={projectPop.toggle}
+                  aria-label={`Dự án: ${card.project_name ?? 'Chưa chọn'}`}
+                  aria-haspopup="dialog"
+                  className={`inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                >
+                  <FolderKanban size={13} aria-hidden="true" />
+                  <span className={card.project_name ? '' : 'text-tr-muted'}>
+                    {card.project_name ?? 'Chưa chọn'}
+                  </span>
+                  <ChevronDown size={12} className="text-tr-muted" aria-hidden="true" />
+                </button>
+              </Field>
+
+              <Field row label={t.card.customer}>
+                <button
+                  type="button"
+                  onClick={customerPop.toggle}
+                  aria-haspopup="dialog"
+                  className={`inline-flex min-h-7 max-w-full items-center gap-1.5 rounded bg-tr-hover px-2.5 text-left text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                >
+                  <Building2 size={13} className="shrink-0" aria-hidden="true" />
+                  {card.customer_name ? (
+                    <span className="min-w-0">
+                      {card.customer_name}
+                      {card.deal_title && (
+                        <span className="text-tr-muted"> · {card.deal_title}</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-tr-muted">Chưa liên kết</span>
+                  )}
+                </button>
+              </Field>
+
+              {/* Thao tac cuoi cot (mockup 2c). Van con trong menu "Thao tác khác". */}
+              {/* Chi o hop thoai tren lg: duoi do (mobile, drawer) nut Xoa do nam ngay tren
+                  noi dung qua noi bat cho mot thao tac nguy hiem — van con trong menu "…". */}
+              <div
+                className={`mt-auto hidden flex-col gap-2 border-t border-tr-border pt-4 ${wide ? 'lg:flex' : ''}`}
+              >
+                <Button
+                  variant="secondary"
+                  disabled={archive.isPending}
+                  onClick={() => archive.mutate()}
+                >
+                  <Archive size={15} aria-hidden="true" /> Lưu trữ thẻ
+                </Button>
+                <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+                  <Trash2 size={15} aria-hidden="true" /> {t.card.deleteCard}
+                </Button>
+              </div>
+            </aside>
+
+            {/* ================= Noi dung (cot trai) ================= */}
+            <div
+              className={`min-w-0 px-4 pt-1 sm:px-6 ${wide ? 'lg:col-start-1 lg:row-start-2 lg:pt-5' : ''} ${detailVisibility}`}
+            >
+              <div className="mb-4 flex flex-wrap items-center gap-2">
                 <Button variant="ghost" onClick={addPop.toggle}>
                   <Plus size={14} aria-hidden="true" /> Thêm mục
                 </Button>
@@ -324,8 +514,7 @@ export function CardModal() {
                 </div>
               )}
 
-              {/* Thuoc tinh */}
-              <div className="mb-5 flex flex-wrap items-start gap-x-6 gap-y-3 pl-8">
+              <div className="mb-5 pl-8">
                 <Field label={t.card.labels}>
                   <div className="flex flex-wrap items-center gap-1">
                     {card.labels.map((l) => (
@@ -345,96 +534,6 @@ export function CardModal() {
                     </button>
                   </div>
                 </Field>
-
-                <Field label={t.card.priority}>
-                  <button
-                    onClick={priorityPop.toggle}
-                    className="inline-flex min-h-7 items-center rounded px-2.5 text-xs font-medium"
-                    style={{
-                      backgroundColor: PRIORITY_COLORS[card.priority],
-                      color: contrastInk(PRIORITY_COLORS[card.priority]),
-                    }}
-                  >
-                    {t.priority[card.priority]}
-                  </button>
-                </Field>
-
-                {(card.start_date || card.due_date) && (
-                  <Field label="Ngày">
-                    <button
-                      onClick={datePop.toggle}
-                      className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
-                    >
-                      {dateLabel}
-                      {!!card.is_done && (
-                        <span className="tr-badge-done rounded px-1.5 text-xs font-medium">
-                          {t.common.done}
-                        </span>
-                      )}
-                    </button>
-                  </Field>
-                )}
-
-                {/* Luon hien, ke ca khi chua giao: viec khong co nguoi phu trach la
-                    thu can nhin thay chu khong phai thu nen an di. */}
-                <Field label="Trạng thái">
-                  <button
-                    onClick={statusPop.toggle}
-                    className={`inline-flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${CARD_STATUS_TONE[card.status ?? 'todo']}`}
-                  >
-                    {t.cardStatus[card.status ?? 'todo']}
-                  </button>
-                </Field>
-
-                <Field label={t.card.assignee}>
-                  <button
-                    onClick={assigneePop.toggle}
-                    className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
-                  >
-                    {card.assignee_name ? (
-                      <AssigneeChip
-                        name={card.assignee_name}
-                        orgKind={card.assignee_org_kind}
-                        orgName={card.assignee_org_name}
-                      />
-                    ) : (
-                      <>
-                        <UserRound size={13} />
-                        <span className="text-tr-muted">{t.card.unassigned}</span>
-                      </>
-                    )}
-                  </button>
-                </Field>
-
-                <Field label={t.nav.projects}>
-                  <button
-                    type="button"
-                    onClick={projectPop.toggle}
-                    aria-label={`Dự án: ${card.project_name ?? 'Chưa chọn'}`}
-                    aria-haspopup="dialog"
-                    className={`inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
-                  >
-                    <FolderKanban size={13} aria-hidden="true" />
-                    <span className={card.project_name ? '' : 'text-tr-muted'}>
-                      {card.project_name ?? 'Chưa chọn'}
-                    </span>
-                    <ChevronDown size={12} className="text-tr-muted" aria-hidden="true" />
-                  </button>
-                </Field>
-
-                {card.customer_name && (
-                  <Field label={t.card.customer}>
-                    <button
-                      onClick={customerPop.toggle}
-                      className="inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong"
-                    >
-                      <Building2 size={13} /> {card.customer_name}
-                      {card.deal_title && (
-                        <span className="text-tr-muted">· {card.deal_title}</span>
-                      )}
-                    </button>
-                  </Field>
-                )}
               </div>
 
               {/* Mo ta */}
@@ -580,8 +679,10 @@ export function CardModal() {
               )}
             </div>
 
-            {/* ================= Cot phai ================= */}
-            <div className={mobileTab === 'detail' ? 'hidden lg:block' : ''}>
+            {/* ================= Nhan xet va hoat dong ================= */}
+            <div
+              className={`min-w-0 px-4 pt-2 pb-6 sm:px-6 ${wide ? 'lg:col-start-1 lg:row-start-3' : ''} ${activityVisibility}`}
+            >
               <ActivityColumn card={card} />
             </div>
           </div>
@@ -817,11 +918,26 @@ function CardSection({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  row = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** Duoi lg xep "nhan — gia tri" tren mot hang (mockup 1d); tu lg xep doc. */
+  row?: boolean;
+}) {
   return (
-    <div>
-      <h4 className="mb-1 text-xs font-semibold text-tr-subtle">{label}</h4>
-      {children}
+    <div
+      className={
+        row ? 'grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-3 lg:block' : undefined
+      }
+    >
+      <h4 className={`tr-eyebrow text-xs font-semibold text-tr-subtle ${row ? 'lg:mb-1' : 'mb-1'}`}>
+        {label}
+      </h4>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

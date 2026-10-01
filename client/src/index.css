@@ -638,15 +638,15 @@
   }
 }
 
-/* O tieu de the la <input>, khong xuong dong duoc: tren mobile giu co chu vua
-   man hinh, 28px chi tu sm tro len (mockup 2c). */
+/* Tieu de the (o <textarea> tu xuong dong): 26px tren mobile (mockup 1d),
+   36px tu sm (mockup 2c). */
 [data-theme='mono'] .tr-card-title {
-  font-size: 22px;
+  font-size: 26px;
 }
 
 @media (min-width: 640px) {
   [data-theme='mono'] .tr-card-title {
-    font-size: 28px;
+    font-size: 36px;
   }
 }
 
