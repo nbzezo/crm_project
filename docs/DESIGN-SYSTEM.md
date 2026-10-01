@@ -87,7 +87,7 @@ không cần móc mới.
   (`STAGE_COLORS`); chỉ luật `.tr-stage-stepper > button[data-active='true']`
   được dùng `!important` để tô đen.
 - **`--tr-primary` là đen** trong theme này — ngoại lệ có chủ đích so với ghi chú
-  ở `:root`. `--tr-danger` vẫn đỏ cho thao tác xoá và lỗi.
+  ở `:root`. `--tr-danger` vẫn đỏ cho thao tác xoá và lỗi; `ErrorState` (`role="alert"`) giữ viền đỏ, không bị skin trạng thái rỗng đổi sang đen. Huy hiệu hợp đồng ≤30 ngày (`tr-badge-warn`) giữ nền nâu nhạt từ `--tr-warning`.
 - **Remap cục bộ phải lặp `--color-tr-*`:** Tailwind v4 tính `--color-tr-*` một
   lần ở `:root`, nên khi đổi token trên phần tử con (`.tr-bento-dark`,
   `.tr-kpi[data-tone]`) phải khai cả `--tr-*` lẫn `--color-tr-*`.

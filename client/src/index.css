@@ -805,8 +805,9 @@
   box-shadow: 0 1.5px 0 #111111;
 }
 
-/* Trang thai rong: net dut den. */
-[data-theme='mono'] .tr-empty-state {
+/* Trang thai rong: net dut den. ErrorState (role=alert) giu vien do — loi la
+   trang thai nguy hiem, --tr-danger van do o theme nay. */
+[data-theme='mono'] .tr-empty-state:not([role='alert']) {
   border-color: #111111;
   border-style: dashed;
 }
