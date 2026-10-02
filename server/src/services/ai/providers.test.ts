@@ -213,3 +213,57 @@ test('Claude tim web: khong moi "{", chay tiep pause_turn, chi lay chu sau lan t
     globalThis.fetch = originalFetch;
   }
 });
+
+test('9Router tim web: tim truoc qua /search roi chen ket qua vao prompt chat', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: { url: string; body: Record<string, unknown> }[] = [];
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input);
+    const body = JSON.parse(String(init.body ?? '{}')) as Record<string, unknown>;
+    calls.push({ url, body });
+    if (url.endsWith('/search')) {
+      return body.query === 'loi'
+        ? Response.json({ error: { message: 'provider down' } }, { status: 502 })
+        : Response.json({
+            results: [{ title: 'Sao Mai', url: 'https://saomai.vn', snippet: 'MST 0102030405' }],
+          });
+    }
+    return Response.json({
+      choices: [{ message: { content: '{"name":"Sao Mai"}' } }],
+      usage: { prompt_tokens: 5, completion_tokens: 5 },
+    });
+  };
+  try {
+    const result = await generateWithProvider(connection, {
+      model: 'gc/gemini-2.5-flash',
+      system: 's',
+      prompt: 'Tra cuu',
+      json: true,
+      webSearch: true,
+      webSearchModel: 'tavily/search',
+      webQueries: ['Sao Mai mã số thuế', 'loi'],
+    });
+    const searches = calls.filter((call) => call.url.endsWith('/search'));
+    assert.equal(searches.length, 2);
+    assert.equal(searches[0].body.model, 'tavily/search');
+    const chat = calls.find((call) => call.url.endsWith('/chat/completions'))!;
+    const messages = chat.body.messages as { content: string }[];
+    assert.match(messages[1].content, /https:\/\/saomai\.vn/, 'ket qua tim duoc chen vao prompt');
+    assert.equal(result.webSearched, true, 'mot truy van loi khong lam hong ca lan tim');
+    assert.deepEqual(result.webSources, [{ url: 'https://saomai.vn', title: 'Sao Mai' }]);
+
+    calls.length = 0;
+    const noModel = await generateWithProvider(connection, {
+      model: 'gc/gemini-2.5-flash',
+      system: 's',
+      prompt: 'Tra cuu',
+      webSearch: true,
+      webQueries: ['x'],
+    });
+    assert.equal(calls.length, 1, 'chua chon model tim kiem thi chi goi chat');
+    assert.equal(noModel.webSearched, false);
+    assert.match(noModel.webSearchError ?? '', /chưa chọn model tìm kiếm/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

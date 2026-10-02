@@ -128,7 +128,7 @@ export function CustomerAiLookup({
             }
           }}
         />
-        Cho phép AI tìm trên web khi cần (chậm hơn, cần Gemini hoặc Claude)
+        Cho phép AI tìm trên web khi cần (chậm hơn; Gemini, Claude hoặc 9Router có model tìm kiếm)
       </label>
       <FormError error={lookup.error} />
 

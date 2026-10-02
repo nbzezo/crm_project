@@ -1467,7 +1467,12 @@ test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async 
   );
   await page.goto('/customers');
   await page.waitForLoadState('networkidle');
-  await page.getByRole('button', { name: 'Thêm khách hàng' }).first().click();
+  // Tren mobile nut tieu de chi con chu "Thêm".
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: /^Thêm( khách hàng)?$/ })
+    .first()
+    .click();
   const dialog = page.getByRole('dialog', { name: /Thêm khách hàng/ });
   await expect(dialog).toBeVisible();
 

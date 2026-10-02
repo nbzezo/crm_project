@@ -262,3 +262,60 @@ test('tim web: gui google_search, tra nguon; bi tu choi thi lui ve khong tim', a
   assert.equal(fallback.data.web_searched, false);
   assert.ok(fallback.data.warnings.some((w) => /Không tìm được trên web/.test(w)));
 });
+
+test('9Router: chon model tim kiem trong Cai dat thi tra cuu co nguon web', async () => {
+  db.prepare(`UPDATE ai_provider_configs SET enabled = 0 WHERE provider = 'gemini'`).run();
+  updateProviderConfig(db, '9router', {
+    apiKey: 'k',
+    enabled: true,
+    defaultModel: 'gc/gemini-2.5-flash',
+    fastModel: 'gc/gemini-2.5-flash',
+  });
+  db.prepare(`UPDATE ai_provider_configs SET status = 'ready' WHERE provider = '9router'`).run();
+
+  const queries: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith(baseUrl)) return realFetch(input, init);
+    if (url.startsWith('https://registry.test/')) return Response.json({ code: '52', data: null });
+    if (url.endsWith('/models/web')) {
+      return Response.json({ data: [{ id: 'tavily/search' }, { id: 'jina-reader/fetch' }] });
+    }
+    if (url.endsWith('/search')) {
+      queries.push(String((JSON.parse(String(init?.body)) as { query: string }).query));
+      return Response.json({
+        results: [{ title: 'Sao Mai', url: 'https://saomai.vn', snippet: 'Phân phối' }],
+      });
+    }
+    return Response.json({
+      choices: [{ message: { content: '{"name":"Sao Mai","industry":"Phân phối"}' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+  };
+  const call = (method: string, url: string, body?: unknown) =>
+    realFetch(`${baseUrl}${url}`, {
+      method,
+      headers: { cookie, 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  // Chua chon model: van tra loi, canh bao ro ly do.
+  const before = await assist('Sao Mai', true);
+  assert.equal(before.data.web_searched, false);
+  assert.ok(before.data.warnings.some((w) => /chưa chọn model tìm kiếm/.test(w)));
+
+  assert.deepEqual(await (await call('GET', '/api/ai/web-search-models')).json(), [
+    'tavily/search',
+  ]);
+  await call('PUT', '/api/ai/web-search-model', { model: 'tavily/search' });
+  assert.deepEqual(await (await call('GET', '/api/ai/web-search-model')).json(), {
+    model: 'tavily/search',
+  });
+
+  const after = await assist('Sao Mai', true);
+  assert.equal(after.status, 200);
+  assert.equal(after.data.web_searched, true);
+  assert.deepEqual(after.data.web_sources, [{ url: 'https://saomai.vn', title: 'Sao Mai' }]);
+  assert.ok(queries.some((q) => /mã số thuế/.test(q)));
+  assert.equal(after.data.suggestion.industry, 'Phân phối');
+});

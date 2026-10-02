@@ -213,6 +213,23 @@ export function namesLikelyMatch(aiName: string, record: RegistryRecord): boolea
   });
 }
 
+/**
+ * Truy van cho nha cung cap phai tim truoc (9Router). Gemini/Claude tu dat truy
+ * van nen khong dung toi.
+ */
+export function webQueries(
+  query: string,
+  taxCode: string | null,
+  registry: RegistryRecord | null
+): string[] {
+  const name = registry?.name ?? (taxCode ? null : query);
+  return [
+    taxCode ? `mã số thuế ${taxCode}` : `${query} mã số thuế`,
+    name ? `${name} website chính thức` : null,
+    name ? `${name} giới thiệu công ty lĩnh vực hoạt động` : null,
+  ].filter((item): item is string => Boolean(item));
+}
+
 function buildPrompt(
   query: string,
   taxCode: string | null,
@@ -313,6 +330,7 @@ export async function assistCustomer(
       prompt: buildPrompt(query, typedTaxCode, registry, withWeb),
       maxOutputTokens: withWeb ? 2500 : 1200,
       webSearch: withWeb,
+      webQueries: webQueries(query, typedTaxCode, registry),
       // Tim web cham hon nhieu so voi tra loi tu kien thuc san co.
       timeoutMs: withWeb ? 90_000 : undefined,
     };
@@ -343,9 +361,11 @@ export async function assistCustomer(
         : 'AI không phản hồi — chỉ điền được thông tin từ cơ sở dữ liệu đăng ký.'
     );
   }
-  if (webSearch && meta && !WEB_SEARCH_PROVIDERS.includes(meta.provider)) {
+  if (webSearch && meta && !meta.webSearched && !WEB_SEARCH_PROVIDERS.includes(meta.provider)) {
     warnings.push(
-      `Nhà cung cấp ${meta.provider} không hỗ trợ tìm web — gợi ý chỉ dựa trên kiến thức sẵn có.`
+      meta.webSearchError
+        ? `Không tìm được trên web (${meta.webSearchError}) — gợi ý chỉ dựa trên kiến thức sẵn có.`
+        : `Nhà cung cấp ${meta.provider} không hỗ trợ tìm web — gợi ý chỉ dựa trên kiến thức sẵn có.`
     );
   }
 

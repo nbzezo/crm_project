@@ -29,6 +29,7 @@ import {
 } from '../services/ai/chatSessions.ts';
 import {
   listProviderConfigs,
+  providerConnection,
   syncProviderModels,
   updateProviderConfig,
 } from '../services/ai/configService.ts';
@@ -50,10 +51,13 @@ import {
 } from '../services/ai/documentIndex.ts';
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { assistCustomer } from '../services/ai/companyLookup.ts';
+import { listNineRouterSearchModels } from '../services/ai/providers.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
   getVoiceModel,
   getVoicePromptTemplates,
+  getWebSearchModel,
+  saveWebSearchModel,
   saveVoiceModel,
   saveVoicePromptTemplates,
   type VoicePromptTemplate,
@@ -930,6 +934,25 @@ router.put('/voice-prompt-templates', (req, res) => {
 const voiceModelSchema = z.object({
   provider: z.enum(AI_PROVIDERS).nullable(),
   model: z.string().trim().max(200).nullable(),
+});
+
+/* Model tim kiem cua 9Router — 9Router khong tim web trong chat nen ung dung tu tim. */
+router.get('/web-search-model', (_req, res) => {
+  res.json({ model: getWebSearchModel(db) });
+});
+router.put('/web-search-model', (req, res) => {
+  const body = parseBody(z.object({ model: z.string().trim().max(200).nullable() }), req);
+  saveWebSearchModel(db, body.model);
+  res.json({ model: getWebSearchModel(db) });
+});
+router.get('/web-search-models', async (_req, res) => {
+  const connection = providerConnection(db, '9router');
+  if (!connection) throw new HttpError(409, 'Chưa cấu hình API key cho 9Router');
+  try {
+    res.json(await listNineRouterSearchModels(connection));
+  } catch (error) {
+    asHttpError(error);
+  }
 });
 
 router.get('/voice-model', (_req, res) => {

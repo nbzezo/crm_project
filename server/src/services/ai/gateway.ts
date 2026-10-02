@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { Database } from 'better-sqlite3';
 import { generateWithProvider } from './providers.ts';
 import { providerConnection } from './configService.ts';
+import { getWebSearchModel } from './promptTemplates.ts';
 import {
   AiProviderError,
   type AiProviderName,
@@ -191,8 +192,11 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
   }
 
   // Can tim web thi thu nha cung cap co cong cu tim web truoc; nha khac van la duong lui.
+  const webSearchModel = request.webSearch ? getWebSearchModel(db) : null;
   if (request.webSearch && !pinned) {
-    const searchable = (config: GatewayConfig) => WEB_SEARCH_PROVIDERS.includes(config.provider);
+    const searchable = (config: GatewayConfig) =>
+      WEB_SEARCH_PROVIDERS.includes(config.provider) ||
+      (config.provider === '9router' && Boolean(webSearchModel));
     ordered.sort((a, b) => Number(searchable(b)) - Number(searchable(a)));
   }
 
@@ -245,6 +249,8 @@ export async function runAi(db: Database, request: AiRunRequest): Promise<AiRunR
         attachments: request.attachments,
         timeoutMs: request.timeoutMs,
         webSearch: request.webSearch,
+        webSearchModel,
+        webQueries: request.webQueries,
       });
       const estimatedCostUsd = estimateCost(config, result.inputTokens, result.outputTokens);
       saveUsage(db, {

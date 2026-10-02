@@ -57,8 +57,14 @@
 - Tùy chọn *Cho phép AI tìm trên web khi cần* (mặc định bật, nhớ theo trình duyệt): gateway gửi
   `webSearch` — Gemini dùng `google_search` grounding, Claude dùng server tool `web_search`
   (`web_search_20250305`, tối đa 3 lượt, tự chạy tiếp `pause_turn`). Mô hình tự quyết có tìm hay
-  không; nguồn web trả về được hiện thành link dưới đề xuất. DeepSeek/9Router không có công cụ tìm
-  web chuẩn nên chạy như thường kèm cảnh báo. Nhà cung cấp từ chối công cụ (tổ chức chưa bật web
+  không; nguồn web trả về được hiện thành link dưới đề xuất. DeepSeek không có công cụ tìm web nên chạy
+  như thường kèm cảnh báo.
+- 9Router: `/chat/completions` không tìm web, nên khi chọn *Model tìm kiếm của 9Router* (Cài đặt →
+  AI → Tìm kiếm web, lấy từ `GET /v1/models/web`, ví dụ `tavily/search`) ứng dụng tự gọi
+  `POST /v1/search` với 2–3 truy vấn (MST, website, giới thiệu) rồi chèn kết quả vào prompt. Model
+  chat (kể cả Gemini trong 9Router) không dùng được làm model tìm kiếm — cần bật Tavily, Brave,
+  Serper, SearXNG… trong 9Router. `/v1/web/fetch` (đọc cả trang) chưa dùng: đoạn trích tìm kiếm đã
+  đủ cho các trường hồ sơ. Nhà cung cấp từ chối công cụ (tổ chức chưa bật web
   search, model cũ…) thì tự thử lại không tìm web. Tìm web tốn thêm phí theo bảng giá provider.
 - MST do AI đoán (khi chỉ gõ tên) phải tra lại được trong CSDL và khớp tên mới được giữ; lệch tên
   hoặc không tồn tại thì bị bỏ kèm cảnh báo. MST là khóa chống trùng nên một MST sai rất đắt.
