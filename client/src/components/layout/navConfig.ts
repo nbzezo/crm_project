@@ -4,6 +4,7 @@ import {
   BellRing,
   CalendarDays,
   CircleDollarSign,
+  BookUser,
   Contact,
   FileSignature,
   FolderKanban,
@@ -72,6 +73,7 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
       { to: '/tasks', label: t.nav.tasks, icon: ListChecks, permission: 'tasks:read' },
       { to: '/follow-up', label: t.nav.followUp, icon: BellRing, permission: 'tasks:read' },
       { to: '/calendar', label: t.nav.calendar, icon: CalendarDays, permission: 'tasks:read' },
+      { to: '/my-contacts', label: t.nav.myContacts, icon: BookUser },
     ],
   },
   {

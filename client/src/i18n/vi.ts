@@ -38,6 +38,7 @@ export const t = {
        va noi bo goi hai ten khac nhau cho cung mot man. */
     followUp: 'Cần theo dõi',
     orgDirectory: 'Tổ chức & nhân sự',
+    myContacts: 'Danh bạ cá nhân',
     ai: 'Trợ lý AI',
     quickNotes: 'Ghi nhanh',
     settings: 'Cài đặt',

@@ -328,3 +328,44 @@ test('v49 them bang sao luu Drive voi gia tri mac dinh an toan, va quay lui duoc
   assert.equal(tables.includes('drive_backup_files'), false);
   assert.ok(tables.includes('email_settings'), 'bang cua dot truoc con nguyen');
 });
+
+test('v50 them danh ba ca nhan, xoa nguoi dung thi xoa theo, va quay lui duoc', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 49);
+  migrate(db);
+
+  const user = Number(
+    db.prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('a', '', '')`).run()
+      .lastInsertRowid
+  );
+  const contact = Number(
+    db.prepare(`INSERT INTO personal_contacts (user_id, full_name) VALUES (?, 'An')`).run(user)
+      .lastInsertRowid
+  );
+  db.prepare(`INSERT INTO personal_contact_keys VALUES (?, 'phone', '0901234567')`).run(contact);
+  db.prepare(`INSERT INTO google_contact_accounts (user_id, google_account) VALUES (?, 'a@gmail.com')`).run(user);
+  /* Mot resource_name Google chi xuat hien mot lan cho moi nguoi. */
+  db.prepare(
+    `INSERT INTO personal_contacts (user_id, full_name, source, google_resource_name) VALUES (?, 'B', 'google', 'people/c1')`
+  ).run(user);
+  assert.throws(() =>
+    db
+      .prepare(
+        `INSERT INTO personal_contacts (user_id, full_name, source, google_resource_name) VALUES (?, 'C', 'google', 'people/c1')`
+      )
+      .run(user)
+  );
+
+  db.prepare(`DELETE FROM users WHERE id = ?`).run(user);
+  for (const table of ['personal_contacts', 'personal_contact_keys', 'google_contact_accounts']) {
+    assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n, 0, table);
+  }
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v50-rollback.sql', import.meta.url), 'utf8'));
+  const tables = (
+    db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]
+  ).map((t) => t.name);
+  assert.equal(tables.includes('personal_contacts'), false);
+  assert.ok(tables.includes('drive_backup_settings'), 'bang cua dot truoc con nguyen');
+});

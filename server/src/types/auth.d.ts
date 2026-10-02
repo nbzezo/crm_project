@@ -9,6 +9,8 @@ declare module 'express-session' {
     googleOAuthState?: string;
     /** Nhu tren, cho luong dang nhap Google cua sao luu Drive (routes/driveBackup.ts). */
     driveOAuthState?: string;
+    /** Nhu tren, cho luong ket noi danh ba Google cua tung nhan vien (routes/myContacts.ts). */
+    contactsOAuthState?: string;
   }
 }
 

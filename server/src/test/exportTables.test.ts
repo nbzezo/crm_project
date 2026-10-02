@@ -44,6 +44,12 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     // khong phai du lieu nghiep vu, va khong the khoi phuc tu ban xuat JSON.
     'drive_backup_settings',
     'drive_backup_files',
+    // Danh ba dien thoai/Gmail RIENG cua tung nhan vien (v50) va refresh token Google
+    // cua ho. Dua vao ban xuat se mo no cho nguoi co quyen `data.export` — pha vo
+    // dung ranh gioi rieng tu. Phan da dua vao CRM nam o `contacts`, van duoc xuat.
+    'personal_contacts',
+    'personal_contact_keys',
+    'google_contact_accounts',
     // Cau hinh giao dien theo tai khoan; khong the khoi phuc doc lap vi `users`
     // co y nam ngoai goi sao luu nghiep vu.
     'task_saved_views',

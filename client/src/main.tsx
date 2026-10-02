@@ -29,6 +29,7 @@ const FollowUpPage = lazy(() => import('./pages/FollowUpPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
 const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
+const MyContactsPage = lazy(() => import('./pages/MyContactsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
 
@@ -167,6 +168,12 @@ const router = createBrowserRouter([
         path: 'org-directory',
         element: <OrgDirectoryPage />,
         handle: { permission: 'contacts:read', title: t.nav.orgDirectory },
+      },
+      {
+        /* Moi nguoi dang nhap deu co danh ba rieng — khong dat `permission`. */
+        path: 'my-contacts',
+        element: <MyContactsPage />,
+        handle: { title: t.nav.myContacts, visibleHeading: true },
       },
       {
         path: 'ai',
