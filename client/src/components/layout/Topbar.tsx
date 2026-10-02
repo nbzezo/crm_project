@@ -60,7 +60,11 @@ export function Topbar({ title }: { title: string }) {
       {/* Giao diện Sáng/Tối giữ nguyên ở đây chứ không vào menu tài khoản: đó là
           thao tác một chạm dùng nhiều lần trong ngày, chôn vào menu là làm chậm
           đi để đổi lấy gọn gàng. */}
-      <ThemeToggle />
+      {/* Tren dien thoai nut Giao dien nam trong menu tai khoan: thanh tren hep
+          khong con cho cho tieu de trang. */}
+      <div className="hidden md:contents">
+        <ThemeToggle />
+      </div>
       <AssistantButton />
       {canReadNotes && (
         <button

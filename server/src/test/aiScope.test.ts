@@ -281,3 +281,39 @@ test('gioi han 20 phien tinh TREN MOI NGUOI, khong phai tren he thong', async ()
     'phien cua N1 khong bi hoat dong cua N2 day ra ngoai'
   );
 });
+
+/* ---------- Ngu canh "dang xem" cua bang Tro ly nhanh ---------- */
+
+function recordOf(label: string) {
+  return db
+    .prepare(
+      `SELECT c.id AS customer_id, d.id AS deal_id
+         FROM customers c JOIN deals d ON d.customer_id = c.id
+        WHERE c.name = ?`
+    )
+    .get(`Khách Vinatech của ${label}`) as { customer_id: number; deal_id: number };
+}
+
+test('hoi kem ban ghi dang xem: ngoai pham vi thi 404, khong lo ho so cho mo hinh', async () => {
+  const ofN2 = recordOf('N2');
+  const ofN1 = recordOf('N1');
+  await signInAs(n1);
+
+  /* id do trinh duyet gui len. Kiem quyen phai chan TRUOC khi dung ngu canh —
+     neu khong, doan id la doc duoc ho so khach cua phong khac qua cau tra loi. */
+  for (const context of [
+    { type: 'customer', id: ofN2.customer_id },
+    { type: 'deal', id: ofN2.deal_id },
+  ]) {
+    const res = await call('POST', '/api/ai/ask', { question: 'Tóm tắt giúp tôi', context });
+    assert.equal(res.status, 404, `${context.type} cua N2 phai la 404 voi N1`);
+  }
+
+  /* Ban ghi cua chinh minh qua duoc buoc kiem quyen; test khong co nha cung cap
+     AI nen dung o buoc goi mo hinh — mien khong phai 404 la dung. */
+  const own = await call('POST', '/api/ai/ask', {
+    question: 'Tóm tắt giúp tôi',
+    context: { type: 'customer', id: ofN1.customer_id },
+  });
+  assert.notEqual(own.status, 404, 'khach cua chinh N1 khong duoc bi chan');
+});

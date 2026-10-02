@@ -1,10 +1,11 @@
 import { lazy, Suspense, useState } from 'react';
-import { LogOut, UserCog } from 'lucide-react';
+import { ChevronDown, LogOut, Palette, UserCog } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Modal } from '../common/Modal';
 import { focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { useAuthStore } from '../../stores/authStore';
+import { ThemeOptionItems, useThemeLabel } from './ThemeToggle';
 
 const AccountSettings = lazy(() =>
   import('../settings/AccountSettings').then((m) => ({ default: m.AccountSettings }))
@@ -36,6 +37,8 @@ export function AccountMenu() {
   const logout = useAuthStore((s) => s.logout);
   const pop = usePopover();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const themeLabel = useThemeLabel();
 
   const name = user?.full_name ?? user?.username ?? '';
   const email = user?.email ?? null;
@@ -82,6 +85,29 @@ export function AccountMenu() {
         >
           {t.account.title}
         </PopoverItem>
+        {/* Chi tren dien thoai — man rong da co nut Giao dien rieng tren thanh tren. */}
+        <div className="md:hidden">
+          <PopoverItem
+            icon={<Palette size={15} />}
+            expanded={themeOpen}
+            onClick={() => setThemeOpen((value) => !value)}
+          >
+            <span className="flex flex-1 items-center gap-2">
+              <span className="flex-1">Giao diện</span>
+              <span className="text-xs text-tr-muted">{themeLabel}</span>
+              <ChevronDown
+                size={14}
+                aria-hidden="true"
+                className={`transition-transform ${themeOpen ? 'rotate-180' : ''}`}
+              />
+            </span>
+          </PopoverItem>
+          {themeOpen && (
+            <div className="ms-3 border-s border-tr-border ps-1">
+              <ThemeOptionItems onPicked={pop.close} />
+            </div>
+          )}
+        </div>
         <PopoverItem
           icon={<LogOut size={15} />}
           danger

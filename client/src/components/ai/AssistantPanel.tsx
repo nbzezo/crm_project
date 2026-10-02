@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Maximize2, X } from 'lucide-react';
 import { AssistantChat } from './AssistantChat';
 import { IconButton } from '../common/ui';
 import { useDialog } from '../common/useDialog';
 import { useUiStore } from '../../stores/uiStore';
+import { pageContextOf } from '../../ai/pageContext';
 
 /**
  * Tro ly AI dang bang truot tu canh phai — hoi ngay tai man dang xem.
@@ -21,6 +22,10 @@ export function AssistantPanel() {
   const open = useUiStore((s) => s.assistantPanelOpen);
   const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
   const navigate = useNavigate();
+  /* Bang dong moi khi doi trang (AssistantLauncher), nen ban ghi trong duong
+     dan luc nay chinh la ban ghi nguoi dung dang xem khi mo bang. */
+  const { pathname } = useLocation();
+  const pageContext = useMemo(() => pageContextOf(pathname), [pathname]);
   const panelRef = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
 
@@ -52,6 +57,7 @@ export function AssistantPanel() {
       >
         <AssistantChat
           variant="panel"
+          pageContext={pageContext}
           headerActions={
             <>
               <IconButton label="Mở toàn màn hình" onClick={() => navigate('/ai')}>

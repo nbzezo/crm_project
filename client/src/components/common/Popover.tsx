@@ -169,6 +169,7 @@ export function PopoverItem({
   danger,
   role,
   checked,
+  expanded,
   disabled,
 }: {
   icon?: ReactNode;
@@ -179,6 +180,8 @@ export function PopoverItem({
   role?: 'menuitem' | 'menuitemradio';
   /** Di kem `role="menuitemradio"` — noi ra muc nao dang duoc chon. */
   checked?: boolean;
+  /** Muc mo/thu mot nhom con ngay trong popover (vd. Giao dien trong menu tai khoan). */
+  expanded?: boolean;
   disabled?: boolean;
 }) {
   return (
@@ -186,6 +189,7 @@ export function PopoverItem({
       type="button"
       role={role}
       aria-checked={role === 'menuitemradio' ? checked : undefined}
+      aria-expanded={expanded}
       onClick={onClick}
       disabled={disabled}
       className={`tr-popover-item -mx-3 flex min-h-11 w-[calc(100%+1.5rem)] items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-tr-hover focus-visible:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary disabled:cursor-not-allowed disabled:opacity-45 fine:min-h-0 fine:py-1.5 ${

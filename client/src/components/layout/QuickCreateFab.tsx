@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { Building2, ListTodo, Plus, Target, Users, Zap } from 'lucide-react';
+import { Building2, ListTodo, Plus, Sparkles, Target, Users, Zap } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
 import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { BottomSheet } from '../common/BottomSheet';
+import { useCanOpenAssistant } from './AssistantLauncher';
 import { DocumentTemplatePicker } from '../crm/meetingNotes/DocumentTemplatePicker';
 import {
   createDocumentFromTemplate,
@@ -56,6 +57,9 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const pushToast = useUiStore((s) => s.pushToast);
+  const setAssistantPanelOpen = useUiStore((s) => s.setAssistantPanelOpen);
+  /* Dien thoai khong co nut ✨ tren thanh tren — loi vao Tro ly nam o day. */
+  const canOpenAssistant = useCanOpenAssistant();
 
   const createNote = useMutation({
     mutationFn: (purpose: DocumentPurpose) =>
@@ -223,6 +227,16 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
               openQuickNotesBoard({ createNew: true });
             }}
           />
+          {canOpenAssistant && (
+            <MobileCreateItem
+              icon={<Sparkles size={22} />}
+              label="Trợ lý AI"
+              onClick={() => {
+                setOpen(false);
+                setAssistantPanelOpen(true);
+              }}
+            />
+          )}
           <MobileCreateItem
             icon={<Users size={22} />}
             label="Trang tài liệu"

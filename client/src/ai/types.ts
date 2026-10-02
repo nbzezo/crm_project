@@ -108,6 +108,20 @@ export interface AiAskResult {
 
 /* ---------- Phiên chat với Trợ lý AI (v37) ---------- */
 
+/**
+ * Bản ghi người dùng đang xem khi mở bảng Trợ lý nhanh (1.13.0) — gửi kèm câu
+ * hỏi để "khách hàng này" / "cơ hội này" có nghĩa. Server kiểm quyền với id này.
+ */
+export interface AiPageContext {
+  type: 'customer' | 'deal';
+  id: number;
+}
+
+/** Ngữ cảnh đã dùng cho một lượt hỏi, lưu cùng câu trả lời để mở lại vẫn thấy. */
+export interface AiPageContextRef extends AiPageContext {
+  label: string;
+}
+
 /** Một phiên trong danh sách bên phải — không kèm tin nhắn. */
 export interface AiChatSession {
   id: number;
@@ -129,7 +143,7 @@ export interface AiChatMessage {
   session_id: number;
   role: 'user' | 'assistant';
   content: string;
-  meta: Omit<AiAskResult, 'answer'> | null;
+  meta: (Omit<AiAskResult, 'answer'> & { page_context?: AiPageContextRef | null }) | null;
   created_at: string;
 }
 

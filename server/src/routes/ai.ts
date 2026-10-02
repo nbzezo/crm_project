@@ -229,6 +229,13 @@ function chatOwner(req: Request): number | null {
 }
 
 /** Chan hoi AI ve mot khach hang / co hoi nam ngoai pham vi cua nguoi hoi. */
+/** Ten hien thi cua ban ghi dang xem — lay tu chinh ho so vua dung cho ngu canh. */
+function focusLabel(data: unknown, type: 'customer' | 'deal'): string {
+  const record = (data as Record<string, Record<string, unknown> | undefined>)[type];
+  const value = type === 'customer' ? record?.name : record?.title;
+  return typeof value === 'string' && value.trim() ? value.trim() : `#${String(record?.id ?? '')}`;
+}
+
 function assertContextInScope(req: Request, type: string, id: number | undefined): void {
   if (id == null) return;
   if (type === 'customer') {
@@ -1216,6 +1223,14 @@ const askSchema = z.object({
   /* Co thi luot hoi-dap duoc ghi vao phien do. Bo trong van hoi duoc — cac noi
      goi khac (vd o nhap nhanh) khong bat buoc phai co phien. */
   session_id: z.number().int().positive().optional(),
+  /* Ban ghi nguoi dung dang xem khi mo bang Tro ly nhanh. Co thi ho so day du
+     cua no vao ngu canh, de "khach hang nay" / "co hoi nay" co nghia. */
+  context: z
+    .object({
+      type: z.enum(['customer', 'deal']),
+      id: z.number().int().positive(),
+    })
+    .optional(),
 });
 const askResponseSchema = z.object({
   answer: z.string().min(1),
@@ -1227,6 +1242,16 @@ const askResponseSchema = z.object({
 router.post('/ask', async (req, res) => {
   try {
     const body = parseBody(askSchema, req);
+    /* Kiem quyen TRUOC moi viec khac: id do trinh duyet gui len, va ho so ban ghi
+       se di thang vao ngu canh cho mo hinh — doan id la doc duoc ho so nguoi khac. */
+    let focus: { type: 'customer' | 'deal'; id: number; label: string; data: unknown } | null =
+      null;
+    if (body.context) {
+      const { type, id } = body.context;
+      assertContextInScope(req, type, id);
+      const data = type === 'customer' ? buildCustomerContext(db, id) : buildDealContext(db, id);
+      focus = { type, id, label: focusLabel(data, type), data };
+    }
     if (body.scope !== 'crm') {
       const count = db.prepare(`SELECT COUNT(*) AS n FROM ai_document_chunks`).get() as {
         n: number;
@@ -1237,6 +1262,9 @@ router.post('/ask', async (req, res) => {
       if (count.n === 0 && documents.n > 0) await indexAllDocuments(db);
     }
     const context = {
+      /* Dat DAU TIEN: compactJson cat tu cuoi khi qua dai, ho so ban ghi dang xem
+         la phan khong duoc mat. */
+      ...(focus ? { focus: { type: focus.type, record: focus.data } } : {}),
       crm:
         body.scope === 'documents'
           ? null
@@ -1256,6 +1284,8 @@ router.post('/ask', async (req, res) => {
     const result = await runAi(db, {
       task: 'crm_ask',
       mode: body.mode,
+      contextType: focus?.type,
+      contextId: focus?.id,
       json: true,
       system:
         'Bạn là trợ lý công việc và CRM chủ động cho một người dùng Việt Nam. Trả lời trực tiếp, ưu tiên việc cần làm, rủi ro và bước tiếp theo. ' +
@@ -1264,6 +1294,10 @@ router.post('/ask', async (req, res) => {
       prompt:
         `Hôm nay: ${new Date().toISOString().slice(0, 10)}\n` +
         (history ? `Lịch sử hội thoại gần nhất:\n${history}\n\n` : '') +
+        (focus
+          ? `Người dùng đang mở ${focus.type === 'customer' ? 'khách hàng' : 'cơ hội'} "${focus.label}" (id ${focus.id}); hồ sơ đầy đủ nằm ở "focus" trong ngữ cảnh. ` +
+            `"${focus.type === 'customer' ? 'Khách hàng này' : 'Cơ hội này'}", "ở đây" hay câu hỏi không nêu tên đều chỉ bản ghi đó.\n`
+          : '') +
         `Câu hỏi hiện tại: ${body.question}\n` +
         'Trả JSON {"answer":"...","sources":["..."],"follow_up_questions":["..."],"proposed_action":null}. ' +
         'proposed_action nếu có phải là một trong: create_task, create_reminder, update_deal_next_action, create_interaction với payload đầy đủ. ' +
@@ -1289,6 +1323,7 @@ router.post('/ask', async (req, res) => {
         follow_up_questions: payload.follow_up_questions,
         proposal: payload.proposal,
         meta: payload.meta,
+        page_context: focus ? { type: focus.type, id: focus.id, label: focus.label } : null,
       });
     }
     res.json(payload);

@@ -14,9 +14,11 @@ import {
   Check,
   Copy,
   ListPlus,
+  MapPin,
   MessageSquarePlus,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Sparkles,
   Trash2,
   X,
@@ -29,8 +31,15 @@ import {
   type AiChatMessage,
   type AiChatSession,
   type AiMode,
+  type AiPageContext,
+  type AiPageContextRef,
   type TaskAssistResult,
 } from '../../ai/types';
+import {
+  PAGE_CONTEXT_NOUN,
+  PAGE_CONTEXT_SUGGESTIONS,
+  usePageContextLabel,
+} from '../../ai/pageContext';
 import { Button, FormError, IconButton, Select, focusRing } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { AnswerText } from './AnswerText';
@@ -90,8 +99,15 @@ const SUGGESTIONS = [
  * cua mot hoi thoai; giao dien lai ve theo CAP. Ghep o day de phan render
  * khong phai biet gi ve cach luu tru.
  */
-function turnsOf(messages: AiChatMessage[]): { question: string; result: AiAskResult }[] {
-  const turns: { question: string; result: AiAskResult }[] = [];
+interface ChatTurn {
+  question: string;
+  result: AiAskResult;
+  /** Ban ghi dang xem luc hoi (neu co) — de mo lai phien van biet "nay" la ai. */
+  context: AiPageContextRef | null;
+}
+
+function turnsOf(messages: AiChatMessage[]): ChatTurn[] {
+  const turns: ChatTurn[] = [];
   for (let i = 0; i < messages.length; i++) {
     const current = messages[i];
     if (current.role !== 'user') continue;
@@ -106,6 +122,7 @@ function turnsOf(messages: AiChatMessage[]): { question: string; result: AiAskRe
         proposal: reply.meta?.proposal ?? null,
         meta: reply.meta?.meta ?? { requestId: String(reply.id), provider: '', model: '' },
       } as AiAskResult,
+      context: reply.meta?.page_context ?? null,
     });
   }
   return turns;
@@ -121,10 +138,13 @@ export type AssistantChatVariant = 'page' | 'panel';
 export function AssistantChat({
   variant = 'page',
   headerActions,
+  pageContext = null,
 }: {
   variant?: AssistantChatVariant;
   /** Nut them o thanh tieu de (vd. Mo toan man hinh / Dong cua bang nhanh). */
   headerActions?: ReactNode;
+  /** Ban ghi dang xem khi mo bang nhanh — gui kem cau hoi neu nguoi dung khong tat. */
+  pageContext?: AiPageContext | null;
 } = {}) {
   const panel = variant === 'panel';
   const composerId = useId();
@@ -151,6 +171,19 @@ export function AssistantChat({
   }, [panel, panelOpen]);
   /** Cau hoi vua gui, hien ngay truoc khi may chu tra loi. */
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [pendingContextLabel, setPendingContextLabel] = useState<string | null>(null);
+
+  /* Nhan "Dang xem" BAT san moi khi doi sang ban ghi khac: mo bang tu trang mot
+     khach hang la muon hoi ve khach do. Tat roi thi chi tat cho ban ghi nay. */
+  const contextKey = pageContext ? `${pageContext.type}:${pageContext.id}` : '';
+  const [contextOn, setContextOn] = useState(true);
+  const [seenContextKey, setSeenContextKey] = useState(contextKey);
+  if (seenContextKey !== contextKey) {
+    setSeenContextKey(contextKey);
+    setContextOn(true);
+  }
+  const contextLabel = usePageContextLabel(pageContext);
+  const activeContext = pageContext && contextOn ? pageContext : null;
 
   const streamRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -198,6 +231,7 @@ export function AssistantChat({
         scope,
         mode,
         session_id: target,
+        ...(activeContext ? { context: activeContext } : {}),
         history: conversation
           .flatMap((turn) => [
             { role: 'user', content: turn.question },
@@ -208,6 +242,7 @@ export function AssistantChat({
     },
     onSettled: () => {
       setPendingQuestion(null);
+      setPendingContextLabel(null);
       refreshChats();
     },
   });
@@ -239,6 +274,7 @@ export function AssistantChat({
     if (value.length < 3 || busy) return;
     if (intent === 'ask') {
       setPendingQuestion(value);
+      setPendingContextLabel(activeContext ? contextLabel : null);
       ask.mutate(value);
     } else {
       quickTask.mutate(value);
@@ -323,6 +359,7 @@ export function AssistantChat({
             {empty ? (
               <EmptyChat
                 compact={panel}
+                suggestions={activeContext ? PAGE_CONTEXT_SUGGESTIONS[activeContext.type] : null}
                 greeting={greeting}
                 onPick={(text) => {
                   setIntent('ask');
@@ -336,6 +373,7 @@ export function AssistantChat({
                   <Turn
                     key={`${index}-${turn.result.meta.requestId}`}
                     question={turn.question}
+                    contextLabel={turn.context?.label ?? null}
                     result={turn.result}
                     pendingDecision={decide.isPending}
                     onDecide={(decision) =>
@@ -351,7 +389,7 @@ export function AssistantChat({
 
                 {pendingQuestion !== null && (
                   <div className="space-y-3">
-                    <Bubble text={pendingQuestion} />
+                    <Bubble text={pendingQuestion} contextLabel={pendingContextLabel} />
                     <Thinking />
                   </div>
                 )}
@@ -402,6 +440,15 @@ export function AssistantChat({
         >
           <div className="mx-auto w-full max-w-3xl">
             <FormError error={intent === 'ask' ? (ask.error ?? decide.error) : quickTask.error} />
+
+            {pageContext && intent === 'ask' && (
+              <ContextChip
+                on={contextOn}
+                noun={PAGE_CONTEXT_NOUN[pageContext.type]}
+                label={contextLabel ?? ''}
+                onToggle={() => setContextOn((value) => !value)}
+              />
+            )}
 
             <div className="rounded-panel border border-tr-border bg-tr-list focus-within:border-tr-primary">
               <label htmlFor={composerId} className="sr-only">
@@ -635,10 +682,13 @@ function ChatRail({
 
 function EmptyChat({
   compact,
+  suggestions,
   greeting,
   onPick,
 }: {
   compact: boolean;
+  /** Goi y rieng cho ban ghi dang xem; null thi dung goi y chung. */
+  suggestions: string[] | null;
   greeting: string;
   onPick: (text: string) => void;
 }) {
@@ -657,7 +707,7 @@ function EmptyChat({
         phép xem.
       </p>
       <div className={`mt-6 grid w-full max-w-xl gap-2 ${compact ? '' : 'sm:grid-cols-2'}`}>
-        {SUGGESTIONS.map((item) => (
+        {(suggestions ?? SUGGESTIONS).map((item) => (
           <button
             key={item}
             type="button"
@@ -672,9 +722,15 @@ function EmptyChat({
   );
 }
 
-function Bubble({ text }: { text: string }) {
+function Bubble({ text, contextLabel }: { text: string; contextLabel?: string | null }) {
   return (
-    <div className="flex justify-end">
+    <div className="flex flex-col items-end gap-1">
+      {contextLabel && (
+        <span className="inline-flex max-w-[85%] items-center gap-1 text-xs text-tr-muted">
+          <MapPin size={12} aria-hidden="true" className="shrink-0" />
+          <span className="truncate">Về: {contextLabel}</span>
+        </span>
+      )}
       <div className="max-w-[85%] rounded-panel bg-tr-primary px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap text-tr-on-primary">
         {text}
       </div>
@@ -693,12 +749,14 @@ function Thinking() {
 
 function Turn({
   question,
+  contextLabel,
   result,
   pendingDecision,
   onDecide,
   onFollowUp,
 }: {
   question: string;
+  contextLabel: string | null;
   result: AiAskResult;
   pendingDecision: boolean;
   onDecide: (decision: 'approve' | 'reject') => void;
@@ -714,7 +772,7 @@ function Turn({
 
   return (
     <div className="space-y-3">
-      <Bubble text={question} />
+      <Bubble text={question} contextLabel={contextLabel} />
 
       <div className="space-y-3">
         <AnswerText text={result.answer} />
@@ -776,6 +834,46 @@ function Turn({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Nhan ban ghi dang xem, bam de bat/tat. Tat roi van hien (mo nhat, dau +) de
+ * nguoi dung biet co the hoi kem, va de khong ai tuong tro ly tu doan ngu canh.
+ */
+function ContextChip({
+  on,
+  noun,
+  label,
+  onToggle,
+}: {
+  on: boolean;
+  noun: string;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onToggle}
+      title={on ? 'Bấm để hỏi không kèm bản ghi này' : 'Bấm để hỏi kèm bản ghi này'}
+      className={`mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${focusRing} ${
+        on
+          ? 'border-tr-primary/40 bg-tr-primary/10 text-tr-primary'
+          : 'border-dashed border-tr-border text-tr-muted hover:bg-tr-hover hover:text-tr-text'
+      }`}
+    >
+      <MapPin size={13} aria-hidden="true" className="shrink-0" />
+      <span className="truncate">
+        {on ? 'Đang xem' : 'Hỏi kèm'} {noun.toLowerCase()}: <strong>{label}</strong>
+      </span>
+      {on ? (
+        <X size={13} aria-hidden="true" className="shrink-0" />
+      ) : (
+        <Plus size={13} aria-hidden="true" className="shrink-0" />
+      )}
+    </button>
   );
 }
 

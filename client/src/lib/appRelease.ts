@@ -20,9 +20,12 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     version: '1.13.0',
     date: '2026-10-03',
-    title: 'Mở Trợ lý AI nhanh từ mọi màn hình',
+    title: 'Trợ lý AI nhanh từ mọi màn hình, hiểu bản ghi đang xem',
     changes: [
-      'Nút ✨ Trợ lý AI trên thanh trên cùng (hoặc phím Ctrl + /) mở khung trò chuyện trượt từ cạnh phải, hỏi ngay tại màn đang xem mà không phải chuyển sang trang Trợ lý AI. Trên điện thoại khung mở toàn màn hình.',
+      'Nút ✨ Trợ lý AI trên thanh trên cùng (hoặc phím Ctrl + /) mở khung trò chuyện trượt từ cạnh phải, hỏi ngay tại màn đang xem mà không phải chuyển sang trang Trợ lý AI. Trên điện thoại mở từ nút Tạo → Trợ lý AI (cạnh Ghi nhanh), khung mở toàn màn hình.',
+      'Mở trợ lý khi đang xem một khách hàng hoặc cơ hội: khung chat hiện nhãn "Đang xem …", trợ lý đọc hồ sơ của bản ghi đó nên hỏi "khách hàng này", "cơ hội này" là hiểu. Bấm vào nhãn để hỏi không kèm bản ghi. Gợi ý câu hỏi cũng đổi theo bản ghi, và mỗi câu hỏi ghi rõ đã hỏi về bản ghi nào.',
+      'Trợ lý chỉ đọc được hồ sơ khách hàng, cơ hội nằm trong phạm vi bạn được xem.',
+      'Điện thoại: nút đổi giao diện chuyển vào menu tài khoản (bấm ảnh đại diện → Giao diện), thanh trên cùng rộng chỗ hơn cho tiêu đề trang.',
       'Khung nhanh và trang Trợ lý AI dùng chung cuộc trò chuyện: bấm "Mở toàn màn hình" là sang trang lớn với đúng cuộc đang hỏi.',
       'Đóng khung khi trợ lý đang trả lời thì câu trả lời vẫn tiếp tục; mở lại thấy nguyên cuộc trò chuyện và chữ đang gõ dở.',
       'Màn Công việc: phím "/" để tìm kiếm không còn bắt nhầm Ctrl + /.',

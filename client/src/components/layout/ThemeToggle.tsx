@@ -65,9 +65,58 @@ function ThemeSwatch({ colors }: { colors: ThemeOption['colors'] }) {
   );
 }
 
-export function ThemeToggle() {
+/**
+ * Danh sach giao dien dang `menuitemradio` — dung chung cho nut Giao dien tren
+ * thanh tren (man rong) va menu tai khoan (dien thoai, AccountMenu).
+ */
+export function ThemeOptionItems({ onPicked }: { onPicked: () => void }) {
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  return (
+    <>
+      {OPTIONS.map(({ mode: value, label, description, icon: Icon, colors }) => (
+        /* `menuitemradio` + `aria-checked`: day la mot lua chon LOAI TRU NHAU
+           (chi mot giao dien duoc bat). Truoc day chung chi la cac nut thuong,
+           nen trinh doc man hinh khong biet chung thuoc cung mot nhom, cung
+           khong biet muc nao dang duoc chon — dau tich chi la mot icon. */
+        <PopoverItem
+          key={value}
+          role="menuitemradio"
+          checked={value === mode}
+          icon={<Icon size={15} />}
+          onClick={() => {
+            setMode(value);
+            onPicked();
+          }}
+        >
+          <span className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="min-w-0 flex-1">
+              <span
+                className={`flex items-center gap-1.5 ${
+                  value === mode ? 'font-semibold text-tr-primary' : 'font-medium'
+                }`}
+              >
+                {label}
+                {value === mode && <Check size={13} aria-label="Đang chọn" />}
+              </span>
+              <span className="block truncate text-xs text-tr-muted">{description}</span>
+            </span>
+            <ThemeSwatch colors={colors} />
+          </span>
+        </PopoverItem>
+      ))}
+    </>
+  );
+}
+
+/** Ten giao dien dang dung — hien trong menu tai khoan tren dien thoai. */
+export function useThemeLabel(): string {
+  const mode = useThemeStore((s) => s.mode);
+  return (OPTIONS.find((option) => option.mode === mode) ?? OPTIONS[1]).label;
+}
+
+export function ThemeToggle() {
+  const mode = useThemeStore((s) => s.mode);
   const pop = usePopover();
   const activeOption = OPTIONS.find((option) => option.mode === mode) ?? OPTIONS[1];
   const Current = activeOption.icon;
@@ -100,37 +149,7 @@ export function ThemeToggle() {
         title="Giao diện"
         width={286}
       >
-        {OPTIONS.map(({ mode: value, label, description, icon: Icon, colors }) => (
-          /* `menuitemradio` + `aria-checked`: day la mot lua chon LOAI TRU NHAU
-             (chi mot giao dien duoc bat). Truoc day chung chi la cac nut thuong,
-             nen trinh doc man hinh khong biet chung thuoc cung mot nhom, cung
-             khong biet muc nao dang duoc chon — dau tich chi la mot icon. */
-          <PopoverItem
-            key={value}
-            role="menuitemradio"
-            checked={value === mode}
-            icon={<Icon size={15} />}
-            onClick={() => {
-              setMode(value);
-              pop.close();
-            }}
-          >
-            <span className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="min-w-0 flex-1">
-                <span
-                  className={`flex items-center gap-1.5 ${
-                    value === mode ? 'font-semibold text-tr-primary' : 'font-medium'
-                  }`}
-                >
-                  {label}
-                  {value === mode && <Check size={13} aria-label="Đang chọn" />}
-                </span>
-                <span className="block truncate text-xs text-tr-muted">{description}</span>
-              </span>
-              <ThemeSwatch colors={colors} />
-            </span>
-          </PopoverItem>
-        ))}
+        <ThemeOptionItems onPicked={pop.close} />
       </Popover>
     </>
   );

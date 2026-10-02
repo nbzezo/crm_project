@@ -18,18 +18,28 @@ function onAiPage(pathname: string) {
   return pathname === '/ai' || pathname.startsWith('/ai/');
 }
 
+/** Nguoi dung mo duoc bang Tro ly o trang hien tai khong (co quyen, khong o /ai). */
+export function useCanOpenAssistant(): boolean {
+  const canUseAi = usePermissionCheck()('ai:read');
+  const { pathname } = useLocation();
+  return canUseAi && !onAiPage(pathname);
+}
+
 /**
  * Nut ✨ tren Topbar mo bang Tro ly AI. Dat o thanh tren chu khong thanh mot
  * nut noi: goc phai duoi da co nut Tao nhanh, bong bong Ghi chu nhanh va toast.
  * Tren trang /ai thi an — o do chinh la tro ly.
+ *
+ * Chi tu md tro len: thanh tren cua dien thoai khong con cho (tieu de trang bi
+ * ep con vai pixel). Tren dien thoai loi vao nam trong bang "Tao nhanh", canh
+ * "Ghi nhanh" (QuickCreateFab).
  */
 export function AssistantButton() {
-  const canUseAi = usePermissionCheck()('ai:read');
-  const { pathname } = useLocation();
+  const canOpen = useCanOpenAssistant();
   const open = useUiStore((s) => s.assistantPanelOpen);
   const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
 
-  if (!canUseAi || onAiPage(pathname)) return null;
+  if (!canOpen) return null;
 
   return (
     <button
@@ -39,7 +49,7 @@ export function AssistantButton() {
       aria-haspopup="dialog"
       aria-expanded={open}
       title={`Trợ lý AI (${ASSISTANT_SHORTCUT})`}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-tr-border bg-tr-panel text-tr-primary transition hover:bg-tr-hover fine:h-8 fine:w-8 ${focusRing}`}
+      className={`hidden h-11 w-11 shrink-0 items-center justify-center rounded-control border md:flex border-tr-border bg-tr-panel text-tr-primary transition hover:bg-tr-hover fine:h-8 fine:w-8 ${focusRing}`}
     >
       <Sparkles size={18} aria-hidden="true" />
     </button>
