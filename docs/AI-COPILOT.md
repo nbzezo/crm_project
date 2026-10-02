@@ -46,6 +46,31 @@
   không có API đa phương thức.
 - Sự cố 502 của tính năng này và cách chẩn đoán: [VOICE-TO-TEXT-502.md](VOICE-TO-TEXT-502.md).
 
+### Giai đoạn 5 — gợi ý điền hồ sơ khách hàng
+
+- Form *Thêm/Sửa khách hàng* có ô *Tìm thông tin bằng AI*: gõ mã số thuế hoặc tên công ty
+  (`POST /api/ai/assist/customer`).
+- MST được tra trong CSDL đăng ký doanh nghiệp (API công khai VietQR, đổi bằng
+  `WORKFLOW_TAX_LOOKUP_URL`, đặt `off` để tắt). Tên pháp lý, MST, tên viết tắt, địa chỉ từ nguồn này
+  được đánh dấu *Đã xác thực* và đè lên dữ liệu AI.
+- AI bổ sung ngành nghề, quy mô, website, giới thiệu — luôn đánh dấu *AI · cần kiểm tra*.
+- Tùy chọn *Cho phép AI tìm trên web khi cần* (mặc định bật, nhớ theo trình duyệt): gateway gửi
+  `webSearch` — Gemini dùng `google_search` grounding, Claude dùng server tool `web_search`
+  (`web_search_20250305`, tối đa 3 lượt, tự chạy tiếp `pause_turn`). Mô hình tự quyết có tìm hay
+  không; nguồn web trả về được hiện thành link dưới đề xuất. DeepSeek không có công cụ tìm web nên chạy
+  như thường kèm cảnh báo.
+- 9Router: `/chat/completions` không tìm web, nên khi chọn *Model tìm kiếm của 9Router* (Cài đặt →
+  AI → Tìm kiếm web, lấy từ `GET /v1/models/web`, ví dụ `tavily/search`) ứng dụng tự gọi
+  `POST /v1/search` với 2–3 truy vấn (MST, website, giới thiệu) rồi chèn kết quả vào prompt. Model
+  chat (kể cả Gemini trong 9Router) không dùng được làm model tìm kiếm — cần bật Tavily, Brave,
+  Serper, SearXNG… trong 9Router. `/v1/web/fetch` (đọc cả trang) chưa dùng: đoạn trích tìm kiếm đã
+  đủ cho các trường hồ sơ. Nhà cung cấp từ chối công cụ (tổ chức chưa bật web
+  search, model cũ…) thì tự thử lại không tìm web. Tìm web tốn thêm phí theo bảng giá provider.
+- MST do AI đoán (khi chỉ gõ tên) phải tra lại được trong CSDL và khớp tên mới được giữ; lệch tên
+  hoặc không tồn tại thì bị bỏ kèm cảnh báo. MST là khóa chống trùng nên một MST sai rất đắt.
+- Chỉ đề xuất, không ghi CRM: người dùng chọn trường áp dụng (mặc định chỉ các ô đang trống) rồi
+  tự bấm Lưu. Chưa cấu hình AI thì tra MST vẫn điền được phần dữ liệu đăng ký.
+
 ## Luồng bảo mật
 
 ```mermaid

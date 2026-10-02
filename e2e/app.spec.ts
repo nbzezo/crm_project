@@ -256,7 +256,8 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
   await expect(searchDialog.getByText(dealTitle, { exact: true })).toBeVisible();
   await searchDialog.getByText(dealTitle, { exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/deals/${deal.id}$`));
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Chi tiết cơ hội');
+  // Trang chi tiet chi co MOT h1: ten co hoi (truoc day con them h1 an "Chi tiết cơ hội").
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(dealTitle);
 
   await page.goto('/contracts');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hợp đồng');
@@ -1435,4 +1436,57 @@ test.describe('mobile layout', () => {
     await editor.press('Enter');
     await expect(page.getByText('Cột mobile').first()).toBeVisible();
   });
+});
+
+test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async ({ page }) => {
+  await page.route('**/api/ai/assist/customer', (route) =>
+    route.fulfill({
+      json: {
+        suggestion: {
+          name: 'Công Ty Cổ Phần Sao Mai',
+          tax_code: '0102030405',
+          address: '1 Tràng Tiền, Hà Nội',
+          industry: 'Phân phối thiết bị',
+          size: 'SME',
+        },
+        sources: {
+          name: 'registry',
+          tax_code: 'registry',
+          address: 'registry',
+          industry: 'ai',
+          size: 'ai',
+        },
+        registry: null,
+        warnings: [],
+        confidence: 0.8,
+        rationale: '',
+        web_searched: true,
+        web_sources: [{ url: 'https://saomai.example', title: 'Sao Mai — Giới thiệu' }],
+        meta: null,
+      },
+    })
+  );
+  await page.goto('/customers');
+  await page.waitForLoadState('networkidle');
+  // Tren mobile nut tieu de chi con chu "Thêm".
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: /^Thêm( khách hàng)?$/ })
+    .first()
+    .click();
+  const dialog = page.getByRole('dialog', { name: /Thêm khách hàng/ });
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel('Tìm thông tin bằng AI').fill('0102030405');
+  await dialog.getByRole('button', { name: 'Tìm', exact: true }).click();
+  await expect(dialog.getByText('Đề xuất — chọn trường')).toBeVisible();
+  await expect(dialog.getByText('Đã xác thực').first()).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Sao Mai — Giới thiệu' })).toBeVisible();
+  await expectNoViolations(page, 'CustomerForm goi y AI');
+
+  await dialog.getByRole('button', { name: 'Áp dụng đã chọn' }).click();
+  await expect(dialog.locator('#customer-name')).toHaveValue('Công Ty Cổ Phần Sao Mai');
+  await expect(dialog.getByLabel('Mã số thuế', { exact: true })).toHaveValue('0102030405');
+  await expect(dialog.getByLabel('Quy mô')).toHaveValue('SME');
+  await dialog.getByRole('button', { name: 'Hủy' }).click();
 });

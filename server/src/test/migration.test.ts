@@ -83,7 +83,8 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18, 35, 37]) {
       assert.equal(
         (db.prepare(`SELECT name FROM customers WHERE id = ?`).get(customerId) as { name: string })
           .name,
-        `Khach hang fixture v${sourceVersion}`
+        // v50 chuan hoa ten ve dang Viet Hoa Chu Dau ("v1" khong nguyen am -> "V1").
+        `Khach Hang Fixture V${sourceVersion}`
       );
       assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM cards`).get() as { n: number }).n, 1);
 
@@ -327,4 +328,35 @@ test('v49 them bang sao luu Drive voi gia tri mac dinh an toan, va quay lui duoc
   assert.equal(tables.includes('drive_backup_settings'), false);
   assert.equal(tables.includes('drive_backup_files'), false);
   assert.ok(tables.includes('email_settings'), 'bang cua dot truoc con nguyen');
+});
+
+test('v50 chuan hoa ten to chuc da co ve dang Viet Hoa Chu Dau', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 49);
+  const insert = db.prepare(`INSERT INTO customers (name, org_kind) VALUES (?, 'customer')`);
+  insert.run('CÔNG TY CỔ PHẦN TẬP ĐOÀN GOLDEN GATE');
+  insert.run('Ngân hàng TMCP Ngoại thương Việt Nam');
+  insert.run('HUD Holdings');
+  migrate(db, 50);
+
+  const names = (
+    db.prepare('SELECT name FROM customers ORDER BY id').all() as { name: string }[]
+  ).map((row) => row.name);
+  assert.deepEqual(names, [
+    'Công Ty Cổ Phần Tập Đoàn Golden Gate',
+    'Ngân Hàng TMCP Ngoại Thương Việt Nam',
+    'HUD Holdings',
+  ]);
+  assert.equal(db.pragma('user_version', { simple: true }), 50);
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v50-rollback.sql', import.meta.url), 'utf8'));
+  const restored = (
+    db.prepare('SELECT name FROM customers ORDER BY id').all() as { name: string }[]
+  ).map((row) => row.name);
+  assert.deepEqual(restored, [
+    'CÔNG TY CỔ PHẦN TẬP ĐOÀN GOLDEN GATE',
+    'Ngân hàng TMCP Ngoại thương Việt Nam',
+    'HUD Holdings',
+  ]);
 });

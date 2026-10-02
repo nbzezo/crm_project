@@ -4,7 +4,7 @@ import { db } from '../db/connection.ts';
 import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
-import { ORG_KINDS } from '@workflow/contracts';
+import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import { assertOrgKindChange } from '../lib/entityRelations.ts';
 
 const router = Router();
@@ -174,7 +174,9 @@ export type NewCustomer = z.infer<typeof customerSchema>;
  * Tao khach hang va tra ve dong vua tao. Dung chung cho POST /api/customers va luong
  * "tai hop dong len" (tao khach hang ngay khi hop dong chua co trong so).
  */
-export function insertCustomer(body: NewCustomer, ownerContactId: number | null) {
+export function insertCustomer(input: NewCustomer, ownerContactId: number | null) {
+  // Ten to chuc luon luu dang "Viet Hoa Chu Dau" — ke ca khi tao tu luong hop dong.
+  const body = { ...input, name: normalizeOrgName(input.name) };
   const taxCode = normalizedTaxCode(body.tax_code);
   const email = normalizedEmail(body.email);
   const website = clean(body.website);
@@ -356,6 +358,8 @@ router.patch('/:id', (req, res) => {
   assertInScope(req, 'customers', 'update', current.owner_contact_id as number | null);
 
   const merged = { ...current, ...body };
+  // Chi chuan hoa khi ten DUOC GUI LEN: sua truong khac khong lang le doi ten cu.
+  if (body.name !== undefined) merged.name = normalizeOrgName(body.name);
   const orgKind = merged.org_kind ?? 'customer';
   if (body.org_kind !== undefined && body.org_kind !== current.org_kind) {
     assertOrgKindChange(db, id, body.org_kind);

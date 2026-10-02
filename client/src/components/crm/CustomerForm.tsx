@@ -6,10 +6,12 @@ import { Modal } from '../common/Modal';
 import { Field, FormError, FormModalActions, Input, Select, Textarea } from '../common/ui';
 import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
-import { ORG_KINDS } from '@workflow/contracts';
+import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import type { Customer, OrgKind } from '../../types';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { AssigneePicker } from '../tasks/AssigneePicker';
+import { usePermission } from '../../lib/permissions';
+import { CustomerAiLookup } from './CustomerAiLookup';
 
 const EMPTY = {
   name: '',
@@ -57,6 +59,8 @@ export function CustomerForm({
   const { submitted, validate } = useFormErrors();
   /** Ban sao luc mo form — dung de biet nguoi dung da sua gi chua. */
   const initialRef = useRef(EMPTY);
+  /* Tra cuu goi /api/ai — khong co quyen AI thi an han, khoi bam roi nhan 403. */
+  const canUseAi = usePermission('ai', 'create');
 
   useEffect(() => {
     if (!open) return;
@@ -162,6 +166,14 @@ export function CustomerForm({
         </div>
       )}
 
+      {canUseAi && (
+        <CustomerAiLookup
+          key={`${open}-${customer?.id ?? 'new'}`}
+          current={form}
+          onApply={(values) => setForm((f) => ({ ...f, ...values }))}
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Field
@@ -173,7 +185,11 @@ export function CustomerForm({
               id="customer-name"
               autoFocus
               value={form.name}
-              onBlur={() => setTouchedName(true)}
+              onBlur={() => {
+                setTouchedName(true);
+                // Hien ngay dang da chuan hoa — server cung chuan hoa y nhu vay khi luu.
+                if (form.name.trim()) set('name', normalizeOrgName(form.name));
+              }}
               onChange={(e) => set('name', e.target.value)}
             />
           </Field>

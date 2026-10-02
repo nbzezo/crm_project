@@ -1,4 +1,4 @@
-/* ---------- v50: chia se tai lieu / bao gia / hop dong bang duong lien ket (chi xem) ----------
+/* ---------- v51: chia se tai lieu / bao gia / hop dong bang duong lien ket (chi xem) ----------
 
    `share_links` luu MOT lien ket cong khai. Token ngau nhien (32 byte) chi hien ra
    MOT LAN luc tao; CSDL chi giu SHA-256 cua no (`token_hash`) — ban sao luu CSDL

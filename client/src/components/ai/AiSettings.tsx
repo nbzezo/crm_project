@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
   CheckCircle2,
+  Globe,
   KeyRound,
   Mic,
   Plus,
@@ -470,6 +471,106 @@ function VoicePromptTemplatesSettings({ providers }: { providers: AiProviderConf
   );
 }
 
+/**
+ * Tim web qua 9Router.
+ *
+ * Gemini va Claude co cong cu tim web rieng nen khong can cau hinh gi. 9Router thi
+ * khong: /chat/completions khong tim web, ung dung phai tu goi /v1/search truoc
+ * bang mot model tim kiem (Tavily, Brave, SearXNG...) — model chat Gemini trong
+ * 9Router KHONG dung cho viec nay.
+ */
+function WebSearchSettings({ providers }: { providers: AiProviderConfig[] }) {
+  const queryClient = useQueryClient();
+  const pushToast = useUiStore((state) => state.pushToast);
+  const nineRouter = providers.find((provider) => provider.provider === '9router');
+  const ready = Boolean(nineRouter?.enabled && nineRouter.has_api_key);
+
+  const saved = useQuery({
+    queryKey: ['ai-web-search-model'],
+    queryFn: () => api.get<{ model: string | null }>('/api/ai/web-search-model'),
+  });
+  const models = useQuery({
+    queryKey: ['ai-web-search-models'],
+    queryFn: () => api.get<string[]>('/api/ai/web-search-models'),
+    enabled: ready,
+    retry: false,
+  });
+
+  const [choice, setChoice] = useState<string | null>(null);
+  const current = saved.data?.model ?? '';
+  const value = choice ?? current;
+  const options = [...new Set([...(models.data ?? []), ...(current ? [current] : [])])];
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put<{ model: string | null }>('/api/ai/web-search-model', { model: value || null }),
+    onSuccess: (next) => {
+      queryClient.setQueryData(['ai-web-search-model'], next);
+      setChoice(null);
+      pushToast('Đã lưu model tìm kiếm web', 'success');
+    },
+  });
+
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          <Globe size={16} className="text-tr-primary" /> Tìm kiếm web
+        </span>
+      }
+    >
+      <p className="mb-4 text-sm text-tr-subtle">
+        Gemini và Claude tự tìm trên web khi được phép (vd. tra cứu khách hàng). Với 9Router, chọn
+        một model tìm kiếm để hệ thống tìm trước rồi gửi kết quả cho AI. Model chat (kể cả Gemini
+        trong 9Router) không dùng được ở đây — cần bật nhà cung cấp tìm kiếm như Tavily, Brave,
+        Serper hoặc SearXNG trong 9Router.
+      </p>
+      <FormError error={saved.error ?? save.error} />
+      {!ready ? (
+        <p className="text-xs text-tr-muted">
+          Bật 9Router và nhập API key ở phía trên để chọn model tìm kiếm.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[260px] flex-1">
+            <Field label="Model tìm kiếm của 9Router" hint="Để trống là không tìm web qua 9Router.">
+              <Select
+                value={value}
+                disabled={saved.isLoading || models.isLoading}
+                onChange={(event) => setChoice(event.target.value)}
+              >
+                <option value="">— không tìm web —</option>
+                {options.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Button
+            variant="primary"
+            disabled={save.isPending || value === current}
+            onClick={() => save.mutate()}
+          >
+            {save.isPending ? 'Đang lưu…' : 'Lưu model'}
+          </Button>
+        </div>
+      )}
+      {ready && models.error && (
+        <p className="mt-2 text-xs text-tr-warning">
+          Không đọc được danh sách model tìm kiếm từ 9Router: {(models.error as Error).message}
+        </p>
+      )}
+      {ready && models.data?.length === 0 && (
+        <p className="mt-2 text-xs text-tr-warning">
+          9Router chưa có model tìm kiếm nào — hãy bật một nhà cung cấp tìm kiếm trong 9Router.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
 export function AiSettings() {
   const {
     data: providers = [],
@@ -502,6 +603,8 @@ export function AiSettings() {
           ))}
         </div>
       </Panel>
+
+      <WebSearchSettings providers={providers} />
 
       <VoicePromptTemplatesSettings providers={providers} />
     </div>

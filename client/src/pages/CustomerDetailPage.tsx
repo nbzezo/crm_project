@@ -108,17 +108,22 @@ export default function CustomerDetailPage() {
   if (error)
     return (
       <div className="p-6">
+        <h1 className="sr-only">Hồ sơ khách hàng</h1>
         <ErrorState onRetry={() => refetch()} />
       </div>
     );
   if (isLoading)
     return (
-      <div role="status" aria-label={t.common.loading} className="space-y-4 p-6">
-        <Skeleton className="h-24 rounded-panel" />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 rounded-panel" />
-          ))}
+      <div className="space-y-4 p-6">
+        {/* Route khai visibleHeading: h1 phai co ca luc dang tai, khong chi sau khi co du lieu. */}
+        <h1 className="sr-only">Hồ sơ khách hàng</h1>
+        <div role="status" aria-label={t.common.loading} className="space-y-4">
+          <Skeleton className="h-24 rounded-panel" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-48 rounded-panel" />
+            ))}
+          </div>
         </div>
       </div>
     );

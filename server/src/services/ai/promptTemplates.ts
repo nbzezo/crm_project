@@ -65,6 +65,22 @@ export function saveVoiceModel(db: Database, value: VoiceModelSetting): void {
   writeSetting(db, MODEL_SETTINGS_KEY, value.provider && value.model ? value : AUTO_VOICE_MODEL);
 }
 
+const WEB_SEARCH_MODEL_KEY = 'ai.9router_search_model';
+
+/**
+ * Model tim kiem cua 9Router (`POST /v1/search`), vd. `tavily/search`.
+ * null = khong tim web qua 9Router. Gemini/Claude co cong cu tim web rieng nen
+ * khong can cai nay.
+ */
+export function getWebSearchModel(db: Database): string | null {
+  const value = readSetting(db, WEB_SEARCH_MODEL_KEY);
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+export function saveWebSearchModel(db: Database, model: string | null): void {
+  writeSetting(db, WEB_SEARCH_MODEL_KEY, model?.trim() || null);
+}
+
 function readSetting(db: Database, key: string): unknown {
   const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(key) as
     { value: string } | undefined;

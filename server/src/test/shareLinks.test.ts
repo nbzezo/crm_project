@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 /*
- * Chia se cong khai bang link (v50): tao, mo khong can dang nhap, mat khau,
+ * Chia se cong khai bang link (v51): tao, mo khong can dang nhap, mat khau,
  * het han, thu hoi, dong bang phien ban, an thong tin noi bo, chan tai ve.
  */
 
@@ -122,19 +122,19 @@ after(async () => {
   fs.rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
-test('v50: bang chia se co rang buoc loai ban ghi va quay lui duoc', async () => {
+test('v51: bang chia se co rang buoc loai ban ghi va quay lui duoc', async () => {
   const { default: Database } = await import('better-sqlite3');
   const { migrate } = await import('../db/migrate.ts');
   const mem = new Database(':memory:');
   mem.pragma('foreign_keys = ON');
-  migrate(mem, 49);
+  migrate(mem, 50);
   migrate(mem);
   assert.throws(() =>
     mem
       .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h', 'deal', 1)`)
       .run()
   );
-  mem.exec(fs.readFileSync(new URL('../db/migrate-v50-rollback.sql', import.meta.url), 'utf8'));
+  mem.exec(fs.readFileSync(new URL('../db/migrate-v51-rollback.sql', import.meta.url), 'utf8'));
   const tables = (
     mem.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]
   ).map((t) => t.name);
