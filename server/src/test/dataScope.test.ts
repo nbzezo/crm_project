@@ -412,6 +412,42 @@ test('Bao cao: cong viec va co hoi deu loc theo pham vi', async () => {
   assert.ok(staffDeals < adminDeals, 'bang bao cao cua nhan vien phai hep hon cua quan tri');
 });
 
+test('Hieu suat: nhan vien thay minh, truong phong thay ca phong, khong thay phong khac', async () => {
+  /* Mot viec da xong dung han giao cho N2, nam tren bang cua N1 — dem theo NGUOI
+     chu khong theo bang, nen no phai tinh cho N2 du bang thuoc ve ai. */
+  const boardId = (
+    db.prepare(`SELECT id FROM boards WHERE owner_contact_id = ?`).get(n1.contactId) as {
+      id: number;
+    }
+  ).id;
+  const listId = Number(
+    db.prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, 'Xong', 1024)`).run(boardId)
+      .lastInsertRowid
+  );
+  db.prepare(
+    `INSERT INTO cards (list_id, title, position, assignee_contact_id, is_done, completed_at, due_date)
+     VALUES (?, 'Viec cua N2', 1024, ?, 1, datetime('now','localtime'), date('now','localtime','+1 day'))`
+  ).run(listId, n2.contactId);
+
+  const range = '?from=2000-01-01&to=2999-12-31';
+  type Perf = { people: { contact_id: number; completed: number; on_time: number }[] };
+  const idsOf = (data: Perf) => data.people.map((row) => row.contact_id).sort();
+
+  await signInAs(n1);
+  const staff = (await call('GET', `/api/views/performance${range}`)).data as Perf;
+  assert.deepEqual(idsOf(staff), [n1.contactId]);
+
+  await signInAs(head);
+  const manager = (await call('GET', `/api/views/performance${range}`)).data as Perf;
+  assert.deepEqual(idsOf(manager), [head.contactId, n1.contactId].sort());
+
+  await signInAs('admin');
+  const admin = (await call('GET', `/api/views/performance${range}`)).data as Perf;
+  const n2Row = admin.people.find((row) => row.contact_id === n2.contactId);
+  assert.equal(n2Row?.completed, 1);
+  assert.equal(n2Row?.on_time, 1);
+});
+
 test('Suc khoe pipeline chi dem co hoi trong pham vi', async () => {
   await signInAs(n1);
   const staff = (await call('GET', '/api/views/pipeline-health')).data as { open_count: number };

@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { actorContactId, requirePermission } from '../middleware/currentUser.ts';
+import { accessOf, actorContactId, requirePermission } from '../middleware/currentUser.ts';
 import { scopeFragment, scopeFragmentOrUnowned, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { fold } from '../lib/viSearch.ts';
 import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
@@ -1169,6 +1169,151 @@ router.get('/reports', (req, res) => {
       scored_closed_count: closedWithScores.length,
       min_deals: getScoringSettings(db).winlossMinDeals,
     },
+  });
+});
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Ngay `iso` lui `days` ngay, tinh theo UTC de khong lech mui gio may chu. */
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Hieu suat ca nhan / don vi.
+ *
+ * Pham vi la NGUOI, khong phai bang: lay danh sach nhan su cong ty minh ma
+ * `report.tasks` cho phep xem (nhan vien = chinh minh, truong phong = ca phong,
+ * giam doc khoi = ca nhanh), roi dem viec GIAO CHO ho o bat ky bang nao. Loc theo
+ * bang thi mot nguoi lam viec tren bang cua phong khac se bi dem thieu — dung
+ * kieu sai lam lam bao cao hieu suat bat cong voi nguoi hay ho tro cheo.
+ *
+ * Viec hoan thanh duoc dem ca khi the da luu tru: luu tru the sau khi xong la thoi
+ * quen pho bien, va bo chung di thi nguoi don dep gon gang nhat bi danh gia thap
+ * nhat. Viec DANG MO thi bo the da luu tru, giong cac man khac.
+ *
+ * Tong theo don vi duoc cong o client tu cac con so tho (khong cong ty le) — vi
+ * vay endpoint tra ve tu so va mau so, khong tra ve phan tram.
+ */
+router.get('/performance', requirePermission('report.tasks', 'read'), (req, res) => {
+  const today = (db.prepare(`SELECT date('now','localtime') AS d`).get() as { d: string }).d;
+  const to = ISO_DATE.test(String(req.query.to ?? '')) ? String(req.query.to) : today;
+  const from = ISO_DATE.test(String(req.query.from ?? ''))
+    ? String(req.query.from)
+    : `${to.slice(0, 7)}-01`;
+  if (from > to) throw new HttpError(400, 'Ngày bắt đầu phải trước ngày kết thúc');
+  const spanDays = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+  const prevTo = shiftDate(from, -1);
+  const prevFrom = shiftDate(from, -spanDays);
+
+  const peopleScope = scopeFragment(req, 'report.tasks', 'read', 'c.id');
+  const people = db
+    .prepare(
+      `SELECT c.id AS contact_id, c.full_name AS name, c.org_unit_id
+         FROM contacts c
+         JOIN customers o ON o.id = c.customer_id AND o.org_kind = 'own'
+        WHERE c.is_active = 1${peopleScope}
+        ORDER BY c.full_name COLLATE NOCASE`
+    )
+    .all() as { contact_id: number; name: string; org_unit_id: number | null }[];
+
+  const ids = people.map((p) => p.contact_id);
+  const inIds = ids.length > 0 ? ids.join(',') : 'NULL';
+
+  const stats = db
+    .prepare(
+      `SELECT k.assignee_contact_id AS contact_id,
+              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @from AND @to
+                       THEN 1 ELSE 0 END) AS completed,
+              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @from AND @to
+                        AND k.due_date IS NOT NULL THEN 1 ELSE 0 END) AS completed_with_due,
+              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @from AND @to
+                        AND k.due_date IS NOT NULL
+                        AND date(k.completed_at) <= substr(k.due_date, 1, 10)
+                       THEN 1 ELSE 0 END) AS on_time,
+              COALESCE(SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @from AND @to
+                                THEN MAX(julianday(k.completed_at) - julianday(k.created_at), 0)
+                           END), 0) AS cycle_days_sum,
+              COALESCE(SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @from AND @to
+                                THEN k.spent_hours END), 0) AS spent_hours,
+              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @prevFrom AND @prevTo
+                       THEN 1 ELSE 0 END) AS prev_completed,
+              SUM(CASE WHEN date(k.created_at) BETWEEN @from AND @to THEN 1 ELSE 0 END) AS received,
+              SUM(CASE WHEN k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0
+                       THEN 1 ELSE 0 END) AS open_count,
+              SUM(CASE WHEN k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0
+                        AND k.due_date IS NOT NULL AND substr(k.due_date, 1, 10) < @today
+                       THEN 1 ELSE 0 END) AS overdue_count,
+              SUM(CASE WHEN k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0
+                        AND k.blocked_since IS NOT NULL THEN 1 ELSE 0 END) AS blocked_count,
+              SUM((SELECT COUNT(*) FROM card_due_changes dc
+                    WHERE dc.card_id = k.id
+                      AND date(dc.changed_at) BETWEEN @from AND @to)) AS slips
+         FROM cards k
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+        WHERE k.assignee_contact_id IN (${inIds})
+        GROUP BY k.assignee_contact_id`
+    )
+    .all({ from, to, prevFrom, prevTo, today }) as ({ contact_id: number } & Record<
+    string,
+    number
+  >)[];
+  const statsOf = new Map(stats.map((row) => [row.contact_id, row]));
+
+  const METRICS = [
+    'completed',
+    'completed_with_due',
+    'on_time',
+    'cycle_days_sum',
+    'spent_hours',
+    'prev_completed',
+    'received',
+    'open_count',
+    'overdue_count',
+    'blocked_count',
+    'slips',
+  ] as const;
+
+  const rows = people.map((person) => {
+    const s = statsOf.get(person.contact_id);
+    const metrics = Object.fromEntries(METRICS.map((key) => [key, Number(s?.[key] ?? 0)]));
+    return { ...person, ...metrics };
+  });
+
+  /* Cay don vi: chi cac don vi co nguoi trong pham vi, cong voi to tien cua chung
+     de dung lai duoc nhanh. Ten don vi cap tren khong phai du lieu nghiep vu. */
+  const unitIds = [...new Set(people.map((p) => p.org_unit_id).filter((id) => id != null))];
+  const units =
+    unitIds.length === 0
+      ? []
+      : db
+          .prepare(
+            `WITH RECURSIVE up(id) AS (
+               SELECT id FROM org_units WHERE id IN (${unitIds.join(',')})
+               UNION
+               SELECT o.parent_id FROM org_units o JOIN up ON o.id = up.id
+                WHERE o.parent_id IS NOT NULL
+             )
+             SELECT u.id, u.parent_id, u.name, k.name AS kind_name, h.full_name AS head_name
+               FROM org_units u
+               JOIN up ON up.id = u.id
+               LEFT JOIN org_unit_kinds k ON k.id = u.kind_id
+               LEFT JOIN contacts h ON h.id = u.head_contact_id
+              ORDER BY u.position, u.name`
+          )
+          .all();
+
+  res.json({
+    from,
+    to,
+    prev_from: prevFrom,
+    prev_to: prevTo,
+    scope: accessOf(req).scopeOf('report.tasks', 'read'),
+    people: rows,
+    units,
   });
 });
 

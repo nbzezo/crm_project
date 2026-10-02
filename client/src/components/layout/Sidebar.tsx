@@ -48,6 +48,7 @@ import {
   SETTINGS_NAV,
   isGroupDefaultOrder,
   loadNavOrder,
+  navGroupOf,
   useGroupItems,
   useNavBadges,
   type NavGroupId,
@@ -240,12 +241,10 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
 
   /* Khi den mot trang bang link sau hoac nut Back, luon mo nhom chua trang do. */
   useEffect(() => {
-    const activeGroup = NAV_GROUPS.find((group) =>
-      group.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))
-    );
+    const activeGroup = navGroupOf(pathname);
     if (!activeGroup) return;
     setCollapsedGroups((current) =>
-      current[activeGroup.id] ? { ...current, [activeGroup.id]: false } : current
+      current[activeGroup] ? { ...current, [activeGroup]: false } : current
     );
   }, [pathname]);
 

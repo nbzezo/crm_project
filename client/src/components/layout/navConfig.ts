@@ -6,6 +6,7 @@ import {
   CircleDollarSign,
   BookUser,
   Contact,
+  Gauge,
   FileSignature,
   FolderKanban,
   FolderOpen,
@@ -34,7 +35,7 @@ export interface NavItem {
   permission?: PermissionKey;
   permissionAny?: PermissionKey[];
 }
-export type NavGroupId = 'daily' | 'projects' | 'sales';
+export type NavGroupId = 'daily' | 'projects' | 'sales' | 'insights';
 export type NavOrder = Record<NavGroupId, string[]>;
 
 export const HOME_NAV: NavItem = {
@@ -66,6 +67,16 @@ export function useCanOpenSettings(): boolean {
   return SETTINGS_PERMISSIONS.some((key) => allowed(key));
 }
 
+/*
+ * Thu tu NHOM theo nhip lam viec: viec hang ngay -> du an -> ban hang -> nhin lai.
+ * Thu tu MUC trong nhom theo dong chay cua nghiep vu (khach hang -> co hoi -> hop
+ * dong -> doanh thu), khong theo tan suat doan mo. Moi man BAO CAO gom ve mot nhom
+ * cuoi: truoc day "Báo cáo" nam o Du an con "Sức khỏe pipeline" nam o Kinh doanh,
+ * nguoi can so lieu phai di tim o hai noi.
+ *
+ * Nhom dau tung ten "Hôm nay" nhung chua Lich va Danh ba ca nhan — khong cai nao la
+ * "hom nay". Doi `label`, giu `id` 'daily' de thu tu nguoi dung da luu khong mat.
+ */
 export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] = [
   {
     id: 'daily',
@@ -90,7 +101,6 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
         icon: FolderOpen,
         permissionAny: ['documents:read', 'notes:read'],
       },
-      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
       {
         to: '/shares',
         label: t.nav.shares,
@@ -106,12 +116,6 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
       { to: '/customers', label: t.nav.customers, icon: Users, permission: 'customers:read' },
       { to: '/pipeline', label: t.nav.pipeline, icon: Target, permission: 'deals:read' },
       {
-        to: '/pipeline-health',
-        label: t.nav.pipelineHealth,
-        icon: HeartPulse,
-        permission: 'report.sales:read',
-      },
-      {
         to: '/contracts',
         label: t.nav.contracts,
         icon: FileSignature,
@@ -126,7 +130,34 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
       },
     ],
   },
+  {
+    id: 'insights',
+    label: t.nav.groupInsights,
+    items: [
+      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
+      {
+        to: '/performance',
+        label: t.nav.performance,
+        icon: Gauge,
+        permission: 'report.tasks:read',
+      },
+      {
+        to: '/pipeline-health',
+        label: t.nav.pipelineHealth,
+        icon: HeartPulse,
+        permission: 'report.sales:read',
+      },
+    ],
+  },
 ];
+
+/** Nhom chua duong dan dang mo — ke ca trang con (`/boards/12`, `/revenue/new`). */
+export function navGroupOf(pathname: string): NavGroupId | null {
+  const group = NAV_GROUPS.find((g) =>
+    g.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))
+  );
+  return group?.id ?? null;
+}
 
 export function useGroupItems(order: NavOrder): (group: (typeof NAV_GROUPS)[number]) => NavItem[] {
   const allowed = usePermissionCheck();

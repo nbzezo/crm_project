@@ -24,6 +24,7 @@ const DocumentsHubPage = lazy(() => import('./pages/DocumentsHubPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const PerformancePage = lazy(() => import('./pages/PerformancePage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
 const FollowUpPage = lazy(() => import('./pages/FollowUpPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
@@ -140,6 +141,11 @@ const router = createBrowserRouter([
         path: 'reports',
         element: <ReportsPage />,
         handle: { permission: 'report.tasks:read', title: t.nav.reports },
+      },
+      {
+        path: 'performance',
+        element: <PerformancePage />,
+        handle: { permission: 'report.tasks:read', title: t.nav.performance },
       },
       {
         path: 'tasks',

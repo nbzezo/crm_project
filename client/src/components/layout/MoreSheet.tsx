@@ -68,9 +68,8 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
       </NavLink>
     );
   };
-  const daily = NAV_GROUPS.find((group) => group.id === 'daily');
-  const projects = NAV_GROUPS.find((group) => group.id === 'projects');
-  const sales = NAV_GROUPS.find((group) => group.id === 'sales');
+  /* Cong viec va Can theo doi da co san o thanh tab duoi — khong lap lai o day. */
+  const inTabBar = new Set(['/tasks', '/follow-up']);
   const starred = boards.filter((board) => board.is_starred).slice(0, 5);
 
   return (
@@ -102,44 +101,40 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
       ) : (
         <div className="space-y-4">
-          <section aria-label="Hôm nay">
-            <h3 className="mb-2 text-sm font-semibold text-tr-muted">Hôm nay</h3>
-            <div className="grid grid-cols-4 gap-1">
-              {daily &&
-                groupItems(daily)
-                  .filter((item) => item.to === '/calendar')
-                  .map(renderItem)}
-              {allowed('ai:read') && renderItem(AI_NAV)}
-              {allowed('notes:read') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    openQuickNotesBoard();
-                    onClose();
-                  }}
-                  className="flex min-h-[68px] flex-col items-center gap-1 rounded-panel p-1 text-xs text-tr-text"
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-panel bg-tr-primary/10 text-tr-primary">
-                    <NotebookPen size={20} />
-                  </span>
-                  Ghi nhanh
-                </button>
-              )}
-            </div>
-          </section>
-          {projects && (
-            <section aria-label="Dự án">
-              <h3 className="mb-2 text-sm font-semibold text-tr-muted">Dự án</h3>
-              <div className="grid grid-cols-4 gap-1">{groupItems(projects).map(renderItem)}</div>
-            </section>
-          )}
-          {sales && (
-            <section aria-label="Kinh doanh">
-              <h3 className="mb-2 text-sm font-semibold text-tr-muted">Kinh doanh</h3>
-              <div className="grid grid-cols-4 gap-1">
-                {groupItems(sales).map(renderItem)}
-                {canOpenSettings && renderItem(SETTINGS_NAV)}
-              </div>
+          {NAV_GROUPS.map((group) => {
+            const items = groupItems(group).filter((item) => !inTabBar.has(item.to));
+            const isDaily = group.id === 'daily';
+            const extras = isDaily && (allowed('ai:read') || allowed('notes:read'));
+            if (items.length === 0 && !extras) return null;
+            return (
+              <section key={group.id} aria-label={group.label}>
+                <h3 className="mb-2 text-sm font-semibold text-tr-muted">{group.label}</h3>
+                <div className="grid grid-cols-4 gap-1">
+                  {items.map(renderItem)}
+                  {isDaily && allowed('ai:read') && renderItem(AI_NAV)}
+                  {isDaily && allowed('notes:read') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openQuickNotesBoard();
+                        onClose();
+                      }}
+                      className="flex min-h-[68px] flex-col items-center gap-1 rounded-panel p-1 text-xs text-tr-text"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-panel bg-tr-primary/10 text-tr-primary">
+                        <NotebookPen size={20} />
+                      </span>
+                      Ghi nhanh
+                    </button>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+          {canOpenSettings && (
+            <section aria-label="Hệ thống">
+              <h3 className="mb-2 text-sm font-semibold text-tr-muted">Hệ thống</h3>
+              <div className="grid grid-cols-4 gap-1">{renderItem(SETTINGS_NAV)}</div>
             </section>
           )}
           {starred.length > 0 && (

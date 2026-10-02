@@ -14,16 +14,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { format, startOfMonth, startOfQuarter, subMonths } from 'date-fns';
 import { api, qs } from '../api/client';
-import {
-  DateInput,
-  EmptyState,
-  ErrorState,
-  Panel,
-  Skeleton,
-  focusRing,
-} from '../components/common/ui';
+import { EmptyState, ErrorState, Panel, Skeleton } from '../components/common/ui';
 import { ChartDataTable } from '../components/common/ChartDataTable';
 import {
   CATEGORICAL_COLORS,
@@ -45,6 +37,8 @@ import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring
 import { AssigneeChip } from '../components/tasks/AssigneePicker';
 import type { Factor, InteractionType, OrgKind, Priority, Quadrant, Stage } from '../types';
 import { PageHeader } from '../components/common/PageShell';
+import { ReportRangePicker } from '../components/common/ReportRangePicker';
+import { resolveRange, type RangeKey } from '../lib/reportRange';
 
 interface ReportsData {
   from: string;
@@ -81,8 +75,6 @@ interface ReportsData {
     min_deals: number;
   };
 }
-
-type RangeKey = 'month' | 'quarter' | 'six' | 'custom';
 
 /* Mau truc/nhan lay tu token trong index.css (khoi `.recharts-*`), khong dat o day. */
 const AXIS_PROPS = {
@@ -177,51 +169,14 @@ export default function ReportsPage() {
   return (
     <div className="space-y-4 p-6">
       <PageHeader description="Số liệu bán hàng và giao hàng theo khoảng thời gian đã chọn." />
-      <div className="flex flex-wrap items-center gap-2">
-        {(
-          [
-            ['month', t.reports.thisMonth],
-            ['quarter', t.reports.thisQuarter],
-            ['six', t.reports.sixMonths],
-            ['custom', t.reports.custom],
-          ] as [RangeKey, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setRangeKey(key)}
-            aria-pressed={rangeKey === key}
-            className={`min-h-[44px] rounded-panel px-3 text-sm transition fine:min-h-0 fine:py-1.5 ${focusRing} ${
-              rangeKey === key
-                ? 'bg-tr-primary font-medium text-tr-on-primary'
-                : 'border border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        {rangeKey === 'custom' && (
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-40">
-              <DateInput
-                value={customFrom || null}
-                onChange={(value) => setCustomFrom(value ?? '')}
-                aria-label="Từ ngày"
-              />
-            </div>
-            <span className="text-tr-muted" aria-hidden="true">
-              →
-            </span>
-            <div className="w-40">
-              <DateInput
-                value={customTo || null}
-                onChange={(value) => setCustomTo(value ?? '')}
-                aria-label="Đến ngày"
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      <ReportRangePicker
+        rangeKey={rangeKey}
+        onRangeKeyChange={setRangeKey}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label={t.common.overdue} value={String(data.summary.overdue_count)} />
@@ -762,15 +717,4 @@ function NoData() {
   return (
     <p className="py-12 text-center text-sm text-tr-muted">Chưa có dữ liệu trong khoảng này.</p>
   );
-}
-
-function resolveRange(key: RangeKey, customFrom: string, customTo: string) {
-  const today = new Date();
-  if (key === 'month')
-    return { from: format(startOfMonth(today), 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
-  if (key === 'quarter')
-    return { from: format(startOfQuarter(today), 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
-  if (key === 'six')
-    return { from: format(subMonths(today, 6), 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
-  return { from: customFrom || format(subMonths(today, 6), 'yyyy-MM-dd'), to: customTo };
 }
