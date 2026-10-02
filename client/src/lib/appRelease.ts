@@ -18,6 +18,21 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.4.0',
+    date: '2026-10-02',
+    title: 'Tab Trọng tâm: việc cần làm và điểm cần chú ý theo kỳ',
+    changes: [
+      'Trang Tổng quan có thêm tab Trọng tâm bên cạnh Toàn cảnh: xem theo ngày, tuần, tháng hoặc khoảng ngày tự chọn, của riêng bạn hoặc cả nhóm bạn quản lý.',
+      'Gom một chỗ: việc đến hạn, nhắc hẹn, hành động cơ hội, lịch họp, mốc chốt cơ hội, hợp đồng/báo giá/dịch vụ sắp hết hạn, hạn giai đoạn và dự án.',
+      'Xem theo giờ trong ngày (kèm khung giờ trống), theo cột từng ngày trong tuần, hoặc lịch tháng tô màu theo độ dày việc.',
+      'Đánh dấu xong, dời hạn sang hôm nay/mai/tuần sau hoặc kéo thả sang ngày khác, có nút Hoàn tác.',
+      'Mục Cần chú ý: việc bị lùi hạn nhiều lần, việc bị chặn, cơ hội lâu không tương tác, khách lâu không liên hệ, việc chưa giao, ngày quá tải, trùng lịch.',
+      'Mục Đang chờ: việc người khác đang chờ bạn và việc bạn đang chờ người khác; nhìn lại kỳ so với kỳ trước, tải công việc của nhóm, KPI doanh thu tháng.',
+      'AI phân tích kỳ: xếp ưu tiên, chỉ ra rủi ro, gợi ý xếp lịch vào giờ trống, việc nên giao, việc mới (duyệt rồi mới tạo) và tin nhắn soạn sẵn.',
+      'Bản tin Trọng tâm qua Telegram theo ngày, sáng thứ Hai và ngày mùng 1; in hoặc lưu PDF màn Trọng tâm.',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-10-02',
     title: 'Danh bạ cá nhân và đồng bộ danh bạ Google',
