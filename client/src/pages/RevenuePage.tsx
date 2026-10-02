@@ -16,6 +16,7 @@ import {
   Circle,
   CircleCheck,
   CircleDot,
+  ChevronDown,
   Download,
   FileSpreadsheet,
   FileText,
@@ -54,7 +55,13 @@ import {
   t,
 } from '../i18n/vi';
 import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../lib/format';
-import { formatPeriod, funnel, receivable } from '../lib/revenue';
+import {
+  formatPeriod,
+  funnel,
+  groupLinesByCustomer,
+  receivable,
+  type RevenueCustomerGroup,
+} from '../lib/revenue';
 import type {
   RevenueCell,
   RevenueAmOption,
@@ -95,6 +102,11 @@ const ServiceCatalog = lazy(() =>
 );
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+const GROUP_BY_CUSTOMER_KEY = 'workflow-revenue-group-by-customer-v1';
+
+/** Dải màu ở mép trái ô đầu, đánh dấu các dòng thuộc một nhóm khách hàng mà không thụt chữ. */
+const GROUP_RAIL = 'shadow-[inset_3px_0_0_color-mix(in_srgb,var(--tr-primary)_55%,transparent)]';
 
 function periodOf(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
@@ -165,9 +177,24 @@ export default function RevenuePage() {
       return false;
     }
   });
-  const [lineForm, setLineForm] = useState<{ open: boolean; line?: RevenueLine | null }>({
+  const [lineForm, setLineForm] = useState<{
+    open: boolean;
+    line?: RevenueLine | null;
+    /** Thêm dòng từ trong một nhóm khách hàng — điền sẵn khách hàng. */
+    customerId?: number;
+  }>({
     open: false,
   });
+  /** Gom các dòng của cùng khách hàng thành nhóm; mặc định bật, nhớ theo trình duyệt. */
+  const [groupByCustomer, setGroupByCustomer] = useState(() => {
+    try {
+      return localStorage.getItem(GROUP_BY_CUSTOMER_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  });
+  /** Khách hàng đang thu gọn nhóm — mặc định mọi nhóm đều mở. */
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set());
   const [monthsFor, setMonthsFor] = useState<RevenueLine | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -193,6 +220,21 @@ export default function RevenuePage() {
     setServiceId('');
     setAm('');
   };
+  const toggleGroupByCustomer = (next: boolean) => {
+    setGroupByCustomer(next);
+    try {
+      localStorage.setItem(GROUP_BY_CUSTOMER_KEY, next ? '1' : '0');
+    } catch {
+      // Trinh duyet chan storage thi chi khong nho lua chon.
+    }
+  };
+  const toggleCustomer = (customerId: number) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(customerId)) next.delete(customerId);
+      else next.add(customerId);
+      return next;
+    });
   const toggleChart = () => {
     setChartOpen((open) => {
       const next = !open;
@@ -211,6 +253,8 @@ export default function RevenuePage() {
     queryFn: () => api.get<RevenueLinesResponse>(`/api/revenues/lines${qs({ year, ...filters })}`),
   });
   const lines = data?.lines ?? [];
+  const customerGroups = useMemo(() => groupLinesByCustomer(data?.lines ?? []), [data]);
+  const multiLineGroups = customerGroups.filter((g) => g.lines.length > 1);
 
   const { data: summary } = useQuery({
     queryKey: ['revenues', 'summary', year, filters],
@@ -360,6 +404,187 @@ export default function RevenuePage() {
 
   const total = funnel(summary?.totals);
   const yearOptions = years.includes(year) ? years : [year, ...years];
+
+  /** Một dòng doanh thu; trong nhóm khách hàng thì ô đầu ghi hợp đồng thay cho tên khách. */
+  const renderLine = (line: RevenueLine, inGroup: boolean) => (
+    <tr key={line.id} className="group hover:bg-tr-hover">
+      <td
+        className={`sticky left-0 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover ${inGroup ? GROUP_RAIL : ''}`}
+      >
+        {inGroup ? (
+          <div className={line.contract_name ? 'text-tr-text' : 'text-xs text-tr-muted'}>
+            {line.contract_name ?? 'Không gắn hợp đồng'}
+          </div>
+        ) : (
+          <>
+            <Link
+              to={`/customers/${line.customer_id}`}
+              className="font-medium text-tr-text hover:text-tr-primary hover:underline"
+            >
+              {line.customer_name}
+            </Link>
+            {line.contract_name && (
+              <div className="text-xs text-tr-muted">{line.contract_name}</div>
+            )}
+          </>
+        )}
+        <GroupBadge line={line} year={year} onEdit={() => setAnchorFor(line)} />
+      </td>
+      <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+        {line.am_name ?? (line.am ? `${line.am} (chưa ghép người dùng)` : '—')}
+      </td>
+      <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+        {t.contractKind[line.contract_kind]}
+      </td>
+      <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
+        {t.contractTerm[line.contract_term]}
+      </td>
+      <td className="px-3 py-1.5 whitespace-nowrap text-tr-text">
+        {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
+      </td>
+      <td className="px-3 py-1.5">
+        <StatusChip status={line.status}>{t.serviceStatus[line.status]}</StatusChip>
+      </td>
+      <td
+        className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
+        title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
+      >
+        {formatVNDInput(line.totals.amount_vnd) || '0'}
+      </td>
+      <td
+        className="bg-tr-surface px-3 py-1.5 text-right tabular-nums"
+        title={t.revenue.receivableHint}
+      >
+        {receivable(line.totals) > 0 ? (
+          <span className="font-semibold text-tr-warning">
+            {formatVNDInput(receivable(line.totals))}
+          </span>
+        ) : (
+          <span className="text-tr-muted">—</span>
+        )}
+      </td>
+      {MONTHS.map((m) => {
+        const period = periodOf(year, m);
+        const cell = line.months[period];
+        return (
+          <MonthCell
+            key={m}
+            cell={cell}
+            monthLabel={`T${m}`}
+            outOfGroup={
+              outOfGroup(line, period)
+                ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period]]}`
+                : undefined
+            }
+            onAmount={(amount_vnd) => saveAmount(line, period, amount_vnd)}
+            onStage={(stage) => saveCell.mutate({ lineId: line.id, period, stage })}
+          />
+        );
+      })}
+      <td className="px-2 py-1.5">
+        <RevenueLineActions
+          line={line}
+          onMonths={setMonthsFor}
+          onAnchor={setAnchorFor}
+          onEdit={(next) => setLineForm({ open: true, line: next })}
+          onDelete={(next) => setDeleteId(next.id)}
+        />
+      </td>
+    </tr>
+  );
+
+  /** Dòng tổng của một khách hàng có nhiều dòng doanh thu, kèm nút mở / thu gọn. */
+  const renderGroupHeader = (g: RevenueCustomerGroup) => {
+    const open = !collapsed.has(g.customer_id);
+    const amNames = [
+      ...new Set(g.lines.map((l) => l.am_name ?? l.am).filter((name): name is string => !!name)),
+    ];
+    const services = [
+      ...new Set(g.lines.map((l) => l.service_name).filter((name): name is string => !!name)),
+    ];
+    const total = g.lines.reduce((sum, l) => sum + l.totals.amount_vnd, 0);
+    const debt = g.lines.reduce((sum, l) => sum + receivable(l.totals), 0);
+    return (
+      <tr key={`customer-${g.customer_id}`} className="bg-tr-surface font-semibold">
+        <td
+          className={`sticky left-0 z-10 border-r border-tr-border bg-tr-surface px-3 py-2 ${GROUP_RAIL}`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <Link
+                to={`/customers/${g.customer_id}`}
+                className="text-tr-text hover:text-tr-primary hover:underline"
+              >
+                {g.customer_name}
+              </Link>
+              <div className="text-xs font-normal text-tr-muted">
+                {g.contract_count} hợp đồng · {g.service_count} dịch vụ
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => toggleCustomer(g.customer_id)}
+              aria-expanded={open}
+              aria-label={`${open ? 'Thu gọn' : 'Mở'} ${g.lines.length} dòng doanh thu của ${g.customer_name}`}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-tr-primary/25 bg-tr-primary/10 py-0.5 pr-1.5 pl-2 text-xs font-semibold whitespace-nowrap text-tr-primary transition hover:bg-tr-primary/15 ${focusRing}`}
+            >
+              {g.lines.length} dòng
+              <ChevronDown
+                size={12}
+                aria-hidden="true"
+                className={`transition-transform motion-reduce:transition-none ${open ? '' : '-rotate-90'}`}
+              />
+            </button>
+          </div>
+        </td>
+        <td className="px-3 py-2 whitespace-nowrap text-tr-subtle">{amNames.join(', ') || '—'}</td>
+        <td colSpan={4} className="px-3 py-2 text-xs font-normal text-tr-muted">
+          {open ? '' : services.join(' · ')}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums text-tr-text">
+          {formatVNDInput(total) || '0'}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          {debt > 0 ? (
+            <span className="text-tr-warning">{formatVNDInput(debt)}</span>
+          ) : (
+            <span className="font-normal text-tr-muted">—</span>
+          )}
+        </td>
+        {MONTHS.map((m) => {
+          const period = periodOf(year, m);
+          const value = g.lines.reduce(
+            (sum, l) => (outOfGroup(l, period) ? sum : sum + (l.months[period]?.amount_vnd ?? 0)),
+            0
+          );
+          return (
+            <td key={m} className="px-2 py-2 text-right tabular-nums text-tr-text">
+              {formatVNDInput(value) || <span className="font-normal text-tr-muted">—</span>}
+            </td>
+          );
+        })}
+        <td />
+      </tr>
+    );
+  };
+
+  /** Cuối mỗi nhóm: thêm dòng doanh thu mới cho đúng khách hàng đó. */
+  const renderAddRow = (g: RevenueCustomerGroup) => (
+    <tr key={`add-${g.customer_id}`}>
+      <td
+        className={`sticky left-0 z-10 border-r border-tr-border bg-tr-panel px-3 py-1 ${GROUP_RAIL}`}
+      >
+        <button
+          type="button"
+          onClick={() => setLineForm({ open: true, line: null, customerId: g.customer_id })}
+          className={`inline-flex items-center gap-1 rounded-control-inner px-1 py-0.5 text-xs text-tr-primary hover:underline ${focusRing}`}
+        >
+          <Plus size={12} aria-hidden="true" /> Thêm dòng doanh thu
+        </button>
+      </td>
+      <td colSpan={20} />
+    </tr>
+  );
 
   return (
     <PageShell width="wide">
@@ -616,6 +841,38 @@ export default function RevenuePage() {
           ) : (
             <div className="overflow-hidden rounded-panel border border-tr-border bg-tr-panel shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-tr-border px-3 py-2 text-xs text-tr-muted">
+                <span className="hidden flex-wrap items-center gap-3 md:flex">
+                  <label className="flex items-center gap-2 text-sm font-medium text-tr-text">
+                    <input
+                      id="revenue-group-by-customer"
+                      type="checkbox"
+                      checked={groupByCustomer}
+                      onChange={(event) => toggleGroupByCustomer(event.target.checked)}
+                      className="h-4 w-4 rounded border-tr-border"
+                    />
+                    Nhóm theo khách hàng
+                  </label>
+                  {groupByCustomer && multiLineGroups.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setCollapsed(new Set())}
+                        className={`rounded-control-inner px-1 py-0.5 hover:text-tr-primary ${focusRing}`}
+                      >
+                        Mở tất cả
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsed(new Set(multiLineGroups.map((g) => g.customer_id)))
+                        }
+                        className={`rounded-control-inner px-1 py-0.5 hover:text-tr-primary ${focusRing}`}
+                      >
+                        Thu gọn tất cả
+                      </button>
+                    </>
+                  )}
+                </span>
                 <span className="inline-flex items-center gap-1.5" title={t.revenue.guideFlow}>
                   <Info size={12} className="shrink-0" aria-hidden="true" />
                   {t.revenue.guide}
@@ -676,7 +933,7 @@ export default function RevenuePage() {
                     <tr>
                       <th
                         scope="col"
-                        className="sticky top-0 left-0 z-30 min-w-56 border-r border-tr-border bg-tr-surface px-3 py-2.5"
+                        className="sticky top-0 left-0 z-30 min-w-64 border-r border-tr-border bg-tr-surface px-3 py-2.5"
                       >
                         {t.card.customer}
                       </th>
@@ -724,86 +981,19 @@ export default function RevenuePage() {
                     </tr>
                   </TableHead>
                   <tbody className="divide-y divide-tr-border">
-                    {lines.map((line) => (
-                      <tr key={line.id} className="group hover:bg-tr-hover">
-                        <td className="sticky left-0 z-10 border-r border-tr-border bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">
-                          <Link
-                            to={`/customers/${line.customer_id}`}
-                            className="font-medium text-tr-text hover:text-tr-primary hover:underline"
-                          >
-                            {line.customer_name}
-                          </Link>
-                          {line.contract_name && (
-                            <div className="text-xs text-tr-muted">{line.contract_name}</div>
-                          )}
-                          <GroupBadge line={line} year={year} onEdit={() => setAnchorFor(line)} />
-                        </td>
-                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                          {line.am_name ?? (line.am ? `${line.am} (chưa ghép người dùng)` : '—')}
-                        </td>
-                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                          {t.contractKind[line.contract_kind]}
-                        </td>
-                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-subtle">
-                          {t.contractTerm[line.contract_term]}
-                        </td>
-                        <td className="px-3 py-1.5 whitespace-nowrap text-tr-text">
-                          {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
-                        </td>
-                        <td className="px-3 py-1.5">
-                          <StatusChip status={line.status}>
-                            {t.serviceStatus[line.status]}
-                          </StatusChip>
-                        </td>
-                        <td
-                          className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
-                          title={`${t.revenue.forecast}: ${formatVND(line.totals.forecast_vnd)}`}
-                        >
-                          {formatVNDInput(line.totals.amount_vnd) || '0'}
-                        </td>
-                        <td
-                          className="bg-tr-surface px-3 py-1.5 text-right tabular-nums"
-                          title={t.revenue.receivableHint}
-                        >
-                          {receivable(line.totals) > 0 ? (
-                            <span className="font-semibold text-tr-warning">
-                              {formatVNDInput(receivable(line.totals))}
-                            </span>
-                          ) : (
-                            <span className="text-tr-muted">—</span>
-                          )}
-                        </td>
-                        {MONTHS.map((m) => {
-                          const period = periodOf(year, m);
-                          const cell = line.months[period];
-                          return (
-                            <MonthCell
-                              key={m}
-                              cell={cell}
-                              monthLabel={`T${m}`}
-                              outOfGroup={
-                                outOfGroup(line, period)
-                                  ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period]]}`
-                                  : undefined
-                              }
-                              onAmount={(amount_vnd) => saveAmount(line, period, amount_vnd)}
-                              onStage={(stage) =>
-                                saveCell.mutate({ lineId: line.id, period, stage })
-                              }
-                            />
-                          );
-                        })}
-                        <td className="px-2 py-1.5">
-                          <RevenueLineActions
-                            line={line}
-                            onMonths={setMonthsFor}
-                            onAnchor={setAnchorFor}
-                            onEdit={(next) => setLineForm({ open: true, line: next })}
-                            onDelete={(next) => setDeleteId(next.id)}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {groupByCustomer
+                      ? customerGroups.flatMap((g) =>
+                          g.lines.length === 1
+                            ? [renderLine(g.lines[0], false)]
+                            : collapsed.has(g.customer_id)
+                              ? [renderGroupHeader(g)]
+                              : [
+                                  renderGroupHeader(g),
+                                  ...g.lines.map((line) => renderLine(line, true)),
+                                  renderAddRow(g),
+                                ]
+                        )
+                      : lines.map((line) => renderLine(line, false))}
                   </tbody>
                   <tfoot className="sticky bottom-0 z-20 bg-tr-surface text-sm font-semibold shadow-[0_-1px_0_var(--tr-border)]">
                     <tr>
@@ -892,6 +1082,7 @@ export default function RevenuePage() {
           <RevenueLineForm
             open
             line={lineForm.line}
+            defaultCustomerId={lineForm.customerId}
             year={year}
             onClose={() => setLineForm({ open: false })}
           />

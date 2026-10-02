@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.9.0',
+    date: '2026-10-02',
+    title: 'Bảng doanh thu nhóm theo khách hàng',
+    changes: [
+      'Khách hàng có nhiều dòng doanh thu (nhiều hợp đồng hoặc nhiều dịch vụ) được gom thành một nhóm. Dòng đầu nhóm ghi số hợp đồng, số dịch vụ và cộng sẵn doanh thu, công nợ, từng tháng của cả nhóm.',
+      'Mỗi dòng trong nhóm là một cặp hợp đồng × dịch vụ: ô đầu ghi tên hợp đồng, các dòng cùng hợp đồng đứng liền nhau, dòng chưa gắn hợp đồng ghi "Không gắn hợp đồng".',
+      'Nút "N dòng" bên phải tên khách hàng để mở hoặc thu gọn nhóm; các nhóm mở sẵn. Có thêm "Mở tất cả" / "Thu gọn tất cả".',
+      'Cuối mỗi nhóm có "+ Thêm dòng doanh thu", mở form với khách hàng đã điền sẵn.',
+      'Ô "Nhóm theo khách hàng" để bật hoặc tắt cách xem này; trình duyệt nhớ lựa chọn cho lần sau. Khách hàng chỉ có một dòng vẫn hiển thị như cũ.',
+    ],
+  },
+  {
     version: '1.8.1',
     date: '2026-10-02',
     title:
