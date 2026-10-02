@@ -111,6 +111,26 @@ function own(scope: FocusScope, visible: Visible, column: string): string {
 }
 
 /**
+ * Nhu `own()` nhung o che do ca nhan van giu ban ghi CHUA CO CHU — cho lich,
+ * nhac hen va bien ban hop.
+ *
+ * Truoc ban 1.4.1 cac duong tao ba loai nay khong ghi `owner_contact_id`, nen
+ * moi ban ghi tao sau v40 deu vo chu. Trang Lich van hien chung (scope
+ * `OrUnowned`), nen Trong tam phai hien giong vay — neu khong, "Của tôi" mat
+ * sach lich du nguoi dung thay ro no o trang Lich. Khong the gan chu nguoc lai
+ * bang migration vi khong con biet ai da tao.
+ */
+function ownOrLegacy(scope: FocusScope, visible: Visible, column: string): string {
+  let sql = '';
+  if (visible !== 'all') {
+    const list = idList(visible);
+    sql = list ? ` AND (${column} IN (${list}) OR ${column} IS NULL)` : ' AND 1 = 0';
+  }
+  if (personal(scope)) sql += ` AND (${column} = ${scope.me} OR ${column} IS NULL)`;
+  return sql;
+}
+
+/**
  * Viec: giong `taskScope` o routes/views.ts — viec tren bang minh thay, viec
  * giao cho minh, viec chua giao. O che do ca nhan: viec giao cho toi, hoac viec
  * chua giao ma chinh toi tao.
@@ -494,7 +514,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
   const items: AgendaItem[] = cardsInRange.map((row) => cardItem(row, today, showAssignee));
   const carryOver: AgendaItem[] = carryRows.map((row) => cardItem(row, today, showAssignee));
 
-  const reminderScope = own(scope, scope.tasks, 'r.owner_contact_id');
+  const reminderScope = ownOrLegacy(scope, scope.tasks, 'r.owner_contact_id');
   const reminderRows = db
     .prepare(
       `SELECT r.id, r.title, r.note, r.due_at, r.is_done, r.card_id, r.customer_id, r.deal_id,
@@ -694,7 +714,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
       `SELECT e.id, e.title, e.location, e.event_type, e.start_at, e.end_at, e.all_day, e.status
          FROM calendar_events e
         WHERE e.status != 'cancelled'
-          AND e.start_at < ? AND e.end_at > ?${own(scope, scope.tasks, 'e.owner_contact_id')}
+          AND e.start_at < ? AND e.end_at > ?${ownOrLegacy(scope, scope.tasks, 'e.owner_contact_id')}
         ORDER BY e.start_at LIMIT 300`
     )
     .all(`${addDays(to, 1)}T00:00`, `${from}T00:00`) as Row[];
@@ -737,7 +757,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
          LEFT JOIN projects p ON p.id = n.project_id
          LEFT JOIN customers c ON c.id = n.customer_id
         WHERE n.deleted_at IS NULL AND n.meeting_at IS NOT NULL
-          AND substr(n.meeting_at, 1, 10) BETWEEN ? AND ?${own(scope, scope.notes, 'n.owner_contact_id')}
+          AND substr(n.meeting_at, 1, 10) BETWEEN ? AND ?${ownOrLegacy(scope, scope.notes, 'n.owner_contact_id')}
         ORDER BY n.meeting_at LIMIT 100`
     )
     .all(from, to) as Row[];
@@ -1292,7 +1312,7 @@ function retroStats(db: Database, scope: FocusScope, from: string, to: string): 
       .prepare(
         `SELECT COUNT(*) AS n FROM calendar_events e
           WHERE e.status != 'cancelled' AND e.event_type IN ('meeting','call','appointment')
-            AND substr(e.start_at,1,10) BETWEEN ? AND ?${own(scope, scope.tasks, 'e.owner_contact_id')}`
+            AND substr(e.start_at,1,10) BETWEEN ? AND ?${ownOrLegacy(scope, scope.tasks, 'e.owner_contact_id')}`
       )
       .get(from, to) as { n: number }
   ).n;

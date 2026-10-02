@@ -122,15 +122,20 @@ export function getMeetingNote(db: Database, id: number) {
   return required(reload(db, id), 'Khong tim thay trang tai lieu');
 }
 
-export function createMeetingNote(db: Database, input: MeetingNoteInput) {
+export function createMeetingNote(
+  db: Database,
+  input: MeetingNoteInput,
+  ownerContactId: number | null = null
+) {
   assertLinks(db, input);
   const contentText = input.content_text ?? '';
   const id = db.transaction(() => {
     const info = db
       .prepare(
         `INSERT INTO meeting_notes
-          (customer_id, deal_id, project_id, title, purpose_key, meeting_at, content_json, content_text, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          (customer_id, deal_id, project_id, title, purpose_key, meeting_at, content_json, content_text,
+           search_text, owner_contact_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.customer_id ?? null,
@@ -141,7 +146,8 @@ export function createMeetingNote(db: Database, input: MeetingNoteInput) {
         input.meeting_at ?? null,
         input.content_json ?? '[]',
         contentText,
-        buildSearchText(input.title, contentText)
+        buildSearchText(input.title, contentText),
+        ownerContactId
       );
     const newId = Number(info.lastInsertRowid);
     if (input.attendee_contact_ids) syncAttendees(db, newId, input.attendee_contact_ids);

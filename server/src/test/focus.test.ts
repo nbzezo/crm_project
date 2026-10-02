@@ -311,3 +311,17 @@ test('ky truoc cua mot thang la tron thang truoc', () => {
   assert.deepEqual(previousRange(FROM, TO), ['2026-09-28', '2026-10-04']);
   assert.deepEqual(previousRange('2026-10-01', '2026-10-15'), ['2026-09-16', '2026-09-30']);
 });
+
+test('lich, nhac hen chua co chu (tao truoc ban 1.4.1) van hien o che do ca nhan', () => {
+  db.prepare(
+    `INSERT INTO calendar_events (title, event_type, start_at, end_at) VALUES ('Lịch cũ vô chủ', 'meeting', '2026-10-09T15:00', '2026-10-09T16:00')`
+  ).run();
+  db.prepare(
+    `INSERT INTO reminders (title, due_at) VALUES ('Nhắc cũ vô chủ', '2026-10-09T08:00')`
+  ).run();
+  const data = build(scope('me'));
+  assert.ok(data.items.some((i) => i.kind === 'event' && i.title === 'Lịch cũ vô chủ'));
+  assert.ok(data.items.some((i) => i.kind === 'reminder' && i.title === 'Nhắc cũ vô chủ'));
+  // Lich co chu la nguoi khac thi van khong lot vao
+  assert.ok(!data.items.some((i) => i.title === 'Họp của Bình'));
+});

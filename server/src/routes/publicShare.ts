@@ -118,13 +118,16 @@ function recordView(link: ShareLinkRow, req: Request, action: 'view' | 'download
       )
       .get(link.entity_id) as { customer_id: number | null; deal_id: number | null } | undefined;
     db.prepare(
-      `INSERT INTO reminders (title, note, due_at, customer_id, deal_id)
-       VALUES (?, ?, strftime('%Y-%m-%dT%H:%M','now','localtime'), ?, ?)`
+      `INSERT INTO reminders (title, note, due_at, customer_id, deal_id, owner_contact_id)
+       VALUES (?, ?, strftime('%Y-%m-%dT%H:%M','now','localtime'), ?, ?,
+               (SELECT contact_id FROM users WHERE id = ?))`
     ).run(
       `Khách vừa mở liên kết: ${link.title}`.slice(0, 200),
       `Liên kết do ${link.created_by_name} chia sẻ vừa được mở lần đầu. Đây là lúc nên theo dõi.`,
       entity?.customer_id ?? null,
-      entity?.deal_id ?? null
+      entity?.deal_id ?? null,
+      // Nhac thuoc nguoi da tao lien ket — khach mo link thi nguoi do can theo doi.
+      link.created_by_user_id
     );
   }
 }

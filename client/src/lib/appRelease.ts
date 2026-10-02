@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.4.1',
+    date: '2026-10-02',
+    title: 'Trọng tâm hiển thị đủ lịch và nhắc hẹn',
+    changes: [
+      'Lịch trình ở tab Trọng tâm (chế độ Của tôi) nay hiện đủ lịch, nhắc hẹn và biên bản họp như trang Lịch, không chỉ công việc.',
+      'Lịch, nhắc hẹn và biên bản họp tạo mới được ghi đúng người tạo, để màn hình theo người và phân quyền xem hoạt động chính xác.',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-10-02',
     title: 'Tab Trọng tâm: việc cần làm và điểm cần chú ý theo kỳ',

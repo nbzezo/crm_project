@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { meetingNoteFieldsSchema, meetingNoteInputSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody } from '../lib/validate.ts';
+import { defaultOwner } from '../lib/scope.ts';
 import {
   createMeetingNote,
   getMeetingNote,
@@ -29,7 +30,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(meetingNoteInputSchema, req);
-  res.status(201).json(createMeetingNote(db, body));
+  res.status(201).json(createMeetingNote(db, body, defaultOwner(req)));
 });
 
 router.get('/:id', (req, res) => res.json(getMeetingNote(db, intParam(req.params.id))));
