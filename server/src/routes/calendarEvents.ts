@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { defaultOwner } from '../lib/scope.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 
 const router = Router();
@@ -181,8 +182,8 @@ router.post('/events', (req, res) => {
     .prepare(
       `INSERT INTO calendar_events
          (title, description, location, event_type, start_at, end_at, all_day,
-          status, reminder_minutes, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          status, reminder_minutes, search_text, owner_contact_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.title,
@@ -194,7 +195,10 @@ router.post('/events', (req, res) => {
       body.all_day,
       body.status,
       body.reminder_minutes,
-      buildSearchText(body.title, body.description, body.location)
+      buildSearchText(body.title, body.description, body.location),
+      /* Lich ca nhan thuoc nguoi tao — thieu dong nay thi su kien vo chu va bien
+         mat khoi man Trong tam (che do "Của tôi"), vi man do loc theo chu. */
+      defaultOwner(req)
     );
 
   const id = Number(info.lastInsertRowid);

@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { fold } from '../lib/viSearch.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import {
   COMMITTEE_STANCES,
@@ -361,7 +362,8 @@ router.post('/deals/:id/backward-plan', (req, res) => {
 
   // Dung lai module Nhac hen da co, khong dung lich rieng
   const insert = db.prepare(
-    `INSERT INTO reminders (title, note, due_at, customer_id, deal_id) VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO reminders (title, note, due_at, customer_id, deal_id, owner_contact_id)
+     VALUES (?, ?, ?, ?, ?, ?)`
   );
   const created = db.transaction(() => {
     let n = 0;
@@ -371,7 +373,8 @@ router.post('/deals/:id/backward-plan', (req, res) => {
         `Moc lui cua lich trien khai nguoc — ${deal.title}`,
         `${milestone.date}T09:00`,
         deal.customer_id,
-        dealId
+        dealId,
+        actorContactId(req)
       );
       n += 1;
     }

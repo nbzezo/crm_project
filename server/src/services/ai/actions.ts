@@ -133,8 +133,8 @@ function execute(db: Database, type: string, rawPayload: unknown, actorContactId
     });
     const info = db
       .prepare(
-        `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id, owner_contact_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         payload.title,
@@ -142,7 +142,8 @@ function execute(db: Database, type: string, rawPayload: unknown, actorContactId
         payload.due_at,
         payload.card_id ?? null,
         payload.customer_id ?? null,
-        payload.deal_id ?? null
+        payload.deal_id ?? null,
+        actorContactId
       );
     return { entity: 'reminder', id: Number(info.lastInsertRowid) };
   }

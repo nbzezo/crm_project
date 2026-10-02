@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
+import { defaultOwner } from '../lib/scope.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
@@ -74,8 +75,8 @@ router.post('/', (req, res) => {
   assertEntityLinks(db, body);
   const info = db
     .prepare(
-      `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id, owner_contact_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.title,
@@ -83,7 +84,8 @@ router.post('/', (req, res) => {
       body.due_at,
       body.card_id ?? null,
       body.customer_id ?? null,
-      body.deal_id ?? null
+      body.deal_id ?? null,
+      defaultOwner(req)
     );
   res
     .status(201)

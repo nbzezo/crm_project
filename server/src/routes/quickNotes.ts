@@ -130,13 +130,17 @@ router.post('/:id/convert/crm-note', (req, res) => {
     meetingNoteInputSchema.pick({ customer_id: true, deal_id: true, project_id: true }),
     req
   );
-  const crmNote = createMeetingNote(db, {
-    ...links,
-    purpose_key: 'blank',
-    title: note.title || 'Ghi chú không tiêu đề',
-    content_json: note.content_json,
-    content_text: note.content_text,
-  });
+  const crmNote = createMeetingNote(
+    db,
+    {
+      ...links,
+      purpose_key: 'blank',
+      title: note.title || 'Ghi chú không tiêu đề',
+      content_json: note.content_json,
+      content_text: note.content_text,
+    },
+    actorContactId(req)
+  );
   res.status(201).json(markConverted(db, id, 'crm_note', crmNote.id as number));
 });
 
