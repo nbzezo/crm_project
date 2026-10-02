@@ -47,6 +47,7 @@ import {
 } from '../i18n/vi';
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
+import { ShareButton } from '../components/share/ShareButton';
 import type { Contract, CustomerFull, Deal, Quotation } from '../types';
 
 type Tab =
@@ -363,6 +364,11 @@ export default function CustomerDetailPage() {
                     >
                       <ListPlus size={15} aria-hidden="true" />
                     </IconButton>
+                    <ShareButton
+                      entityType="quotation"
+                      entityId={quotation.id}
+                      label={`Báo giá ${quotation.code || quotation.id}`}
+                    />
                     <IconButton
                       onClick={() => setQuoteForm({ open: true, quotation })}
                       label={`${t.common.edit}: ${quotation.code || 'báo giá'}`}
@@ -398,6 +404,12 @@ export default function CustomerDetailPage() {
                     >
                       <ListPlus size={13} aria-hidden="true" />
                     </IconButton>
+                    <ShareButton
+                      entityType="quotation"
+                      entityId={q.id}
+                      label={`Báo giá ${q.code || q.id}`}
+                      size={13}
+                    />
                     <IconButton
                       onClick={() => setQuoteForm({ open: true, quotation: q })}
                       label={`${t.common.edit}: ${q.code || 'báo giá'}`}
@@ -444,12 +456,19 @@ export default function CustomerDetailPage() {
                   ],
                 ]}
                 actions={
-                  <IconButton
-                    onClick={() => setContractForm({ open: true, contract })}
-                    label={`${t.common.edit}: ${contract.name}`}
-                  >
-                    <Pencil size={15} aria-hidden="true" />
-                  </IconButton>
+                  <div className="flex gap-1">
+                    <ShareButton
+                      entityType="contract"
+                      entityId={contract.id}
+                      label={`Hợp đồng ${contract.name}`}
+                    />
+                    <IconButton
+                      onClick={() => setContractForm({ open: true, contract })}
+                      label={`${t.common.edit}: ${contract.name}`}
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </IconButton>
+                  </div>
                 }
               />
             ))}
@@ -482,12 +501,20 @@ export default function CustomerDetailPage() {
                   </ColorBadge>
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <IconButton
-                    onClick={() => setContractForm({ open: true, contract: c })}
-                    label={`${t.common.edit}: ${c.name}`}
-                  >
-                    <Pencil size={13} aria-hidden="true" />
-                  </IconButton>
+                  <div className="flex justify-end gap-1">
+                    <ShareButton
+                      entityType="contract"
+                      entityId={c.id}
+                      label={`Hợp đồng ${c.name}`}
+                      size={13}
+                    />
+                    <IconButton
+                      onClick={() => setContractForm({ open: true, contract: c })}
+                      label={`${t.common.edit}: ${c.name}`}
+                    >
+                      <Pencil size={13} aria-hidden="true" />
+                    </IconButton>
+                  </div>
                 </td>
               </tr>
             ))}

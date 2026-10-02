@@ -4,6 +4,7 @@ import { useBlocker } from 'react-router';
 import { ArrowLeft, CheckCircle2, ListChecks, Sparkles, Trash2 } from 'lucide-react';
 import { api } from '../../../api/client';
 import { Button, DateTimeInput, focusRing, IconButton } from '../../common/ui';
+import { ShareButton } from '../../share/ShareButton';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { Combobox } from '../../common/Combobox';
 import { useCustomerOptions, useDealOptions, useProjectOptions } from '../../../lib/useCrmOptions';
@@ -285,6 +286,7 @@ export function MeetingNoteEditor({
             {saveStatus === 'saved' ? 'Đã lưu' : saveStatus === 'saving' ? 'Đang lưu…' : 'Chưa lưu'}
           </span>
         )}
+        <ShareButton entityType="page" entityId={note.id} label={title.trim() || 'Trang tài liệu'} size={16} />
         <IconButton label="Xoá trang" tone="danger" onClick={() => setConfirmDelete(true)}>
           <Trash2 size={16} />
         </IconButton>

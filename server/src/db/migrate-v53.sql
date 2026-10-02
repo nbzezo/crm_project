@@ -1,4 +1,4 @@
-/* ---------- v50: danh ba ca nhan + dong bo danh ba Google ----------
+/* ---------- v53: danh ba ca nhan + dong bo danh ba Google ----------
 
    `personal_contacts` la danh ba RIENG cua tung nhan vien (keo tu dien thoai /
    Gmail). Khong dung bang `contacts`: do la nguoi lien he cua MOT khach hang

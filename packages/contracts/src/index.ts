@@ -3,6 +3,7 @@
    entry: client va server chi can nho MOT duong import cho moi hang so dung
    chung. Khong keo theo zod nen nhe nhu phan con lai cua tep nay. */
 export * from './permissions.js';
+export { normalizeOrgName } from './orgName.js';
 
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export type Priority = (typeof PRIORITIES)[number];

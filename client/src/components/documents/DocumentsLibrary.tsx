@@ -35,6 +35,7 @@ import { formatBytes } from '../../components/crm/DocumentUpload';
 import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import { formatDate, formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
+import { ShareButton } from '../share/ShareButton';
 import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../../types';
 
 type PendingAction = { type: 'trash' | 'permanent'; ids: number[] } | null;
@@ -632,6 +633,11 @@ export function DocumentsLibrary() {
                               >
                                 <ListPlus size={15} />
                               </button>
+                              <ShareButton
+                                entityType="document"
+                                entityId={document.id}
+                                label={document.name}
+                              />
                               <a
                                 href={`/api/documents/${document.id}/download`}
                                 aria-label={`Tải xuống ${document.name}`}

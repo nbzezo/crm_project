@@ -1,4 +1,4 @@
-import { StrictMode, lazy } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, createBrowserRouter, RouterProvider, useSearchParams } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -32,6 +32,8 @@ const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
 const MyContactsPage = lazy(() => import('./pages/MyContactsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
+const SharesPage = lazy(() => import('./pages/SharesPage'));
+const PublicSharePage = lazy(() => import('./pages/PublicSharePage'));
 
 /* /notes da gop vao tab "Trang tài liệu" cua /documents. Giu duong dan cu (va
    tham so `open`) de link da chia se, bookmark va lich su trinh duyet khong hong. */
@@ -180,6 +182,7 @@ const router = createBrowserRouter([
         element: <AiWorkspacePage />,
         handle: { permission: 'ai:read', title: t.nav.ai, hideQuickCreate: true },
       },
+      { path: 'shares', element: <SharesPage />, handle: { title: 'Đã chia sẻ' } },
       { path: 'notes', element: <NotesRedirect /> },
       { path: 'settings', element: <SettingsPage />, handle: { title: t.nav.settings } },
       /* URL khong khop: dat lam route con de van nam trong khung app — nguoi dung
@@ -191,12 +194,23 @@ const router = createBrowserRouter([
 
 initTheme();
 
+/* Trang xem cong khai cua lien ket chia se (/s/<token>): nguoi nhan khong co tai khoan
+   nen KHONG qua AuthGate va khong co khung app. Quyet dinh o day, truoc khi dung router,
+   de khong co mot khoang nao trang nay bi chen man hinh dang nhap. */
+const publicShareToken = /^\/s\/([A-Za-z0-9_-]+)\/?$/.exec(window.location.pathname)?.[1];
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthGate>
-        <RouterProvider router={router} />
-      </AuthGate>
-    </QueryClientProvider>
+    {publicShareToken ? (
+      <Suspense fallback={null}>
+        <PublicSharePage token={publicShareToken} />
+      </Suspense>
+    ) : (
+      <QueryClientProvider client={queryClient}>
+        <AuthGate>
+          <RouterProvider router={router} />
+        </AuthGate>
+      </QueryClientProvider>
+    )}
   </StrictMode>
 );

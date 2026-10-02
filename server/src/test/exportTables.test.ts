@@ -53,6 +53,13 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     // Cau hinh giao dien theo tai khoan; khong the khoi phuc doc lap vi `users`
     // co y nam ngoai goi sao luu nghiep vu.
     'task_saved_views',
+    // Ten cu truoc dot chuan hoa v50 — chi de rollback v50, khong phai du lieu nghiep vu.
+    'customer_names_before_v50',
+    // Lien ket chia se cong khai (v51): chua ban bam token va mat khau cua link. Mot ban
+    // xuat JSON bi lo khong duoc phep thanh danh sach link con hieu luc; link va nhat ky
+    // luot mo la du lieu van hanh, khong khoi phuc tu ban xuat (tao lai link moi).
+    'share_links',
+    'share_link_views',
   ]);
   const exportSet = new Set<string>(EXPORT_TABLES);
   const missing = tables

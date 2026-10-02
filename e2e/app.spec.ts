@@ -1443,7 +1443,7 @@ test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async 
     route.fulfill({
       json: {
         suggestion: {
-          name: 'CÔNG TY CỔ PHẦN SAO MAI',
+          name: 'Công Ty Cổ Phần Sao Mai',
           tax_code: '0102030405',
           address: '1 Tràng Tiền, Hà Nội',
           industry: 'Phân phối thiết bị',
@@ -1485,7 +1485,7 @@ test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async 
   await expectNoViolations(page, 'CustomerForm goi y AI');
 
   await dialog.getByRole('button', { name: 'Áp dụng đã chọn' }).click();
-  await expect(dialog.locator('#customer-name')).toHaveValue('CÔNG TY CỔ PHẦN SAO MAI');
+  await expect(dialog.locator('#customer-name')).toHaveValue('Công Ty Cổ Phần Sao Mai');
   await expect(dialog.getByLabel('Mã số thuế', { exact: true })).toHaveValue('0102030405');
   await expect(dialog.getByLabel('Quy mô')).toHaveValue('SME');
   await dialog.getByRole('button', { name: 'Hủy' }).click();

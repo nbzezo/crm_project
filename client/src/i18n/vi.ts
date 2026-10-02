@@ -28,6 +28,7 @@ export const t = {
     contracts: 'Hợp đồng',
     revenue: 'Doanh thu',
     documents: 'Tài liệu',
+    shares: 'Đã chia sẻ',
     calendar: 'Lịch',
     timeline: 'Dòng thời gian',
     reports: 'Báo cáo',

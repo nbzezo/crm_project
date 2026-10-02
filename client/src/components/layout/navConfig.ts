@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Settings,
+  Share2,
   Sparkles,
   Target,
   Trello,
@@ -90,6 +91,12 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
         permissionAny: ['documents:read', 'notes:read'],
       },
       { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
+      {
+        to: '/shares',
+        label: t.nav.shares,
+        icon: Share2,
+        permissionAny: ['documents:update', 'quotations:update', 'contracts:update'],
+      },
     ],
   },
   {

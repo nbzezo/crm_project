@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Database } from 'better-sqlite3';
+import { normalizeOrgName } from '@workflow/contracts';
 import { fold } from '../../lib/viSearch.ts';
 import { normalizeTaxCode } from './contractExtract.ts';
 import { runStructured } from './gateway.ts';
@@ -286,8 +287,10 @@ export function mergeSuggestion(
     put('size', normalizeSize(ai.size), 'ai');
     put('notes', ai.notes, 'ai');
   }
+  // CSDL dang ky tra ten VIET HOA toan bo — dua ve dang "Viet Hoa Chu Dau".
+  if (suggestion.name) suggestion.name = normalizeOrgName(suggestion.name);
   if (registry) {
-    put('name', registry.name, 'registry');
+    put('name', normalizeOrgName(registry.name), 'registry');
     put('tax_code', registry.tax_code, 'registry');
     put('short_name', registry.short_name, 'registry');
     put('address', registry.address, 'registry');
