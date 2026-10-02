@@ -183,11 +183,6 @@ export function TaskFormDialog() {
     assist.reset();
   }, [composer]);
 
-  // Goi y danh sach chi ap dung khi nguoi dung chua tu chon.
-  useEffect(() => {
-    if (!listTouched) setListId(context?.suggested_list_id ?? '');
-  }, [context?.suggested_list_id, listTouched]);
-
   /*
    * Khong giao cho ai thi mac dinh la minh (khop voi mac dinh o createCard phia
    * may chu) — chi ap dung khi nguoi dung chua tu doi va composer khong chi dinh san.
@@ -211,9 +206,16 @@ export function TaskFormDialog() {
      thứ chỉ có một lựa chọn. Ô "Cột" bên dưới vẫn lọc đúng các cột của luồng đó. */
   const implicitBoard =
     projectId != null && context?.boards.length === 1 ? context.boards[0] : null;
+  /*
+   * Noi luu dang hien: nguoi dung chua tu chon thi la goi y cua server. Tinh ngay
+   * trong render chu khong chep vao state bang effect — effect chi chay khi goi y
+   * DOI, ma mo form lan hai thi ngu canh lay tu cache, goi y khong doi, nen o
+   * Luong viec/Cot bi bo trong du khi luu van xep dung cho.
+   */
+  const shownListId: number | '' = listTouched ? listId : (context?.suggested_list_id ?? '');
   const boardId = useMemo(
-    () => context?.lists.find((l) => l.id === listId)?.board_id ?? '',
-    [context?.lists, listId]
+    () => context?.lists.find((l) => l.id === shownListId)?.board_id ?? '',
+    [context?.lists, shownListId]
   );
 
   /**
@@ -249,7 +251,7 @@ export function TaskFormDialog() {
             ([, value]) => value !== undefined
           )
         ),
-        list_id: listId === '' ? null : listId,
+        list_id: shownListId === '' ? null : shownListId,
         project_id: projectId,
         assignee_contact_id: assigneeId,
       }),
@@ -628,20 +630,34 @@ export function TaskFormDialog() {
         >
           <Select
             id="task-list"
-            value={listId}
+            value={shownListId}
             onChange={(e) => {
               setListTouched(true);
               setListId(e.target.value === '' ? '' : Number(e.target.value));
             }}
           >
             <option value="">{t.common.selectPlaceholder}</option>
-            {context?.lists
-              .filter((l) => boardId === '' || l.board_id === boardId)
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
+            {boardId !== ''
+              ? context?.lists
+                  .filter((l) => l.board_id === boardId)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))
+              : /* Chua chon luong: moi luong deu co bo cot Can lam/Dang lam… giong
+                   nhau, liet ke phang thi trong nhu trung lap — nhom theo luong. */
+                context?.boards.map((b) => (
+                  <optgroup key={b.id} label={b.name}>
+                    {context.lists
+                      .filter((l) => l.board_id === b.id)
+                      .map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
           </Select>
         </Field>
 

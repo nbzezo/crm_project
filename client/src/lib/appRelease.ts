@@ -28,6 +28,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       'Tạo dự án từ một việc đã gắn cơ hội thì cơ hội đó tự nối với dự án mới (nếu chưa có dự án triển khai). Việc chuyển sang luồng việc của dự án, giữ nguyên trạng thái.',
       'Việc có khách hàng nhưng chưa thuộc cơ hội hoặc dự án nào hiện một dòng gợi ý kèm nút "Tạo cơ hội" / "Tạo dự án"; bấm × để ẩn gợi ý cho riêng việc đó.',
       'Biểu mẫu Tạo việc cũng có lối tạo khách hàng và cơ hội đầy đủ như trên.',
+      'Sửa biểu mẫu Tạo việc: ô Luồng việc và Cột luôn hiện đúng nơi việc sẽ được lưu (trước đây mở form lần thứ hai thì cả hai ô trống). Khi chưa chọn luồng, danh sách cột được nhóm theo tên luồng thay vì lặp lại "Cần làm, Đang làm…" không rõ của luồng nào.',
     ],
   },
   {
