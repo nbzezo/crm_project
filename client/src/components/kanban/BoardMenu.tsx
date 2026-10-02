@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Archive,
   ChevronLeft,
   FolderKanban,
   Image,
   Pencil,
   Plus,
+  RotateCcw,
   SlidersHorizontal,
   Tag,
   Trash2,
@@ -20,7 +22,14 @@ import { contrastInk, formatDateTime } from '../../lib/format';
 import { LABEL_PALETTE } from '../../theme/palettes';
 import type { BoardFull, Label, Project } from '../../types';
 
-type View = 'main' | 'background' | 'labels';
+type View = 'main' | 'background' | 'labels' | 'archived';
+
+interface ArchivedCard {
+  id: number;
+  title: string;
+  list_name: string;
+  updated_at: string;
+}
 
 export function BoardMenu({
   board,
@@ -49,6 +58,23 @@ export function BoardMenu({
     queryKey: ['labels'],
     queryFn: () => api.get<Label[]>('/api/labels'),
     enabled: open,
+  });
+
+  const { data: archivedCards = [], isLoading: archivedLoading } = useQuery({
+    queryKey: ['board-archived', board.id],
+    queryFn: () => api.get<ArchivedCard[]>(`/api/boards/${board.id}/archived-cards`),
+    enabled: open && view === 'archived',
+  });
+
+  /* Lưu trữ không xóa gì: khôi phục là đưa công việc về đúng cột cũ. */
+  const restoreCard = useMutation({
+    mutationFn: (cardId: number) => api.patch(`/api/cards/${cardId}`, { is_archived: false }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-archived', board.id] });
+      queryClient.invalidateQueries({ queryKey: ['board', board.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+    },
   });
 
   const refreshBoard = () => {
@@ -111,6 +137,7 @@ export function BoardMenu({
     main: 'Menu luồng việc',
     background: 'Đổi hình nền',
     labels: t.settings.manageLabels,
+    archived: 'Công việc đã lưu trữ',
   };
 
   return (
@@ -156,6 +183,11 @@ export function BoardMenu({
                 icon={<Tag size={18} className="text-tr-subtle" />}
                 label={t.settings.manageLabels}
                 onClick={() => setView('labels')}
+              />
+              <MenuRow
+                icon={<Archive size={18} className="text-tr-subtle" />}
+                label="Công việc đã lưu trữ"
+                onClick={() => setView('archived')}
               />
 
               {/* Gắn bảng vào dự án kéo theo MỌI công việc trong bảng — máy chủ
@@ -218,6 +250,43 @@ export function BoardMenu({
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {view === 'archived' && (
+            <div className="space-y-1.5">
+              {archivedLoading ? (
+                <p className="text-sm text-tr-muted">{t.common.loading}</p>
+              ) : archivedCards.length === 0 ? (
+                <p className="text-sm text-tr-muted">
+                  Chưa có công việc nào bị lưu trữ trong luồng này.
+                </p>
+              ) : (
+                archivedCards.map((card) => (
+                  <div
+                    key={card.id}
+                    className="flex items-center gap-2 rounded-control border border-tr-border px-2.5 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-tr-text" title={card.title}>
+                        {card.title}
+                      </div>
+                      <div className="text-xs text-tr-muted">
+                        Cột {card.list_name} · lưu trữ{' '}
+                        {formatDateTime(card.updated_at.replace(' ', 'T').slice(0, 16))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => restoreCard.mutate(card.id)}
+                      disabled={restoreCard.isPending}
+                      className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-1.5 text-xs font-medium text-tr-primary transition hover:bg-tr-hover disabled:opacity-50"
+                      aria-label={`Khôi phục ${card.title}`}
+                    >
+                      <RotateCcw size={14} aria-hidden="true" /> Khôi phục
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
 

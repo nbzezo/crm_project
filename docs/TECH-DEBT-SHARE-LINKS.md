@@ -20,7 +20,7 @@ Tính năng đã có: nút **Chia sẻ (cho phép xem)** cho **tài liệu (tệ
 - **Giới hạn tốc độ nằm trong bộ nhớ** (`server/src/lib/rateLimit.ts`), mất khi khởi động lại. Đủ vì CRM chạy một tiến trình, sẽ phải đổi nếu chạy nhiều bản.
 - **Nhật ký lượt mở lưu IP và user-agent** của người ngoài. Đã có thời hạn 180 ngày (dọn khi có người tạo link mới) và dòng thông báo trên trang công khai. Chưa có cấu hình thời hạn trong Cài đặt.
 - Ở chế độ **chỉ xem**, tệp Word/Excel/PowerPoint không xem được trực tiếp (trình duyệt không hiển thị). Muốn xem được cần chuyển sang PDF phía máy chủ.
-- Link **không xem lại được** sau khi tạo (CSDL chỉ giữ bản băm, cố ý). Quên link thì tạo link mới và thu hồi link cũ.
+- ~~Link không xem lại được sau khi tạo.~~ Từ 1.11.0 (migration v57) mã liên kết được lưu thêm bản **mã hóa AES-256-GCM** bằng khóa cài đặt của máy chủ (cùng khóa với bí mật AI/Telegram); bản băm vẫn là khóa tra cứu. Người tạo hoặc quản trị lấy lại link qua `GET /api/shares/:id/url` (nút "Sao chép liên kết" trong Cài đặt → Liên kết chia sẻ). Link tạo trước v57 vẫn không lấy lại được. Mất tệp khóa thì mọi link vẫn mở được, chỉ mất khả năng sao chép lại.
 - Mục **Đã chia sẻ** nằm trong nhóm "Dự án" của thanh bên, chưa có vị trí riêng.
 
 ## Môi trường chạy test cục bộ (không phải lỗi của tính năng)

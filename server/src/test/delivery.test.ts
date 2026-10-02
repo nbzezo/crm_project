@@ -300,6 +300,29 @@ test('doi ten du an khong dong vao luong viec khi du an co nhieu luong', async (
   ]);
 });
 
+test('cong viec da luu tru liet ke theo luong va khoi phuc duoc', async () => {
+  const board = await json('POST', '/api/boards', { name: 'Luong luu tru' });
+  const boardId = Number(board.data.id);
+  const full = await json('GET', `/api/boards/${boardId}/full`);
+  const listId = (full.data.lists as { id: number }[])[0].id;
+  const card = await json('POST', '/api/cards', { list_id: listId, title: 'Viec se luu tru' });
+  const cardId = Number(card.data.id);
+
+  await json('PATCH', `/api/cards/${cardId}`, { is_archived: true });
+  const archived = await json('GET', `/api/boards/${boardId}/archived-cards`);
+  assert.deepEqual(
+    (archived.data as unknown as { id: number; list_name: string }[]).map((c) => [
+      c.id,
+      c.list_name,
+    ]),
+    [[cardId, 'Cần làm']]
+  );
+
+  await json('PATCH', `/api/cards/${cardId}`, { is_archived: false });
+  const after = await json('GET', `/api/boards/${boardId}/archived-cards`);
+  assert.equal((after.data as unknown as unknown[]).length, 0);
+});
+
 test('so giai doan chi dem luong viec co moc', async () => {
   const projectId = await newProject('Du an dem giai doan');
   await json('POST', '/api/boards', { name: 'Ho tro', project_id: projectId });

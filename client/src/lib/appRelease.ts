@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.11.0',
+    date: '2026-10-02',
+    title:
+      'Xem lại và khôi phục công việc đã lưu trữ; sao chép lại liên kết chia sẻ; sửa tên khách hàng bị cắt',
+    changes: [
+      'Lưu trữ một công việc xong có thông báo kèm nút "Hoàn tác". Menu luồng việc có mục mới "Công việc đã lưu trữ" liệt kê mọi việc đã lưu trữ của luồng (cột cũ, thời điểm lưu trữ) với nút "Khôi phục" đưa việc về đúng cột cũ.',
+      'Cài đặt → Liên kết chia sẻ: mỗi liên kết đang hoạt động có nút "Sao chép liên kết" để gửi lại cho khách. Áp dụng cho liên kết tạo từ bản này; liên kết tạo trước đó vẫn chỉ hiện một lần lúc tạo.',
+      'Trang Bảng – Luồng việc: ô luồng việc tự cao theo nội dung, tên khách hàng dài không còn bị cắt mất. Đầu trang một luồng việc hiện tên dự án / khách hàng rộng hơn, rê chuột xem tên đầy đủ. Khung luồng việc ở Tổng quan hiện tên khách hàng trên một dòng riêng.',
+    ],
+  },
+  {
     version: '1.10.0',
     date: '2026-10-02',
     title: 'Bảng – Luồng việc; dự án một luồng không còn bắt chọn bảng; Giai đoạn là luồng có mốc',

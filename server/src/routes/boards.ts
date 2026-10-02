@@ -109,6 +109,21 @@ router.post('/', (req, res) => {
   res.status(201).json(result);
 });
 
+/** Cong viec da luu tru cua bang — cho de khoi phuc. Moi nhat truoc. */
+router.get('/:id/archived-cards', (req, res) => {
+  const id = intParam(req.params.id);
+  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(id), 'Khong tim thay bang');
+  const rows = db
+    .prepare(
+      `SELECT k.id, k.title, k.updated_at, l.name AS list_name
+         FROM cards k JOIN lists l ON l.id = k.list_id
+        WHERE l.board_id = ? AND k.is_archived = 1
+        ORDER BY k.updated_at DESC, k.id DESC`
+    )
+    .all(id);
+  res.json(rows);
+});
+
 router.get('/:id/full', (req, res) => {
   const id = intParam(req.params.id);
   const board = required(

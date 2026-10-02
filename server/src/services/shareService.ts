@@ -44,6 +44,10 @@ export interface ShareLinkRow {
   revoked_at: string | null;
   view_count: number;
   last_viewed_at: string | null;
+  /* v57: ma lien ket da ma hoa — NULL voi link tao truoc v57. */
+  token_ciphertext: string | null;
+  token_iv: string | null;
+  token_tag: string | null;
 }
 
 export interface SharedFile {

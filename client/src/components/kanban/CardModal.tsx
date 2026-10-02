@@ -158,6 +158,23 @@ export function CardModal() {
     onSuccess: () => {
       refresh();
       close();
+      /* Thẻ lưu trữ biến khỏi mọi màn — phải chỉ ngay đường quay lại, không thì
+         người dùng tưởng đã mất. Sau 8 giây vẫn khôi phục được ở Menu luồng việc. */
+      const archivedId = cardId;
+      useUiStore
+        .getState()
+        .pushToast(
+          'Đã lưu trữ công việc. Xem lại ở Menu luồng việc → Công việc đã lưu trữ.',
+          'success',
+          {
+            label: 'Hoàn tác',
+            run: () => {
+              void api
+                .patch(`/api/cards/${archivedId}`, { is_archived: false })
+                .then(() => invalidateCardViews(queryClient));
+            },
+          }
+        );
     },
   });
 

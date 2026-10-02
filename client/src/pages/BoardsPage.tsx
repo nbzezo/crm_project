@@ -314,20 +314,24 @@ function BoardTile({
 }) {
   return (
     <div className="group relative">
+      {/* Cao TỐI THIỂU chứ không cố định: tên luồng dài hai dòng từng đẩy dòng khách
+          hàng ra khỏi ô cao h-24 và bị overflow-hidden cắt mất. */}
       <Link
         to={`/boards/${board.id}`}
-        className="block h-24 overflow-hidden rounded-lg p-2.5 text-white transition hover:brightness-110"
+        className="flex min-h-24 flex-col rounded-lg p-2.5 pb-3 text-white transition hover:brightness-110"
         style={backgroundStyle(board.background)}
+        title={board.customer_name ? `${board.name} · ${board.customer_name}` : board.name}
       >
         <div className="line-clamp-2 pr-6 text-sm font-bold">{board.name}</div>
-        <div className="mt-1 text-xs opacity-90">{board.card_count ?? 0} thẻ đang mở</div>
+        <div className="mt-1 text-xs opacity-90">{board.card_count ?? 0} việc đang mở</div>
         {board.customer_name && (
-          <div className="mt-0.5 flex items-center gap-1 truncate text-xs opacity-90">
-            <Building2 size={11} /> {board.customer_name}
+          <div className="mt-0.5 flex min-w-0 items-center gap-1 pr-6 text-xs opacity-90">
+            <Building2 size={11} className="shrink-0" aria-hidden="true" />
+            <span className="line-clamp-2 min-w-0 break-words">{board.customer_name}</span>
           </div>
         )}
         {!!board.is_archived && (
-          <div className="absolute bottom-2 left-2.5 rounded bg-black/35 px-1.5 py-0.5 text-xs">
+          <div className="mt-auto self-start rounded bg-black/35 px-1.5 py-0.5 text-xs">
             {t.board.archived}
           </div>
         )}

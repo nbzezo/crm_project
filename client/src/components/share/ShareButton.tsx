@@ -363,6 +363,22 @@ export function ShareLinkItem({
   showTitle?: boolean;
 }) {
   const [showViews, setShowViews] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const pushToast = useUiStore((s) => s.pushToast);
+  /* Link that khong nam trong danh sach — chi lay khi bam, qua kiem quyen rieng. */
+  const copyLink = useMutation({
+    mutationFn: () => api.get<{ url: string }>(`/api/shares/${link.id}/url`),
+    onSuccess: async ({ url }) => {
+      if (await copyText(url)) {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      } else {
+        window.prompt('Sao chép liên kết:', url);
+      }
+    },
+    onError: (error) =>
+      pushToast(error instanceof Error ? error.message : 'Không lấy được liên kết'),
+  });
   const views = useQuery({
     queryKey: ['share-views', link.id],
     queryFn: () => api.get<ShareView[]>(`/api/shares/${link.id}/views`),
@@ -403,7 +419,31 @@ export function ShareLinkItem({
         {link.last_viewed_at &&
           ` (gần nhất ${formatDateTime(link.last_viewed_at.replace(' ', 'T'))})`}
       </p>
-      <div className="mt-1.5 flex gap-2">
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {link.status === 'active' &&
+          (link.can_copy ? (
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={copyLink.isPending}
+              onClick={() => copyLink.mutate()}
+              aria-label={`Sao chép liên kết …${link.token_hint}`}
+            >
+              {copied ? (
+                <Check size={13} aria-hidden="true" />
+              ) : (
+                <Copy size={13} aria-hidden="true" />
+              )}
+              {copied ? 'Đã chép' : 'Sao chép liên kết'}
+            </Button>
+          ) : (
+            <span
+              className="self-center text-xs text-tr-muted"
+              title="Liên kết tạo trước bản 1.11.0 chỉ hiện một lần lúc tạo. Cần gửi lại thì tạo liên kết mới."
+            >
+              Không sao chép lại được (tạo trước 1.11.0)
+            </span>
+          ))}
         <Button size="sm" onClick={() => setShowViews((v) => !v)} aria-expanded={showViews}>
           <Eye size={13} aria-hidden="true" /> {showViews ? 'Ẩn lượt mở' : 'Xem lượt mở'}
         </Button>

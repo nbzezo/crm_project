@@ -167,6 +167,9 @@ test('v51 -> v52: bo CHECK loai ban ghi, giu nguyen link va nhat ky, quay lui du
     0
   );
 
+  /* Quay lui theo dung thu tu: v57 them cot vao share_links nen phai go truoc khi
+     v52 dung lai bang theo dang cu. */
+  mem.exec(fs.readFileSync(new URL('../db/migrate-v57-rollback.sql', import.meta.url), 'utf8'));
   mem.exec(fs.readFileSync(new URL('../db/migrate-v52-rollback.sql', import.meta.url), 'utf8'));
   assert.equal(
     (
@@ -190,6 +193,38 @@ test('v51 -> v52: bo CHECK loai ban ghi, giu nguyen link va nhat ky, quay lui du
   ).map((t) => t.name);
   assert.equal(tables.includes('share_links'), false);
   assert.equal(tables.includes('drive_backup_settings'), true);
+});
+
+test('v57: lay lai duoc link da tao de sao chep, link cu thi bao ro', async () => {
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'quotation',
+    entity_id: quotationId,
+    expires_in_days: 7,
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.json.can_copy, true);
+
+  /* Token van khong nam o dang ro trong CSDL — chi ban bam va ban ma hoa. */
+  const stored = db
+    .prepare(`SELECT * FROM share_links WHERE id = ?`)
+    .get(created.json.id) as Record<string, unknown>;
+  assert.equal(JSON.stringify(stored).includes(String(created.json.token)), false);
+
+  const again = await call('GET', `/api/shares/${created.json.id}/url`);
+  assert.equal(again.status, 200);
+  assert.equal(again.json.url, created.json.url);
+
+  /* Danh sach khong mang link that. */
+  const list = await call('GET', '/api/shares');
+  assert.equal(list.text.includes(String(created.json.token)), false);
+
+  /* Link tao truoc v57: khong co ban ma hoa. */
+  db.prepare(
+    `UPDATE share_links SET token_ciphertext = NULL, token_iv = NULL, token_tag = NULL WHERE id = ?`
+  ).run(created.json.id);
+  const legacy = await call('GET', `/api/shares/${created.json.id}/url`);
+  assert.equal(legacy.status, 422);
+  assert.equal(legacy.json.code, 'SHARE_URL_UNAVAILABLE');
 });
 
 test('loai ban ghi la do API chan (khong con CHECK o CSDL)', async () => {

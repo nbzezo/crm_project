@@ -1257,8 +1257,14 @@ export function BoardSummaryWidget({ boards }: { boards: DashboardData['recent_b
                     ) : (
                       <span className="text-tr-success">Không có việc đang mở</span>
                     )}
-                    {board.customer_name ? ` · ${board.customer_name}` : ''}
                   </span>
+                  {/* Dòng riêng, được xuống dòng: ghép sau số việc thì tên khách hàng
+                      dài luôn bị cắt mất phần đuôi. */}
+                  {board.customer_name && (
+                    <span className="block text-xs break-words text-tr-muted">
+                      {board.customer_name}
+                    </span>
+                  )}
                 </span>
                 <ChevronRight
                   size={14}

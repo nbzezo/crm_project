@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { accessOf } from '../middleware/currentUser.ts';
 import { crmBaseUrl } from '../lib/requestBaseUrl.ts';
+import { decryptSecret, encryptSecret } from '../services/ai/secretStore.ts';
 import { assertInScope } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import {
@@ -72,6 +73,8 @@ function serialize(link: ShareLinkRow) {
     status: linkStatus(db, link),
     view_count: link.view_count,
     last_viewed_at: link.last_viewed_at,
+    /* Chi bao CO sao chep lai duoc khong; link that lay qua GET /:id/url. */
+    can_copy: Boolean(link.token_ciphertext),
   };
 }
 
@@ -164,6 +167,7 @@ router.post('/', (req, res) => {
   /* Bao gia mac dinh dong bang: khach khong thay con so doi sau khi da gui. */
   const lock = body.lock_version ?? body.entity_type === 'quotation';
   const token = generateToken();
+  const sealed = encryptSecret(token);
   const pw = body.password ? hashPassword(body.password) : null;
   const expires =
     body.expires_in_days === null
@@ -184,8 +188,9 @@ router.post('/', (req, res) => {
     .prepare(
       `INSERT INTO share_links
          (token_hash, token_hint, entity_type, entity_id, title, created_by_user_id, created_by_name,
-          expires_at, password_salt, password_hash, allow_download, notify_on_view, snapshot_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          expires_at, password_salt, password_hash, allow_download, notify_on_view, snapshot_json,
+          token_ciphertext, token_iv, token_tag)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       hashToken(token),
@@ -200,12 +205,15 @@ router.post('/', (req, res) => {
       pw?.hash ?? null,
       body.allow_download ? 1 : 0,
       body.notify_on_view ? 1 : 0,
-      lock ? makeSnapshot(info) : null
+      lock ? makeSnapshot(info) : null,
+      sealed.ciphertext,
+      sealed.iv,
+      sealed.tag
     );
   const link = db
     .prepare(`SELECT * FROM share_links WHERE id = ?`)
     .get(Number(result.lastInsertRowid)) as ShareLinkRow;
-  /* Token chi tra ve o day, mot lan duy nhat. */
+  /* Tra token ngay luc tao; sau do lay lai qua GET /:id/url (v57). */
   res.status(201).json({
     ...serialize(link),
     token,
@@ -229,6 +237,24 @@ function loadManagedLink(req: Request): ShareLinkRow {
   }
   return link;
 }
+
+/** Lay lai link da tao de sao chep — chi nguoi tao (hoac quan tri) va chi link tu v57. */
+router.get('/:id/url', (req, res) => {
+  const link = loadManagedLink(req);
+  if (!link.token_ciphertext || !link.token_iv || !link.token_tag) {
+    throw new HttpError(
+      422,
+      'Liên kết này tạo trước khi có tính năng sao chép lại. Tạo liên kết mới nếu cần gửi lại.',
+      { code: 'SHARE_URL_UNAVAILABLE' }
+    );
+  }
+  const token = decryptSecret({
+    ciphertext: link.token_ciphertext,
+    iv: link.token_iv,
+    tag: link.token_tag,
+  });
+  res.json({ url: `${crmBaseUrl(db, req)}/s/${token}` });
+});
 
 router.post('/:id/revoke', (req, res) => {
   const link = loadManagedLink(req);

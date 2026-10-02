@@ -22,9 +22,11 @@ export interface ShareLink {
   status: ShareStatus;
   view_count: number;
   last_viewed_at: string | null;
+  /** Link tao tu v57 lay lai duoc qua GET /api/shares/:id/url. */
+  can_copy: boolean;
 }
 
-/** Chi nhan duoc MOT LAN luc tao — token khong duoc luu o dau khac. */
+/** Tra ve luc tao; link tu v57 con lay lai duoc qua GET /api/shares/:id/url. */
 export interface ShareCreated extends ShareLink {
   token: string;
   url: string;

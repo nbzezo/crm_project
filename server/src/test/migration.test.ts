@@ -522,3 +522,33 @@ test('v56: nhac hen "Khach vua mo lien ket" cu chuyen sang chuong thong bao', ()
   ]);
   scratch.close();
 });
+
+test('v57: them ba cot ma lien ket da ma hoa, link cu giu nguyen va quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 56);
+  scratch
+    .prepare(
+      `INSERT INTO share_links (token_hash, token_hint, entity_type, entity_id, title)
+       VALUES ('hash-cu', 'abc123', 'quotation', 1, 'Bao gia cu')`
+    )
+    .run();
+  migrate(scratch, 57);
+  assert.deepEqual(
+    scratch
+      .prepare(`SELECT token_hash, token_ciphertext, token_iv, token_tag FROM share_links`)
+      .get(),
+    { token_hash: 'hash-cu', token_ciphertext: null, token_iv: null, token_tag: null }
+  );
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v57-rollback.sql', import.meta.url), 'utf8'));
+  const columns = (
+    scratch.prepare(`PRAGMA table_info(share_links)`).all() as { name: string }[]
+  ).map((c) => c.name);
+  assert.equal(columns.includes('token_ciphertext'), false);
+  assert.equal(
+    (scratch.prepare(`SELECT COUNT(*) AS n FROM share_links`).get() as { n: number }).n,
+    1
+  );
+  scratch.close();
+});

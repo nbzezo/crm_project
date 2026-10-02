@@ -204,20 +204,22 @@ export default function BoardPage() {
         {board.project_name && (
           <Link
             to={`/projects/${board.project_id}`}
-            className="tr-header-btn hidden max-w-44 truncate md:inline-flex"
-            title="Luồng việc này thuộc dự án — mọi công việc bên trong cũng vậy"
+            className="tr-header-btn hidden max-w-72 min-w-0 md:inline-flex"
+            title={`Dự án: ${board.project_name} — mọi công việc trong luồng này thuộc dự án đó`}
           >
-            <FolderKanban size={14} /> {board.project_name}
+            <FolderKanban size={14} className="shrink-0" />
+            <span className="min-w-0 truncate">{board.project_name}</span>
           </Link>
         )}
 
         {board.customer_name && (
           <Link
             to={`/customers/${board.customer_id}`}
-            className="tr-header-btn hidden max-w-44 truncate md:inline-flex"
-            title={t.board.linkedCustomer}
+            className="tr-header-btn hidden max-w-72 min-w-0 md:inline-flex"
+            title={`${t.board.linkedCustomer}: ${board.customer_name}`}
           >
-            <Building2 size={14} /> {board.customer_name}
+            <Building2 size={14} className="shrink-0" />
+            <span className="min-w-0 truncate">{board.customer_name}</span>
           </Link>
         )}
 
@@ -259,7 +261,7 @@ export default function BoardPage() {
         <div className="basis-full pb-1 md:hidden">
           <div className="mb-1 px-2 text-xs text-white/85">
             {board.project_name ?? board.customer_name ?? 'Luồng việc'} ·{' '}
-            {board.lists.reduce((sum, list) => sum + list.cards.length, 0)} thẻ
+            {board.lists.reduce((sum, list) => sum + list.cards.length, 0)} việc
           </div>
           <BoardViewSegmented value={view} onChange={setView} />
         </div>
