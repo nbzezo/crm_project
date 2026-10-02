@@ -256,7 +256,8 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
   await expect(searchDialog.getByText(dealTitle, { exact: true })).toBeVisible();
   await searchDialog.getByText(dealTitle, { exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/deals/${deal.id}$`));
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Chi tiết cơ hội');
+  // Trang chi tiet chi co MOT h1: ten co hoi (truoc day con them h1 an "Chi tiết cơ hội").
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(dealTitle);
 
   await page.goto('/contracts');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hợp đồng');

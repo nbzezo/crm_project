@@ -84,7 +84,7 @@ const router = createBrowserRouter([
       {
         path: 'customers/:customerId',
         element: <CustomerDetailPage />,
-        handle: { permission: 'customers:read', title: 'Hồ sơ khách hàng' },
+        handle: { permission: 'customers:read', title: 'Hồ sơ khách hàng', visibleHeading: true },
       },
       {
         path: 'pipeline',
@@ -94,7 +94,7 @@ const router = createBrowserRouter([
       {
         path: 'deals/:dealId',
         element: <DealDetailPage />,
-        handle: { permission: 'deals:read', title: 'Chi tiết cơ hội' },
+        handle: { permission: 'deals:read', title: 'Chi tiết cơ hội', visibleHeading: true },
       },
       {
         path: 'pipeline-health',

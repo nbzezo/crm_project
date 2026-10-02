@@ -109,14 +109,19 @@ export default function DealDetailPage() {
   if (error)
     return (
       <div className="p-6">
+        <h1 className="sr-only">Chi tiết cơ hội</h1>
         <ErrorState onRetry={() => refetch()} />
       </div>
     );
   if (isLoading || !deal)
     return (
-      <div role="status" aria-label={t.common.loading} className="space-y-4 p-6">
-        <Skeleton className="h-24 rounded-panel" />
-        <Skeleton className="h-64 rounded-panel" />
+      <div className="space-y-4 p-6">
+        {/* Route khai visibleHeading: h1 phai co ca luc dang tai, khong chi sau khi co du lieu. */}
+        <h1 className="sr-only">Chi tiết cơ hội</h1>
+        <div role="status" aria-label={t.common.loading} className="space-y-4">
+          <Skeleton className="h-24 rounded-panel" />
+          <Skeleton className="h-64 rounded-panel" />
+        </div>
       </div>
     );
 
