@@ -46,6 +46,19 @@
   không có API đa phương thức.
 - Sự cố 502 của tính năng này và cách chẩn đoán: [VOICE-TO-TEXT-502.md](VOICE-TO-TEXT-502.md).
 
+### Giai đoạn 5 — gợi ý điền hồ sơ khách hàng
+
+- Form *Thêm/Sửa khách hàng* có ô *Tìm thông tin bằng AI*: gõ mã số thuế hoặc tên công ty
+  (`POST /api/ai/assist/customer`).
+- MST được tra trong CSDL đăng ký doanh nghiệp (API công khai VietQR, đổi bằng
+  `WORKFLOW_TAX_LOOKUP_URL`, đặt `off` để tắt). Tên pháp lý, MST, tên viết tắt, địa chỉ từ nguồn này
+  được đánh dấu *Đã xác thực* và đè lên dữ liệu AI.
+- AI bổ sung ngành nghề, quy mô, website, giới thiệu — luôn đánh dấu *AI · cần kiểm tra*.
+- MST do AI đoán (khi chỉ gõ tên) phải tra lại được trong CSDL và khớp tên mới được giữ; lệch tên
+  hoặc không tồn tại thì bị bỏ kèm cảnh báo. MST là khóa chống trùng nên một MST sai rất đắt.
+- Chỉ đề xuất, không ghi CRM: người dùng chọn trường áp dụng (mặc định chỉ các ô đang trống) rồi
+  tự bấm Lưu. Chưa cấu hình AI thì tra MST vẫn điền được phần dữ liệu đăng ký.
+
 ## Luồng bảo mật
 
 ```mermaid

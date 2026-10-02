@@ -10,6 +10,8 @@ import { ORG_KINDS } from '@workflow/contracts';
 import type { Customer, OrgKind } from '../../types';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { AssigneePicker } from '../tasks/AssigneePicker';
+import { usePermission } from '../../lib/permissions';
+import { CustomerAiLookup } from './CustomerAiLookup';
 
 const EMPTY = {
   name: '',
@@ -57,6 +59,8 @@ export function CustomerForm({
   const { submitted, validate } = useFormErrors();
   /** Ban sao luc mo form — dung de biet nguoi dung da sua gi chua. */
   const initialRef = useRef(EMPTY);
+  /* Tra cuu goi /api/ai — khong co quyen AI thi an han, khoi bam roi nhan 403. */
+  const canUseAi = usePermission('ai', 'create');
 
   useEffect(() => {
     if (!open) return;
@@ -160,6 +164,14 @@ export function CustomerForm({
             <p className="mt-1 text-xs text-tr-muted">{t.customer.duplicateHint}</p>
           </div>
         </div>
+      )}
+
+      {canUseAi && (
+        <CustomerAiLookup
+          key={`${open}-${customer?.id ?? 'new'}`}
+          current={form}
+          onApply={(values) => setForm((f) => ({ ...f, ...values }))}
+        />
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

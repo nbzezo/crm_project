@@ -49,6 +49,7 @@ import {
   searchDocumentChunks,
 } from '../services/ai/documentIndex.ts';
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
+import { assistCustomer } from '../services/ai/companyLookup.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
   getVoiceModel,
@@ -288,6 +289,23 @@ router.post('/assist/interaction', async (req, res) => {
       maxOutputTokens: 1000,
     });
     res.json({ ...interactionAssistResponse.parse(parseAiJson(result.text)), meta: result });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+const customerAssistSchema = z.object({
+  query: z.string().trim().min(2).max(300),
+});
+
+/**
+ * Goi y dien form khach hang tu MST hoac ten. Chi TRA VE goi y — khong ghi gi
+ * vao CRM; nguoi dung chon truong nao ap dung roi tu bam Luu.
+ */
+router.post('/assist/customer', async (req, res) => {
+  try {
+    const body = parseBody(customerAssistSchema, req);
+    res.json(await assistCustomer(db, body.query));
   } catch (error) {
     asHttpError(error);
   }

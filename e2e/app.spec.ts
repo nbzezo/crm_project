@@ -1436,3 +1436,48 @@ test.describe('mobile layout', () => {
     await expect(page.getByText('Cột mobile').first()).toBeVisible();
   });
 });
+
+test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async ({ page }) => {
+  await page.route('**/api/ai/assist/customer', (route) =>
+    route.fulfill({
+      json: {
+        suggestion: {
+          name: 'CÔNG TY CỔ PHẦN SAO MAI',
+          tax_code: '0102030405',
+          address: '1 Tràng Tiền, Hà Nội',
+          industry: 'Phân phối thiết bị',
+          size: 'SME',
+        },
+        sources: {
+          name: 'registry',
+          tax_code: 'registry',
+          address: 'registry',
+          industry: 'ai',
+          size: 'ai',
+        },
+        registry: null,
+        warnings: [],
+        confidence: 0.8,
+        rationale: '',
+        meta: null,
+      },
+    })
+  );
+  await page.goto('/customers');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Thêm khách hàng' }).first().click();
+  const dialog = page.getByRole('dialog', { name: /Thêm khách hàng/ });
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel('Tìm thông tin bằng AI').fill('0102030405');
+  await dialog.getByRole('button', { name: 'Tìm', exact: true }).click();
+  await expect(dialog.getByText('Đề xuất — chọn trường')).toBeVisible();
+  await expect(dialog.getByText('Đã xác thực').first()).toBeVisible();
+  await expectNoViolations(page, 'CustomerForm goi y AI');
+
+  await dialog.getByRole('button', { name: 'Áp dụng đã chọn' }).click();
+  await expect(dialog.locator('#customer-name')).toHaveValue('CÔNG TY CỔ PHẦN SAO MAI');
+  await expect(dialog.getByLabel('Mã số thuế', { exact: true })).toHaveValue('0102030405');
+  await expect(dialog.getByLabel('Quy mô')).toHaveValue('SME');
+  await dialog.getByRole('button', { name: 'Hủy' }).click();
+});

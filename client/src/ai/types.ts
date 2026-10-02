@@ -154,3 +154,34 @@ export interface TaskAssistResult {
   warnings: string[];
   meta: Pick<AiMeta, 'requestId' | 'provider' | 'model'>;
 }
+
+export const CUSTOMER_ASSIST_FIELDS = [
+  'name',
+  'short_name',
+  'tax_code',
+  'industry',
+  'address',
+  'website',
+  'phone',
+  'email',
+  'size',
+  'notes',
+] as const;
+export type CustomerAssistField = (typeof CUSTOMER_ASSIST_FIELDS)[number];
+
+/** Gợi ý điền hồ sơ khách hàng từ MST / tên — `registry` đã xác thực, `ai` cần kiểm lại. */
+export interface CustomerAssistResult {
+  suggestion: Partial<Record<CustomerAssistField, string>>;
+  sources: Partial<Record<CustomerAssistField, 'registry' | 'ai'>>;
+  registry: {
+    tax_code: string;
+    name: string;
+    international_name: string | null;
+    short_name: string | null;
+    address: string | null;
+  } | null;
+  warnings: string[];
+  confidence: number | null;
+  rationale: string;
+  meta: Pick<AiMeta, 'requestId' | 'provider' | 'model'> | null;
+}
