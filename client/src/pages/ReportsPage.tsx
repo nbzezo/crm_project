@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bar,
@@ -43,6 +44,21 @@ import { resolveRange, type RangeKey } from '../lib/reportRange';
 interface ReportsData {
   from: string;
   to: string;
+  /** Tien do cac du an dang chay — chi viec tren bang thuoc du an. */
+  by_project: {
+    id: number;
+    name: string;
+    status: string;
+    plan_end: string | null;
+    completed: number;
+    done_total: number;
+    task_total: number;
+    open_count: number;
+    overdue_count: number;
+    late_milestones: number;
+    next_milestone: string | null;
+  }[];
+  projects_by_status: { status: string; count: number }[];
   /** Thông lượng và khối lượng theo người phụ trách (v18). */
   by_assignee: {
     contact_id: number | null;
@@ -82,20 +98,26 @@ const AXIS_PROPS = {
   tickLine: false,
 };
 
+/**
+ * Trang Báo cáo trong nhom Du an: CHI so lieu cua du an va cong viec. So lieu ban
+ * hang nam o Suc khoe pipeline (nhom Kinh doanh); ban day du o tab Báo cáo tổng
+ * cua trang Tong quan.
+ */
 export default function ReportsPage() {
   return (
     <div className="space-y-4 p-6">
-      <PageHeader description="Số liệu bán hàng và giao hàng theo khoảng thời gian đã chọn." />
-      <ReportsContent />
+      <PageHeader description="Tiến độ dự án và công việc theo khoảng thời gian đã chọn." />
+      <ReportsContent variant="projects" />
     </div>
   );
 }
 
 /**
- * Noi dung bao cao, khong co tieu de trang — dung chung cho trang Báo cáo va tab
- * "Báo cáo tổng" o Tong quan.
+ * Noi dung bao cao, khong co tieu de trang. `all` cho tab "Báo cáo tổng" o Tong
+ * quan (du an + cong viec + kinh doanh); `projects` cho trang Báo cáo cua nhom Du an.
  */
-export function ReportsContent() {
+export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'projects' }) {
+  const sales = variant === 'all';
   const [rangeKey, setRangeKey] = useState<RangeKey>('six');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState(todayStr());
@@ -169,15 +191,23 @@ export function ReportsContent() {
      liệu trong khoảng này" — tam lan tren cung mot trang, khien trang trong nhin
      nhu bi loi. Mot thong bao o CAP TRANG dung mot lan, kem loi khuyen doi
      khoang, la du. */
-  const hasAnyData =
+  const projectRows = data.by_project ?? [];
+  const projectCount = (status: string) =>
+    (data.projects_by_status ?? []).find((row) => row.status === status)?.count ?? 0;
+  const lateMilestones = projectRows.reduce((sum, row) => sum + row.late_milestones, 0);
+
+  const hasTaskData =
+    projectRows.length > 0 ||
     assigneeRows.length > 0 ||
     slipRows.length > 0 ||
     weekData.length > 0 ||
+    priorityData.length > 0;
+  const hasSalesData =
     monthData.length > 0 ||
-    priorityData.length > 0 ||
     interactionData.length > 0 ||
     data.top_customers.length > 0 ||
     stageData.some((row) => row.sum_vnd !== 0 || row.count !== 0);
+  const hasAnyData = hasTaskData || (sales && hasSalesData);
 
   return (
     <div className="space-y-4">
@@ -193,29 +223,54 @@ export function ReportsContent() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label={t.common.overdue} value={String(data.summary.overdue_count)} />
         <Tile label={t.reports.dueThisWeek} value={String(data.summary.due_week_count)} />
-        <Tile
-          label={t.reports.openPipeline}
-          value={formatVNDShort(data.summary.open_pipeline_vnd)}
-        />
-        <Tile
-          label={t.reports.winRate}
-          value={winTotal === 0 ? '—' : formatPercent(data.win_rate.rate)}
-          hint={
-            winTotal === 0 ? undefined : `${data.win_rate.won} thắng / ${data.win_rate.lost} thua`
-          }
-        />
+        {sales ? (
+          <>
+            <Tile
+              label={t.reports.openPipeline}
+              value={formatVNDShort(data.summary.open_pipeline_vnd)}
+            />
+            <Tile
+              label={t.reports.winRate}
+              value={winTotal === 0 ? '—' : formatPercent(data.win_rate.rate)}
+              hint={
+                winTotal === 0
+                  ? undefined
+                  : `${data.win_rate.won} thắng / ${data.win_rate.lost} thua`
+              }
+            />
+          </>
+        ) : (
+          <>
+            <Tile
+              label="Dự án đang triển khai"
+              value={String(projectCount('active'))}
+              hint={`${projectCount('planning')} lập kế hoạch · ${projectCount('on_hold')} tạm dừng`}
+            />
+            <Tile
+              label="Mốc trễ hạn"
+              value={String(lateMilestones)}
+              hint="Mốc chưa đạt đã qua hạn, trên các dự án đang chạy"
+            />
+          </>
+        )}
       </div>
 
       {!hasAnyData && (
         <EmptyState
           message="Chưa có dữ liệu trong khoảng này."
-          hint="Chọn một khoảng thời gian rộng hơn, hoặc ghi nhận thêm cơ hội và công việc rồi quay lại."
+          hint={
+            sales
+              ? 'Chọn một khoảng thời gian rộng hơn, hoặc ghi nhận thêm cơ hội và công việc rồi quay lại.'
+              : 'Chọn một khoảng thời gian rộng hơn, hoặc gắn bảng công việc vào dự án rồi quay lại.'
+          }
         />
       )}
 
       <div className={`grid grid-cols-1 gap-4 lg:grid-cols-2 ${hasAnyData ? '' : 'hidden'}`}>
         {/* Ai đang gánh gì — đặt đầu tiên vì đây là câu hỏi hay được hỏi nhất khi
             mở trang Báo cáo với mục đích quản lý tiến độ, chứ không phải bán hàng. */}
+        <ProjectProgress rows={projectRows} />
+
         <Panel title="Công việc theo người phụ trách" className="lg:col-span-2">
           {assigneeRows.length === 0 ? (
             <NoData />
@@ -389,82 +444,91 @@ export function ReportsContent() {
           />
         </Panel>
 
-        <Panel title={t.reports.wonByMonth}>
-          {monthData.length === 0 ? (
-            <NoData />
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={monthData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="name" {...AXIS_PROPS} />
-                <YAxis
-                  tickFormatter={(v) => formatVNDShort(v as number)}
-                  width={62}
-                  {...AXIS_PROPS}
-                />
-                <Tooltip
-                  contentStyle={TOOLTIP_STYLE}
-                  formatter={(value) => [formatVND(value as number), 'Doanh thu']}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="sum_vnd"
-                  stroke={CHART_PRIMARY}
-                  strokeWidth={2}
-                  /* Vien quanh diem lay mau be mat tu token (index.css, `.recharts-dot`)
+        {sales && (
+          <Panel title={t.reports.wonByMonth}>
+            {monthData.length === 0 ? (
+              <NoData />
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={monthData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="name" {...AXIS_PROPS} />
+                  <YAxis
+                    tickFormatter={(v) => formatVNDShort(v as number)}
+                    width={62}
+                    {...AXIS_PROPS}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value) => [formatVND(value as number), 'Doanh thu']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="sum_vnd"
+                    stroke={CHART_PRIMARY}
+                    strokeWidth={2}
+                    /* Vien quanh diem lay mau be mat tu token (index.css, `.recharts-dot`)
                      de diem trong nhu duoc khoet ra khoi panel o ca sau theme —
                      truoc day la '#fff' cung, sai han tren nen toi. */
-                  dot={{ r: 4, fill: CHART_PRIMARY, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-          <ChartDataTable
-            caption={t.reports.wonByMonth}
-            rows={monthData.map((row) => ({ name: row.name, value: formatVND(row.sum_vnd) }))}
-          />
-        </Panel>
+                    dot={{ r: 4, fill: CHART_PRIMARY, strokeWidth: 2 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+            <ChartDataTable
+              caption={t.reports.wonByMonth}
+              rows={monthData.map((row) => ({ name: row.name, value: formatVND(row.sum_vnd) }))}
+            />
+          </Panel>
+        )}
 
-        <Panel title={t.reports.pipelineByStage}>
-          {/* Guard rong: nam panel con lai deu co NoData, rieng panel nay truoc day
+        {sales && (
+          <Panel title={t.reports.pipelineByStage}>
+            {/* Guard rong: nam panel con lai deu co NoData, rieng panel nay truoc day
               van ve truc trong khi chua co co hoi nao. */}
-          {stageData.every((row) => row.sum_vnd === 0 && row.count === 0) ? (
-            <NoData />
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart
-                data={stageData}
-                layout="vertical"
-                margin={{ top: 4, right: 16, bottom: 4, left: 12 }}
-              >
-                <CartesianGrid horizontal={false} />
-                <XAxis
-                  type="number"
-                  tickFormatter={(v) => formatVNDShort(v as number)}
-                  {...AXIS_PROPS}
-                />
-                <YAxis type="category" dataKey="name" width={104} {...AXIS_PROPS} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(11,11,11,0.04)' }}
-                  contentStyle={TOOLTIP_STYLE}
-                  formatter={(value, _name, item) => [
-                    `${formatVND(value as number)} · ${(item?.payload as { count: number }).count} cơ hội`,
-                    'Giá trị',
-                  ]}
-                />
-                <Bar dataKey="sum_vnd" fill={CHART_PRIMARY} radius={[0, 4, 4, 0]} maxBarSize={22} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-          <ChartDataTable
-            caption={t.reports.pipelineByStage}
-            rows={stageData.map((row) => ({
-              name: row.name,
-              value: `${formatVND(row.sum_vnd)} · ${row.count} cơ hội`,
-            }))}
-          />
-        </Panel>
+            {stageData.every((row) => row.sum_vnd === 0 && row.count === 0) ? (
+              <NoData />
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={stageData}
+                  layout="vertical"
+                  margin={{ top: 4, right: 16, bottom: 4, left: 12 }}
+                >
+                  <CartesianGrid horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(v) => formatVNDShort(v as number)}
+                    {...AXIS_PROPS}
+                  />
+                  <YAxis type="category" dataKey="name" width={104} {...AXIS_PROPS} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(11,11,11,0.04)' }}
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value, _name, item) => [
+                      `${formatVND(value as number)} · ${(item?.payload as { count: number }).count} cơ hội`,
+                      'Giá trị',
+                    ]}
+                  />
+                  <Bar
+                    dataKey="sum_vnd"
+                    fill={CHART_PRIMARY}
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={22}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+            <ChartDataTable
+              caption={t.reports.pipelineByStage}
+              rows={stageData.map((row) => ({
+                name: row.name,
+                value: `${formatVND(row.sum_vnd)} · ${row.count} cơ hội`,
+              }))}
+            />
+          </Panel>
+        )}
 
         <Panel title={t.reports.openByPriority}>
           {priorityData.length === 0 ? (
@@ -482,44 +546,48 @@ export function ReportsContent() {
           />
         </Panel>
 
-        <Panel title={t.reports.interactionsByType}>
-          {interactionData.length === 0 ? (
-            <NoData />
-          ) : (
-            <DonutWithLegend
-              data={interactionData}
-              colors={interactionData.map(
-                (_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]
+        {sales && (
+          <>
+            <Panel title={t.reports.interactionsByType}>
+              {interactionData.length === 0 ? (
+                <NoData />
+              ) : (
+                <DonutWithLegend
+                  data={interactionData}
+                  colors={interactionData.map(
+                    (_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]
+                  )}
+                  unit="lần"
+                />
               )}
-              unit="lần"
-            />
-          )}
-          <ChartDataTable
-            caption={t.reports.interactionsByType}
-            rows={interactionData.map((row) => ({ name: row.name, value: `${row.count} lần` }))}
-          />
-        </Panel>
+              <ChartDataTable
+                caption={t.reports.interactionsByType}
+                rows={interactionData.map((row) => ({ name: row.name, value: `${row.count} lần` }))}
+              />
+            </Panel>
 
-        <Panel title={t.reports.topCustomers}>
-          {data.top_customers.length === 0 ? (
-            <NoData />
-          ) : (
-            <ul className="divide-y divide-tr-border">
-              {data.top_customers.map((customer) => (
-                <li key={customer.id} className="flex items-center gap-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate text-tr-text">{customer.name}</span>
-                  <span className="text-xs text-tr-muted">{customer.won_count} cơ hội</span>
-                  <span className="font-medium text-tr-success tabular-nums">
-                    {formatVND(customer.won_vnd)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+            <Panel title={t.reports.topCustomers}>
+              {data.top_customers.length === 0 ? (
+                <NoData />
+              ) : (
+                <ul className="divide-y divide-tr-border">
+                  {data.top_customers.map((customer) => (
+                    <li key={customer.id} className="flex items-center gap-3 py-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate text-tr-text">{customer.name}</span>
+                      <span className="text-xs text-tr-muted">{customer.won_count} cơ hội</span>
+                      <span className="font-medium text-tr-success tabular-nums">
+                        {formatVND(customer.won_vnd)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </>
+        )}
       </div>
 
-      <ScoreWinLoss data={data.score_winloss} />
+      {sales && <ScoreWinLoss data={data.score_winloss} />}
     </div>
   );
 }
@@ -712,6 +780,113 @@ function DonutWithLegend({
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Tien do tung du an dang chay: hoan thanh / tong viec, viec qua han, moc. */
+function ProjectProgress({ rows }: { rows: ReportsData['by_project'] }) {
+  return (
+    <Panel title="Tiến độ theo dự án" className="lg:col-span-2">
+      {rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-tr-muted">
+          Chưa có dự án đang chạy nào có bảng công việc.
+        </p>
+      ) : (
+        <div
+          className="tr-scroll overflow-x-auto"
+          /* Vung cuon ngang phai cuon duoc bang ban phim (WCAG 2.1.1). */
+          tabIndex={0}
+        >
+          <table className="w-full min-w-[720px] text-sm">
+            <caption className="sr-only">Tiến độ theo dự án</caption>
+            <thead className="text-left text-xs text-tr-subtle">
+              <tr>
+                <th scope="col" className="px-2 py-1.5">
+                  Dự án
+                </th>
+                <th scope="col" className="px-2 py-1.5">
+                  Tiến độ
+                </th>
+                <th scope="col" className="px-2 py-1.5 text-right">
+                  Xong trong kỳ
+                </th>
+                <th scope="col" className="px-2 py-1.5 text-right">
+                  Đang mở
+                </th>
+                <th scope="col" className="px-2 py-1.5 text-right">
+                  Quá hạn
+                </th>
+                <th scope="col" className="px-2 py-1.5">
+                  Mốc
+                </th>
+                <th scope="col" className="px-2 py-1.5">
+                  Kết thúc dự kiến
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-tr-border">
+              {rows.map((row) => {
+                const ratio = row.task_total > 0 ? row.done_total / row.task_total : 0;
+                return (
+                  <tr key={row.id}>
+                    <th scope="row" className="px-2 py-1.5 text-left font-normal">
+                      <Link
+                        to={`/projects/${row.id}`}
+                        className="text-tr-text hover:text-tr-primary hover:underline"
+                      >
+                        {row.name}
+                      </Link>
+                      <div className="text-xs text-tr-muted">
+                        {t.projectStatus[row.status] ?? row.status}
+                      </div>
+                    </th>
+                    <td className="px-2 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-1.5 w-24 overflow-hidden rounded-full bg-tr-hover"
+                          aria-hidden="true"
+                        >
+                          <div
+                            className="h-full rounded-full bg-tr-primary"
+                            style={{ width: `${Math.round(ratio * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-tr-subtle tabular-nums">
+                          {formatPercent(ratio)} · {row.done_total}/{row.task_total}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{row.completed}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{row.open_count}</td>
+                    <td
+                      className={`px-2 py-1.5 text-right tabular-nums ${row.overdue_count > 0 ? 'font-semibold text-tr-danger' : ''}`}
+                    >
+                      {row.overdue_count}
+                    </td>
+                    <td className="px-2 py-1.5 text-xs">
+                      {row.late_milestones > 0 && (
+                        <span className="text-tr-danger">{row.late_milestones} mốc trễ</span>
+                      )}
+                      {row.late_milestones > 0 && row.next_milestone && ' · '}
+                      {row.next_milestone ? (
+                        <span className="text-tr-subtle">
+                          tiếp theo {formatDateShort(row.next_milestone)}
+                        </span>
+                      ) : (
+                        row.late_milestones === 0 && <span className="text-tr-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-xs text-tr-subtle">
+                      {row.plan_end ? formatDateShort(row.plan_end) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   );
 }
 

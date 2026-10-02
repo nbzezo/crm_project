@@ -1134,6 +1134,47 @@ router.get('/reports', (req, res) => {
     )
     .all(actorContactId(req), from, to);
 
+  /**
+   * Tien do theo DU AN — cho ban bao cao rut gon cua nhom Du an. Chi gom viec tren
+   * cac bang thuoc du an (`boards.project_id`), loc theo ca pham vi du an lan pham
+   * vi cong viec: thay du an nhung khong thay bang nao cua no thi khong co dong.
+   */
+  const projectScope = scopeFragmentOrUnowned(req, 'projects', 'read', 'p.owner_contact_id');
+  const by_project = db
+    .prepare(
+      `SELECT p.id, p.name, p.status, p.plan_end,
+              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN ? AND ?
+                       THEN 1 ELSE 0 END) AS completed,
+              SUM(CASE WHEN k.is_done = 1 THEN 1 ELSE 0 END) AS done_total,
+              COUNT(*) AS task_total,
+              SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count,
+              SUM(CASE WHEN k.is_done = 0 AND k.due_date IS NOT NULL
+                        AND substr(k.due_date, 1, 10) < date('now','localtime')
+                       THEN 1 ELSE 0 END) AS overdue_count,
+              SUM(CASE WHEN k.is_milestone = 1 AND k.is_done = 0 AND k.due_date IS NOT NULL
+                        AND substr(k.due_date, 1, 10) < date('now','localtime')
+                       THEN 1 ELSE 0 END) AS late_milestones,
+              MIN(CASE WHEN k.is_milestone = 1 AND k.is_done = 0
+                        AND substr(k.due_date, 1, 10) >= date('now','localtime')
+                       THEN substr(k.due_date, 1, 10) END) AS next_milestone
+         FROM projects p
+         JOIN boards b ON b.project_id = p.id AND b.is_archived = 0
+         JOIN lists l ON l.board_id = b.id
+         JOIN cards k ON k.list_id = l.id AND k.is_archived = 0
+        WHERE p.is_archived = 0 AND p.status NOT IN ('done','cancelled')${projectScope}${taskScope(req)}
+        GROUP BY p.id
+        ORDER BY overdue_count DESC, open_count DESC, p.name`
+    )
+    .all(from, to);
+
+  const projects_by_status = db
+    .prepare(
+      `SELECT p.status, COUNT(*) AS count FROM projects p
+        WHERE p.is_archived = 0${projectScope}
+        GROUP BY p.status`
+    )
+    .all();
+
   /** Phan bo so lan doi han — duoi cang dai thi ke hoach cang khong dang tin. */
   const slip_distribution = db
     .prepare(
@@ -1152,6 +1193,8 @@ router.get('/reports', (req, res) => {
     to,
     by_assignee,
     slip_distribution,
+    by_project,
+    projects_by_status,
     completed_by_week,
     open_by_priority,
     pipeline_by_stage,

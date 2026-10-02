@@ -27,6 +27,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       'Biểu đồ việc hoàn thành theo tuần (đúng hạn / trễ hạn / không có hạn) và biểu đồ so sánh giữa các đơn vị hoặc thành viên; bấm một cột để đi sâu.',
       'Số liệu theo đúng phạm vi bạn được xem: nhân viên thấy của mình, trưởng phòng thấy cả phòng, giám đốc khối thấy cả khối.',
       'Tổng quan có thêm tab Báo cáo tổng (công việc và kinh doanh trên một màn). Báo cáo trong nhóm Dự án và Sức khỏe pipeline trong nhóm Kinh doanh giữ nguyên chỗ cũ.',
+      'Báo cáo trong nhóm Dự án rút gọn chỉ còn dự án và công việc: số dự án đang triển khai, mốc trễ hạn, bảng tiến độ theo từng dự án (tỷ lệ hoàn thành, việc quá hạn, mốc kế tiếp, ngày kết thúc dự kiến). Số liệu bán hàng xem ở Sức khỏe pipeline hoặc Báo cáo tổng.',
       'Nhóm "Hôm nay" trên thanh điều hướng đổi tên thành "Bàn làm việc".',
       'Màn "Tất cả mục" trên điện thoại theo đúng các nhóm của thanh điều hướng; thêm Danh bạ cá nhân, Cài đặt chuyển sang mục Hệ thống riêng.',
     ],

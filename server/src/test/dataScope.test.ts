@@ -410,6 +410,38 @@ test('Bao cao: cong viec va co hoi deu loc theo pham vi', async () => {
   const adminDeals = admin.pipeline_by_stage.reduce((sum, row) => sum + row.count, 0);
 
   assert.ok(staffDeals < adminDeals, 'bang bao cao cua nhan vien phai hep hon cua quan tri');
+
+  /* Tien do theo du an: du an cua N2 khong lo sang bao cao cua N1. */
+  const projectId = Number(
+    db
+      .prepare(
+        `INSERT INTO projects (name, owner_contact_id, status) VALUES ('Dự án N2', ?, 'active')`
+      )
+      .run(n2.contactId).lastInsertRowid
+  );
+  const boardId = Number(
+    db
+      .prepare(
+        `INSERT INTO boards (name, owner_contact_id, project_id) VALUES ('Bảng dự án N2', ?, ?)`
+      )
+      .run(n2.contactId, projectId).lastInsertRowid
+  );
+  const listId = Number(
+    db.prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, 'Việc', 1024)`).run(boardId)
+      .lastInsertRowid
+  );
+  db.prepare(
+    `INSERT INTO cards (list_id, title, position, assignee_contact_id, due_date)
+     VALUES (?, 'Viec du an N2', 1024, ?, date('now','localtime','-1 day'))`
+  ).run(listId, n2.contactId);
+
+  type ProjectReport = { by_project: { id: number; overdue_count: number }[] };
+  await signInAs(n1);
+  const staffProjects = (await call('GET', '/api/views/reports')).data as ProjectReport;
+  assert.ok(!staffProjects.by_project.some((row) => row.id === projectId));
+  await signInAs('admin');
+  const adminProjects = (await call('GET', '/api/views/reports')).data as ProjectReport;
+  assert.equal(adminProjects.by_project.find((row) => row.id === projectId)?.overdue_count, 1);
 });
 
 test('Hieu suat: nhan vien thay minh, truong phong thay ca phong, khong thay phong khac', async () => {
