@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowUp,
@@ -103,7 +111,23 @@ function turnsOf(messages: AiChatMessage[]): { question: string; result: AiAskRe
   return turns;
 }
 
-export function AssistantChat() {
+/**
+ * `page`: trang /ai, co cot lich su ghim ben trai tren man rong.
+ * `panel`: bang truot hep (AssistantPanel) — cot lich su luon truot de len,
+ * khong chua cho thanh tab duoi day, goi y xep mot cot.
+ */
+export type AssistantChatVariant = 'page' | 'panel';
+
+export function AssistantChat({
+  variant = 'page',
+  headerActions,
+}: {
+  variant?: AssistantChatVariant;
+  /** Nut them o thanh tieu de (vd. Mo toan man hinh / Dong cua bang nhanh). */
+  headerActions?: ReactNode;
+} = {}) {
+  const panel = variant === 'panel';
+  const composerId = useId();
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
   const openTaskComposer = useUiStore((state) => state.openTaskComposer);
@@ -113,9 +137,18 @@ export function AssistantChat() {
   const [draft, setDraft] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const [mode, setMode] = useState<AiMode>('balanced');
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  /* Phien dang mo nam trong store chu khong o state rieng: bang nhanh va trang
+     /ai cung mo mot cuoc, va dong bang giua chung khong lam mat cuoc dang hoi. */
+  const sessionId = useUiStore((state) => state.aiSessionId);
+  const setSessionId = useUiStore((state) => state.setAiSessionId);
   const [pendingDelete, setPendingDelete] = useState<AiChatSession | null>(null);
   const [railOpen, setRailOpen] = useState(false);
+  /* Bang nhanh chi an di khi dong chu khong thao ra, nen phai tu thu cot lich
+     su — neu khong, lan mo sau no van che len o nhap. */
+  const panelOpen = useUiStore((state) => state.assistantPanelOpen);
+  useEffect(() => {
+    if (panel && !panelOpen) setRailOpen(false);
+  }, [panel, panelOpen]);
   /** Cau hoi vua gui, hien ngay truoc khi may chu tra loi. */
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
@@ -246,9 +279,10 @@ export function AssistantChat() {
   const empty = conversation.length === 0 && pendingQuestion === null && !quickTask.data;
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="relative flex h-full min-h-0">
       {/* ---------- Cot lich su ---------- */}
       <ChatRail
+        docked={!panel}
         open={railOpen}
         onClose={() => setRailOpen(false)}
         sessions={chats.data ?? []}
@@ -271,7 +305,7 @@ export function AssistantChat() {
             onClick={() => setRailOpen((v) => !v)}
             aria-label={railOpen ? 'Đóng danh sách trò chuyện' : 'Mở danh sách trò chuyện'}
             aria-expanded={railOpen}
-            className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text lg:hidden ${focusRing}`}
+            className={`flex h-11 w-11 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover hover:text-tr-text fine:h-9 fine:w-9 ${panel ? '' : 'lg:hidden'} ${focusRing}`}
           >
             {railOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
           </button>
@@ -281,12 +315,14 @@ export function AssistantChat() {
           <Button size="sm" onClick={startNewChat}>
             <MessageSquarePlus size={15} aria-hidden="true" /> Mới
           </Button>
+          {headerActions}
         </div>
 
         <div ref={streamRef} className="tr-scroll min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-6">
+          <div className={`mx-auto w-full max-w-3xl px-3 py-4 ${panel ? '' : 'sm:px-6'}`}>
             {empty ? (
               <EmptyChat
+                compact={panel}
                 greeting={greeting}
                 onPick={(text) => {
                   setIntent('ask');
@@ -356,16 +392,23 @@ export function AssistantChat() {
         </div>
 
         {/* ---------- O nhap ---------- */}
-        <div className="shrink-0 border-t border-tr-border bg-tr-panel/80 px-3 pt-3 pb-[calc(max(var(--tr-tabbar-h),var(--tr-keyboard-inset))+0.75rem)] sm:px-6 md:pb-3">
+        <div
+          className={`shrink-0 border-t border-tr-border bg-tr-panel/80 px-3 pt-3 ${
+            panel
+              ? /* Bang nhanh phu len thanh tab, nen chi chua vung an toan va ban phim. */
+                'pb-[calc(max(var(--tr-safe-bottom),var(--tr-keyboard-inset))+0.75rem)]'
+              : 'pb-[calc(max(var(--tr-tabbar-h),var(--tr-keyboard-inset))+0.75rem)] sm:px-6 md:pb-3'
+          }`}
+        >
           <div className="mx-auto w-full max-w-3xl">
             <FormError error={intent === 'ask' ? (ask.error ?? decide.error) : quickTask.error} />
 
             <div className="rounded-panel border border-tr-border bg-tr-list focus-within:border-tr-primary">
-              <label htmlFor="ai-composer" className="sr-only">
+              <label htmlFor={composerId} className="sr-only">
                 {intent === 'ask' ? 'Câu hỏi cho trợ lý' : 'Nội dung việc cần tạo'}
               </label>
               <textarea
-                id="ai-composer"
+                id={composerId}
                 ref={inputRef}
                 rows={1}
                 value={draft}
@@ -474,6 +517,7 @@ export function AssistantChat() {
 /* ---------------------------------------------------------------- cot lich su */
 
 function ChatRail({
+  docked,
   open,
   onClose,
   sessions,
@@ -483,6 +527,8 @@ function ChatRail({
   onNew,
   onDelete,
 }: {
+  /** Ghim thanh cot ben trai tu lg tro len (trang /ai); false: luon truot de len. */
+  docked: boolean;
   open: boolean;
   onClose: () => void;
   sessions: AiChatSession[];
@@ -496,25 +542,41 @@ function ChatRail({
     <>
       {/* Duoi lg cot nay truot de len noi dung — man hep khong du cho hai cot,
           ma bo han lich su di thi khong quay lai duoc cuoc tro chuyen cu. */}
+      {/* Trong bang nhanh dung `absolute` chu khong `fixed`: bang co hieu ung
+          truot bang transform, ma transform bien `fixed` thanh tuong doi voi no. */}
       {open && (
         <button
           type="button"
           aria-label="Đóng danh sách trò chuyện"
           onClick={onClose}
-          className="fixed inset-0 z-modal bg-tr-overlay lg:hidden"
+          className={
+            docked
+              ? 'fixed inset-0 z-modal bg-tr-overlay lg:hidden'
+              : 'absolute inset-0 z-10 bg-tr-overlay'
+          }
         />
       )}
       <aside
         aria-label="Cuộc trò chuyện với trợ lý"
-        className={`${
-          open ? 'fixed inset-y-0 left-0 z-modal flex w-72 shadow-2xl' : 'hidden'
-        } shrink-0 flex-col border-r border-tr-border bg-tr-panel lg:relative lg:z-auto lg:flex lg:w-64 lg:shadow-none`}
+        className={
+          docked
+            ? `${
+                open ? 'fixed inset-y-0 left-0 z-modal flex w-72 shadow-2xl' : 'hidden'
+              } shrink-0 flex-col border-r border-tr-border bg-tr-panel lg:relative lg:z-auto lg:flex lg:w-64 lg:shadow-none`
+            : `${
+                open ? 'absolute inset-y-0 left-0 z-10 flex w-72 max-w-[85%] shadow-2xl' : 'hidden'
+              } flex-col border-r border-tr-border bg-tr-panel`
+        }
       >
         <div className="flex items-center gap-2 p-2">
           <Button className="flex-1" onClick={onNew}>
             <MessageSquarePlus size={15} aria-hidden="true" /> Cuộc trò chuyện mới
           </Button>
-          <IconButton label="Đóng danh sách" onClick={onClose} className="lg:hidden">
+          <IconButton
+            label="Đóng danh sách"
+            onClick={onClose}
+            className={docked ? 'lg:hidden' : ''}
+          >
             <X size={16} aria-hidden="true" />
           </IconButton>
         </div>
@@ -571,9 +633,19 @@ function ChatRail({
 
 /* ---------------------------------------------------------------- hoi thoai */
 
-function EmptyChat({ greeting, onPick }: { greeting: string; onPick: (text: string) => void }) {
+function EmptyChat({
+  compact,
+  greeting,
+  onPick,
+}: {
+  compact: boolean;
+  greeting: string;
+  onPick: (text: string) => void;
+}) {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+    <div
+      className={`flex flex-col items-center justify-center text-center ${compact ? 'py-6' : 'min-h-[50vh]'}`}
+    >
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-tr-primary/15 text-tr-primary">
         <Sparkles size={22} aria-hidden="true" />
       </span>
@@ -584,7 +656,7 @@ function EmptyChat({ greeting, onPick }: { greeting: string; onPick: (text: stri
         Hỏi về khách hàng, cơ hội, hợp đồng hay việc của bạn. Tôi chỉ đọc những dữ liệu bạn được
         phép xem.
       </p>
-      <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
+      <div className={`mt-6 grid w-full max-w-xl gap-2 ${compact ? '' : 'sm:grid-cols-2'}`}>
         {SUGGESTIONS.map((item) => (
           <button
             key={item}

@@ -5,6 +5,7 @@ import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
 import { ThemeToggle } from './ThemeToggle';
 import { AccountMenu } from './AccountMenu';
+import { AssistantButton } from './AssistantLauncher';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import { focusRing } from '../common/ui';
@@ -60,6 +61,7 @@ export function Topbar({ title }: { title: string }) {
           thao tác một chạm dùng nhiều lần trong ngày, chôn vào menu là làm chậm
           đi để đổi lấy gọn gàng. */}
       <ThemeToggle />
+      <AssistantButton />
       {canReadNotes && (
         <button
           type="button"

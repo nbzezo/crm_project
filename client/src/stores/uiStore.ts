@@ -187,6 +187,19 @@ interface UiState {
   quickCreateOpen: boolean;
   setQuickCreateOpen: (open: boolean) => void;
 
+  /**
+   * Bang Tro ly AI truot tu canh phai — mo tu nut tren Topbar hoac Ctrl+/ o
+   * bat ky trang nao, khong phai roi man dang xem sang /ai.
+   */
+  assistantPanelOpen: boolean;
+  setAssistantPanelOpen: (open: boolean) => void;
+  /**
+   * Cuoc tro chuyen dang mo, DUNG CHUNG giua bang nhanh va trang /ai: bam "Mo
+   * toan man hinh" la sang trang lon voi dung cuoc dang hoi do.
+   */
+  aiSessionId: number | null;
+  setAiSessionId: (id: number | null) => void;
+
   /** Ngan keo dieu huong tren man hinh hep. */
   navOpen: boolean;
   setNavOpen: (open: boolean) => void;
@@ -239,6 +252,11 @@ export const useUiStore = create<UiState>((set) => ({
 
   quickCreateOpen: false,
   setQuickCreateOpen: (open) => set({ quickCreateOpen: open }),
+
+  assistantPanelOpen: false,
+  setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
+  aiSessionId: null,
+  setAiSessionId: (id) => set({ aiSessionId: id }),
 
   navOpen: false,
   setNavOpen: (open) => set({ navOpen: open }),

@@ -615,8 +615,12 @@ export function TasksWorkspace() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      /* Chi phim "/" tron: Ctrl/Cmd+/ la phim mo Tro ly AI (AssistantLauncher). */
       if (
         event.key === '/' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
         !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
       ) {
         event.preventDefault();

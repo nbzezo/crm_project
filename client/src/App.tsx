@@ -4,6 +4,7 @@ import { useRouteViewport } from './lib/useRouteViewport';
 import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
+import { AssistantLauncher } from './components/layout/AssistantLauncher';
 import { MobileTabBar } from './components/layout/MobileTabBar';
 import { Toasts } from './components/common/Toasts';
 import { usePermissionCheck, type PermissionKey } from './lib/permissions';
@@ -118,6 +119,7 @@ export default function App() {
         <TaskFormDialog />
         <QuickNotesBoard />
       </Suspense>
+      <AssistantLauncher />
       <div className="contents print:hidden">
         <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
         <MobileTabBar />

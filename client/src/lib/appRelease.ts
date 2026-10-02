@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-03';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.13.0',
+    date: '2026-10-03',
+    title: 'Mở Trợ lý AI nhanh từ mọi màn hình',
+    changes: [
+      'Nút ✨ Trợ lý AI trên thanh trên cùng (hoặc phím Ctrl + /) mở khung trò chuyện trượt từ cạnh phải, hỏi ngay tại màn đang xem mà không phải chuyển sang trang Trợ lý AI. Trên điện thoại khung mở toàn màn hình.',
+      'Khung nhanh và trang Trợ lý AI dùng chung cuộc trò chuyện: bấm "Mở toàn màn hình" là sang trang lớn với đúng cuộc đang hỏi.',
+      'Đóng khung khi trợ lý đang trả lời thì câu trả lời vẫn tiếp tục; mở lại thấy nguyên cuộc trò chuyện và chữ đang gõ dở.',
+      'Màn Công việc: phím "/" để tìm kiếm không còn bắt nhầm Ctrl + /.',
+    ],
+  },
+  {
     version: '1.12.0',
     date: '2026-10-03',
     title: 'Tạo khách hàng, cơ hội, dự án ngay từ màn công việc',
