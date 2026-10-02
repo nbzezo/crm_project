@@ -419,41 +419,58 @@ export function ShareLinkItem({
         {link.last_viewed_at &&
           ` (gần nhất ${formatDateTime(link.last_viewed_at.replace(' ', 'T'))})`}
       </p>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {link.status === 'active' &&
-          (link.can_copy ? (
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={copyLink.isPending}
-              onClick={() => copyLink.mutate()}
-              aria-label={`Sao chép liên kết …${link.token_hint}`}
-            >
-              {copied ? (
-                <Check size={13} aria-hidden="true" />
-              ) : (
-                <Copy size={13} aria-hidden="true" />
-              )}
-              {copied ? 'Đã chép' : 'Sao chép liên kết'}
-            </Button>
-          ) : (
-            <span
-              className="self-center text-xs text-tr-muted"
-              title="Liên kết tạo trước bản 1.11.0 chỉ hiện một lần lúc tạo. Cần gửi lại thì tạo liên kết mới."
-            >
-              Không sao chép lại được (tạo trước 1.11.0)
-            </span>
-          ))}
-        <Button size="sm" onClick={() => setShowViews((v) => !v)} aria-expanded={showViews}>
+      {/* Hành động chính (sao chép) một hàng riêng; ba hành động phụ chia đều hàng dưới,
+          nên điện thoại không còn nút lệch hàng hay dòng chữ chen giữa các nút. */}
+      {link.status === 'active' &&
+        (link.can_copy ? (
+          <Button
+            size="sm"
+            variant="primary"
+            className="mt-2 w-full justify-center"
+            disabled={copyLink.isPending}
+            onClick={() => copyLink.mutate()}
+            aria-label={`Sao chép liên kết …${link.token_hint}`}
+          >
+            {copied ? (
+              <Check size={13} aria-hidden="true" />
+            ) : (
+              <Copy size={13} aria-hidden="true" />
+            )}
+            {copied ? 'Đã chép liên kết' : 'Sao chép liên kết'}
+          </Button>
+        ) : (
+          <p className="mt-2 rounded-control bg-tr-hover px-2 py-1.5 text-xs text-tr-muted">
+            Liên kết tạo trước bản 1.11.0 nên không sao chép lại được. Cần gửi lại thì tạo liên kết
+            mới.
+          </p>
+        ))}
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <Button
+          size="sm"
+          className="justify-center"
+          onClick={() => setShowViews((v) => !v)}
+          aria-expanded={showViews}
+        >
           <Eye size={13} aria-hidden="true" /> {showViews ? 'Ẩn lượt mở' : 'Xem lượt mở'}
         </Button>
         {link.status !== 'revoked' && (
-          <Button size="sm" disabled={extending} onClick={() => onExtend(7)}>
+          <Button
+            size="sm"
+            className="justify-center"
+            disabled={extending}
+            onClick={() => onExtend(7)}
+          >
             Gia hạn 7 ngày
           </Button>
         )}
         {link.status === 'active' && (
-          <Button size="sm" variant="danger" disabled={revoking} onClick={onRevoke}>
+          <Button
+            size="sm"
+            variant="danger"
+            className="justify-center"
+            disabled={revoking}
+            onClick={onRevoke}
+          >
             Thu hồi
           </Button>
         )}

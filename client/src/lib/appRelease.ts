@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.11.1',
+    date: '2026-10-02',
+    title: 'Sắp xếp lại các nút trong Liên kết chia sẻ',
+    changes: [
+      'Cài đặt → Liên kết chia sẻ: nút "Sao chép liên kết" nằm một hàng riêng, rộng hết bề ngang; ba nút Xem lượt mở, Gia hạn 7 ngày, Thu hồi chia đều một hàng bên dưới, không còn lệch hàng trên điện thoại.',
+      'Liên kết tạo trước 1.11.0 hiện một ghi chú riêng giải thích vì sao không sao chép lại được, thay vì dòng chữ xen giữa các nút.',
+    ],
+  },
+  {
     version: '1.11.0',
     date: '2026-10-02',
     title:
