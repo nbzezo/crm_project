@@ -18,6 +18,14 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.9.1',
+    date: '2026-10-02',
+    title: 'Cập nhật kiểm thử tự động theo menu mới',
+    changes: [
+      'Không thay đổi giao diện. Bộ kiểm thử tự động dùng tên nhóm menu mới "Bàn làm việc", giúp phát hiện lỗi sớm trước mỗi lần cập nhật.',
+    ],
+  },
+  {
     version: '1.9.0',
     date: '2026-10-02',
     title: 'Bảng doanh thu nhóm theo khách hàng',
