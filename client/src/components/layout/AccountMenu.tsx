@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { ChevronDown, LogOut, Palette, UserCog } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Modal } from '../common/Modal';
@@ -39,6 +39,11 @@ export function AccountMenu() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const themeLabel = useThemeLabel();
+  /* Menu dong (chon xong, bam ra ngoai, Esc) thi thu danh sach Giao dien lai —
+     neu khong, lan mo sau no da mo san va bam "Giao dien" lai thu no vao. */
+  useEffect(() => {
+    if (!pop.open) setThemeOpen(false);
+  }, [pop.open]);
 
   const name = user?.full_name ?? user?.username ?? '';
   const email = user?.email ?? null;

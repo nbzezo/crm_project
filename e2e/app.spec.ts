@@ -116,7 +116,28 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
   }
 });
 
-test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
+/**
+ * Mo danh sach giao dien. Man rong: nut "Giao dien: …" tren thanh tren. Dien
+ * thoai (1.13.0): nut do nam trong menu tai khoan, muc "Giao dien".
+ */
+async function openThemePicker(page: Page, mobile: boolean) {
+  if (!mobile) {
+    await page.getByRole('button', { name: /^Giao diện:/ }).click();
+    const picker = page.getByRole('dialog', { name: 'Giao diện' });
+    await expect(picker).toBeVisible();
+    return picker;
+  }
+  await page.getByRole('button', { name: 'Tài khoản và đăng xuất' }).click();
+  const menu = page
+    .getByRole('dialog')
+    .filter({ has: page.getByRole('button', { name: /^Giao diện/ }) });
+  await menu.getByRole('button', { name: /^Giao diện/ }).click();
+  await expect(menu.getByRole('menuitemradio').first()).toBeVisible();
+  return menu;
+}
+
+test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }, testInfo) => {
+  const mobile = isMobile(testInfo);
   // Bo theme rut con bon: sang, toi, Ubuntu, Don sac. Quet axe tren tung theme vi
   // tuong phan la thu duy nhat khong the suy ra tu theme nay sang theme khac.
   const themes = [
@@ -127,18 +148,18 @@ test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
   ] as const;
 
   for (const theme of themes) {
-    await page.getByRole('button', { name: /^Giao diện:/ }).click();
-    const picker = page.getByRole('dialog', { name: 'Giao diện' });
-    await expect(picker).toBeVisible();
+    const picker = await openThemePicker(page, mobile);
     /* `menuitemradio` chu khong con la `button`: chon giao dien la mot lua chon
        loai tru nhau nen cac muc gio khai bao dung vai tro do (xem ThemeToggle). */
     const option = picker.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) });
     await option.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.value);
-    await expect(page.getByRole('button', { name: `Giao diện: ${theme.label}` })).toBeVisible();
-    await page.getByRole('button', { name: /^Giao diện:/ }).click();
+    if (!mobile) {
+      await expect(page.getByRole('button', { name: `Giao diện: ${theme.label}` })).toBeVisible();
+    }
+    const reopened = await openThemePicker(page, mobile);
     await expect(
-      picker.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) })
+      reopened.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) })
     ).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
     const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
@@ -156,7 +177,9 @@ test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
   const last = themes[themes.length - 1];
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', last.value);
-  await expect(page.getByRole('button', { name: `Giao diện: ${last.label}` })).toBeVisible();
+  if (!mobile) {
+    await expect(page.getByRole('button', { name: `Giao diện: ${last.label}` })).toBeVisible();
+  }
 });
 
 test('theme Don sac tai font rieng, in hoa tieu de va khong bat che do toi', async ({ page }) => {

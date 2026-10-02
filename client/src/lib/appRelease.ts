@@ -18,6 +18,14 @@ export const APP_UPDATED_AT = '2026-10-03';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.13.1',
+    date: '2026-10-03',
+    title: 'Sửa mục Giao diện trong menu tài khoản trên điện thoại',
+    changes: [
+      'Điện thoại: mở lại menu tài khoản sau khi đã đổi giao diện, bấm "Giao diện" giờ mở đúng danh sách lựa chọn. Trước đây danh sách còn mở sẵn từ lần trước nên lần bấm đó lại thu nó vào.',
+    ],
+  },
+  {
     version: '1.13.0',
     date: '2026-10-03',
     title: 'Trợ lý AI nhanh từ mọi màn hình, hiểu bản ghi đang xem',
