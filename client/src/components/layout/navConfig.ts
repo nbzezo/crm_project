@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   ListChecks,
   Settings,
-  Share2,
   Sparkles,
   Target,
   Trello,
@@ -60,6 +59,10 @@ export const SETTINGS_PERMISSIONS: PermissionKey[] = [
   'admin.users:read',
   'admin.org:read',
   'admin.positions:read',
+  /* "Liên kết chia sẻ" nam trong Cai dat: ai tao duoc link thi phai vao duoc de thu hoi. */
+  'documents:update',
+  'quotations:update',
+  'contracts:update',
 ];
 
 export function useCanOpenSettings(): boolean {
@@ -68,7 +71,8 @@ export function useCanOpenSettings(): boolean {
 }
 
 /*
- * Ba nhom: Ban lam viec -> Du an -> Kinh doanh. Moi nhom giu bao cao CUA NO (Bao
+ * Ba nhom: Ban lam viec -> Kinh doanh -> Du an (Kinh doanh truoc: viec hang ngay
+ * cua phan lon nguoi dung la ban hang, du an la phan giao hang theo sau). Moi nhom giu bao cao CUA NO (Bao
  * cao o Du an, Suc khoe pipeline o Kinh doanh); bao cao tong nam o tab "Báo cáo
  * tổng" cua trang Tong quan. Hieu suat la thu nguoi dung xem cho CHINH MINH moi
  * ngay nen nam o Ban lam viec.
@@ -91,28 +95,6 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
         permission: 'report.tasks:read',
       },
       { to: '/my-contacts', label: t.nav.myContacts, icon: BookUser },
-    ],
-  },
-  {
-    id: 'projects',
-    label: t.nav.groupProjects,
-    items: [
-      { to: '/projects', label: t.nav.projects, icon: FolderKanban, permission: 'projects:read' },
-      { to: '/boards', label: t.nav.boards, icon: Trello, permission: 'boards:read' },
-      { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare, permission: 'tasks:read' },
-      {
-        to: '/documents',
-        label: t.nav.documents,
-        icon: FolderOpen,
-        permissionAny: ['documents:read', 'notes:read'],
-      },
-      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
-      {
-        to: '/shares',
-        label: t.nav.shares,
-        icon: Share2,
-        permissionAny: ['documents:update', 'quotations:update', 'contracts:update'],
-      },
     ],
   },
   {
@@ -140,6 +122,22 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
         icon: Contact,
         permission: 'contacts:read',
       },
+    ],
+  },
+  {
+    id: 'projects',
+    label: t.nav.groupProjects,
+    items: [
+      { to: '/projects', label: t.nav.projects, icon: FolderKanban, permission: 'projects:read' },
+      { to: '/boards', label: t.nav.boards, icon: Trello, permission: 'boards:read' },
+      { to: '/timeline', label: t.nav.timeline, icon: GanttChartSquare, permission: 'tasks:read' },
+      {
+        to: '/documents',
+        label: t.nav.documents,
+        icon: FolderOpen,
+        permissionAny: ['documents:read', 'notes:read'],
+      },
+      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
     ],
   },
 ];

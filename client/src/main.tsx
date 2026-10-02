@@ -33,7 +33,6 @@ const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
 const MyContactsPage = lazy(() => import('./pages/MyContactsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
-const SharesPage = lazy(() => import('./pages/SharesPage'));
 const PublicSharePage = lazy(() => import('./pages/PublicSharePage'));
 
 /* /notes da gop vao tab "Trang tài liệu" cua /documents. Giu duong dan cu (va
@@ -188,7 +187,8 @@ const router = createBrowserRouter([
         element: <AiWorkspacePage />,
         handle: { permission: 'ai:read', title: t.nav.ai, hideQuickCreate: true },
       },
-      { path: 'shares', element: <SharesPage />, handle: { title: 'Đã chia sẻ' } },
+      /* "Đã chia sẻ" da chuyen vao Cai dat — giu duong dan cu de link cu khong hong. */
+      { path: 'shares', element: <Navigate to="/settings?tab=shares" replace /> },
       { path: 'notes', element: <NotesRedirect /> },
       { path: 'settings', element: <SettingsPage />, handle: { title: t.nav.settings } },
       /* URL khong khop: dat lam route con de van nam trong khung app — nguoi dung

@@ -11,6 +11,7 @@ import {
   Network,
   PackageOpen,
   Send,
+  Share2,
   ShieldCheck,
   Tag,
   Target,
@@ -38,6 +39,7 @@ import { UserSettings } from '../components/settings/UserSettings';
 import { OrgChartSettings } from '../components/settings/OrgChartSettings';
 import { PositionSettings } from '../components/settings/PositionSettings';
 import { AboutSettings } from '../components/settings/AboutSettings';
+import { ShareLinksSettings } from '../components/settings/ShareLinksSettings';
 import { usePermissionCheck, type PermissionKey } from '../lib/permissions';
 import { useSearchParams } from 'react-router';
 
@@ -68,6 +70,7 @@ type SettingsTab =
   | 'telegram'
   | 'ai'
   | 'data'
+  | 'shares'
   | 'about';
 
 /*
@@ -90,6 +93,8 @@ const SETTINGS_TABS: {
   icon: LucideIcon;
   group: string;
   permission?: PermissionKey;
+  /** Hien khi co MOT trong cac quyen nay (thay cho `permission`). */
+  permissionAny?: PermissionKey[];
 }[] = [
   {
     key: 'users',
@@ -170,6 +175,15 @@ const SETTINGS_TABS: {
     icon: Database,
     group: t.settings.groupData,
     permission: 'data.export:export',
+  },
+  {
+    /* Danh sach link cong khai dang mo + cong tac bat/tat chia se toan cong ty.
+       Cung nhom voi xuat du lieu: ca hai la noi du lieu di ra ngoai he thong. */
+    key: 'shares',
+    label: t.settings.tabShares,
+    icon: Share2,
+    group: t.settings.groupData,
+    permissionAny: ['documents:update', 'quotations:update', 'contracts:update'],
   },
 
   {
@@ -304,7 +318,9 @@ export default function SettingsPage() {
 
   /* *Tai khoan* da chuyen ra menu avatar. Cac muc quan tri duoc loc theo quyen;
    *Gioi thieu* luon hien vi khong doc hay thay doi du lieu nghiep vu. */
-  const visibleTabs = SETTINGS_TABS.filter((item) => allowed(item.permission));
+  const visibleTabs = SETTINGS_TABS.filter((item) =>
+    item.permissionAny ? item.permissionAny.some((key) => allowed(key)) : allowed(item.permission)
+  );
 
   /* Tab nam trong URL chu khong phai useState: mot khu co muoi mot muc thi F5
      mat cho dang xem, va khong gui duoc lien ket cho dong nghiep, la kho chiu
@@ -384,6 +400,7 @@ export default function SettingsPage() {
         {activeTab === 'telegram' && <TelegramSettings />}
         {activeTab === 'email' && <EmailSettings />}
         {activeTab === 'data' && <DataSettings />}
+        {activeTab === 'shares' && <ShareLinksSettings />}
         {activeTab === 'users' && <UserSettings />}
         {activeTab === 'org' && <OrgChartSettings />}
         {activeTab === 'positions' && <PositionSettings />}

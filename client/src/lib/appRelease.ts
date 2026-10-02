@@ -18,6 +18,16 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.8.1',
+    date: '2026-10-02',
+    title: 'Kinh doanh lên trên Dự án; Đã chia sẻ chuyển vào Cài đặt',
+    changes: [
+      'Thanh điều hướng: nhóm Kinh doanh xếp ngay dưới Bàn làm việc, trên nhóm Dự án.',
+      'Mục "Đã chia sẻ" chuyển vào Cài đặt → Dữ liệu → Liên kết chia sẻ, cạnh Dữ liệu & sao lưu. Ai tạo được liên kết chia sẻ đều vào được mục này để xem, gia hạn hoặc thu hồi.',
+      'Đường dẫn cũ /shares tự chuyển tới chỗ mới.',
+    ],
+  },
+  {
     version: '1.8.0',
     date: '2026-10-02',
     title: 'Báo cáo Hiệu suất cá nhân, đội nhóm, phòng ban; Báo cáo tổng ở Tổng quan',

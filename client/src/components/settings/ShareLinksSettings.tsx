@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api/client';
-import { ErrorState, SkeletonRows } from '../components/common/ui';
-import { ShareLinkItem } from '../components/share/ShareButton';
-import { usePermission } from '../lib/permissions';
-import type { ShareLink } from '../lib/share';
-import { useUiStore } from '../stores/uiStore';
+import { api } from '../../api/client';
+import { ErrorState, SkeletonRows } from '../common/ui';
+import { ShareLinkItem } from '../share/ShareButton';
+import { usePermission } from '../../lib/permissions';
+import type { ShareLink } from '../../lib/share';
+import { useUiStore } from '../../stores/uiStore';
 
 /*
- * "Da chia se": moi lien ket cong khai cua toi (hoac cua ca cong ty, voi quan tri).
- * Day la noi thu hoi nhanh mot link khi can, khong phai mo tung ban ghi.
+ * "Liên kết chia sẻ" (Cai dat > Du lieu): moi lien ket cong khai cua toi (hoac cua
+ * ca cong ty, voi quan tri). Day la noi thu hoi nhanh mot link khi can, khong phai
+ * mo tung ban ghi. Duong dan cu /shares chuyen huong ve day (main.tsx).
  */
-export default function SharesPage() {
+export function ShareLinksSettings() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
   const isAdmin = usePermission('settings.app', 'update');
@@ -53,10 +54,10 @@ export default function SharesPage() {
   const rows = (links.data ?? []).filter((l) => filter === 'all' || l.status === 'active');
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-4">
+    <div className="w-full max-w-3xl">
       <p className="mb-3 text-sm text-tr-subtle">
-        Các liên kết công khai (chỉ xem) đã tạo cho tài liệu, trang tài liệu, báo giá và hợp đồng. Thu hồi một liên
-        kết là vô hiệu hóa nó ngay lập tức.
+        Các liên kết công khai (chỉ xem) đã tạo cho tài liệu, trang tài liệu, báo giá và hợp đồng.
+        Thu hồi một liên kết là vô hiệu hóa nó ngay lập tức.
       </p>
 
       {isAdmin && (
