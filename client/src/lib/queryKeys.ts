@@ -7,6 +7,7 @@ export function invalidateCardViews(queryClient: QueryClient, boardId?: number):
   queryClient.invalidateQueries({ queryKey: ['calendar'] });
   queryClient.invalidateQueries({ queryKey: ['timeline'] });
   queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  queryClient.invalidateQueries({ queryKey: ['focus'] });
   queryClient.invalidateQueries({ queryKey: ['reports'] });
   /* Chi tiet va danh sach du an deu tinh lai cong viec, tien do, suc khoe va
      nhan su tu cards. Thieu hai key nay lam PATCH da thanh cong nhung tab Du an
@@ -28,6 +29,7 @@ export function invalidateCalendar(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: ['notifications'] });
   queryClient.invalidateQueries({ queryKey: ['calendar'] });
   queryClient.invalidateQueries({ queryKey: ['reminders'] });
+  queryClient.invalidateQueries({ queryKey: ['focus'] });
 }
 
 /** Lam moi bang doanh thu, danh muc dich vu va ho so khach hang lien quan. */
@@ -46,6 +48,7 @@ export function invalidateCrmViews(queryClient: QueryClient, customerId?: number
   queryClient.invalidateQueries({ queryKey: ['orgs'] });
   queryClient.invalidateQueries({ queryKey: ['deals'] });
   queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  queryClient.invalidateQueries({ queryKey: ['focus'] });
   queryClient.invalidateQueries({ queryKey: ['reports'] });
   if (customerId) queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
   else queryClient.invalidateQueries({ queryKey: ['customer'] });

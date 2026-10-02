@@ -4,6 +4,14 @@ import { db } from '../db/connection.ts';
 import { parseBody } from '../lib/validate.ts';
 import { sendBackupToTelegram } from '../services/telegram/telegramBackup.ts';
 import {
+  DIGEST_KINDS,
+  digestSettingsSchema,
+  getDigestSettings,
+  saveDigestSettings,
+  sendFocusDigest,
+} from '../services/telegram/focusDigest.ts';
+import { recipientContactId } from '../services/telegram/telegramNotifier.ts';
+import {
   getTelegramConfig,
   setTelegramLastError,
   testTelegramConnection,
@@ -63,6 +71,29 @@ router.post('/send-backup', async (_req, res, next) => {
     res.json({ ok: true, ...result });
   } catch (error) {
     setTelegramLastError(db, error instanceof Error ? error.message : 'Loi khong xac dinh');
+    next(error);
+  }
+});
+
+/* ---------- Ban tin Trong tam (ngay / tuan / thang) ---------- */
+
+router.get('/focus-digest', (_req, res) => {
+  res.json(getDigestSettings(db));
+});
+
+router.put('/focus-digest', (req, res) => {
+  res.json(saveDigestSettings(db, parseBody(digestSettingsSchema.partial(), req)));
+});
+
+/** Gui ngay mot ban tin de xem truoc — khong ghi dau "da gui" cua bo hen gio. */
+router.post('/focus-digest/test', async (req, res, next) => {
+  try {
+    const body = parseBody(z.object({ kind: z.enum(DIGEST_KINDS).default('daily') }), req);
+    const text = await sendFocusDigest(db, body.kind, recipientContactId(db), {
+      ai: getDigestSettings(db).ai,
+    });
+    res.json({ ok: true, text });
+  } catch (error) {
     next(error);
   }
 });

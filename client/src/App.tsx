@@ -73,11 +73,15 @@ export default function App() {
         Bỏ qua đến nội dung chính
       </a>
       <div className="tr-app-shell flex flex-col">
-        <div className={pageHandle?.mobileChrome === 'no-topbar' ? 'max-md:hidden' : ''}>
+        <div
+          className={`print:hidden ${pageHandle?.mobileChrome === 'no-topbar' ? 'max-md:hidden' : ''}`}
+        >
           <Topbar title={pageTitle} />
         </div>
         <div className="flex min-h-0 flex-1">
-          <Sidebar />
+          <div className="contents print:hidden">
+            <Sidebar />
+          </div>
           {/* `relative`: lam main thanh containing block cho con `position:absolute`
               (vd sr-only), neu khong chung se lay viewport lam containing block va
               lam <html> phinh ra qua chieu cao thuc, gay khoang trong khi cuon trang. */}
@@ -114,8 +118,10 @@ export default function App() {
         <TaskFormDialog />
         <QuickNotesBoard />
       </Suspense>
-      <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
-      <MobileTabBar />
+      <div className="contents print:hidden">
+        <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
+        <MobileTabBar />
+      </div>
       <Toasts />
     </div>
   );

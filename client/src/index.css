@@ -1027,6 +1027,24 @@ select.tr-field-control {
   box-shadow: var(--tr-card-shadow);
 }
 
+/* ---------- In / luu PDF (man Trong tam co nut In) ----------
+   Khung ung dung khoa chieu cao bang cua so va cuon ben trong <main>; khi in phai
+   tha ra de noi dung chay het cac trang thay vi bi cat o man hinh dau tien. */
+@media print {
+  .tr-app-stage,
+  .tr-app-shell,
+  #main-content {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 0;
+    background: var(--tr-panel);
+  }
+  .tr-bento-card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
 .tr-bento-card-interactive {
   box-shadow: var(--tr-card-shadow);
   transition:

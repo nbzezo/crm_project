@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { getTelegramConfig, sendTelegramMessage } from './telegramService.ts';
+import { runFocusDigests } from './focusDigest.ts';
 
 interface DueCardRow {
   id: number;
@@ -39,7 +40,7 @@ function markSent(db: Database, key: string): void {
  * Dinh tuyen thong bao theo tung nguoi can mot chat_id tren moi tai khoan; do
  * la viec cua dot phan quyen du lieu, khong phai cua buoc nay.
  */
-function recipientContactId(db: Database): number | null {
+export function recipientContactId(db: Database): number | null {
   const row = db
     .prepare(
       `SELECT contact_id FROM users
@@ -145,6 +146,8 @@ async function runDueTelegramChecks(db: Database): Promise<void> {
     await notifyDueReminders(db);
     await notifyDueQuickNotes(db);
   }
+  // Ban tin Trong tam co cong tac rieng trong app_settings (focus.digest).
+  await runFocusDigests(db, recipientContactId(db));
 }
 
 export function notifyAssigneeChangeTelegram(db: Database, cardId: number): void {

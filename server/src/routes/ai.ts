@@ -51,6 +51,8 @@ import {
 } from '../services/ai/documentIndex.ts';
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { assistCustomer } from '../services/ai/companyLookup.ts';
+import { buildFocus, canSeeTeam, focusScopeOf } from '../services/focusService.ts';
+import { generateFocusPlan, type FocusPlanResult } from '../services/focusAi.ts';
 import { listNineRouterSearchModels } from '../services/ai/providers.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
@@ -252,6 +254,55 @@ router.post('/brief', async (req, res) => {
       maxOutputTokens: 1800,
     });
     res.json({ ...briefResponseSchema.parse(parseAiJson(result.text)), meta: result });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+const focusPlanRequest = z.object({
+  from: z.string(),
+  to: z.string(),
+  mode: z.enum(['me', 'team']).default('me'),
+  ai_mode: z.enum(['fast', 'balanced', 'reasoning']).default('balanced'),
+  refresh: z.boolean().default(false),
+});
+
+/*
+ * Ket qua AI cua man hinh Trong tam, giu trong bo nho theo (nguoi, che do, ky).
+ *
+ * Mo lai tab khong nen ton them mot lan goi AI — va quan trong hon, khong nen
+ * sinh lai mot loat de xuat viec trung voi lan truoc. Nut "Phân tích lại" gui
+ * `refresh` de bo qua. Mat khi khoi dong lai may chu la chap nhan duoc: day la
+ * goi y, khong phai du lieu.
+ */
+const FOCUS_PLAN_TTL_MS = 6 * 60 * 60_000;
+const focusPlanCache = new Map<string, { at: number; result: FocusPlanResult }>();
+
+router.post('/focus-plan', async (req, res) => {
+  try {
+    const body = parseBody(focusPlanRequest, req);
+    const access = accessOf(req);
+    if (!access.can('tasks', 'read')) throw new HttpError(403, 'Bạn không có quyền xem công việc');
+    const mode = body.mode === 'team' && canSeeTeam(access) ? 'team' : 'me';
+    const key = `${access.userId}|${access.contactId}|${mode}|${body.from}|${body.to}`;
+    const cached = focusPlanCache.get(key);
+    if (!body.refresh && cached && Date.now() - cached.at < FOCUS_PLAN_TTL_MS) {
+      res.json({ ...cached.result, cached: true });
+      return;
+    }
+    const data = buildFocus(db, {
+      from: body.from,
+      to: body.to,
+      scope: focusScopeOf(access, mode),
+    });
+    const result = await generateFocusPlan(db, data, {
+      mode: body.ai_mode,
+      assigneeContactId: access.contactId,
+      withProposals: true,
+    });
+    if (focusPlanCache.size > 500) focusPlanCache.clear();
+    focusPlanCache.set(key, { at: Date.now(), result });
+    res.json({ ...result, cached: false });
   } catch (error) {
     asHttpError(error);
   }
