@@ -83,6 +83,19 @@ const AXIS_PROPS = {
 };
 
 export default function ReportsPage() {
+  return (
+    <div className="space-y-4 p-6">
+      <PageHeader description="Số liệu bán hàng và giao hàng theo khoảng thời gian đã chọn." />
+      <ReportsContent />
+    </div>
+  );
+}
+
+/**
+ * Noi dung bao cao, khong co tieu de trang — dung chung cho trang Báo cáo va tab
+ * "Báo cáo tổng" o Tong quan.
+ */
+export function ReportsContent() {
   const [rangeKey, setRangeKey] = useState<RangeKey>('six');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState(todayStr());
@@ -96,14 +109,14 @@ export default function ReportsPage() {
 
   if (error)
     return (
-      <div className="p-6">
+      <div>
         <ErrorState onRetry={() => refetch()} />
       </div>
     );
 
   if (isLoading || !data)
     return (
-      <div role="status" aria-label={t.common.loading} className="space-y-4 p-6">
+      <div role="status" aria-label={t.common.loading} className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-panel" />
@@ -167,8 +180,7 @@ export default function ReportsPage() {
     stageData.some((row) => row.sum_vnd !== 0 || row.count !== 0);
 
   return (
-    <div className="space-y-4 p-6">
-      <PageHeader description="Số liệu bán hàng và giao hàng theo khoảng thời gian đã chọn." />
+    <div className="space-y-4">
       <ReportRangePicker
         rangeKey={rangeKey}
         onRangeKeyChange={setRangeKey}

@@ -428,6 +428,12 @@ test('Hieu suat: nhan vien thay minh, truong phong thay ca phong, khong thay pho
     `INSERT INTO cards (list_id, title, position, assignee_contact_id, is_done, completed_at, due_date)
      VALUES (?, 'Viec cua N2', 1024, ?, 1, datetime('now','localtime'), date('now','localtime','+1 day'))`
   ).run(listId, n2.contactId);
+  /* Viec thu hai cung tuan cho nguoi KHAC: chuoi tuan phai tach theo tung nguoi,
+     khong duoc gop hai nguoi vao mot dong cua tuan. */
+  db.prepare(
+    `INSERT INTO cards (list_id, title, position, assignee_contact_id, is_done, completed_at)
+     VALUES (?, 'Viec cua N1', 2048, ?, 1, datetime('now','localtime'))`
+  ).run(listId, n1.contactId);
 
   const range = '?from=2000-01-01&to=2999-12-31';
   type Perf = { people: { contact_id: number; completed: number; on_time: number }[] };
@@ -446,6 +452,43 @@ test('Hieu suat: nhan vien thay minh, truong phong thay ca phong, khong thay pho
   const n2Row = admin.people.find((row) => row.contact_id === n2.contactId);
   assert.equal(n2Row?.completed, 1);
   assert.equal(n2Row?.on_time, 1);
+  const weekly = (admin as unknown as { weekly: { contact_id: number; on_time: number }[] }).weekly;
+  assert.equal(weekly.find((row) => row.contact_id === n2.contactId)?.on_time, 1);
+  assert.ok(
+    weekly.some((row) => row.contact_id === n1.contactId),
+    'chuoi tuan phai co dong rieng cho tung nguoi'
+  );
+
+  /* Tai khoan gan voi mot contact KHONG thuoc cong ty minh (vd. con nam o to chuc doi tac) van
+     phai thay chinh minh trong bao cao hieu suat. */
+  const loneContact = Number(
+    db
+      .prepare(`INSERT INTO contacts (customer_id, full_name, is_active) VALUES (?, 'Nguoi Le', 1)`)
+      .run(
+        db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Đối tác X', 'partner')`).run()
+          .lastInsertRowid
+      ).lastInsertRowid
+  );
+  const lone: Person = {
+    contactId: loneContact,
+    email: 'nguoile@congty.vn',
+    userId: Number(
+      db
+        .prepare(
+          `INSERT INTO users (username, password_hash, password_salt, email, full_name, contact_id)
+           VALUES ('nguoile@congty.vn', '', '', 'nguoile@congty.vn', 'Nguoi Le', ?)`
+        )
+        .run(loneContact).lastInsertRowid
+    ),
+  };
+  db.prepare(
+    `INSERT INTO user_positions (user_id, position_id, is_primary)
+     VALUES (?, (SELECT id FROM positions WHERE code = 'staff'), 1)`
+  ).run(lone.userId);
+  await signInAs(lone);
+  const self = (await call('GET', `/api/views/performance${range}`)).data as Perf & { me: number };
+  assert.deepEqual(idsOf(self), [loneContact]);
+  assert.equal(self.me, loneContact);
 });
 
 test('Suc khoe pipeline chi dem co hoi trong pham vi', async () => {

@@ -20,12 +20,14 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     version: '1.8.0',
     date: '2026-10-02',
-    title: 'Báo cáo Hiệu suất cá nhân, đội nhóm, phòng ban; sắp xếp lại thanh điều hướng',
+    title: 'Báo cáo Hiệu suất cá nhân, đội nhóm, phòng ban; Báo cáo tổng ở Tổng quan',
     changes: [
-      'Trang mới Hiệu suất (nhóm Phân tích): việc nhận mới, hoàn thành (so với kỳ trước), tỷ lệ đúng hạn, đang mở, quá hạn, bị chặn, số lần dời hạn, thời gian xử lý trung bình và giờ thực tế.',
-      'Xem theo đơn vị dạng cây — Khối, Phòng, Tổ cộng dồn từ nhân sự bên dưới, mở từng cấp để xem từng người — hoặc xem bảng cá nhân và bấm tiêu đề cột để sắp xếp.',
+      'Trang mới Hiệu suất trong nhóm Bàn làm việc: việc nhận mới, hoàn thành (so với kỳ trước), tỷ lệ đúng hạn, đang mở, quá hạn, bị chặn, số lần dời hạn, thời gian xử lý trung bình và giờ thực tế.',
+      'Ô "Xem của" để chọn Của tôi, toàn bộ phạm vi hoặc một khối/phòng; bấm tên một người trong bảng để xem riêng người đó. Dòng của chính bạn có nhãn "Bạn".',
+      'Biểu đồ việc hoàn thành theo tuần (đúng hạn / trễ hạn / không có hạn) và biểu đồ so sánh giữa các đơn vị hoặc thành viên; bấm một cột để đi sâu.',
       'Số liệu theo đúng phạm vi bạn được xem: nhân viên thấy của mình, trưởng phòng thấy cả phòng, giám đốc khối thấy cả khối.',
-      'Nhóm "Hôm nay" trên thanh điều hướng đổi tên thành "Làm việc"; Báo cáo, Hiệu suất và Sức khỏe pipeline gom về nhóm mới "Phân tích".',
+      'Tổng quan có thêm tab Báo cáo tổng (công việc và kinh doanh trên một màn). Báo cáo trong nhóm Dự án và Sức khỏe pipeline trong nhóm Kinh doanh giữ nguyên chỗ cũ.',
+      'Nhóm "Hôm nay" trên thanh điều hướng đổi tên thành "Bàn làm việc".',
       'Màn "Tất cả mục" trên điện thoại theo đúng các nhóm của thanh điều hướng; thêm Danh bạ cá nhân, Cài đặt chuyển sang mục Hệ thống riêng.',
     ],
   },

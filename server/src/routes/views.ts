@@ -1208,16 +1208,24 @@ router.get('/performance', requirePermission('report.tasks', 'read'), (req, res)
   const prevTo = shiftDate(from, -1);
   const prevFrom = shiftDate(from, -spanDays);
 
+  /* Nhan su = nguoi thuoc cong ty minh HOAC co tai khoan dang nhap HOAC chinh
+     nguoi dang xem. Chi loc theo `org_kind = 'own'` thi tai khoan nao gan voi mot
+     contact chua xep vao cong ty — thuong la chinh quan tri vien — bien mat khoi
+     bao cao cua chinh ho. */
+  const me = actorContactId(req);
   const peopleScope = scopeFragment(req, 'report.tasks', 'read', 'c.id');
   const people = db
     .prepare(
       `SELECT c.id AS contact_id, c.full_name AS name, c.org_unit_id
          FROM contacts c
-         JOIN customers o ON o.id = c.customer_id AND o.org_kind = 'own'
-        WHERE c.is_active = 1${peopleScope}
+         LEFT JOIN customers o ON o.id = c.customer_id
+        WHERE c.is_active = 1
+          AND (o.org_kind = 'own'
+               OR EXISTS (SELECT 1 FROM users u WHERE u.contact_id = c.id)
+               OR c.id = ?)${peopleScope}
         ORDER BY c.full_name COLLATE NOCASE`
     )
-    .all() as { contact_id: number; name: string; org_unit_id: number | null }[];
+    .all(me ?? -1) as { contact_id: number; name: string; org_unit_id: number | null }[];
 
   const ids = people.map((p) => p.contact_id);
   const inIds = ids.length > 0 ? ids.join(',') : 'NULL';
@@ -1283,6 +1291,27 @@ router.get('/performance', requirePermission('report.tasks', 'read'), (req, res)
     return { ...person, ...metrics };
   });
 
+  /* Chuoi theo tuan cho bieu do: viec hoan thanh chia dung han / tre han / khong
+     co han, theo tung nguoi de client cong lai cho bat ky don vi nao dang chon. */
+  const weekly = db
+    .prepare(
+      `SELECT k.assignee_contact_id AS contact_id,
+              date(substr(k.completed_at, 1, 10), '-6 days', 'weekday 1') AS week_start,
+              COUNT(*) AS completed,
+              SUM(CASE WHEN k.due_date IS NOT NULL
+                        AND date(k.completed_at) <= substr(k.due_date, 1, 10)
+                       THEN 1 ELSE 0 END) AS on_time,
+              SUM(CASE WHEN k.due_date IS NOT NULL
+                        AND date(k.completed_at) > substr(k.due_date, 1, 10)
+                       THEN 1 ELSE 0 END) AS late
+         FROM cards k
+        WHERE k.is_done = 1 AND date(k.completed_at) BETWEEN ? AND ?
+          AND k.assignee_contact_id IN (${inIds})
+        GROUP BY k.assignee_contact_id, week_start
+        ORDER BY week_start`
+    )
+    .all(from, to);
+
   /* Cay don vi: chi cac don vi co nguoi trong pham vi, cong voi to tien cua chung
      de dung lai duoc nhanh. Ten don vi cap tren khong phai du lieu nghiep vu. */
   const unitIds = [...new Set(people.map((p) => p.org_unit_id).filter((id) => id != null))];
@@ -1312,8 +1341,10 @@ router.get('/performance', requirePermission('report.tasks', 'read'), (req, res)
     prev_from: prevFrom,
     prev_to: prevTo,
     scope: accessOf(req).scopeOf('report.tasks', 'read'),
+    me,
     people: rows,
     units,
+    weekly,
   });
 });
 

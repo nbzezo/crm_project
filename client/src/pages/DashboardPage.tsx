@@ -1,6 +1,6 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { Suspense, lazy, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Crosshair, LayoutDashboard, RefreshCw } from 'lucide-react';
+import { BarChart3, CalendarDays, Crosshair, LayoutDashboard, RefreshCw } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api/client';
 import { ErrorState, Skeleton, focusRing } from '../components/common/ui';
@@ -50,7 +50,12 @@ function useFocusPlanStale(enabled: boolean): string | null {
   return status.stale ? status.reasons.join(' ') : null;
 }
 
-type DashboardView = 'overview' | 'focus';
+type DashboardView = 'overview' | 'focus' | 'report';
+
+/* Bao cao tong keo theo recharts — tai rieng khi mo tab, khong lam nang Toan canh. */
+const ReportsContent = lazy(() =>
+  import('./ReportsPage').then((module) => ({ default: module.ReportsContent }))
+);
 const VIEW_KEY = 'dashboard.view';
 
 /* Tab dang xem nam tren URL (?view=focus) de chia se / quay lai dung cho; khi
@@ -64,7 +69,10 @@ function useDashboardView(): [DashboardView, (view: DashboardView) => void] {
   } catch {
     stored = null;
   }
-  const view: DashboardView = (fromUrl ?? stored) === 'focus' ? 'focus' : 'overview';
+  const canReport = usePermission('report.tasks', 'read');
+  const wanted = fromUrl ?? stored;
+  const view: DashboardView =
+    wanted === 'focus' ? 'focus' : wanted === 'report' && canReport ? 'report' : 'overview';
   const setView = (next: DashboardView) => {
     try {
       localStorage.setItem(VIEW_KEY, next);
@@ -74,8 +82,8 @@ function useDashboardView(): [DashboardView, (view: DashboardView) => void] {
     setParams(
       (current) => {
         const copy = new URLSearchParams(current);
-        if (next === 'focus') copy.set('view', 'focus');
-        else copy.delete('view');
+        if (next === 'overview') copy.delete('view');
+        else copy.set('view', next);
         return copy;
       },
       { replace: true }
@@ -87,6 +95,7 @@ function useDashboardView(): [DashboardView, (view: DashboardView) => void] {
 const VIEW_TABS: { value: DashboardView; label: string; icon: typeof Crosshair }[] = [
   { value: 'overview', label: 'Toàn cảnh', icon: LayoutDashboard },
   { value: 'focus', label: 'Trọng tâm', icon: Crosshair },
+  { value: 'report', label: 'Báo cáo tổng', icon: BarChart3 },
 ];
 
 function DashboardTabs({
@@ -98,12 +107,13 @@ function DashboardTabs({
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const staleReason = useFocusPlanStale(view !== 'focus');
+  const canReport = usePermission('report.tasks', 'read');
+  const tabs = VIEW_TABS.filter((tab) => tab.value !== 'report' || canReport);
   const onKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();
-    const next =
-      (index + (event.key === 'ArrowRight' ? 1 : -1) + VIEW_TABS.length) % VIEW_TABS.length;
-    onChange(VIEW_TABS[next].value);
+    const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    onChange(tabs[next].value);
     refs.current[next]?.focus();
   };
   return (
@@ -112,7 +122,7 @@ function DashboardTabs({
       aria-label="Chế độ Tổng quan"
       className="flex gap-1 border-b border-tr-border print:hidden"
     >
-      {VIEW_TABS.map((tab, index) => {
+      {tabs.map((tab, index) => {
         const selected = view === tab.value;
         const Icon = tab.icon;
         return (
@@ -220,6 +230,23 @@ export default function DashboardPage() {
   const [view, setView] = useDashboardView();
   const queryClient = useQueryClient();
   const focusFetching = useIsFetching({ queryKey: ['focus'] }) > 0;
+
+  if (view === 'report')
+    return (
+      <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
+        <DashboardHeader
+          refreshing={false}
+          onRefresh={() => void queryClient.invalidateQueries({ queryKey: ['reports'] })}
+          showBrief={false}
+        />
+        <DashboardTabs view={view} onChange={setView} />
+        <section id="dashboard-panel-report" role="tabpanel" aria-labelledby="dashboard-tab-report">
+          <Suspense fallback={<Skeleton className="h-64 rounded-panel" />}>
+            <ReportsContent />
+          </Suspense>
+        </section>
+      </div>
+    );
 
   if (view === 'focus')
     return (

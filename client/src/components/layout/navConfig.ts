@@ -35,7 +35,7 @@ export interface NavItem {
   permission?: PermissionKey;
   permissionAny?: PermissionKey[];
 }
-export type NavGroupId = 'daily' | 'projects' | 'sales' | 'insights';
+export type NavGroupId = 'daily' | 'projects' | 'sales';
 export type NavOrder = Record<NavGroupId, string[]>;
 
 export const HOME_NAV: NavItem = {
@@ -68,11 +68,10 @@ export function useCanOpenSettings(): boolean {
 }
 
 /*
- * Thu tu NHOM theo nhip lam viec: viec hang ngay -> du an -> ban hang -> nhin lai.
- * Thu tu MUC trong nhom theo dong chay cua nghiep vu (khach hang -> co hoi -> hop
- * dong -> doanh thu), khong theo tan suat doan mo. Moi man BAO CAO gom ve mot nhom
- * cuoi: truoc day "Báo cáo" nam o Du an con "Sức khỏe pipeline" nam o Kinh doanh,
- * nguoi can so lieu phai di tim o hai noi.
+ * Ba nhom: Ban lam viec -> Du an -> Kinh doanh. Moi nhom giu bao cao CUA NO (Bao
+ * cao o Du an, Suc khoe pipeline o Kinh doanh); bao cao tong nam o tab "Báo cáo
+ * tổng" cua trang Tong quan. Hieu suat la thu nguoi dung xem cho CHINH MINH moi
+ * ngay nen nam o Ban lam viec.
  *
  * Nhom dau tung ten "Hôm nay" nhung chua Lich va Danh ba ca nhan — khong cai nao la
  * "hom nay". Doi `label`, giu `id` 'daily' de thu tu nguoi dung da luu khong mat.
@@ -85,6 +84,12 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
       { to: '/tasks', label: t.nav.tasks, icon: ListChecks, permission: 'tasks:read' },
       { to: '/follow-up', label: t.nav.followUp, icon: BellRing, permission: 'tasks:read' },
       { to: '/calendar', label: t.nav.calendar, icon: CalendarDays, permission: 'tasks:read' },
+      {
+        to: '/performance',
+        label: t.nav.performance,
+        icon: Gauge,
+        permission: 'report.tasks:read',
+      },
       { to: '/my-contacts', label: t.nav.myContacts, icon: BookUser },
     ],
   },
@@ -101,6 +106,7 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
         icon: FolderOpen,
         permissionAny: ['documents:read', 'notes:read'],
       },
+      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
       {
         to: '/shares',
         label: t.nav.shares,
@@ -116,6 +122,12 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
       { to: '/customers', label: t.nav.customers, icon: Users, permission: 'customers:read' },
       { to: '/pipeline', label: t.nav.pipeline, icon: Target, permission: 'deals:read' },
       {
+        to: '/pipeline-health',
+        label: t.nav.pipelineHealth,
+        icon: HeartPulse,
+        permission: 'report.sales:read',
+      },
+      {
         to: '/contracts',
         label: t.nav.contracts,
         icon: FileSignature,
@@ -127,25 +139,6 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
         label: t.nav.orgDirectory,
         icon: Contact,
         permission: 'contacts:read',
-      },
-    ],
-  },
-  {
-    id: 'insights',
-    label: t.nav.groupInsights,
-    items: [
-      { to: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'report.tasks:read' },
-      {
-        to: '/performance',
-        label: t.nav.performance,
-        icon: Gauge,
-        permission: 'report.tasks:read',
-      },
-      {
-        to: '/pipeline-health',
-        label: t.nav.pipelineHealth,
-        icon: HeartPulse,
-        permission: 'report.sales:read',
       },
     ],
   },

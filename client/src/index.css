@@ -1165,6 +1165,20 @@ select.tr-field-control {
   background-color: #ffffff42;
 }
 
+/* Mau cho bieu do Hieu suat: hai o dau cua CATEGORICAL_COLORS theo thu tu co
+   dinh (da kiem dinh mu mau ca hai che do). O cam ha mot buoc o theme toi vi
+   #eb6834 vuot dai sang L 0.67 tren nen toi. "Khong co han" la mau xam phu. */
+:root {
+  --tr-chart-1: #2a78d6;
+  --tr-chart-2: #eb6834;
+  --tr-chart-neutral: #9aa3ad;
+}
+[data-theme='dark'],
+[data-theme='ubuntu'] {
+  --tr-chart-2: #e0602e;
+  --tr-chart-neutral: #6b7480;
+}
+
 /* ---------- Recharts ----------
    Truoc day mau luoi/truc la ba ma hex cung trong `CHART_INK` (i18n/vi.ts), dung
    chung cho ca sau theme: o che do toi nhan truc chi dat 4,24:1 (duoi nguong AA

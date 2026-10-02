@@ -1,8 +1,10 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, qs } from '../api/client';
 import { EmptyState, ErrorState, Panel, Skeleton, focusRing } from '../components/common/ui';
+import { ChartDataTable } from '../components/common/ChartDataTable';
 import { PageHeader } from '../components/common/PageShell';
 import { ReportRangePicker } from '../components/common/ReportRangePicker';
 import { t } from '../i18n/vi';
@@ -11,13 +13,20 @@ import {
   avgCycleDays,
   buildUnitTree,
   collapseSingleChains,
+  compareRows,
   completedChange,
   onTimeRate,
+  peopleOf,
+  subjectOptions,
   sumTotals,
+  weeklySeries,
+  type CompareRow,
   type PerfTotals,
   type PerformanceData,
   type PersonPerf,
+  type Subject,
   type UnitNode,
+  type WeekPoint,
 } from '../lib/performance';
 import { resolveRange, type RangeKey } from '../lib/reportRange';
 
@@ -149,11 +158,22 @@ function sortValue(row: PersonPerf, key: SortKey): number | string {
   return row[key];
 }
 
+const SUBJECT_KEY = 'performance.subject';
+
+function loadSubject(): Subject | null {
+  try {
+    return localStorage.getItem(SUBJECT_KEY) as Subject | null;
+  } catch {
+    return null;
+  }
+}
+
 export default function PerformancePage() {
   const [rangeKey, setRangeKey] = useState<RangeKey>('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState(todayStr());
   const [view, setView] = useState<View>('units');
+  const [chosen, setChosen] = useState<Subject | null>(loadSubject);
   const range = resolveRange(rangeKey, customFrom, customTo);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -161,10 +181,15 @@ export default function PerformancePage() {
     queryFn: () => api.get<PerformanceData>(`/api/views/performance${qs(range)}`),
   });
 
+  const roots = useMemo(
+    () => (data ? collapseSingleChains(buildUnitTree(data.units, data.people)) : []),
+    [data]
+  );
   const unitById = useMemo(
     () => new Map((data?.units ?? []).map((unit) => [unit.id, unit.name])),
     [data]
   );
+  const options = useMemo(() => (data ? subjectOptions(roots, data) : []), [roots, data]);
 
   if (error)
     return (
@@ -173,23 +198,71 @@ export default function PerformancePage() {
       </div>
     );
 
-  const totals = data ? sumTotals(data.people) : null;
-  const rate = totals ? onTimeRate(totals) : null;
+  /* Lua chon da luu khong con hop le (doi pham vi, nguoi nghi viec) thi lui ve
+     muc dau danh sach: quan ly -> Toàn phạm vi, nhan vien -> Của tôi. */
+  const personName = (id: number) => data?.people.find((p) => p.contact_id === id)?.name;
+  const personId = (value: Subject | null) =>
+    value?.startsWith('person:') ? Number(value.slice('person:'.length)) : null;
+  const chosenPerson = personId(chosen);
+  const chosenValid =
+    chosen != null &&
+    (options.some((o) => o.value === chosen) ||
+      (chosenPerson != null && personName(chosenPerson) != null));
+  const subject: Subject = chosenValid ? chosen : (options[0]?.value ?? 'all');
+  const selectSubject = (next: Subject) => {
+    setChosen(next);
+    try {
+      localStorage.setItem(SUBJECT_KEY, next);
+    } catch {
+      /* bo qua: chi mat ghi nho lua chon */
+    }
+  };
+
+  const selected = data ? peopleOf(subject, roots, data) : [];
+  const totals = sumTotals(selected);
+  const rate = onTimeRate(totals);
   const solo = (data?.people.length ?? 0) <= 1;
+  const series = data
+    ? weeklySeries(data.weekly, new Set(selected.map((p) => p.contact_id)), data.from, data.to)
+    : [];
+  const comparison = compareRows(subject, roots);
+  const subjectPerson = personId(subject);
 
   return (
     <div className="space-y-4 p-6">
-      <PageHeader description="Năng suất và độ đúng hạn theo cá nhân và đơn vị, trong phạm vi bạn được xem." />
-      <ReportRangePicker
-        rangeKey={rangeKey}
-        onRangeKeyChange={setRangeKey}
-        customFrom={customFrom}
-        onCustomFromChange={setCustomFrom}
-        customTo={customTo}
-        onCustomToChange={setCustomTo}
-      />
+      <PageHeader description="Năng suất và độ đúng hạn của bạn, đội nhóm và phòng ban — trong phạm vi bạn được xem." />
+      <div className="flex flex-wrap items-center gap-3">
+        <ReportRangePicker
+          rangeKey={rangeKey}
+          onRangeKeyChange={setRangeKey}
+          customFrom={customFrom}
+          onCustomFromChange={setCustomFrom}
+          customTo={customTo}
+          onCustomToChange={setCustomTo}
+        />
+        {options.length > 1 && (
+          <label className="flex items-center gap-2 text-sm text-tr-subtle">
+            Xem của
+            <select
+              value={subject}
+              onChange={(event) => selectSubject(event.target.value as Subject)}
+              className={`min-h-[44px] rounded-panel border border-tr-border bg-tr-panel px-2 text-sm text-tr-text fine:min-h-0 fine:py-1.5 ${focusRing}`}
+            >
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {'   '.repeat(option.depth)}
+                  {option.label}
+                </option>
+              ))}
+              {subjectPerson != null && subjectPerson !== data?.me && (
+                <option value={subject}>{personName(subjectPerson)}</option>
+              )}
+            </select>
+          </label>
+        )}
+      </div>
 
-      {isLoading || !data || !totals ? (
+      {isLoading || !data ? (
         <div role="status" aria-label={t.common.loading} className="space-y-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -198,13 +271,19 @@ export default function PerformancePage() {
           </div>
           <Skeleton className="h-64 rounded-panel" />
         </div>
+      ) : data.people.length === 0 ? (
+        <EmptyState
+          message="Không có nhân sự nào trong phạm vi bạn được xem."
+          hint="Tài khoản của bạn cần được gắn với một người trong Tổ chức & nhân sự để có số liệu của chính mình."
+        />
       ) : (
         <>
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-tr-muted">
             <Users size={14} aria-hidden="true" />
-            Phạm vi: <strong className="text-tr-text">{SCOPE_LABEL[data.scope]}</strong>·{' '}
-            {data.people.length} người · so với kỳ trước {formatDateShort(data.prev_from)} –{' '}
+            Phạm vi quyền: <strong className="text-tr-text">{SCOPE_LABEL[data.scope]}</strong>· đang
+            xem {selected.length} người · so với kỳ trước {formatDateShort(data.prev_from)} –{' '}
             {formatDateShort(data.prev_to)}
+            {data.me == null && ' · tài khoản của bạn chưa gắn với nhân sự nào'}
           </p>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -236,48 +315,60 @@ export default function PerformancePage() {
             />
           </div>
 
-          {data.people.length === 0 ? (
-            <EmptyState
-              message="Không có nhân sự nào trong phạm vi bạn được xem."
-              hint="Tài khoản cần được gắn với một người trong Tổ chức & nhân sự."
-            />
-          ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Panel
-              title={view === 'units' && !solo ? 'Theo đơn vị' : 'Theo cá nhân'}
-              action={
-                !solo && (
-                  <div role="group" aria-label="Cách xem" className="flex gap-1">
-                    {(
-                      [
-                        ['units', 'Theo đơn vị'],
-                        ['people', 'Theo cá nhân'],
-                      ] as [View, string][]
-                    ).map(([key, label]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        aria-pressed={view === key}
-                        onClick={() => setView(key)}
-                        className={`min-h-9 rounded-control px-2.5 text-sm ${focusRing} ${
-                          view === key
-                            ? 'bg-tr-primary/10 font-medium text-tr-primary'
-                            : 'text-tr-subtle hover:bg-tr-hover'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )
-              }
+              title="Hoàn thành theo tuần"
+              className={comparison.length > 1 ? '' : 'lg:col-span-2'}
             >
-              {view === 'units' && !solo ? (
-                <UnitTable data={data} />
-              ) : (
-                <PeopleTable people={data.people} unitName={(id) => unitById.get(id ?? -1)} />
-              )}
+              <WeeklyChart series={series} />
             </Panel>
-          )}
+            {comparison.length > 1 && (
+              <Panel title="So sánh trong kỳ">
+                <CompareChart rows={comparison} onSelect={selectSubject} />
+              </Panel>
+            )}
+          </div>
+
+          <Panel
+            title={view === 'units' && !solo ? 'Theo đơn vị' : 'Theo cá nhân'}
+            action={
+              !solo && (
+                <div role="group" aria-label="Cách xem" className="flex gap-1">
+                  {(
+                    [
+                      ['units', 'Theo đơn vị'],
+                      ['people', 'Theo cá nhân'],
+                    ] as [View, string][]
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={view === key}
+                      onClick={() => setView(key)}
+                      className={`min-h-9 rounded-control px-2.5 text-sm ${focusRing} ${
+                        view === key
+                          ? 'bg-tr-primary/10 font-medium text-tr-primary'
+                          : 'text-tr-subtle hover:bg-tr-hover'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )
+            }
+          >
+            {view === 'units' && !solo ? (
+              <UnitTable roots={roots} me={data.me} onSelect={selectSubject} />
+            ) : (
+              <PeopleTable
+                people={data.people}
+                me={data.me}
+                unitName={(id) => unitById.get(id ?? -1)}
+                onSelect={selectSubject}
+              />
+            )}
+          </Panel>
         </>
       )}
     </div>
@@ -303,6 +394,171 @@ function Tile({
     </div>
   );
 }
+
+/* ---------- Bieu do ---------- */
+
+const TOOLTIP_STYLE = {
+  borderRadius: 8,
+  border: '1px solid var(--tr-border)',
+  backgroundColor: 'var(--tr-panel)',
+  color: 'var(--tr-text)',
+  fontSize: 12,
+  boxShadow: 'var(--tr-popover-shadow)',
+};
+
+const AXIS_PROPS = { tick: { fontSize: 11 }, tickLine: false };
+
+/* Thu tu co dinh: o 1 = dung han, o 2 = tre han; "khong co han" la xam phu de
+   khong tranh su chu y voi hai nhom co y nghia. Mau dat trong index.css. */
+const WEEK_SERIES = [
+  { key: 'on_time', label: 'Đúng hạn', color: 'var(--tr-chart-1)' },
+  { key: 'late', label: 'Trễ hạn', color: 'var(--tr-chart-2)' },
+  { key: 'no_due', label: 'Không có hạn', color: 'var(--tr-chart-neutral)' },
+] as const;
+
+const COMPARE_SERIES = [
+  { key: 'completed', label: 'Hoàn thành trong kỳ', color: 'var(--tr-chart-1)' },
+  { key: 'overdue', label: 'Quá hạn đang mở', color: 'var(--tr-chart-2)' },
+] as const;
+
+function ChartLegend({ items }: { items: readonly { label: string; color: string }[] }) {
+  return (
+    <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-tr-subtle">
+      {items.map((item) => (
+        <li key={item.label} className="flex items-center gap-1.5">
+          <span
+            className="h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: item.color }}
+            aria-hidden="true"
+          />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function WeeklyChart({ series }: { series: WeekPoint[] }) {
+  const rows = series.map((point) => ({ ...point, name: formatDateShort(point.week_start) }));
+  const total = series.reduce((sum, p) => sum + p.on_time + p.late + p.no_due, 0);
+  if (total === 0)
+    return (
+      <p className="py-12 text-center text-sm text-tr-muted">Chưa hoàn thành việc nào trong kỳ.</p>
+    );
+  return (
+    <>
+      <ChartLegend items={WEEK_SERIES} />
+      <div className="h-64" aria-hidden="true">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="name" {...AXIS_PROPS} />
+            <YAxis allowDecimals={false} {...AXIS_PROPS} />
+            <Tooltip
+              cursor={{ fill: 'var(--tr-hover)' }}
+              contentStyle={TOOLTIP_STYLE}
+              labelFormatter={(label) => `Tuần từ ${String(label)}`}
+            />
+            {WEEK_SERIES.map((item, index) => (
+              <Bar
+                key={item.key}
+                dataKey={item.key}
+                name={item.label}
+                stackId="week"
+                fill={item.color}
+                stroke="var(--tr-panel)"
+                strokeWidth={1}
+                maxBarSize={36}
+                radius={index === WEEK_SERIES.length - 1 ? [4, 4, 0, 0] : 0}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <ChartDataTable
+        caption="Việc hoàn thành theo tuần"
+        valueLabel="Đúng hạn · Trễ · Không hạn"
+        rows={rows.map((row) => ({
+          name: `Tuần ${row.name}`,
+          value: `${row.on_time} · ${row.late} · ${row.no_due}`,
+        }))}
+      />
+    </>
+  );
+}
+
+function CompareChart({
+  rows,
+  onSelect,
+}: {
+  rows: CompareRow[];
+  onSelect: (subject: Subject) => void;
+}) {
+  const data = rows
+    .map((row) => ({
+      key: row.key,
+      name: row.name,
+      completed: row.totals.completed,
+      overdue: row.totals.overdue_count,
+    }))
+    .sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name, 'vi'))
+    /* Qua 12 dong thi nhan bi ep chong nhau — phan con lai xem o bang ben duoi. */
+    .slice(0, 12);
+  const height = Math.max(160, data.length * 36 + 24);
+  return (
+    <>
+      <ChartLegend items={COMPARE_SERIES} />
+      <div style={{ height }} aria-hidden="true">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+            barGap={2}
+          >
+            <CartesianGrid horizontal={false} />
+            <XAxis type="number" allowDecimals={false} {...AXIS_PROPS} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={130}
+              {...AXIS_PROPS}
+              tickFormatter={(value: string) =>
+                value.length > 18 ? `${value.slice(0, 17)}…` : value
+              }
+            />
+            <Tooltip cursor={{ fill: 'var(--tr-hover)' }} contentStyle={TOOLTIP_STYLE} />
+            {COMPARE_SERIES.map((item) => (
+              <Bar
+                key={item.key}
+                dataKey={item.key}
+                name={item.label}
+                fill={item.color}
+                maxBarSize={12}
+                radius={[0, 4, 4, 0]}
+                className="cursor-pointer"
+                onClick={(entry) => {
+                  const key = (entry as { payload?: { key?: string } }).payload?.key;
+                  if (key) onSelect(key as Subject);
+                }}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="mt-1 text-xs text-tr-muted">
+        Bấm vào một cột, hoặc vào tên trong bảng bên dưới, để xem riêng đơn vị hoặc người đó.
+      </p>
+      <ChartDataTable
+        caption="So sánh trong kỳ"
+        valueLabel="Hoàn thành · Quá hạn"
+        rows={data.map((row) => ({ name: row.name, value: `${row.completed} · ${row.overdue}` }))}
+      />
+    </>
+  );
+}
+
+/* ---------- Bang ---------- */
 
 function TableShell({
   caption,
@@ -367,8 +623,42 @@ function TableShell({
   );
 }
 
-function UnitTable({ data }: { data: PerformanceData }) {
-  const roots = useMemo(() => collapseSingleChains(buildUnitTree(data.units, data.people)), [data]);
+/** Ten mot nguoi trong bang — bam de xem rieng nguoi do o tren; dong cua chinh minh co nhan "Bạn". */
+function PersonButton({
+  person,
+  me,
+  onSelect,
+}: {
+  person: PersonPerf;
+  me: number | null;
+  onSelect: (subject: Subject) => void;
+}) {
+  const isMe = person.contact_id === me;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(isMe ? 'me' : `person:${person.contact_id}`)}
+      className={`inline-flex items-center gap-1.5 rounded-control text-left text-tr-text hover:text-tr-primary hover:underline ${focusRing}`}
+    >
+      {person.name}
+      {isMe && (
+        <span className="rounded-full bg-tr-primary/10 px-1.5 text-xs font-medium text-tr-primary">
+          Bạn
+        </span>
+      )}
+    </button>
+  );
+}
+
+function UnitTable({
+  roots,
+  me,
+  onSelect,
+}: {
+  roots: UnitNode[];
+  me: number | null;
+  onSelect: (subject: Subject) => void;
+}) {
   /* Mac dinh mo san hai cap dau; `toggled` ghi cac nut nguoi dung da dao trang thai. */
   const [toggled, setToggled] = useState<Set<string>>(new Set());
   const keyOf = (node: UnitNode) => String(node.unit?.id ?? 'none');
@@ -402,7 +692,7 @@ function UnitTable({ data }: { data: PerformanceData }) {
                 <ChevronRight size={14} aria-hidden="true" />
               )}
               <span className="whitespace-nowrap">{label}</span>
-              <span className="text-xs font-normal text-tr-muted">
+              <span className="text-xs font-normal whitespace-nowrap text-tr-muted">
                 · {node.headcount} người
                 {node.unit?.head_name ? ` · Trưởng: ${node.unit.head_name}` : ''}
               </span>
@@ -416,10 +706,10 @@ function UnitTable({ data }: { data: PerformanceData }) {
               <tr key={`p${person.contact_id}`}>
                 <th
                   scope="row"
-                  className="px-2 py-1.5 text-left font-normal text-tr-text"
+                  className="px-2 py-1.5 text-left font-normal"
                   style={{ paddingLeft: depth * 16 + 30 }}
                 >
-                  {person.name}
+                  <PersonButton person={person} me={me} onSelect={onSelect} />
                 </th>
                 <MetricCells totals={person} />
               </tr>
@@ -440,10 +730,14 @@ function UnitTable({ data }: { data: PerformanceData }) {
 
 function PeopleTable({
   people,
+  me,
   unitName,
+  onSelect,
 }: {
   people: PersonPerf[];
+  me: number | null;
   unitName: (id: number | null) => string | undefined;
+  onSelect: (subject: Subject) => void;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({
     key: 'completed',
@@ -471,7 +765,7 @@ function PeopleTable({
       {sorted.map((person) => (
         <tr key={person.contact_id}>
           <th scope="row" className="px-2 py-1.5 text-left font-normal">
-            <div className="text-tr-text">{person.name}</div>
+            <PersonButton person={person} me={me} onSelect={onSelect} />
             <div className="text-xs text-tr-muted">
               {unitName(person.org_unit_id) ?? 'Chưa xếp đơn vị'}
             </div>

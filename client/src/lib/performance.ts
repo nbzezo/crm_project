@@ -44,8 +44,20 @@ export interface PerformanceData {
   prev_from: string;
   prev_to: string;
   scope: 'none' | 'own' | 'unit' | 'subtree' | 'all';
+  /** Contact cua nguoi dang xem; `null` khi tai khoan chua gan voi nhan su nao. */
+  me: number | null;
   people: PersonPerf[];
   units: PerfUnit[];
+  weekly: WeeklyRow[];
+}
+
+export interface WeeklyRow {
+  contact_id: number;
+  /** Thu Hai dau tuan, YYYY-MM-DD. */
+  week_start: string;
+  completed: number;
+  on_time: number;
+  late: number;
 }
 
 export interface UnitNode {
@@ -152,4 +164,145 @@ export function collapseSingleChains(roots: UnitNode[]): UnitNode[] {
   )
     current = current[0].children;
   return current;
+}
+
+/* ---------- Doi tuong dang xem: ca pham vi, chinh minh, mot don vi, mot nguoi ---------- */
+
+export type Subject = 'all' | 'me' | `unit:${number}` | 'unit:none' | `person:${number}`;
+
+export interface SubjectOption {
+  value: Subject;
+  label: string;
+  depth: number;
+}
+
+function unitKey(node: UnitNode): Subject {
+  return node.unit ? `unit:${node.unit.id}` : 'unit:none';
+}
+
+/** Danh sach lua chon cho o "Xem của": Toàn phạm vi, Của tôi, cac don vi (thut le theo cap). */
+export function subjectOptions(roots: UnitNode[], data: PerformanceData): SubjectOption[] {
+  const options: SubjectOption[] = [];
+  if (data.people.length > 1) options.push({ value: 'all', label: 'Toàn phạm vi', depth: 0 });
+  if (data.me != null && data.people.some((p) => p.contact_id === data.me))
+    options.push({ value: 'me', label: 'Của tôi', depth: 0 });
+  if (data.people.length <= 1) return options;
+  const walk = (node: UnitNode, depth: number) => {
+    options.push({
+      value: unitKey(node),
+      label: `${node.unit?.name ?? 'Chưa xếp đơn vị'} (${node.headcount})`,
+      depth,
+    });
+    for (const child of node.children) walk(child, depth + 1);
+  };
+  for (const root of roots) walk(root, 0);
+  return options;
+}
+
+function findNode(roots: UnitNode[], subject: Subject): UnitNode | null {
+  for (const node of roots) {
+    if (unitKey(node) === subject) return node;
+    const found = findNode(node.children, subject);
+    if (found) return found;
+  }
+  return null;
+}
+
+function membersDeep(node: UnitNode): PersonPerf[] {
+  return [...node.members, ...node.children.flatMap(membersDeep)];
+}
+
+/** Nhung nguoi thuoc doi tuong dang xem. */
+export function peopleOf(subject: Subject, roots: UnitNode[], data: PerformanceData): PersonPerf[] {
+  if (subject === 'all') return data.people;
+  const personId =
+    subject === 'me' ? data.me : subject.startsWith('person:') ? Number(subject.slice(7)) : null;
+  if (personId != null) return data.people.filter((p) => p.contact_id === personId);
+  const node = findNode(roots, subject);
+  return node ? membersDeep(node) : [];
+}
+
+/** Mot cot cua bieu do so sanh: mot don vi con hoac mot nguoi. */
+export interface CompareRow {
+  key: string;
+  name: string;
+  totals: PerfTotals;
+}
+
+/**
+ * Ai dem ra so sanh voi ai: cac don vi con cua doi tuong dang xem va nhung nguoi
+ * ngoi truc tiep o do. Xem mot nguoi thi khong co gi de so sanh — tra mang rong.
+ */
+export function compareRows(subject: Subject, roots: UnitNode[]): CompareRow[] {
+  let children: UnitNode[];
+  let members: PersonPerf[];
+  if (subject === 'all') {
+    /* Mot goc that (Cong ty) thi so sanh cac don vi ngay duoi no — mot cot
+       "Công ty" dai bang tong khong cho ai so sanh duoc gi. Nhom "Chưa xếp đơn
+       vị" giu nguyen thanh mot cot rieng. */
+    const real = roots.filter((root) => root.unit);
+    const loose = roots.filter((root) => !root.unit);
+    const single = real.length === 1 ? real[0] : null;
+    children = single ? [...single.children, ...loose] : roots;
+    members = single ? single.members : [];
+  } else {
+    const node = findNode(roots, subject);
+    if (!node) return [];
+    children = node.children;
+    members = node.members;
+  }
+  return [
+    ...children.map((child) => ({
+      key: unitKey(child),
+      name: child.unit?.name ?? 'Chưa xếp đơn vị',
+      totals: child.totals,
+    })),
+    ...members.map((person) => ({
+      key: `person:${person.contact_id}`,
+      name: person.name,
+      totals: person,
+    })),
+  ];
+}
+
+/* ---------- Chuoi theo tuan ---------- */
+
+export interface WeekPoint {
+  week_start: string;
+  on_time: number;
+  late: number;
+  no_due: number;
+}
+
+function mondayOf(iso: string): Date {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d;
+}
+
+/**
+ * Cong chuoi tuan cua nhung nguoi da chon va dien du MOI tuan trong khoang —
+ * tuan khong hoan thanh viec nao van la mot cot 0, khong duoc bien mat khoi truc
+ * (bo di thi hai tuan cach nhau mot thang nhin nhu lien nhau).
+ */
+export function weeklySeries(
+  weekly: WeeklyRow[],
+  contactIds: Set<number>,
+  from: string,
+  to: string
+): WeekPoint[] {
+  const byWeek = new Map<string, WeekPoint>();
+  for (let d = mondayOf(from); d <= new Date(`${to}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 7)) {
+    const key = d.toISOString().slice(0, 10);
+    byWeek.set(key, { week_start: key, on_time: 0, late: 0, no_due: 0 });
+  }
+  for (const row of weekly) {
+    if (!contactIds.has(row.contact_id)) continue;
+    const point = byWeek.get(row.week_start);
+    if (!point) continue;
+    point.on_time += row.on_time;
+    point.late += row.late;
+    point.no_due += row.completed - row.on_time - row.late;
+  }
+  return [...byWeek.values()];
 }
