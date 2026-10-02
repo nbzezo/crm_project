@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Eye, Link2, Lock, Mail, Send, Share2, ShieldCheck } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Modal } from '../common/Modal';
-import { Button, ColorBadge, Field, FormError, IconButton, Input, Select } from '../common/ui';
+import { Button, Field, FormError, IconButton, Input, Select } from '../common/ui';
 import { usePermissionCheck } from '../../lib/permissions';
 import { formatDateTime } from '../../lib/format';
 import {
@@ -27,10 +27,11 @@ const RESOURCE_OF: Record<ShareEntityType, 'documents' | 'quotations' | 'contrac
   page: 'notes',
 };
 
-const STATUS_COLOR = {
-  active: '#bbf7d0',
-  expired: '#fde68a',
-  revoked: '#e5e7eb',
+/* Mau theo token cua theme de tu doi giua sang / toi. */
+const STATUS_CLASS = {
+  active: 'bg-service-status-using-bg text-service-status-using-fg',
+  expired: 'bg-service-status-paused-bg text-service-status-paused-fg',
+  revoked: 'bg-service-status-stopped-bg text-service-status-stopped-fg',
 } as const;
 
 /** Duoc phep chia se loai ban ghi nay: du quyen SUA va quan tri chua tat chia se cong khai. */
@@ -162,7 +163,10 @@ export function ShareDialog({
   async function copy(url: string) {
     const ok = await copyText(url);
     setCopied(ok);
-    pushToast(ok ? 'Đã sao chép liên kết' : 'Không sao chép được — hãy chọn và sao chép thủ công', ok ? 'success' : 'error');
+    pushToast(
+      ok ? 'Đã sao chép liên kết' : 'Không sao chép được — hãy chọn và sao chép thủ công',
+      ok ? 'success' : 'error'
+    );
   }
 
   return (
@@ -193,9 +197,18 @@ export function ShareDialog({
             )}
           </p>
           <div className="flex gap-2">
-            <Input readOnly value={created.url} onFocus={(e) => e.currentTarget.select()} aria-label="Liên kết chia sẻ" />
+            <Input
+              readOnly
+              value={created.url}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label="Liên kết chia sẻ"
+            />
             <Button variant="primary" onClick={() => void copy(created.url)}>
-              {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
+              {copied ? (
+                <Check size={15} aria-hidden="true" />
+              ) : (
+                <Copy size={15} aria-hidden="true" />
+              )}
               {copied ? 'Đã chép' : 'Sao chép'}
             </Button>
           </div>
@@ -236,7 +249,10 @@ export function ShareDialog({
               ))}
             </Select>
           </Field>
-          <Field label="Mật khẩu (tùy chọn)" hint="Từ 4 ký tự. Gửi mật khẩu riêng, không gửi cùng liên kết.">
+          <Field
+            label="Mật khẩu (tùy chọn)"
+            hint="Từ 4 ký tự. Gửi mật khẩu riêng, không gửi cùng liên kết."
+          >
             <Input
               type="password"
               autoComplete="new-password"
@@ -258,7 +274,8 @@ export function ShareDialog({
             <span>
               Cho phép tải về
               <span className="block text-xs text-tr-muted">
-                Tắt = chỉ xem trên trình duyệt (PDF, ảnh, văn bản). Tệp Word/Excel sẽ không xem được.
+                Tắt = chỉ xem trên trình duyệt (PDF, ảnh, văn bản). Tệp Word/Excel sẽ không xem
+                được.
               </span>
             </span>
           </label>
@@ -355,9 +372,11 @@ export function ShareLinkItem({
   return (
     <li className="rounded-control border border-tr-border p-2.5 text-sm">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <ColorBadge color={STATUS_COLOR[link.status]} small>
+        <span
+          className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ${STATUS_CLASS[link.status]}`}
+        >
           {SHARE_STATUS_LABEL[link.status]}
-        </ColorBadge>
+        </span>
         {showTitle && (
           <span className="font-medium text-tr-text">
             {SHARE_ENTITY_LABEL[link.entity_type]}: {link.title}
@@ -365,7 +384,10 @@ export function ShareLinkItem({
         )}
         <span className="font-mono text-xs text-tr-muted">…{link.token_hint}</span>
         {link.has_password && (
-          <span className="inline-flex items-center gap-1 text-xs text-tr-muted" title="Có mật khẩu">
+          <span
+            className="inline-flex items-center gap-1 text-xs text-tr-muted"
+            title="Có mật khẩu"
+          >
             <Lock size={12} aria-hidden="true" /> mật khẩu
           </span>
         )}
@@ -378,7 +400,8 @@ export function ShareLinkItem({
           ? `hết hạn ${formatDateTime(link.expires_at.replace(' ', 'T'))}`
           : 'không hết hạn'}{' '}
         · {link.view_count} lượt mở
-        {link.last_viewed_at && ` (gần nhất ${formatDateTime(link.last_viewed_at.replace(' ', 'T'))})`}
+        {link.last_viewed_at &&
+          ` (gần nhất ${formatDateTime(link.last_viewed_at.replace(' ', 'T'))})`}
       </p>
       <div className="mt-1.5 flex gap-2">
         <Button size="sm" onClick={() => setShowViews((v) => !v)} aria-expanded={showViews}>

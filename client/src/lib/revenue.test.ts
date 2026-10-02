@@ -20,11 +20,7 @@ function line(
 
 describe('groupLinesByCustomer', () => {
   it('gom dòng theo khách hàng, giữ thứ tự xuất hiện', () => {
-    const groups = groupLinesByCustomer([
-      line(1, 7, 11, 1),
-      line(2, 3, 10, 1),
-      line(3, 7, 13, 2),
-    ]);
+    const groups = groupLinesByCustomer([line(1, 7, 11, 1), line(2, 3, 10, 1), line(3, 7, 13, 2)]);
     expect(groups.map((g) => g.customer_id)).toEqual([7, 3]);
     expect(groups[0].lines.map((l) => l.id)).toEqual([1, 3]);
   });

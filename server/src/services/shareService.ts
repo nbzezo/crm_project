@@ -147,7 +147,9 @@ export type LinkStatus = 'active' | 'expired' | 'revoked';
 export function linkStatus(db: Database, link: ShareLinkRow): LinkStatus {
   if (link.revoked_at) return 'revoked';
   if (!link.expires_at) return 'active';
-  const row = db.prepare(`SELECT ? <= datetime('now','localtime') AS expired`).get(link.expires_at) as {
+  const row = db
+    .prepare(`SELECT ? <= datetime('now','localtime') AS expired`)
+    .get(link.expires_at) as {
     expired: number;
   };
   return row.expired ? 'expired' : 'active';
@@ -167,7 +169,11 @@ const EXTRA_FILE_SELECT = `SELECT dc.id, dc.name, dc.file_name,
     FROM documents dc
    WHERE dc.deleted_at IS NULL AND dc.confidentiality <> 'confidential'`;
 
-export function loadEntity(db: Database, type: ShareEntityType, id: number): EntityInfo | undefined {
+export function loadEntity(
+  db: Database,
+  type: ShareEntityType,
+  id: number
+): EntityInfo | undefined {
   if (type === 'page') {
     const row = db
       .prepare(
@@ -375,7 +381,11 @@ export function buildPayload(db: Database, link: ShareLinkRow): SharePayload | u
   const live = loadEntity(db, link.entity_type, link.entity_id);
   if (!live || live.blockedReason) return undefined;
   const locked = link.snapshot_json ? (JSON.parse(link.snapshot_json) as Snapshot) : null;
-  const source: Snapshot = locked ?? { fields: live.fields, blocks: live.blocks, files: live.files };
+  const source: Snapshot = locked ?? {
+    fields: live.fields,
+    blocks: live.blocks,
+    files: live.files,
+  };
   /* Tep da dong bang van phai CON ton tai va con duoc phep chia se. */
   const files = locked ? source.files.filter((f) => fileStillShareable(db, f.id)) : source.files;
   return {

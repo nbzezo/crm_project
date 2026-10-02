@@ -874,7 +874,9 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
       db.exec(readSql('migrate-v51.sql'));
       db.pragma('user_version = 51');
     })();
-    console.log('[db] Da nang cap schema len v51 (chia se tai lieu/bao gia/hop dong bang link chi xem)');
+    console.log(
+      '[db] Da nang cap schema len v51 (chia se tai lieu/bao gia/hop dong bang link chi xem)'
+    );
     current = 51;
   }
 

@@ -27,6 +27,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       'Nút "N dòng" bên phải tên khách hàng để mở hoặc thu gọn nhóm; các nhóm mở sẵn. Có thêm "Mở tất cả" / "Thu gọn tất cả".',
       'Cuối mỗi nhóm có "+ Thêm dòng doanh thu", mở form với khách hàng đã điền sẵn.',
       'Ô "Nhóm theo khách hàng" để bật hoặc tắt cách xem này; trình duyệt nhớ lựa chọn cho lần sau. Khách hàng chỉ có một dòng vẫn hiển thị như cũ.',
+      'Nhãn trạng thái liên kết chia sẻ (Đang hoạt động / Hết hạn / Đã thu hồi) đổi màu theo giao diện sáng / tối, dễ đọc hơn ở chế độ tối.',
     ],
   },
   {

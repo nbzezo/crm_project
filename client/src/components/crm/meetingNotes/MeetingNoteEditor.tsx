@@ -286,7 +286,12 @@ export function MeetingNoteEditor({
             {saveStatus === 'saved' ? 'Đã lưu' : saveStatus === 'saving' ? 'Đang lưu…' : 'Chưa lưu'}
           </span>
         )}
-        <ShareButton entityType="page" entityId={note.id} label={title.trim() || 'Trang tài liệu'} size={16} />
+        <ShareButton
+          entityType="page"
+          entityId={note.id}
+          label={title.trim() || 'Trang tài liệu'}
+          size={16}
+        />
         <IconButton label="Xoá trang" tone="danger" onClick={() => setConfirmDelete(true)}>
           <Trash2 size={16} />
         </IconButton>
