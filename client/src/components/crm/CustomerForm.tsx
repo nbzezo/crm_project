@@ -7,11 +7,12 @@ import { Field, FormError, FormModalActions, Input, Select, Textarea } from '../
 import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
-import type { Customer, OrgKind } from '../../types';
+import type { CareTier, Customer, OrgKind } from '../../types';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { AssigneePicker } from '../tasks/AssigneePicker';
 import { usePermission } from '../../lib/permissions';
 import { CustomerAiLookup } from './CustomerAiLookup';
+import { CARE_TIER_LABELS, CARE_TIER_ORDER, TIER_CADENCE_DAYS } from '../../lib/customerCare';
 
 const EMPTY = {
   name: '',
@@ -30,6 +31,9 @@ const EMPTY = {
   /* Ai phu trach ho so nay. Quyet dinh ho so hien ra voi AI — cap tren cua nguoi
      phu trach thay duoc, nguoi o don vi khac thi khong. Doi o nay la BAN GIAO. */
   owner_contact_id: null as number | null,
+  /* v54: hạng chăm sóc quyết định nhịp liên hệ; ô nhịp để trống = theo hạng. */
+  care_tier: 'standard' as CareTier,
+  care_cadence_days: null as number | null,
 };
 
 type Duplicate = { id: number; name: string; tax_code: string | null; website: string | null };
@@ -80,6 +84,8 @@ export function CustomerForm({
           org_kind: customer.org_kind ?? 'customer',
           notes: customer.notes ?? '',
           owner_contact_id: customer.owner_contact_id ?? null,
+          care_tier: customer.care_tier ?? 'standard',
+          care_cadence_days: customer.care_cadence_days ?? null,
         }
       : { ...EMPTY, org_kind: defaultOrgKind };
     setForm(next);
@@ -278,6 +284,41 @@ export function CustomerForm({
           <div className="flex items-end pb-2 text-xs text-tr-muted">
             Trạng thái CRM không áp dụng cho {t.orgKind[form.org_kind].toLocaleLowerCase('vi')}.
           </div>
+        )}
+        {form.org_kind === 'customer' && (
+          <>
+            <Field label="Hạng chăm sóc">
+              <Select
+                value={form.care_tier}
+                onChange={(e) => set('care_tier', e.target.value as CareTier)}
+              >
+                {CARE_TIER_ORDER.map((tier) => (
+                  <option key={tier} value={tier}>
+                    {CARE_TIER_LABELS[tier]} — liên hệ mỗi {TIER_CADENCE_DAYS[tier]} ngày
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Nhịp liên hệ riêng (ngày)">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={365}
+                placeholder={`Theo hạng (${TIER_CADENCE_DAYS[form.care_tier]} ngày)`}
+                value={form.care_cadence_days ?? ''}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  set(
+                    'care_cadence_days',
+                    e.target.value === '' || !Number.isFinite(n)
+                      ? null
+                      : Math.min(365, Math.max(1, Math.round(n)))
+                  );
+                }}
+              />
+            </Field>
+          </>
         )}
         <div className="sm:col-span-2">
           <AssigneePicker

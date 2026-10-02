@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import {
   Building2,
@@ -24,6 +24,7 @@ import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { AiBrief } from '../components/ai/AiBrief';
 import { CustomerServices } from '../components/crm/CustomerServices';
+import { CustomerOverviewTab } from '../components/crm/CustomerOverviewTab';
 import { DetailHeader } from '../components/crm/DetailHeader';
 import { TaskTree } from '../components/tasks/TaskTree';
 import { EntityLabels } from '../components/labels/EntityLabels';
@@ -67,7 +68,11 @@ export default function CustomerDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [tab, setTab] = useState<Tab>('info');
+  const [searchParams] = useSearchParams();
+  /* `?contact=` (ô tìm kiếm, danh bạ cá nhân): mở thẳng tab Người liên hệ và tô người đó. */
+  const highlightContactId = Number(searchParams.get('contact')) || null;
+
+  const [tab, setTab] = useState<Tab>(highlightContactId ? 'contacts' : 'info');
   const [editing, setEditing] = useState(false);
   const [dealForm, setDealForm] = useState<{ open: boolean; deal?: Deal | null }>({ open: false });
   const [contractForm, setContractForm] = useState<{ open: boolean; contract?: Contract | null }>({
@@ -130,7 +135,7 @@ export default function CustomerDetailPage() {
   if (!customer) return <p className="p-6 text-sm text-tr-danger">Không tìm thấy khách hàng.</p>;
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: 'info', label: t.customer.info },
+    { key: 'info', label: 'Tổng quan' },
     { key: 'contacts', label: t.customer.contacts, count: customer.contacts.length },
     { key: 'deals', label: t.customer.deals, count: customer.deals.length },
     { key: 'quotations', label: 'Báo giá', count: customer.quotations?.length ?? 0 },
@@ -221,7 +226,15 @@ export default function CustomerDetailPage() {
         className="mb-4"
       >
         {tab === 'info' && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <CustomerOverviewTab
+            customer={customer}
+            onGoTab={setTab}
+            onCreateDeal={() => setDealForm({ open: true, deal: null })}
+          />
+        )}
+
+        {tab === 'info' && (
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-2 rounded-lg border border-tr-border bg-tr-panel p-4 text-sm">
               <InfoRow icon={Building2} label={t.customer.taxCode} value={customer.tax_code} />
               <InfoRow icon={Phone} label={t.customer.phone} value={customer.phone} />
@@ -254,7 +267,13 @@ export default function CustomerDetailPage() {
           </div>
         )}
 
-        {tab === 'contacts' && <ContactList customerId={id} contacts={customer.contacts} />}
+        {tab === 'contacts' && (
+          <ContactList
+            customerId={id}
+            contacts={customer.contacts}
+            highlightId={highlightContactId}
+          />
+        )}
 
         {tab === 'deals' && (
           <TableSection

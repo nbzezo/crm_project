@@ -5,6 +5,7 @@ import type { PermissionAction } from '@workflow/contracts';
 import { actorContactId } from '../middleware/currentUser.ts';
 import { assertInScope } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { birthdaySchema } from '../services/customerCare.ts';
 
 const router = Router();
 
@@ -54,6 +55,8 @@ const contactSchema = z.object({
   /** Nghi viec thi tat co nay: an khoi o chon nguoi phu trach ma khong mat lich su. */
   is_active: z.boolean().optional(),
   notes: z.string().optional(),
+  /** v54: 'MM-DD' hoac 'YYYY-MM-DD'. */
+  birthday: birthdaySchema,
 });
 
 /**
@@ -137,7 +140,7 @@ router.patch('/:id', (req, res) => {
     db.prepare(
       `UPDATE contacts SET full_name = ?, title = ?, department = ?, phone = ?, email = ?, zalo = ?,
               linkedin = ?, buying_role = ?, relationship = ?, is_primary = ?, is_me = ?,
-              is_active = ?, notes = ?
+              is_active = ?, notes = ?, birthday = ?
         WHERE id = ?`
     ).run(
       merged.full_name,
@@ -153,6 +156,7 @@ router.patch('/:id', (req, res) => {
       merged.is_me ? 1 : 0,
       merged.is_active ? 1 : 0,
       merged.notes ?? '',
+      merged.birthday ?? null,
       id
     );
   })();

@@ -17,7 +17,9 @@ export type AgendaKind =
   | 'quote_expiry'
   | 'service_end'
   | 'board_milestone'
-  | 'project_end';
+  | 'project_end'
+  | 'birthday'
+  | 'contract_anniversary';
 
 export type AgendaGroup = 'todo' | 'calendar' | 'milestone';
 

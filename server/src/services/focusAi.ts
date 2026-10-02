@@ -205,7 +205,7 @@ export async function generateFocusPlan(
   };
 }
 
-/* ---------- Luu ket qua va phat hien ket qua da cu (v54) ---------- */
+/* ---------- Luu ket qua va phat hien ket qua da cu (v55) ---------- */
 
 /** Anh chup du lieu ky luc phan tich: khoa muc -> [ngay, da xong]. */
 export interface FocusSnapshot {

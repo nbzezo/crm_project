@@ -60,6 +60,13 @@ import {
   snapshotOf,
 } from '../services/focusAi.ts';
 import { listNineRouterSearchModels } from '../services/ai/providers.ts';
+import {
+  careStatusOf,
+  churnRiskOf,
+  customerTimeline,
+  expiringItems,
+  refreshSuggestions,
+} from '../services/customerCare.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
   getVoiceModel,
@@ -275,7 +282,7 @@ const focusPlanRequest = focusPlanQuery.extend({
 });
 
 /*
- * Ket qua AI cua man Trong tam LUU TRONG CSDL (v54), moi nguoi mot ban cho moi
+ * Ket qua AI cua man Trong tam LUU TRONG CSDL (v55), moi nguoi mot ban cho moi
  * (che do, ky). Chi thay khi nguoi dung bam "Phân tích lại" (POST) — mo lai
  * trang, doi may khong goi AI lai. GET kem `changes`: so voi anh chup luc phan
  * tich, du lieu ky da doi bao nhieu — man hinh dua vao do de nhac "da cu".
@@ -327,6 +334,84 @@ router.post('/focus-plan', async (req, res) => {
       ...result,
       generated_at: generatedAt,
       changes: { done: 0, added: 0, moved: 0, total: 0 },
+    });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+/* ---------- Cham soc khach hang (v55): soan tin + danh gia nguy co mat khach ---------- */
+
+const careAssistSchema = z.object({
+  customer_id: z.number().int().positive(),
+  contact_id: z.number().int().positive().nullable().optional(),
+  channel: z.enum(['email', 'zalo']).default('email'),
+  /** Muc dich tu chon — de trong thi AI tu chon theo tinh hinh (qua nhip, sap gia han...). */
+  purpose: z.string().trim().max(500).optional(),
+  mode: z.enum(['fast', 'balanced', 'reasoning']).default('balanced'),
+});
+const careAssistResponse = z.object({
+  churn_level: z.enum(['low', 'medium', 'high']).catch('medium'),
+  churn_summary: z.string().default(''),
+  churn_reasons: z.array(z.string()).default([]),
+  retention_actions: z.array(z.string()).default([]),
+  message_subject: z.string().default(''),
+  message_body: z.string().min(1),
+});
+
+router.post('/assist/customer-care', async (req, res) => {
+  try {
+    const body = parseBody(careAssistSchema, req);
+    assertContextInScope(req, 'customer', body.customer_id);
+    const customer = db
+      .prepare(`SELECT id, care_tier, care_cadence_days, created_at FROM customers WHERE id = ?`)
+      .get(body.customer_id) as
+      | { id: number; care_tier: string; care_cadence_days: number | null; created_at: string }
+      | undefined;
+    if (!customer) throw new HttpError(404, 'Khong tim thay khach hang');
+    const contact = body.contact_id
+      ? (db
+          .prepare(
+            `SELECT id, full_name, title, buying_role, relationship FROM contacts
+              WHERE id = ? AND customer_id = ?`
+          )
+          .get(body.contact_id, customer.id) ?? null)
+      : null;
+    const care = careStatusOf(db, customer);
+    const churn = churnRiskOf(db, customer.id, care);
+    const context = {
+      ...buildCustomerContext(db, customer.id),
+      care,
+      churn_signals: churn,
+      expiring: expiringItems(db, customer.id),
+      timeline: customerTimeline(db, customer.id, 25),
+      open_suggestions: refreshSuggestions(db, customer.id).map((s) => ({
+        kind: s.kind,
+        title: s.title,
+        reason: s.reason,
+      })),
+      recipient: contact,
+    };
+    const result = await runAi(db, {
+      task: 'assist_customer_care',
+      mode: body.mode,
+      contextType: 'customer',
+      contextId: customer.id,
+      json: true,
+      system:
+        'Bạn là chuyên viên chăm sóc khách hàng B2B tại Việt Nam. Chỉ dựa vào dữ liệu được cung cấp, không bịa số liệu hay cam kết. Văn phong lịch sự, ngắn gọn, xưng hô phù hợp văn hoá doanh nghiệp Việt. Trả JSON hợp lệ.',
+      prompt: `Đánh giá nguy cơ mất khách và soạn một tin ${body.channel === 'zalo' ? 'Zalo (ngắn, thân thiện, không tiêu đề)' : 'email (có tiêu đề)'} chăm sóc${contact ? ' gửi người nhận trong "recipient"' : ' gửi người liên hệ chính'}.
+Mục đích: ${body.purpose || 'tự chọn theo tình hình: quá nhịp liên hệ, hợp đồng/dịch vụ sắp hết hạn, sau bán, hoặc gợi ý đang mở'}.
+"churn_signals" là điểm tính sẵn từ dữ liệu — dùng làm căn cứ, có thể điều chỉnh mức nếu dữ liệu cho thấy khác.
+Trả JSON: {"churn_level":"low|medium|high","churn_summary":"1-2 câu","churn_reasons":["..."],"retention_actions":["việc cụ thể"],"message_subject":"...","message_body":"..."}
+Dữ liệu:
+${compactJson(context)}`,
+      maxOutputTokens: 1800,
+    });
+    res.json({
+      ...careAssistResponse.parse(parseAiJson(result.text)),
+      churn_score: churn.score,
+      meta: result,
     });
   } catch (error) {
     asHttpError(error);

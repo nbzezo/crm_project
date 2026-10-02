@@ -50,7 +50,7 @@ export function FocusAiPanel({ data, mode }: { data: FocusData; mode: FocusMode 
   const canUseAi = usePermission('ai', 'read');
   const { from, to } = data.range;
   const planKey = focusPlanKey(from, to, mode);
-  /* Ket qua luu o may chu (v54) cho toi khi bam "Phân tích lại" — GET khong goi
+  /* Ket qua luu o may chu (v55) cho toi khi bam "Phân tích lại" — GET khong goi
      AI. Nam duoi khoa 'focus' nen moi lan du lieu ky doi, `changes` tinh lai. */
   const { data: plan } = useQuery({
     queryKey: planKey,

@@ -32,6 +32,13 @@ import { searchTextOf } from '../services/contacts/contactKeys.ts';
 
 const router = Router();
 
+interface LinkedCrm {
+  contact_id: number;
+  full_name: string;
+  customer_id: number;
+  customer_name: string;
+}
+
 /*
  * Danh ba CA NHAN cua nhan vien (v50): nap tu file .vcf/.csv hoac dong bo tu Gmail,
  * roi chon dong nao dua vao CRM.
@@ -74,10 +81,33 @@ router.get('/', (req, res) => {
   const index = canRead
     ? buildCrmIndex(db, scopeFragment(req, 'customers', 'read', 'c.owner_contact_id'))
     : new Map();
+  /* Da vao CRM thi noi ro thuoc KHACH HANG nao — chi "Da vao CRM" thi nguoi dung
+     khong biet tim o dau. Cung rao pham vi: khach hang ngoai tam nhin thi khong lo ten. */
+  const linkedIds = items.map((item) => item.linked_contact_id).filter((v): v is number => !!v);
+  const linked = new Map<number, LinkedCrm>();
+  if (canRead && linkedIds.length) {
+    const rows = db
+      .prepare(
+        `SELECT ct.id AS contact_id, ct.full_name, ct.customer_id, c.name AS customer_name
+           FROM contacts ct JOIN customers c ON c.id = ct.customer_id
+          WHERE ct.id IN (${linkedIds.map(() => '?').join(',')})${scopeFragment(
+            req,
+            'customers',
+            'read',
+            'c.owner_contact_id'
+          )}`
+      )
+      .all(...linkedIds) as LinkedCrm[];
+    for (const row of rows) linked.set(row.contact_id, row);
+  }
   res.json({
     total,
     counts: personalCounts(db, userId),
-    items: items.map((item) => ({ ...item, matches: matchesFor(db, index, item.id) })),
+    items: items.map((item) => ({
+      ...item,
+      linked: item.linked_contact_id ? (linked.get(item.linked_contact_id) ?? null) : null,
+      matches: matchesFor(db, index, item.id),
+    })),
   });
 });
 
@@ -185,7 +215,17 @@ router.post('/promote', (req, res) => {
   const link = db.prepare(`UPDATE personal_contacts SET linked_contact_id = ? WHERE id = ?`);
 
   const created: number[] = [];
-  const skipped: { id: number; reason: 'linked' | 'duplicate' }[] = [];
+  /* Trung voi nguoi DA CO o chinh khach hang dich: gan lien ket vao nguoi do — dung
+     y nguoi dung ("gan vao khach hang nay") ma khong tao ban sao. Truoc day ca dong
+     nay cung bi bo qua am tham, nen danh ba bao da chon ma ho so khach hang khong
+     doi gi. */
+  const existing: number[] = [];
+  const skipped: {
+    id: number;
+    reason: 'linked' | 'duplicate';
+    /** Trung o dau — de man hinh noi duoc "da co o khach hang X". */
+    customers?: { id: number; name: string }[];
+  }[] = [];
   db.transaction(() => {
     for (const id of body.ids) {
       const personal = getOwned(db, userId, id);
@@ -194,9 +234,23 @@ router.post('/promote', (req, res) => {
         skipped.push({ id, reason: 'linked' });
         continue;
       }
-      if (!body.allow_duplicates && matchesFor(db, index, id).length > 0) {
-        skipped.push({ id, reason: 'duplicate' });
-        continue;
+      if (!body.allow_duplicates) {
+        const matches = matchesFor(db, index, id);
+        const same = matches.find((m) => m.customer_id === customer.id);
+        if (same) {
+          link.run(same.contact_id, id);
+          existing.push(same.contact_id);
+          continue;
+        }
+        if (matches.length > 0) {
+          const customers = new Map(matches.map((m) => [m.customer_id, m.customer_name]));
+          skipped.push({
+            id,
+            reason: 'duplicate',
+            customers: [...customers].map(([cid, name]) => ({ id: cid, name })),
+          });
+          continue;
+        }
       }
       const info = insert.run(
         customer.id,
@@ -210,7 +264,7 @@ router.post('/promote', (req, res) => {
       created.push(Number(info.lastInsertRowid));
     }
   })();
-  res.status(201).json({ created: created.length, skipped });
+  res.status(201).json({ created: created.length, linked_existing: existing.length, skipped });
 });
 
 const linkSchema = z.object({
