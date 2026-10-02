@@ -144,8 +144,18 @@ export const RELATIONSHIP_BADGE_CLASS: Record<string, string> = {
 
 export const ContactList = forwardRef<
   ContactListHandle,
-  { customerId: number; contacts: Contact[]; compact?: boolean; showUnit?: boolean }
->(function ContactList({ customerId, contacts, compact = false, showUnit = false }, ref) {
+  {
+    customerId: number;
+    contacts: Contact[];
+    compact?: boolean;
+    showUnit?: boolean;
+    /** Người được trỏ tới qua `?contact=` (ô tìm kiếm, danh bạ cá nhân): cuộn tới và tô viền. */
+    highlightId?: number | null;
+  }
+>(function ContactList(
+  { customerId, contacts, compact = false, showUnit = false, highlightId = null },
+  ref
+) {
   const queryClient = useQueryClient();
   /* Ai la "toi" doc tu PHIEN dang nhap. Truoc v38 no la co `contacts.is_me` —
      mot co duy nhat cho ca he thong, nen sau khi co nhieu nguoi dung thi moi
@@ -163,6 +173,13 @@ export const ContactList = forwardRef<
       setOpen(true);
     },
   }));
+
+  useEffect(() => {
+    if (!highlightId) return;
+    document
+      .getElementById(`contact-card-${highlightId}`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightId, contacts.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -254,7 +271,12 @@ export const ContactList = forwardRef<
           {contacts.map((c) => (
             <div
               key={c.id}
-              className="group rounded-lg border border-tr-border bg-tr-panel p-3 shadow-sm"
+              id={`contact-card-${c.id}`}
+              className={`group rounded-lg border bg-tr-panel p-3 shadow-sm ${
+                c.id === highlightId
+                  ? 'border-tr-primary ring-2 ring-tr-primary/40'
+                  : 'border-tr-border'
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">

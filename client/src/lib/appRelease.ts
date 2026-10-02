@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.4.1',
+    date: '2026-10-02',
+    title: 'Người liên hệ từ danh bạ hiện đúng trong hồ sơ khách hàng',
+    changes: [
+      'Tab Thông tin của hồ sơ khách hàng có thêm khối Người liên hệ (liên hệ chính, chức vụ, gọi điện, gửi email); khung xem nhanh khách hàng cũng hiện người liên hệ.',
+      'Đưa liên hệ từ Danh bạ cá nhân vào một khách hàng: người trùng số điện thoại/email đã có ở chính khách hàng đó được gắn vào người đó thay vì bị bỏ qua.',
+      'Người trùng ở khách hàng khác không còn bị bỏ qua âm thầm: thông báo nêu rõ họ đang ở khách hàng nào và cách thêm vào khách hàng vừa chọn.',
+      'Danh bạ cá nhân hiện tên khách hàng mà liên hệ đã vào; bấm vào để mở hồ sơ, đi thẳng tới người đó.',
+      'Mở hồ sơ khách hàng từ kết quả tìm kiếm người liên hệ giờ mở đúng tab Người liên hệ và tô sáng người được chọn.',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-10-02',
     title: 'Tab Trọng tâm: việc cần làm và điểm cần chú ý theo kỳ',

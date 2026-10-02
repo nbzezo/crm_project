@@ -11,6 +11,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  Star,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { api } from '../../api/client';
@@ -154,6 +155,7 @@ export function CustomerDrawer({ customer, onClose, onEdit, onCreateDeal }: Prop
             </div>
           </section>
 
+          {full && <DrawerContacts customer={full} />}
           {full && <CustomerOverview customer={full} />}
         </div>
       )}
@@ -336,6 +338,71 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
         )}
       </section>
     </>
+  );
+}
+
+function DrawerContacts({ customer }: { customer: CustomerFull }) {
+  const active = customer.contacts.filter((c) => c.is_active !== 0);
+  return (
+    <section aria-labelledby="drawer-customer-people">
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="drawer-customer-people" className="text-xs font-semibold text-tr-subtle">
+          Người liên hệ ({active.length})
+        </h3>
+        {active.length > 3 && (
+          <Link
+            to={`/customers/${customer.id}`}
+            className="text-xs font-medium text-tr-primary hover:underline"
+          >
+            Xem tất cả
+          </Link>
+        )}
+      </div>
+      {active.length === 0 ? (
+        <p className="mt-2 rounded-panel border border-dashed border-tr-border px-3 py-3 text-sm text-tr-muted">
+          Chưa có người liên hệ.
+        </p>
+      ) : (
+        <div className="mt-2 divide-y divide-tr-border rounded-panel border border-tr-border">
+          {active.slice(0, 3).map((contact) => (
+            <div key={contact.id} className="flex items-start gap-3 px-3 py-2.5 text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 font-medium text-tr-text">
+                  <span className="truncate">{contact.full_name}</span>
+                  {!!contact.is_primary && (
+                    <Star
+                      size={12}
+                      className="shrink-0 text-tr-warning"
+                      aria-label="Liên hệ chính"
+                    />
+                  )}
+                </p>
+                {(contact.position_name ?? contact.title) && (
+                  <p className="truncate text-xs text-tr-muted">
+                    {contact.position_name ?? contact.title}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 flex-col items-end text-xs">
+                {contact.phone && (
+                  <a className="text-tr-primary hover:underline" href={`tel:${contact.phone}`}>
+                    {contact.phone}
+                  </a>
+                )}
+                {contact.email && (
+                  <a
+                    className="max-w-48 truncate text-tr-subtle hover:underline"
+                    href={`mailto:${contact.email}`}
+                  >
+                    {contact.email}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

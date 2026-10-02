@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
   CheckCircle2,
   CloudDownload,
@@ -56,7 +56,18 @@ interface PersonalContact {
   email: string | null;
   source: 'google' | 'file';
   linked_contact_id: number | null;
+  /** Người liên hệ CRM đã gắn, kèm khách hàng — null nếu ngoài phạm vi bạn được xem. */
+  linked: CrmMatch | null;
   matches: CrmMatch[];
+}
+interface PromoteResult {
+  created: number;
+  linked_existing: number;
+  skipped: {
+    id: number;
+    reason: 'linked' | 'duplicate';
+    customers?: { id: number; name: string }[];
+  }[];
 }
 interface ListResponse {
   total: number;
@@ -564,6 +575,14 @@ function ContactRow({
             <span className="inline-flex items-center gap-1 text-xs text-tr-success">
               <CheckCircle2 size={13} aria-hidden="true" /> Đã vào CRM
             </span>
+            {item.linked && (
+              <Link
+                to={`/customers/${item.linked.customer_id}?contact=${item.linked.contact_id}`}
+                className={`rounded-control text-xs font-medium text-tr-primary hover:underline ${focusRing}`}
+              >
+                {item.linked.customer_name}
+              </Link>
+            )}
             <button
               type="button"
               disabled={busy}
@@ -619,18 +638,28 @@ function PromoteModal({
 
   const promote = useMutation({
     mutationFn: () =>
-      api.post<{ created: number; skipped: { id: number; reason: string }[] }>(
-        '/api/my-contacts/promote',
-        { ids, customer_id: customerId, allow_duplicates: allowDuplicates }
-      ),
+      api.post<PromoteResult>('/api/my-contacts/promote', {
+        ids,
+        customer_id: customerId,
+        allow_duplicates: allowDuplicates,
+      }),
     onSuccess: (result) => {
-      const duplicates = result.skipped.filter((s) => s.reason === 'duplicate').length;
-      pushToast(
-        `Đã đưa ${result.created} liên hệ vào CRM${
-          duplicates ? `, bỏ qua ${duplicates} người đã có trong CRM` : ''
-        }.`,
-        'success'
-      );
+      const duplicates = result.skipped.filter((s) => s.reason === 'duplicate');
+      /* Người trùng ở khách hàng KHÁC không được gắn vào khách hàng vừa chọn — phải
+         nói rõ ở đâu, nếu không người dùng tưởng đã gắn mà hồ sơ khách hàng trống. */
+      const elsewhere = [
+        ...new Set(duplicates.flatMap((s) => (s.customers ?? []).map((c) => c.name))),
+      ];
+      const parts = [`Đã thêm ${result.created} người liên hệ mới`];
+      if (result.linked_existing)
+        parts.push(`gắn ${result.linked_existing} người đã có sẵn ở khách hàng này`);
+      let message = `${parts.join(', ')}.`;
+      if (duplicates.length)
+        message += ` Bỏ qua ${duplicates.length} người đã có ở ${
+          elsewhere.length ? elsewhere.slice(0, 3).join(', ') : 'khách hàng khác'
+        }${elsewhere.length > 3 ? '…' : ''} — muốn thêm vào khách hàng này, đánh dấu "Vẫn tạo mới" rồi đưa lại.`;
+      const nothingAdded = result.created + result.linked_existing === 0;
+      pushToast(message, nothingAdded && duplicates.length ? 'error' : 'success');
       setCustomerId('');
       setAllowDuplicates(false);
       onDone();
@@ -675,8 +704,9 @@ function PromoteModal({
             onChange={(event) => setAllowDuplicates(event.target.checked)}
           />
           <span>
-            Vẫn tạo mới cả những người đã có trong CRM (trùng số điện thoại / email). Mặc định bỏ
-            qua để không tạo bản sao.
+            Vẫn tạo mới cả những người đã có ở khách hàng khác (trùng số điện thoại / email). Mặc
+            định: trùng người ở chính khách hàng này thì gắn vào người đó; trùng ở khách hàng khác
+            thì bỏ qua để không tạo bản sao.
           </span>
         </label>
       </div>

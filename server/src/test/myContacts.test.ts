@@ -191,6 +191,7 @@ interface Item {
   source: string;
   linked_contact_id: number | null;
   matches: { contact_id: number; customer_name: string }[];
+  linked: { contact_id: number; customer_id: number; customer_name: string } | null;
 }
 const list = async (query = '') =>
   (await call('GET', `/api/my-contacts${query}`)).data as unknown as {
@@ -383,7 +384,9 @@ test('doi chieu voi danh ba CRM theo so/email chuan hoa, roi dua vao CRM khong t
   });
   assert.equal(promoted.status, 201);
   assert.equal(promoted.data.created, 1);
-  assert.deepEqual(promoted.data.skipped, [{ id: an.id, reason: 'duplicate' }]);
+  assert.deepEqual(promoted.data.skipped, [
+    { id: an.id, reason: 'duplicate', customers: [{ id: customer, name: 'Công ty ABC' }] },
+  ]);
   const created = db
     .prepare(`SELECT * FROM contacts WHERE customer_id = ? AND full_name = 'Bình Trần'`)
     .get(other) as { phone: string; email: string };
@@ -395,6 +398,31 @@ test('doi chieu voi danh ba CRM theo so/email chuan hoa, roi dua vao CRM khong t
     customer_id: other,
   });
   assert.deepEqual(again.data.skipped, [{ id: binh.id, reason: 'linked' }]);
+
+  /* Danh ba noi ro da vao khach hang nao. */
+  const binhLinked = (await list()).items.find((i) => i.id === binh.id)!;
+  assert.equal(binhLinked.linked?.customer_id, other);
+  assert.equal(binhLinked.linked?.customer_name, 'Công ty Khác');
+
+  /* Dua vao dung khach hang dang co nguoi trung: gan vao nguoi do, khong tao ban sao. */
+  const sameCustomer = await call('POST', '/api/my-contacts/promote', {
+    ids: [an.id],
+    customer_id: customer,
+  });
+  assert.equal(sameCustomer.data.created, 0);
+  assert.equal(sameCustomer.data.linked_existing, 1);
+  assert.deepEqual(sameCustomer.data.skipped, []);
+  assert.equal(
+    (
+      db
+        .prepare(`SELECT linked_contact_id AS id FROM personal_contacts WHERE id = ?`)
+        .get(an.id) as {
+        id: number;
+      }
+    ).id,
+    crmContact
+  );
+  assert.equal((await call('POST', `/api/my-contacts/${an.id}/unlink`)).status, 200);
 
   /* Lien ket voi lien he CRM co san, dien vao o con trong. */
   const link = await call('POST', `/api/my-contacts/${an.id}/link`, {
