@@ -2,6 +2,7 @@ import type { Database } from 'better-sqlite3';
 import type { PermissionAction, PermissionResource } from '@workflow/contracts';
 import { STALE_DAYS } from '../lib/crm.ts';
 import { HttpError } from '../lib/validate.ts';
+import { cadenceSql, careEventsBetween } from './customerCare.ts';
 
 /*
  * "Trong tam" — mot khung nhin theo KY (ngay / tuan / thang / tu chon) tra loi
@@ -208,7 +209,9 @@ export type AgendaKind =
   | 'quote_expiry'
   | 'service_end'
   | 'board_milestone'
-  | 'project_end';
+  | 'project_end'
+  | 'birthday'
+  | 'contract_anniversary';
 
 /** Phai lam / Lich / Moc kinh doanh. */
 export type AgendaGroup = 'todo' | 'calendar' | 'milestone';
@@ -908,6 +911,23 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
       })
     );
 
+  /* Cham soc khach (v54): sinh nhat nguoi lien he va ngay ky niem hop dong. */
+  for (const event of careEventsBetween(db, from, to, {
+    scopeSql: own(scope, scope.customers, 'c.owner_contact_id'),
+  }).slice(0, 100))
+    items.push(
+      baseItem({
+        key: `${event.kind}-${event.contact_id ?? event.contract_id}-${event.date}`,
+        kind: event.kind,
+        group: 'milestone',
+        id: Number(event.contact_id ?? event.contract_id),
+        title: event.title,
+        date: event.date,
+        meta: event.customer_name,
+        customer_id: event.customer_id,
+      })
+    );
+
   items.sort(
     (a, b) =>
       a.date.localeCompare(b.date) ||
@@ -1022,30 +1042,34 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
       date: null,
     });
 
+  /* Quá nhịp liên hệ (v54): mỗi khách có nhịp riêng theo hạng chăm sóc (VIP 14 ngày,
+     Chiến lược 21, Tiêu chuẩn 30, Ít ưu tiên 90) hoặc nhịp đặt tay. Khách VIP /
+     chiến lược luôn được theo dõi, kể cả khi chưa có cơ hội mở hay hợp đồng. */
   const coldCustomers = db
     .prepare(
       `SELECT * FROM (
-         SELECT c.id, c.name,
+         SELECT c.id, c.name, c.care_tier, ${cadenceSql('c')} AS cadence,
                 (SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.customer_id = c.id) AS last_contact,
                 (SELECT COALESCE(SUM(d.value_vnd),0) FROM deals d
                   WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')) AS open_vnd
            FROM customers c
           WHERE c.org_kind = 'customer'
-            AND (EXISTS (SELECT 1 FROM deals d WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost'))
+            AND (c.care_tier IN ('vip','key')
+                 OR EXISTS (SELECT 1 FROM deals d WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost'))
                  OR EXISTS (SELECT 1 FROM contracts k WHERE k.customer_id = c.id AND k.status = 'active'))
             ${own(scope, scope.customers, 'c.owner_contact_id')})
-        WHERE last_contact IS NULL OR last_contact < ?
-        ORDER BY open_vnd DESC LIMIT 6`
+        WHERE last_contact IS NULL OR last_contact < date(?, '-' || cadence || ' days')
+        ORDER BY care_tier = 'vip' DESC, care_tier = 'key' DESC, open_vnd DESC LIMIT 6`
     )
-    .all(addDays(today, -30)) as Row[];
+    .all(today) as Row[];
   for (const row of coldCustomers)
     attention.push({
       key: `cold_customer-${row.id}`,
       kind: 'cold_customer',
-      severity: 'info',
+      severity: row.care_tier === 'vip' || row.care_tier === 'key' ? 'warning' : 'info',
       title: String(row.name),
       meta: row.last_contact
-        ? `Liên hệ lần cuối ${daysBetween(String(row.last_contact), today)} ngày trước`
+        ? `Liên hệ lần cuối ${daysBetween(String(row.last_contact), today)} ngày trước · nhịp ${row.cadence} ngày`
         : 'Chưa ghi nhận tương tác nào',
       card_id: null,
       deal_id: null,

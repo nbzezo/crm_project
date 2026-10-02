@@ -12,9 +12,7 @@ import {
   Pencil,
   Phone,
   Plus,
-  Star,
   Trash2,
-  Users,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { CustomerForm } from '../components/crm/CustomerForm';
@@ -26,6 +24,7 @@ import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { InteractionTimeline } from '../components/crm/InteractionTimeline';
 import { AiBrief } from '../components/ai/AiBrief';
 import { CustomerServices } from '../components/crm/CustomerServices';
+import { CustomerOverviewTab } from '../components/crm/CustomerOverviewTab';
 import { DetailHeader } from '../components/crm/DetailHeader';
 import { TaskTree } from '../components/tasks/TaskTree';
 import { EntityLabels } from '../components/labels/EntityLabels';
@@ -50,7 +49,7 @@ import {
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import { ShareButton } from '../components/share/ShareButton';
-import type { Contact, Contract, CustomerFull, Deal, Quotation } from '../types';
+import type { Contract, CustomerFull, Deal, Quotation } from '../types';
 
 type Tab =
   | 'info'
@@ -136,7 +135,7 @@ export default function CustomerDetailPage() {
   if (!customer) return <p className="p-6 text-sm text-tr-danger">Không tìm thấy khách hàng.</p>;
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: 'info', label: t.customer.info },
+    { key: 'info', label: 'Tổng quan' },
     { key: 'contacts', label: t.customer.contacts, count: customer.contacts.length },
     { key: 'deals', label: t.customer.deals, count: customer.deals.length },
     { key: 'quotations', label: 'Báo giá', count: customer.quotations?.length ?? 0 },
@@ -227,8 +226,15 @@ export default function CustomerDetailPage() {
         className="mb-4"
       >
         {tab === 'info' && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ContactsSummary contacts={customer.contacts} onOpenAll={() => setTab('contacts')} />
+          <CustomerOverviewTab
+            customer={customer}
+            onGoTab={setTab}
+            onCreateDeal={() => setDealForm({ open: true, deal: null })}
+          />
+        )}
+
+        {tab === 'info' && (
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-2 rounded-lg border border-tr-border bg-tr-panel p-4 text-sm">
               <InfoRow icon={Building2} label={t.customer.taxCode} value={customer.tax_code} />
               <InfoRow icon={Phone} label={t.customer.phone} value={customer.phone} />
@@ -716,77 +722,6 @@ function MobileRecordCard({
       </dl>
       {actions && <div className="flex justify-end border-t border-tr-border pt-2">{actions}</div>}
     </article>
-  );
-}
-
-/**
- * Người liên hệ ngay ở tab Thông tin — trước đây họ chỉ nằm ở tab riêng, nên người
- * vừa đưa từ danh bạ vào trông như "không thấy trong hồ sơ".
- */
-function ContactsSummary({ contacts, onOpenAll }: { contacts: Contact[]; onOpenAll: () => void }) {
-  const LIMIT = 6;
-  const active = contacts.filter((c) => c.is_active !== 0);
-  const shown = active.slice(0, LIMIT);
-  return (
-    <section
-      aria-labelledby="customer-contacts-summary"
-      className="rounded-lg border border-tr-border bg-tr-panel p-4 lg:col-span-2"
-    >
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h3
-          id="customer-contacts-summary"
-          className="flex items-center gap-1.5 text-sm font-semibold text-tr-subtle"
-        >
-          <Users size={15} aria-hidden="true" /> Người liên hệ ({active.length})
-        </h3>
-        <Button size="sm" onClick={onOpenAll}>
-          {active.length > LIMIT ? `Xem tất cả ${active.length}` : 'Quản lý'}
-        </Button>
-      </div>
-      {shown.length === 0 ? (
-        <p className="text-sm text-tr-muted">
-          Chưa có người liên hệ. Thêm ở tab Người liên hệ hoặc đưa từ Danh bạ cá nhân.
-        </p>
-      ) : (
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {shown.map((c) => (
-            <li key={c.id} className="min-w-0 rounded-md border border-tr-border p-2.5 text-sm">
-              <p className="flex items-center gap-1.5 font-medium text-tr-text">
-                <span className="truncate">{c.full_name}</span>
-                {!!c.is_primary && (
-                  <Star
-                    size={12}
-                    className="shrink-0 text-tr-warning"
-                    aria-label={t.contact.primary}
-                  />
-                )}
-              </p>
-              {(c.position_name ?? c.title) && (
-                <p className="truncate text-xs text-tr-muted">{c.position_name ?? c.title}</p>
-              )}
-              <div className="mt-1 space-y-0.5 text-xs">
-                {c.phone && (
-                  <a
-                    href={`tel:${c.phone}`}
-                    className="flex items-center gap-1 text-tr-subtle hover:text-tr-primary"
-                  >
-                    <Phone size={12} aria-hidden="true" /> {c.phone}
-                  </a>
-                )}
-                {c.email && (
-                  <a
-                    href={`mailto:${c.email}`}
-                    className="flex items-center gap-1 break-all text-tr-subtle hover:text-tr-primary"
-                  >
-                    <Mail size={12} aria-hidden="true" /> {c.email}
-                  </a>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
 

@@ -291,6 +291,9 @@ export interface Customer {
    */
   owner_contact_id: number | null;
   notes: string;
+  /** v54: hạng chăm sóc và nhịp liên hệ đặt tay (null = theo hạng). */
+  care_tier?: CareTier;
+  care_cadence_days?: number | null;
   deal_count?: number;
   open_deal_count?: number;
   open_task_count?: number;
@@ -340,6 +343,8 @@ export interface Contact {
   /** Nghỉ việc thì tắt: ẩn khỏi ô chọn người phụ trách mà không mất lịch sử. */
   is_active: number;
   notes: string;
+  /** v54: 'MM-DD' hoặc 'YYYY-MM-DD'. */
+  birthday?: string | null;
 }
 
 export interface Deal {
@@ -1429,4 +1434,102 @@ export interface RevenueKpiResponse {
   months: RevenueKpiMonth[];
   by_am: { am_user_id: number; am_name: string; months: RevenueKpiMonth[] }[];
   entries: RevenueKpiEntry[];
+}
+
+/* ---------- Hồ sơ khách hàng 360° (v54) — đối chiếu server/src/services/customerCare.ts ---------- */
+
+export type CareTier = 'vip' | 'key' | 'standard' | 'low';
+
+export interface CareStatus {
+  tier: CareTier;
+  cadence_days: number;
+  cadence_source: 'tier' | 'custom';
+  last_contact_at: string | null;
+  next_contact_due: string;
+  days_overdue: number;
+  state: 'ok' | 'due_soon' | 'overdue' | 'never';
+}
+
+export interface ChurnRisk {
+  score: number;
+  level: 'low' | 'medium' | 'high';
+  factors: string[];
+}
+
+export type SuggestionKind =
+  'renewal' | 'cross_sell' | 'reopen_quote' | 'reopen_lost' | 'aftercare';
+
+export interface CustomerSuggestion {
+  id: number;
+  customer_id: number;
+  kind: SuggestionKind;
+  key: string;
+  title: string;
+  reason: string;
+  value_vnd: number;
+  service_id: number | null;
+  contract_id: number | null;
+  quotation_id: number | null;
+  source_deal_id: number | null;
+  customer_service_id: number | null;
+  status: 'open' | 'accepted' | 'dismissed';
+}
+
+export interface SuggestionStats {
+  open: number;
+  accepted: number;
+  dismissed: number;
+  acceptance_rate: number | null;
+}
+
+export interface TimelineEntry {
+  kind:
+    | 'interaction'
+    | 'deal_created'
+    | 'deal_stage'
+    | 'quotation'
+    | 'contract'
+    | 'task_done'
+    | 'document';
+  at: string;
+  title: string;
+  meta: string;
+  deal_id: number | null;
+  card_id: number | null;
+  sub_type: string | null;
+}
+
+export interface CustomerOverviewData {
+  care: CareStatus;
+  churn: ChurnRisk;
+  revenue: {
+    by_year: { year: string; amount_vnd: number; paid_vnd: number }[];
+    won_by_year: { year: string; won_vnd: number; deals: number }[];
+    by_service: {
+      id: number;
+      service_id: number | null;
+      service_name: string;
+      status: string;
+      end_date: string | null;
+      amount_vnd: number;
+    }[];
+  };
+  expiring: {
+    kind: 'contract' | 'service' | 'quotation';
+    id: number;
+    name: string;
+    end_date: string;
+    value_vnd: number;
+    days_left: number;
+  }[];
+  upcoming: {
+    kind: 'birthday' | 'contract_anniversary';
+    date: string;
+    title: string;
+    contact_id: number | null;
+    contract_id: number | null;
+  }[];
+  timeline: TimelineEntry[];
+  suggestions: CustomerSuggestion[];
+  suggestion_stats: SuggestionStats;
 }

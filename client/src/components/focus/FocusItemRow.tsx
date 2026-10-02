@@ -5,7 +5,9 @@ import {
   Check,
   CirclePause,
   FileText,
+  Award,
   Flag,
+  Gift,
   FlaskConical,
   FolderKanban,
   ListTodo,
@@ -42,6 +44,8 @@ export const KIND_META: Record<AgendaKind, { icon: LucideIcon; label: string; to
   service_end: { icon: RefreshCcw, label: 'Dịch vụ đến hạn', tone: 'text-tr-warning' },
   board_milestone: { icon: Milestone, label: 'Hạn giai đoạn', tone: 'text-tr-primary' },
   project_end: { icon: FolderKanban, label: 'Kết thúc dự án', tone: 'text-tr-primary' },
+  birthday: { icon: Gift, label: 'Sinh nhật khách', tone: 'text-tr-success' },
+  contract_anniversary: { icon: Award, label: 'Kỷ niệm hợp đồng', tone: 'text-tr-success' },
 };
 
 /** Duong dan mo chi tiet; `null` = mo the cong viec (card) hoac khong co trang rieng. */
@@ -57,7 +61,10 @@ export function itemLink(item: AgendaItem): string | null {
       return '/contracts';
     case 'quote_expiry':
     case 'service_end':
+    case 'contract_anniversary':
       return item.customer_id ? `/customers/${item.customer_id}` : null;
+    case 'birthday':
+      return item.customer_id ? `/customers/${item.customer_id}?contact=${item.id}` : null;
     case 'event':
       return '/calendar';
     case 'meeting_note':

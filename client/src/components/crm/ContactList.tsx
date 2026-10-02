@@ -98,6 +98,7 @@ function roleLine(c: Contact): string {
   return [role, c.org_unit_name ?? c.department].filter(Boolean).join(' · ') || '—';
 }
 import { useUiStore } from '../../stores/uiStore';
+import { formatBirthday, parseBirthdayInput } from '../../lib/customerCare';
 import type { Contact } from '../../types';
 
 /** Handle điều khiển từ bên ngoài — dùng khi CTA "+ Thành viên" nằm ở header của khối cha (company card). */
@@ -118,6 +119,8 @@ const EMPTY = {
   is_primary: false,
   is_active: true,
   notes: '',
+  /** Gõ dạng dd/mm hoặc dd/mm/yyyy; đổi sang MM-DD / YYYY-MM-DD khi lưu. */
+  birthday: '',
 };
 
 /** Màu chữ theo mức độ quan hệ (FR-CON-03) — dùng trong card chi tiết. */
@@ -200,6 +203,7 @@ export const ContactList = forwardRef<
                `?? true` giu form dung ngay ca khi API tra ve thieu cot. */
             is_active: editing.is_active == null ? true : !!editing.is_active,
             notes: editing.notes ?? '',
+            birthday: formatBirthday(editing.birthday),
           }
         : EMPTY
     );
@@ -212,11 +216,14 @@ export const ContactList = forwardRef<
     queryClient.invalidateQueries({ queryKey: ['assignees'] });
   };
 
+  const birthday = parseBirthdayInput(form.birthday);
   const save = useMutation({
-    mutationFn: () =>
-      editing
-        ? api.patch(`/api/contacts/${editing.id}`, form)
-        : api.post(`/api/customers/${customerId}/contacts`, form),
+    mutationFn: () => {
+      const payload = { ...form, birthday: birthday ?? '' };
+      return editing
+        ? api.patch(`/api/contacts/${editing.id}`, payload)
+        : api.post(`/api/customers/${customerId}/contacts`, payload);
+    },
     onSuccess: () => {
       refresh();
       setOpen(false);
@@ -369,6 +376,11 @@ export const ContactList = forwardRef<
                 )}
               </div>
 
+              {c.birthday && (
+                <div className="mt-2 text-xs text-tr-subtle">
+                  Sinh nhật: {formatBirthday(c.birthday)}
+                </div>
+              )}
               {c.relationship && (
                 <div
                   className={`mt-2 text-xs font-medium ${RELATION_COLORS[c.relationship] ?? 'text-tr-subtle'}`}
@@ -392,7 +404,7 @@ export const ContactList = forwardRef<
             onCancel={() => setOpen(false)}
             onSubmit={() => save.mutate()}
             pending={save.isPending}
-            disabled={!form.full_name.trim()}
+            disabled={!form.full_name.trim() || birthday === undefined}
           />
         }
       >
@@ -421,6 +433,18 @@ export const ContactList = forwardRef<
                 </option>
               ))}
             </Select>
+          </Field>
+          <Field
+            label="Ngày sinh"
+            hint="dd/mm hoặc dd/mm/yyyy — để nhắc chúc mừng sinh nhật"
+            error={birthday === undefined ? 'Ngày sinh chưa đúng dạng dd/mm' : undefined}
+          >
+            <Input
+              inputMode="numeric"
+              placeholder="vd: 20/05"
+              value={form.birthday}
+              onChange={(e) => set('birthday', e.target.value)}
+            />
           </Field>
           <Field label={t.customer.phone}>
             <Input

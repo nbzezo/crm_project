@@ -35,9 +35,27 @@ interface Props {
   deal?: Deal | null;
   defaultCustomerId?: number;
   defaultStage?: Stage;
+  /** Điền sẵn khi tạo mới — dùng cho cơ hội sinh ra từ gợi ý ở hồ sơ khách hàng. */
+  defaults?: {
+    title?: string;
+    value_vnd?: number;
+    product?: string;
+    notes?: string;
+    is_renewal?: boolean;
+  };
+  /** Gọi sau khi TẠO MỚI thành công, kèm cơ hội vừa tạo. */
+  onCreated?: (deal: Deal) => void;
 }
 
-export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage }: Props) {
+export function DealForm({
+  open,
+  onClose,
+  deal,
+  defaultCustomerId,
+  defaultStage,
+  defaults,
+  onCreated,
+}: Props) {
   const queryClient = useQueryClient();
   const handoverManaged = (deal?.handover_count ?? 0) > 0;
   const [customerId, setCustomerId] = useState('');
@@ -87,12 +105,12 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
     if (!open) return;
     setCustomerId(String(deal?.customer_id ?? defaultCustomerId ?? ''));
     setContactId(String(deal?.contact_id ?? ''));
-    setTitle(deal?.title ?? '');
-    setProduct(deal?.product ?? '');
+    setTitle(deal?.title ?? defaults?.title ?? '');
+    setProduct(deal?.product ?? defaults?.product ?? '');
     const s = deal?.stage ?? defaultStage ?? 'lead';
     setStage(s);
     setProbability(deal?.probability ?? STAGE_PROBABILITY[s]);
-    setValue(deal?.value_vnd ?? 0);
+    setValue(deal?.value_vnd ?? defaults?.value_vnd ?? 0);
     setExpected(deal?.expected_close_date ?? null);
     setSource(deal?.source ?? '');
     setNeed(deal?.need ?? '');
@@ -101,7 +119,7 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
     setNextActionDate(deal?.next_action_date ?? null);
     setLostReason(deal?.lost_reason ?? '');
     setLostNote(deal?.lost_note ?? '');
-    setNotes(deal?.notes ?? '');
+    setNotes(deal?.notes ?? defaults?.notes ?? '');
     setProjectId(deal?.project_id ? String(deal.project_id) : '');
     setHandoverReady(Boolean(deal?.handover_ready));
     setPocScope(deal?.poc_scope ?? '');
@@ -146,7 +164,11 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
         owner_contact_id: ownerContactId,
         ...(handoverManaged ? {} : { handover_ready: handoverReady }),
       };
-      if (!deal) return api.post('/api/deals', payload);
+      if (!deal)
+        return api.post<Deal>('/api/deals', {
+          ...payload,
+          ...(defaults?.is_renewal ? { is_renewal: true } : {}),
+        });
 
       /* PoC và tạm dừng chỉ sửa được sau khi cơ hội đã tồn tại — máy chủ cũng chỉ
          nhận chúng ở PATCH, nên gửi kèm lúc tạo sẽ bị bỏ lặng lẽ. */
@@ -162,7 +184,8 @@ export function DealForm({ open, onClose, deal, defaultCustomerId, defaultStage 
         on_hold_review_date: onHold ? onHoldReview : null,
       });
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      if (!deal && saved && typeof saved === 'object') onCreated?.(saved as Deal);
       invalidateCrmViews(queryClient, Number(customerId));
       // Gắn/gỡ dự án đổi cả trang dự án — nơi cơ hội nguồn được hiển thị.
       queryClient.invalidateQueries({ queryKey: ['projects'] });

@@ -128,6 +128,8 @@ export const EXPORT_TABLES = [
   'positions',
   'position_permissions',
   'user_positions',
+  // v54 — goi y co hoi / ban them va quyet dinh nhan-bo qua
+  'customer_suggestions',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */

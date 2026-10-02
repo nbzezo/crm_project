@@ -6,6 +6,23 @@ import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import { assertOrgKindChange } from '../lib/entityRelations.ts';
+import { actorContactId } from '../middleware/currentUser.ts';
+import {
+  CARE_TIERS,
+  addDaysStr,
+  birthdaySchema,
+  applyAftercare,
+  careEventsBetween,
+  careStatusOf,
+  churnRiskOf,
+  customerTimeline,
+  expiringItems,
+  refreshSuggestions,
+  revenueSummary,
+  suggestionStats,
+  todayOf,
+  type SuggestionRow,
+} from '../services/customerCare.ts';
 
 const router = Router();
 
@@ -24,6 +41,9 @@ const customerSchema = z.object({
   /** Loai to chuc — 'own'/'partner'/'vendor' khong phai khach hang nen nam ngoai pipeline. */
   org_kind: z.enum(ORG_KINDS).optional(),
   notes: z.string().optional(),
+  /** v54: hang cham soc va nhip lien he (NULL = theo hang). */
+  care_tier: z.enum(CARE_TIERS).optional(),
+  care_cadence_days: z.number().int().min(1).max(365).nullable().optional(),
 });
 
 function clean(value: string | null | undefined): string | null {
@@ -186,8 +206,9 @@ export function insertCustomer(input: NewCustomer, ownerContactId: number | null
   const info = db
     .prepare(
       `INSERT INTO customers (name, short_name, tax_code, industry, address, website, phone, email,
-                              size, source, status, org_kind, notes, search_text, owner_contact_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                              size, source, status, org_kind, notes, search_text, owner_contact_id,
+                              care_tier, care_cadence_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       body.name,
@@ -212,7 +233,9 @@ export function insertCustomer(input: NewCustomer, ownerContactId: number | null
         email,
         taxCode
       ),
-      ownerContactId
+      ownerContactId,
+      body.care_tier ?? 'standard',
+      body.care_cadence_days ?? null
     );
   return db.prepare(`SELECT * FROM customers WHERE id = ?`).get(info.lastInsertRowid) as {
     id: number;
@@ -345,6 +368,115 @@ router.get('/:id/full', (req, res) => {
   });
 });
 
+/* ---------- Ho so 360°: cham soc, goi y, dong thoi gian (v54) ---------- */
+
+/** Ti le chap nhan goi y toan he thong — cho bao cao. */
+router.get('/suggestions/stats', (_req, res) => {
+  res.json(suggestionStats(db));
+});
+
+function loadInScope(
+  req: Parameters<typeof assertInScope>[0],
+  id: number,
+  action: 'read' | 'update'
+) {
+  const customer = required(
+    db
+      .prepare(
+        `SELECT id, name, owner_contact_id, care_tier, care_cadence_days, created_at
+           FROM customers WHERE id = ?`
+      )
+      .get(id),
+    'Khong tim thay khach hang'
+  ) as {
+    id: number;
+    name: string;
+    owner_contact_id: number | null;
+    care_tier: string;
+    care_cadence_days: number | null;
+    created_at: string;
+  };
+  assertInScope(req, 'customers', action, customer.owner_contact_id);
+  return customer;
+}
+
+router.get('/:id/overview', (req, res) => {
+  const customer = loadInScope(req, intParam(req.params.id), 'read');
+  const today = todayOf(db);
+  const care = careStatusOf(db, customer);
+  res.json({
+    care,
+    churn: churnRiskOf(db, customer.id, care),
+    revenue: revenueSummary(db, customer.id),
+    expiring: expiringItems(db, customer.id),
+    upcoming: careEventsBetween(db, today, addDaysStr(today, 60), { customerId: customer.id }),
+    timeline: customerTimeline(db, customer.id),
+    suggestions: refreshSuggestions(db, customer.id),
+    suggestion_stats: suggestionStats(db, customer.id),
+  });
+});
+
+function loadSuggestion(customerId: number, suggestionId: number): SuggestionRow {
+  const row = required(
+    db
+      .prepare(`SELECT * FROM customer_suggestions WHERE id = ? AND customer_id = ?`)
+      .get(suggestionId, customerId),
+    'Khong tim thay goi y'
+  ) as SuggestionRow;
+  if (row.status !== 'open') throw new HttpError(409, 'Gợi ý này đã được xử lý');
+  return row;
+}
+
+const acceptSchema = z.object({
+  /** Co hoi vua tao tu goi y (gia han, ban cheo, mo lai). Kich ban sau ban thi bo trong. */
+  deal_id: z.number().int().positive().nullable().optional(),
+});
+
+router.post('/:id/suggestions/:sid/accept', (req, res) => {
+  const customer = loadInScope(req, intParam(req.params.id), 'update');
+  const suggestion = loadSuggestion(customer.id, intParam(req.params.sid));
+  const body = parseBody(acceptSchema, req);
+  let reminderIds: number[] = [];
+  let dealId: number | null = null;
+  db.transaction(() => {
+    if (suggestion.kind === 'aftercare') {
+      if (!suggestion.source_deal_id) throw new HttpError(400, 'Gợi ý thiếu cơ hội nguồn');
+      reminderIds = applyAftercare(db, {
+        customerId: customer.id,
+        dealId: suggestion.source_deal_id,
+        ownerContactId: actorContactId(req),
+      });
+    } else {
+      if (!body.deal_id) throw new HttpError(400, 'Cần tạo cơ hội từ gợi ý trước');
+      const deal = db
+        .prepare(`SELECT id FROM deals WHERE id = ? AND customer_id = ?`)
+        .get(body.deal_id, customer.id);
+      if (!deal) throw new HttpError(400, 'Cơ hội không thuộc khách hàng này');
+      dealId = body.deal_id;
+    }
+    db.prepare(
+      `UPDATE customer_suggestions SET status = 'accepted', result_deal_id = ?, decided_by = ?,
+              decided_at = datetime('now','localtime'), updated_at = datetime('now','localtime')
+        WHERE id = ?`
+    ).run(dealId, actorContactId(req), suggestion.id);
+  })();
+  res.json({ ok: true, deal_id: dealId, reminder_ids: reminderIds });
+});
+
+const dismissSchema = z.object({ reason: z.string().trim().max(500).optional() });
+
+router.post('/:id/suggestions/:sid/dismiss', (req, res) => {
+  const customer = loadInScope(req, intParam(req.params.id), 'update');
+  const suggestion = loadSuggestion(customer.id, intParam(req.params.sid));
+  const body = parseBody(dismissSchema, req);
+  db.prepare(
+    `UPDATE customer_suggestions SET status = 'dismissed', dismiss_reason = ?, decided_by = ?,
+            decided_at = datetime('now','localtime'), updated_at = datetime('now','localtime')
+      WHERE id = ?`
+  ).run(body.reason || null, actorContactId(req), suggestion.id);
+  res.json({ ok: true });
+});
+
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(customerSchema.partial(), req);
@@ -372,7 +504,8 @@ router.patch('/:id', (req, res) => {
   db.prepare(
     `UPDATE customers SET name = ?, short_name = ?, tax_code = ?, industry = ?, address = ?,
             website = ?, phone = ?, email = ?, size = ?, source = ?, status = ?, org_kind = ?,
-            notes = ?, search_text = ?, updated_at = datetime('now','localtime')
+            notes = ?, search_text = ?, care_tier = ?, care_cadence_days = ?,
+            updated_at = datetime('now','localtime')
       WHERE id = ?`
   ).run(
     merged.name,
@@ -397,6 +530,8 @@ router.patch('/:id', (req, res) => {
       email,
       taxCode
     ),
+    merged.care_tier ?? 'standard',
+    (merged as Record<string, unknown>).care_cadence_days ?? null,
     id
   );
   res.json(db.prepare(`SELECT * FROM customers WHERE id = ?`).get(id));
@@ -462,6 +597,8 @@ const contactSchema = z.object({
   is_me: z.boolean().optional(),
   is_active: z.boolean().optional(),
   notes: z.string().optional(),
+  /** v54: 'MM-DD' hoac 'YYYY-MM-DD' — nhac sinh nhat. */
+  birthday: birthdaySchema,
 });
 
 router.post('/:id/contacts', (req, res) => {
@@ -481,8 +618,8 @@ router.post('/:id/contacts', (req, res) => {
       .prepare(
         `INSERT INTO contacts (customer_id, full_name, title, department, phone, email, zalo,
                                linkedin, buying_role, relationship, is_primary, is_me, is_active,
-                               notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                               notes, birthday)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         customerId,
@@ -498,7 +635,8 @@ router.post('/:id/contacts', (req, res) => {
         body.is_primary ? 1 : 0,
         body.is_me ? 1 : 0,
         body.is_active === false ? 0 : 1,
-        body.notes ?? ''
+        body.notes ?? '',
+        body.birthday ?? null
       );
     return Number(info.lastInsertRowid);
   })();

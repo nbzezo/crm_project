@@ -368,15 +368,18 @@ test('v53 them danh ba ca nhan, xoa nguoi dung thi xoa theo, va quay lui duoc', 
   migrate(db);
 
   const user = Number(
-    db.prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('a', '', '')`).run()
-      .lastInsertRowid
+    db
+      .prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('a', '', '')`)
+      .run().lastInsertRowid
   );
   const contact = Number(
     db.prepare(`INSERT INTO personal_contacts (user_id, full_name) VALUES (?, 'An')`).run(user)
       .lastInsertRowid
   );
   db.prepare(`INSERT INTO personal_contact_keys VALUES (?, 'phone', '0901234567')`).run(contact);
-  db.prepare(`INSERT INTO google_contact_accounts (user_id, google_account) VALUES (?, 'a@gmail.com')`).run(user);
+  db.prepare(
+    `INSERT INTO google_contact_accounts (user_id, google_account) VALUES (?, 'a@gmail.com')`
+  ).run(user);
   /* Mot resource_name Google chi xuat hien mot lan cho moi nguoi. */
   db.prepare(
     `INSERT INTO personal_contacts (user_id, full_name, source, google_resource_name) VALUES (?, 'B', 'google', 'people/c1')`
@@ -391,7 +394,11 @@ test('v53 them danh ba ca nhan, xoa nguoi dung thi xoa theo, va quay lui duoc', 
 
   db.prepare(`DELETE FROM users WHERE id = ?`).run(user);
   for (const table of ['personal_contacts', 'personal_contact_keys', 'google_contact_accounts']) {
-    assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n, 0, table);
+    assert.equal(
+      (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n,
+      0,
+      table
+    );
   }
 
   db.exec(fs.readFileSync(new URL('../db/migrate-v53-rollback.sql', import.meta.url), 'utf8'));
@@ -400,4 +407,54 @@ test('v53 them danh ba ca nhan, xoa nguoi dung thi xoa theo, va quay lui duoc', 
   ).map((t) => t.name);
   assert.equal(tables.includes('personal_contacts'), false);
   assert.ok(tables.includes('drive_backup_settings'), 'bang cua dot truoc con nguyen');
+});
+
+test('v54 them hang cham soc, ngay sinh, bang goi y — va quay lui duoc', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 53);
+  const old = Number(
+    db.prepare(`INSERT INTO customers (name, search_text) VALUES ('Cũ', 'cu')`).run()
+      .lastInsertRowid
+  );
+  migrate(db);
+
+  const row = db
+    .prepare(`SELECT care_tier, care_cadence_days FROM customers WHERE id = ?`)
+    .get(old) as { care_tier: string; care_cadence_days: number | null };
+  assert.deepEqual(
+    row,
+    { care_tier: 'standard', care_cadence_days: null },
+    'ban ghi cu = nhip 30 ngay'
+  );
+  db.prepare(
+    `INSERT INTO contacts (customer_id, full_name, birthday) VALUES (?, 'An', '05-20')`
+  ).run(old);
+  db.prepare(
+    `INSERT INTO customer_suggestions (customer_id, kind, key, title) VALUES (?, 'renewal', 'k1', 'Gia hạn')`
+  ).run(old);
+  assert.throws(() =>
+    db
+      .prepare(
+        `INSERT INTO customer_suggestions (customer_id, kind, key, title) VALUES (?, 'renewal', 'k1', 'Trùng')`
+      )
+      .run(old)
+  );
+  db.prepare(`DELETE FROM customers WHERE id = ?`).run(old);
+  assert.equal(
+    (db.prepare(`SELECT COUNT(*) AS n FROM customer_suggestions`).get() as { n: number }).n,
+    0,
+    'xoa khach thi xoa goi y'
+  );
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v54-rollback.sql', import.meta.url), 'utf8'));
+  const cols = (db.prepare(`PRAGMA table_info(customers)`).all() as { name: string }[]).map(
+    (c) => c.name
+  );
+  assert.equal(cols.includes('care_tier'), false);
+  const tables = (
+    db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]
+  ).map((t) => t.name);
+  assert.equal(tables.includes('customer_suggestions'), false);
+  assert.ok(tables.includes('personal_contacts'), 'bang cua v53 con nguyen');
 });

@@ -447,7 +447,7 @@ export default function MyContactsPage() {
             <table className="w-full min-w-[40rem] text-left text-sm">
               <thead className="text-xs text-tr-muted">
                 <tr>
-                  <th className="w-8 py-1.5 pr-2">
+                  <th scope="col" className="w-8 py-1.5 pr-2">
                     <input
                       type="checkbox"
                       aria-label="Chọn tất cả trên trang này"
@@ -456,9 +456,9 @@ export default function MyContactsPage() {
                       onChange={togglePage}
                     />
                   </th>
-                  <th className="py-1.5 pr-3 font-semibold">Liên hệ</th>
-                  <th className="py-1.5 pr-3 font-semibold">Điện thoại / Email</th>
-                  <th className="py-1.5 font-semibold">Trong CRM</th>
+                  <th scope="col" className="py-1.5 pr-3 font-semibold">Liên hệ</th>
+                  <th scope="col" className="py-1.5 pr-3 font-semibold">Điện thoại / Email</th>
+                  <th scope="col" className="py-1.5 font-semibold">Trong CRM</th>
                 </tr>
               </thead>
               <tbody>

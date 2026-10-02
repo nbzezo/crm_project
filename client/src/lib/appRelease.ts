@@ -18,6 +18,25 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.5.0',
+    date: '2026-10-02',
+    title: 'Hồ sơ khách hàng 360°: chăm sóc, gợi ý bán thêm và người liên hệ',
+    changes: [
+      'Tab Tổng quan mới trong hồ sơ khách hàng: sức khỏe khách hàng có lý do, nguy cơ mất khách (điểm 0–100), việc tiếp theo và nút nhanh Ghi tương tác / Tạo việc / Tạo cơ hội.',
+      'Các bên liên quan xếp theo vai trò trong quyết định mua, cảnh báo khi thiếu người quyết định, người duyệt ngân sách, liên hệ chính hoặc chỉ có một đầu mối.',
+      'Mục Sắp tới: hợp đồng, dịch vụ, báo giá sắp hết hạn; sinh nhật người liên hệ và ngày kỷ niệm hợp đồng.',
+      'Doanh thu theo năm và theo dịch vụ; dòng thời gian gộp tương tác, cơ hội, đổi giai đoạn, báo giá, hợp đồng, việc đã xong và tài liệu.',
+      'Gợi ý cơ hội: gia hạn hợp đồng/dịch vụ sắp hết hạn, bán chéo dịch vụ mà khách cùng ngành đang dùng, làm mới báo giá quá hạn, mở lại cơ hội thua từ 6 tháng trước. Bấm để tạo cơ hội điền sẵn, hoặc bỏ qua kèm lý do; có tỉ lệ gợi ý được nhận.',
+      'Kịch bản chăm sóc sau bán: một chạm tạo nhắc hẹn ngày 7, 30, 90 sau khi chốt đơn.',
+      'Hạng chăm sóc khách hàng (VIP 14 ngày, Chiến lược 21, Tiêu chuẩn 30, Ít ưu tiên 90) hoặc nhịp liên hệ riêng; khách quá nhịp hiện ở mục Cần chú ý của tab Trọng tâm và bản tin Telegram.',
+      'Ngày sinh người liên hệ (gõ dd/mm hoặc dd/mm/yyyy); sinh nhật và kỷ niệm hợp đồng hiện trong tab Trọng tâm.',
+      'AI chăm sóc khách hàng: đánh giá nguy cơ mất khách, gợi ý việc nên làm và soạn sẵn email hoặc tin Zalo; sửa, sao chép rồi lưu thành tương tác.',
+      'Người liên hệ đưa từ Danh bạ cá nhân: người trùng ở chính khách hàng được chọn thì gắn vào người đó thay vì bị bỏ qua; người trùng ở khách hàng khác được báo rõ tên khách hàng.',
+      'Danh bạ cá nhân hiện tên khách hàng mà liên hệ đã vào, bấm để mở hồ sơ và tô sáng người đó; mở người liên hệ từ ô tìm kiếm cũng đi thẳng tới đúng người.',
+      'Khung xem nhanh khách hàng hiện người liên hệ.',
+    ],
+  },
+  {
     version: '1.4.1',
     date: '2026-10-02',
     title: 'Trọng tâm hiển thị đủ lịch và nhắc hẹn',
