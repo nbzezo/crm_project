@@ -93,11 +93,11 @@ function fakeWorld(options: { ai?: unknown; registryDown?: boolean }): typeof gl
   };
 }
 
-async function assist(query: string) {
+async function assist(query: string, webSearch = false) {
   const res = await realFetch(`${baseUrl}/api/ai/assist/customer`, {
     method: 'POST',
     headers: { cookie, 'content-type': 'application/json' },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, web_search: webSearch }),
   });
   return { status: res.status, data: (await res.json()) as CustomerAssistResult };
 }
@@ -213,4 +213,52 @@ test('go ten: MST AI doan khop CSDL thi giu, lech ten thi bo', async () => {
   assert.equal(unverified.data.suggestion.tax_code, '0300000000');
   assert.equal(unverified.data.sources.tax_code, 'ai');
   assert.ok(unverified.data.warnings.some((w) => /chưa được xác minh/.test(w)));
+});
+
+test('tim web: gui google_search, tra nguon; bi tu choi thi lui ve khong tim', async () => {
+  const sent: Record<string, unknown>[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith(baseUrl)) return realFetch(input, init);
+    if (url.startsWith('https://registry.test/')) return Response.json({ code: '52', data: null });
+    sent.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
+    return Response.json({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: 'Kết quả:\n```json\n{"name":"Sao Mai","phone":"024 1234 5678"}\n```' }],
+          },
+          groundingMetadata: {
+            webSearchQueries: ['Sao Mai'],
+            groundingChunks: [{ web: { uri: 'https://saomai.vn', title: 'Sao Mai' } }],
+          },
+        },
+      ],
+      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10 },
+    });
+  };
+  const { status, data } = await assist('Sao Mai', true);
+  assert.equal(status, 200);
+  assert.ok(sent[0].tools, 'co bat cong cu tim web');
+  assert.equal(data.web_searched, true);
+  assert.deepEqual(data.web_sources, [{ url: 'https://saomai.vn', title: 'Sao Mai' }]);
+  assert.equal(data.suggestion.phone, '024 1234 5678');
+
+  // Nha cung cap tu choi cong cu (400) -> thu lai khong tim web, kem canh bao.
+  sent.length = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith(baseUrl)) return realFetch(input, init);
+    const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    sent.push(body);
+    if (body.tools) return Response.json({ error: { message: 'tools off' } }, { status: 400 });
+    return Response.json({
+      candidates: [{ content: { parts: [{ text: '{"name":"Sao Mai"}' }] } }],
+      usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
+    });
+  };
+  const fallback = await assist('Sao Mai', true);
+  assert.equal(fallback.status, 200);
+  assert.equal(fallback.data.web_searched, false);
+  assert.ok(fallback.data.warnings.some((w) => /Không tìm được trên web/.test(w)));
 });

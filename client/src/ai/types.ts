@@ -183,5 +183,7 @@ export interface CustomerAssistResult {
   warnings: string[];
   confidence: number | null;
   rationale: string;
+  web_searched: boolean;
+  web_sources: { url: string; title: string }[];
   meta: Pick<AiMeta, 'requestId' | 'provider' | 'model'> | null;
 }

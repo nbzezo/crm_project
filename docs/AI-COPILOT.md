@@ -54,6 +54,12 @@
   `WORKFLOW_TAX_LOOKUP_URL`, đặt `off` để tắt). Tên pháp lý, MST, tên viết tắt, địa chỉ từ nguồn này
   được đánh dấu *Đã xác thực* và đè lên dữ liệu AI.
 - AI bổ sung ngành nghề, quy mô, website, giới thiệu — luôn đánh dấu *AI · cần kiểm tra*.
+- Tùy chọn *Cho phép AI tìm trên web khi cần* (mặc định bật, nhớ theo trình duyệt): gateway gửi
+  `webSearch` — Gemini dùng `google_search` grounding, Claude dùng server tool `web_search`
+  (`web_search_20250305`, tối đa 3 lượt, tự chạy tiếp `pause_turn`). Mô hình tự quyết có tìm hay
+  không; nguồn web trả về được hiện thành link dưới đề xuất. DeepSeek/9Router không có công cụ tìm
+  web chuẩn nên chạy như thường kèm cảnh báo. Nhà cung cấp từ chối công cụ (tổ chức chưa bật web
+  search, model cũ…) thì tự thử lại không tìm web. Tìm web tốn thêm phí theo bảng giá provider.
 - MST do AI đoán (khi chỉ gõ tên) phải tra lại được trong CSDL và khớp tên mới được giữ; lệch tên
   hoặc không tồn tại thì bị bỏ kèm cảnh báo. MST là khóa chống trùng nên một MST sai rất đắt.
 - Chỉ đề xuất, không ghi CRM: người dùng chọn trường áp dụng (mặc định chỉ các ô đang trống) rồi

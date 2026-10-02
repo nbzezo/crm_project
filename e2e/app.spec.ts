@@ -1459,6 +1459,8 @@ test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async 
         warnings: [],
         confidence: 0.8,
         rationale: '',
+        web_searched: true,
+        web_sources: [{ url: 'https://saomai.example', title: 'Sao Mai — Giới thiệu' }],
         meta: null,
       },
     })
@@ -1473,6 +1475,7 @@ test('them khach hang: tra MST bang AI roi chon truong de dien vao form', async 
   await dialog.getByRole('button', { name: 'Tìm', exact: true }).click();
   await expect(dialog.getByText('Đề xuất — chọn trường')).toBeVisible();
   await expect(dialog.getByText('Đã xác thực').first()).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Sao Mai — Giới thiệu' })).toBeVisible();
   await expectNoViolations(page, 'CustomerForm goi y AI');
 
   await dialog.getByRole('button', { name: 'Áp dụng đã chọn' }).click();

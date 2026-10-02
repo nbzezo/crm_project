@@ -1,4 +1,6 @@
 export const AI_PROVIDERS = ['gemini', 'anthropic', 'deepseek', '9router'] as const;
+/** Nha cung cap co cong cu tim web tich hop trong API. */
+export const WEB_SEARCH_PROVIDERS: readonly AiProviderName[] = ['gemini', 'anthropic'];
 export type AiProviderName = (typeof AI_PROVIDERS)[number];
 
 export interface ModelCapabilities {
@@ -43,12 +45,27 @@ export interface GenerateRequest {
   attachments?: AiAttachment[];
   /** Han gio cho lan goi HTTP nay; bo trong thi dung mac dinh trong providers.ts. */
   timeoutMs?: number;
+  /**
+   * Cho phep mo hinh tu tim tren web KHI CAN (mo hinh tu quyet dinh co tim hay khong).
+   * Gemini: google_search grounding; Claude: server tool web_search. Nha cung cap
+   * OpenAI-compatible/DeepSeek khong co chuan chung — chay nhu binh thuong, khong tim.
+   */
+  webSearch?: boolean;
+}
+
+/** Mot trang web mo hinh da dung lam can cu. */
+export interface WebSource {
+  url: string;
+  title: string;
 }
 
 export interface GenerateResult {
   text: string;
   inputTokens: number;
   outputTokens: number;
+  /** Co thuc su tim tren web trong lan goi nay khong. */
+  webSearched?: boolean;
+  webSources?: WebSource[];
 }
 
 type AiTaskMode = 'fast' | 'balanced' | 'reasoning';
@@ -76,6 +93,8 @@ export interface AiRunRequest {
    * khong du cho tac vu doc ban ghi am dai — het gio bien thanh 502 kho hieu o route.
    */
   timeoutMs?: number;
+  /** Xem GenerateRequest.webSearch. Nha cung cap tim duoc web duoc thu truoc. */
+  webSearch?: boolean;
   /**
    * Chi dung nha cung cap co model dap ung nang luc nay.
    *

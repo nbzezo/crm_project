@@ -239,10 +239,13 @@ async function generateGemini(
             ],
           },
         ],
+        // Mo hinh tu quyet dinh co can tim Google hay khong (grounding).
+        ...(request.webSearch ? { tools: [{ google_search: {} }] } : {}),
         generationConfig: {
           maxOutputTokens: request.maxOutputTokens ?? 2048,
           temperature: request.temperature ?? 0.2,
-          ...(request.json ? { responseMimeType: 'application/json' } : {}),
+          // Gemini tu choi ep JSON khi co cong cu — luc do dua vao loi nhac + parseAiJson.
+          ...(request.json && !request.webSearch ? { responseMimeType: 'application/json' } : {}),
         },
       }),
     },
@@ -255,67 +258,110 @@ async function generateGemini(
     .join('')
     .trim();
   const usage = asRecord(body.usageMetadata);
+  const grounding = asRecord(candidate.groundingMetadata);
+  const webSources = asArray(grounding.groundingChunks)
+    .map((chunk) => asRecord(asRecord(chunk).web))
+    .filter((web) => typeof web.uri === 'string')
+    .map((web) => ({ url: String(web.uri), title: String(web.title ?? web.uri) }));
   return {
     text,
     inputTokens: asNumber(usage.promptTokenCount) ?? 0,
     outputTokens: asNumber(usage.candidatesTokenCount) ?? 0,
+    webSearched: asArray(grounding.webSearchQueries).length > 0 || webSources.length > 0,
+    webSources: dedupeSources(webSources),
   };
 }
+
+function dedupeSources(sources: { url: string; title: string }[]) {
+  const seen = new Set<string>();
+  return sources.filter((source) => !seen.has(source.url) && seen.add(source.url)).slice(0, 10);
+}
+
+/** Server tool tim web cua Claude — ban co ban, chay duoc tren ca model cu lan moi. */
+const ANTHROPIC_WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 3 };
 
 async function generateAnthropic(
   connection: ProviderConnection,
   request: GenerateRequest
 ): Promise<GenerateResult> {
-  const body = await fetchJson(
-    `${baseUrl(connection.baseUrl)}/v1/messages`,
-    {
-      method: 'POST',
-      headers: {
-        ...JSON_HEADERS,
-        'x-api-key': connection.apiKey,
-        'anthropic-version': '2023-06-01',
+  const userTurn = {
+    role: 'user',
+    content: [
+      ...(request.attachments ?? []).map((file) => ({
+        // Anthropic tach anh va tai lieu thanh hai loai khoi noi dung khac nhau.
+        type: file.mime.startsWith('image/') ? 'image' : 'document',
+        source: { type: 'base64', media_type: file.mime, data: file.dataBase64 },
+      })),
+      { type: 'text', text: request.prompt },
+    ],
+  };
+  /*
+   * Anthropic khong co tham so ep JSON nhu Gemini/DeepSeek. Moi cho mot luot
+   * assistant bang dau '{' la cach duy nhat lam mo hinh bat dau ngay bang doi
+   * tuong JSON thay vi mot cau dan nhap — phan mo dau nay khong nam trong
+   * phan hoi nen phai tu ghep lai ben duoi. Khi cho tim web thi KHONG moi: mo
+   * hinh phai duoc goi cong cu truoc khi viet JSON.
+   */
+  const prefill = request.json && !request.webSearch;
+  const messages: unknown[] = [userTurn, ...(prefill ? [{ role: 'assistant', content: '{' }] : [])];
+
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let blocks: Record<string, unknown>[] = [];
+  /*
+   * Vong tim web dai co the dung o `pause_turn`: gui lai nguyen phan da sinh lam
+   * luot assistant de may chu chay tiep. Gioi han so vong de khong treo mai.
+   */
+  for (let round = 0; round < 3; round += 1) {
+    const body = await fetchJson(
+      `${baseUrl(connection.baseUrl)}/v1/messages`,
+      {
+        method: 'POST',
+        headers: {
+          ...JSON_HEADERS,
+          'x-api-key': connection.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: request.model,
+          max_tokens: request.maxOutputTokens ?? 2048,
+          temperature: request.temperature ?? 0.2,
+          system: request.system,
+          messages,
+          ...(request.webSearch ? { tools: [ANTHROPIC_WEB_SEARCH_TOOL] } : {}),
+        }),
       },
-      body: JSON.stringify({
-        model: request.model,
-        max_tokens: request.maxOutputTokens ?? 2048,
-        temperature: request.temperature ?? 0.2,
-        system: request.system,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              ...(request.attachments ?? []).map((file) => ({
-                // Anthropic tach anh va tai lieu thanh hai loai khoi noi dung khac nhau.
-                type: file.mime.startsWith('image/') ? 'image' : 'document',
-                source: { type: 'base64', media_type: file.mime, data: file.dataBase64 },
-              })),
-              { type: 'text', text: request.prompt },
-            ],
-          },
-          /*
-           * Anthropic khong co tham so ep JSON nhu Gemini/DeepSeek. Moi cho mot luot
-           * assistant bang dau '{' la cach duy nhat lam mo hinh bat dau ngay bang doi
-           * tuong JSON thay vi mot cau dan nhap — phan mo dau nay khong nam trong
-           * phan hoi nen phai tu ghep lai ben duoi.
-           */
-          ...(request.json ? [{ role: 'assistant', content: '{' }] : []),
-        ],
-      }),
-    },
-    request.timeoutMs
-  );
-  const raw = asArray(body.content)
-    .map((part) => asRecord(part))
+      request.timeoutMs
+    );
+    const usage = asRecord(body.usage);
+    inputTokens += asNumber(usage.input_tokens) ?? 0;
+    outputTokens += asNumber(usage.output_tokens) ?? 0;
+    const content = asArray(body.content).map((part) => asRecord(part));
+    blocks = [...blocks, ...content];
+    if (body.stop_reason !== 'pause_turn') break;
+    messages.push({ role: 'assistant', content });
+  }
+
+  // Chi lay chu SAU lan tim cuoi: phan truoc thuong la cau dan "De toi tim...".
+  const lastSearch = blocks.map((part) => part.type).lastIndexOf('web_search_tool_result');
+  const raw = blocks
+    .slice(lastSearch + 1)
     .filter((part) => part.type === 'text')
     .map((part) => String(part.text ?? ''))
     .join('')
     .trim();
-  const text = request.json && raw && !raw.startsWith('{') ? `{${raw}` : raw;
-  const usage = asRecord(body.usage);
+  const text = prefill && raw && !raw.startsWith('{') ? `{${raw}` : raw;
+  const webSources = blocks
+    .filter((part) => part.type === 'web_search_tool_result' && Array.isArray(part.content))
+    .flatMap((part) => asArray(part.content).map((item) => asRecord(item)))
+    .filter((item) => item.type === 'web_search_result' && typeof item.url === 'string')
+    .map((item) => ({ url: String(item.url), title: String(item.title ?? item.url) }));
   return {
     text,
-    inputTokens: asNumber(usage.input_tokens) ?? 0,
-    outputTokens: asNumber(usage.output_tokens) ?? 0,
+    inputTokens,
+    outputTokens,
+    webSearched: blocks.some((part) => part.type === 'server_tool_use'),
+    webSources: dedupeSources(webSources),
   };
 }
 

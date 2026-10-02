@@ -130,3 +130,86 @@ test('DeepSeek van tu choi tep dinh kem vi khong co API da phuong thuc', async (
   assert.ok(error instanceof Error);
   assert.match(error.message, /DeepSeek/);
 });
+
+test('Gemini tim web: bat google_search, bo ep JSON va doc nguon grounding', async () => {
+  const originalFetch = globalThis.fetch;
+  let sent: Record<string, unknown> = {};
+  globalThis.fetch = async (_input, init = {}) => {
+    sent = JSON.parse(String(init.body ?? '{}')) as Record<string, unknown>;
+    return Response.json({
+      candidates: [
+        {
+          content: { parts: [{ text: '{"name":"Sao Mai"}' }] },
+          groundingMetadata: {
+            webSearchQueries: ['Sao Mai MST'],
+            groundingChunks: [
+              { web: { uri: 'https://saomai.vn', title: 'saomai.vn' } },
+              { web: { uri: 'https://saomai.vn', title: 'saomai.vn' } },
+            ],
+          },
+        },
+      ],
+      usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 5 },
+    });
+  };
+  try {
+    const result = await generateWithProvider(
+      { provider: 'gemini', baseUrl: 'https://gemini.test', apiKey: 'k' },
+      { model: 'gemini-x', system: 's', prompt: 'p', json: true, webSearch: true }
+    );
+    assert.deepEqual(sent.tools, [{ google_search: {} }]);
+    assert.equal(
+      (sent.generationConfig as Record<string, unknown>).responseMimeType,
+      undefined,
+      'Gemini khong cho ep JSON cung luc voi cong cu'
+    );
+    assert.equal(result.webSearched, true);
+    assert.deepEqual(result.webSources, [{ url: 'https://saomai.vn', title: 'saomai.vn' }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Claude tim web: khong moi "{", chay tiep pause_turn, chi lay chu sau lan tim cuoi', async () => {
+  const originalFetch = globalThis.fetch;
+  const bodies: Record<string, unknown>[] = [];
+  globalThis.fetch = async (_input, init = {}) => {
+    bodies.push(JSON.parse(String(init.body ?? '{}')) as Record<string, unknown>);
+    const first = bodies.length === 1;
+    return Response.json({
+      stop_reason: first ? 'pause_turn' : 'end_turn',
+      content: first
+        ? [
+            { type: 'text', text: 'Để tôi tìm {thử}.' },
+            { type: 'server_tool_use', id: 'srv_1', name: 'web_search', input: { query: 'x' } },
+          ]
+        : [
+            {
+              type: 'web_search_tool_result',
+              tool_use_id: 'srv_1',
+              content: [{ type: 'web_search_result', url: 'https://saomai.vn', title: 'Sao Mai' }],
+            },
+            { type: 'text', text: '{"name":"Sao Mai"}' },
+          ],
+      usage: { input_tokens: 10, output_tokens: 4 },
+    });
+  };
+  try {
+    const result = await generateWithProvider(
+      { provider: 'anthropic', baseUrl: 'https://claude.test', apiKey: 'k' },
+      { model: 'claude-x', system: 's', prompt: 'p', json: true, webSearch: true }
+    );
+    assert.equal(bodies.length, 2);
+    const firstMessages = bodies[0].messages as { role: string }[];
+    assert.equal(firstMessages.length, 1, 'khong co luot assistant moi "{"');
+    assert.equal((bodies[0].tools as { name: string }[])[0].name, 'web_search');
+    const secondMessages = bodies[1].messages as { role: string }[];
+    assert.equal(secondMessages.at(-1)?.role, 'assistant', 'gui lai phan da sinh de chay tiep');
+    assert.equal(result.text, '{"name":"Sao Mai"}');
+    assert.equal(result.webSearched, true);
+    assert.deepEqual(result.webSources, [{ url: 'https://saomai.vn', title: 'Sao Mai' }]);
+    assert.equal(result.inputTokens, 20);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

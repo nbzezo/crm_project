@@ -3,7 +3,13 @@ import type { Database } from 'better-sqlite3';
 import { fold } from '../../lib/viSearch.ts';
 import { normalizeTaxCode } from './contractExtract.ts';
 import { runStructured } from './gateway.ts';
-import { AiProviderError, type AiRunResult } from './types.ts';
+import {
+  AiProviderError,
+  WEB_SEARCH_PROVIDERS,
+  type AiRunRequest,
+  type AiRunResult,
+  type WebSource,
+} from './types.ts';
 
 /*
  * Goi y dien ho so khach hang tu MA SO THUE hoac TEN.
@@ -145,6 +151,9 @@ export interface CustomerAssistResult {
   warnings: string[];
   confidence: number | null;
   rationale: string;
+  /** Mo hinh co thuc su tim tren web khong, va cac trang da dung lam can cu. */
+  web_searched: boolean;
+  web_sources: WebSource[];
   meta: AiRunResult | null;
 }
 
@@ -204,12 +213,21 @@ export function namesLikelyMatch(aiName: string, record: RegistryRecord): boolea
   });
 }
 
-function buildPrompt(query: string, taxCode: string | null, registry: RegistryRecord | null) {
+function buildPrompt(
+  query: string,
+  taxCode: string | null,
+  registry: RegistryRecord | null,
+  webSearch: boolean
+) {
   const today = new Date().toISOString().slice(0, 10);
   return [
     'Hãy điền hồ sơ doanh nghiệp (khách hàng B2B tại Việt Nam) theo JSON:',
     '{"name":"tên pháp lý đầy đủ","short_name":"tên viết tắt / thương hiệu","tax_code":"mã số thuế 10 hoặc 13 số","industry":"ngành nghề chính, ngắn gọn","address":"địa chỉ trụ sở","website":"tên miền","phone":"điện thoại tổng đài","email":"email liên hệ chung","size":"SME | Mid-market | Enterprise","notes":"2-3 câu giới thiệu doanh nghiệp hữu ích cho người bán hàng","confidence":0.0,"rationale":"căn cứ ngắn gọn"}',
-    'Quy tắc: chỉ điền khi bạn khá chắc chắn; không biết thì để null. TUYỆT ĐỐI không bịa số điện thoại, email, website hay mã số thuế.',
+    webSearch
+      ? 'Bạn ĐƯỢC PHÉP tìm trên web khi kiến thức sẵn có chưa đủ hoặc cần xác minh (ưu tiên website chính thức của doanh nghiệp, cổng đăng ký kinh doanh, trang tra cứu MST). Không cần tìm nếu đã biết chắc.'
+      : '',
+    'Quy tắc: chỉ điền khi bạn khá chắc chắn hoặc thấy trong nguồn; không biết thì để null. TUYỆT ĐỐI không bịa số điện thoại, email, website hay mã số thuế.',
+    'Sau cùng chỉ trả về DUY NHẤT một đối tượng JSON, không kèm lời dẫn.',
     'size: SME (< 200 nhân sự), Mid-market (200–1000), Enterprise (> 1000 hoặc tập đoàn lớn).',
     `Hôm nay: ${today}.`,
     taxCode ? `Mã số thuế người dùng nhập: ${taxCode}` : `Người dùng nhập: ${query}`,
@@ -260,7 +278,12 @@ export function mergeSuggestion(
   return { suggestion, sources };
 }
 
-export async function assistCustomer(db: Database, query: string): Promise<CustomerAssistResult> {
+export async function assistCustomer(
+  db: Database,
+  query: string,
+  options: { webSearch?: boolean } = {}
+): Promise<CustomerAssistResult> {
+  const webSearch = options.webSearch ?? false;
   const warnings: string[] = [];
   const typedTaxCode = /^[\d\s.-]+$/.test(query) ? normalizeTaxCode(query) : null;
   if (/^[\d\s.-]+$/.test(query) && !typedTaxCode) {
@@ -280,20 +303,35 @@ export async function assistCustomer(db: Database, query: string): Promise<Custo
 
   let ai: AiCompany | null = null;
   let meta: AiRunResult | null = null;
+  const run = (withWeb: boolean) => {
+    const request: AiRunRequest = {
+      task: 'customer_assist',
+      mode: 'fast',
+      contextType: 'customer',
+      system:
+        'Bạn là trợ lý tra cứu thông tin doanh nghiệp Việt Nam cho CRM B2B. Chỉ dùng thông tin bạn biết chắc, tìm thấy trong nguồn, hoặc dữ liệu được cung cấp; không bịa. Trả JSON hợp lệ.',
+      prompt: buildPrompt(query, typedTaxCode, registry, withWeb),
+      maxOutputTokens: withWeb ? 2500 : 1200,
+      webSearch: withWeb,
+      // Tim web cham hon nhieu so voi tra loi tu kien thuc san co.
+      timeoutMs: withWeb ? 90_000 : undefined,
+    };
+    return runStructured(db, request, aiCompanySchema);
+  };
   try {
-    const result = await runStructured(
-      db,
-      {
-        task: 'customer_assist',
-        mode: 'fast',
-        contextType: 'customer',
-        system:
-          'Bạn là trợ lý tra cứu thông tin doanh nghiệp Việt Nam cho CRM B2B. Chỉ dùng thông tin bạn biết chắc hoặc dữ liệu được cung cấp, không bịa. Trả JSON hợp lệ.',
-        prompt: buildPrompt(query, typedTaxCode, registry),
-        maxOutputTokens: 1200,
-      },
-      aiCompanySchema
-    );
+    let result: Awaited<ReturnType<typeof run>>;
+    try {
+      result = await run(webSearch);
+    } catch (error) {
+      /* Tim web co the bi tu choi rieng (to chuc chua bat web search, model khong ho
+         tro cong cu...). Loi cau hinh/quota thi thu lai cung vo ich. */
+      const hopeless =
+        error instanceof AiProviderError &&
+        (error.code === 'not_configured' || /quota/.test(error.code));
+      if (!webSearch || hopeless) throw error;
+      result = await run(false);
+      warnings.push('Không tìm được trên web — gợi ý chỉ dựa trên kiến thức sẵn có của AI.');
+    }
     ai = result.data;
     meta = result.meta;
   } catch (error) {
@@ -303,6 +341,11 @@ export async function assistCustomer(db: Database, query: string): Promise<Custo
       error instanceof AiProviderError && error.code === 'not_configured'
         ? 'Chưa cấu hình AI — chỉ điền được thông tin từ cơ sở dữ liệu đăng ký.'
         : 'AI không phản hồi — chỉ điền được thông tin từ cơ sở dữ liệu đăng ký.'
+    );
+  }
+  if (webSearch && meta && !WEB_SEARCH_PROVIDERS.includes(meta.provider)) {
+    warnings.push(
+      `Nhà cung cấp ${meta.provider} không hỗ trợ tìm web — gợi ý chỉ dựa trên kiến thức sẵn có.`
     );
   }
 
@@ -336,6 +379,8 @@ export async function assistCustomer(db: Database, query: string): Promise<Custo
     warnings,
     confidence: ai ? ai.confidence : null,
     rationale: ai?.rationale ?? '',
+    web_searched: meta?.webSearched ?? false,
+    web_sources: meta?.webSources ?? [],
     meta,
   };
 }

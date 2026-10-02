@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { BadgeCheck, Search, Sparkles } from 'lucide-react';
+import { BadgeCheck, Globe, Search, Sparkles } from 'lucide-react';
 import { api } from '../../api/client';
 import { Button, FormError, Input } from '../common/ui';
 import { t } from '../../i18n/vi';
@@ -9,6 +9,16 @@ import {
   type CustomerAssistField,
   type CustomerAssistResult,
 } from '../../ai/types';
+
+const WEB_SEARCH_PREF = 'workflow.customerAi.webSearch';
+
+function readWebSearchPref(): boolean {
+  try {
+    return localStorage.getItem(WEB_SEARCH_PREF) !== 'off';
+  } catch {
+    return true;
+  }
+}
 
 const FIELD_LABELS: Record<CustomerAssistField, string> = {
   name: t.customer.name,
@@ -40,13 +50,18 @@ export function CustomerAiLookup({
   const [result, setResult] = useState<CustomerAssistResult | null>(null);
   const [selected, setSelected] = useState<CustomerAssistField[]>([]);
   const [applied, setApplied] = useState<string[]>([]);
+  /* Bat san: AI chi tim web khi kien thuc san co chua du. Tat de nhanh va re hon. */
+  const [webSearch, setWebSearch] = useState(readWebSearchPref);
 
   /* Ô tra cứu để trống thì dùng MST, rồi tới tên đã gõ trong form. */
   const effectiveQuery = query.trim() || current.tax_code.trim() || current.name.trim();
 
   const lookup = useMutation({
     mutationFn: () =>
-      api.post<CustomerAssistResult>('/api/ai/assist/customer', { query: effectiveQuery }),
+      api.post<CustomerAssistResult>('/api/ai/assist/customer', {
+        query: effectiveQuery,
+        web_search: webSearch,
+      }),
     onSuccess: (data) => {
       setResult(data);
       setSelected(
@@ -100,6 +115,21 @@ export function CustomerAiLookup({
           {lookup.isPending ? 'Đang tìm…' : 'Tìm'}
         </Button>
       </form>
+      <label className="mt-2 inline-flex items-center gap-2 text-xs text-tr-subtle">
+        <input
+          type="checkbox"
+          checked={webSearch}
+          onChange={(event) => {
+            setWebSearch(event.target.checked);
+            try {
+              localStorage.setItem(WEB_SEARCH_PREF, event.target.checked ? 'on' : 'off');
+            } catch {
+              /* Trinh duyet chan luu tru — chi mat ghi nho lua chon. */
+            }
+          }}
+        />
+        Cho phép AI tìm trên web khi cần (chậm hơn, cần Gemini hoặc Claude)
+      </label>
       <FormError error={lookup.error} />
 
       {result && (
@@ -154,6 +184,27 @@ export function CustomerAiLookup({
           ))}
           {result.rationale && (
             <p className="mt-2 text-xs text-tr-subtle">Căn cứ: {result.rationale}</p>
+          )}
+          {result.web_sources.length > 0 && (
+            <div className="mt-2 text-xs text-tr-subtle">
+              <p className="inline-flex items-center gap-1 font-medium text-tr-text">
+                <Globe size={12} aria-hidden="true" /> Nguồn trên web
+              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {result.web_sources.map((source) => (
+                  <li key={source.url} className="truncate">
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-tr-primary underline"
+                    >
+                      {source.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           <div className="mt-3 flex gap-2">
             {fields.length > 0 && (

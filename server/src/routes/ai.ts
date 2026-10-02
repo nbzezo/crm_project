@@ -296,6 +296,8 @@ router.post('/assist/interaction', async (req, res) => {
 
 const customerAssistSchema = z.object({
   query: z.string().trim().min(2).max(300),
+  /** Cho phep AI tim tren web khi can (cham va ton phi hon). */
+  web_search: z.boolean().optional(),
 });
 
 /**
@@ -305,7 +307,7 @@ const customerAssistSchema = z.object({
 router.post('/assist/customer', async (req, res) => {
   try {
     const body = parseBody(customerAssistSchema, req);
-    res.json(await assistCustomer(db, body.query));
+    res.json(await assistCustomer(db, body.query, { webSearch: body.web_search }));
   } catch (error) {
     asHttpError(error);
   }
