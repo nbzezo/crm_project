@@ -20,11 +20,13 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     version: '1.8.1',
     date: '2026-10-02',
-    title: 'Kinh doanh lên trên Dự án; Đã chia sẻ chuyển vào Cài đặt',
+    title:
+      'Hiệu suất tách hai màn Của tôi / Phòng ban; Kinh doanh lên trên Dự án; Đã chia sẻ vào Cài đặt',
     changes: [
       'Thanh điều hướng: nhóm Kinh doanh xếp ngay dưới Bàn làm việc, trên nhóm Dự án.',
       'Mục "Đã chia sẻ" chuyển vào Cài đặt → Dữ liệu → Liên kết chia sẻ, cạnh Dữ liệu & sao lưu. Ai tạo được liên kết chia sẻ đều vào được mục này để xem, gia hạn hoặc thu hồi.',
       'Đường dẫn cũ /shares tự chuyển tới chỗ mới.',
+      'Trang Hiệu suất tách hai màn: "Của tôi" chỉ số liệu của chính bạn; "Phòng ban" cho công ty, phòng ban và nhân sự bạn quản lý (chọn đơn vị hoặc từng người, biểu đồ so sánh, bảng theo đơn vị / cá nhân). Màn Phòng ban chỉ hiện khi bạn được xem số liệu của người khác.',
     ],
   },
   {

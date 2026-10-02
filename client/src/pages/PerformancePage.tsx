@@ -1,6 +1,15 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { useSearchParams } from 'react-router';
+import {
+  ArrowDown,
+  ArrowUp,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  User,
+  Users,
+} from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, qs } from '../api/client';
 import { EmptyState, ErrorState, Panel, Skeleton, focusRing } from '../components/common/ui';
@@ -168,12 +177,23 @@ function loadSubject(): Subject | null {
   }
 }
 
+type Screen = 'me' | 'team';
+
+/*
+ * Hai man tach rieng:
+ *   - "Của tôi": chi so lieu cua chinh nguoi dang xem — ai cung co.
+ *   - "Phòng ban": cong ty / phong ban / nhan su minh quan ly. Chi hien khi pham
+ *     vi quyen cho thay it nhat MOT nguoi khac ngoai minh; nhan vien thuong
+ *     (pham vi `own`) chi co man "Của tôi".
+ * Man dang xem nam tren URL (?screen=team) de chia se / quay lai dung cho.
+ */
 export default function PerformancePage() {
   const [rangeKey, setRangeKey] = useState<RangeKey>('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState(todayStr());
   const [view, setView] = useState<View>('units');
   const [chosen, setChosen] = useState<Subject | null>(loadSubject);
+  const [params, setParams] = useSearchParams();
   const range = resolveRange(rangeKey, customFrom, customTo);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -189,7 +209,11 @@ export default function PerformancePage() {
     () => new Map((data?.units ?? []).map((unit) => [unit.id, unit.name])),
     [data]
   );
-  const options = useMemo(() => (data ? subjectOptions(roots, data) : []), [roots, data]);
+  /* Man Phong ban khong co muc "Của tôi" — da co man rieng. */
+  const options = useMemo(
+    () => (data ? subjectOptions(roots, data).filter((o) => o.value !== 'me') : []),
+    [roots, data]
+  );
 
   if (error)
     return (
@@ -198,8 +222,24 @@ export default function PerformancePage() {
       </div>
     );
 
+  const meInScope = data?.me != null && data.people.some((p) => p.contact_id === data.me);
+  const hasTeam = (data?.people.length ?? 0) > (meInScope ? 1 : 0);
+  /* Tai khoan chua gan nhan su nhung co pham vi xem nguoi khac (vd. quan tri)
+     thi mo thang man Phong ban — man Của tôi cua ho trong tron. */
+  const screen: Screen = hasTeam && (params.get('screen') === 'team' || !meInScope) ? 'team' : 'me';
+  const setScreen = (next: Screen) =>
+    setParams(
+      (current) => {
+        const copy = new URLSearchParams(current);
+        if (next === 'team') copy.set('screen', 'team');
+        else copy.delete('screen');
+        return copy;
+      },
+      { replace: true }
+    );
+
   /* Lua chon da luu khong con hop le (doi pham vi, nguoi nghi viec) thi lui ve
-     muc dau danh sach: quan ly -> Toàn phạm vi, nhan vien -> Của tôi. */
+     muc dau danh sach (Toàn phạm vi). */
   const personName = (id: number) => data?.people.find((p) => p.contact_id === id)?.name;
   const personId = (value: Subject | null) =>
     value?.startsWith('person:') ? Number(value.slice('person:'.length)) : null;
@@ -208,7 +248,8 @@ export default function PerformancePage() {
     chosen != null &&
     (options.some((o) => o.value === chosen) ||
       (chosenPerson != null && personName(chosenPerson) != null));
-  const subject: Subject = chosenValid ? chosen : (options[0]?.value ?? 'all');
+  const teamSubject: Subject = chosenValid ? chosen : (options[0]?.value ?? 'all');
+  const subject: Subject = screen === 'me' ? 'me' : teamSubject;
   const selectSubject = (next: Subject) => {
     setChosen(next);
     try {
@@ -221,16 +262,56 @@ export default function PerformancePage() {
   const selected = data ? peopleOf(subject, roots, data) : [];
   const totals = sumTotals(selected);
   const rate = onTimeRate(totals);
-  const solo = (data?.people.length ?? 0) <= 1;
   const series = data
     ? weeklySeries(data.weekly, new Set(selected.map((p) => p.contact_id)), data.from, data.to)
     : [];
-  const comparison = compareRows(subject, roots);
+  const comparison = screen === 'team' ? compareRows(subject, roots) : [];
   const subjectPerson = personId(subject);
+  const onlyOne = (data?.people.length ?? 0) <= 1;
 
   return (
     <div className="space-y-4 p-6">
-      <PageHeader description="Năng suất và độ đúng hạn của bạn, đội nhóm và phòng ban — trong phạm vi bạn được xem." />
+      <PageHeader
+        description={
+          screen === 'me'
+            ? 'Năng suất và độ đúng hạn của chính bạn.'
+            : 'Năng suất và độ đúng hạn của công ty, phòng ban và nhân sự bạn quản lý.'
+        }
+      />
+
+      {hasTeam && (
+        <div
+          role="tablist"
+          aria-label="Màn hình hiệu suất"
+          className="flex gap-1 border-b border-tr-border"
+        >
+          {(
+            [
+              ['me', 'Của tôi', User],
+              ['team', 'Phòng ban', Building2],
+            ] as const
+          )
+            .filter(([key]) => key === 'team' || meInScope)
+            .map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={screen === key}
+                onClick={() => setScreen(key)}
+                className={`-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-medium transition fine:min-h-9 ${focusRing} ${
+                  screen === key
+                    ? 'border-tr-primary text-tr-text'
+                    : 'border-transparent text-tr-subtle hover:text-tr-text'
+                }`}
+              >
+                <Icon size={15} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <ReportRangePicker
           rangeKey={rangeKey}
@@ -240,7 +321,7 @@ export default function PerformancePage() {
           customTo={customTo}
           onCustomToChange={setCustomTo}
         />
-        {options.length > 1 && (
+        {screen === 'team' && options.length > 1 && (
           <label className="flex items-center gap-2 text-sm text-tr-subtle">
             Xem của
             <select
@@ -254,7 +335,7 @@ export default function PerformancePage() {
                   {option.label}
                 </option>
               ))}
-              {subjectPerson != null && subjectPerson !== data?.me && (
+              {subjectPerson != null && (
                 <option value={subject}>{personName(subjectPerson)}</option>
               )}
             </select>
@@ -271,19 +352,22 @@ export default function PerformancePage() {
           </div>
           <Skeleton className="h-64 rounded-panel" />
         </div>
-      ) : data.people.length === 0 ? (
+      ) : screen === 'me' && !meInScope ? (
         <EmptyState
-          message="Không có nhân sự nào trong phạm vi bạn được xem."
+          message="Chưa có số liệu của riêng bạn."
           hint="Tài khoản của bạn cần được gắn với một người trong Tổ chức & nhân sự để có số liệu của chính mình."
         />
       ) : (
         <>
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-tr-muted">
             <Users size={14} aria-hidden="true" />
-            Phạm vi quyền: <strong className="text-tr-text">{SCOPE_LABEL[data.scope]}</strong>· đang
-            xem {selected.length} người · so với kỳ trước {formatDateShort(data.prev_from)} –{' '}
-            {formatDateShort(data.prev_to)}
-            {data.me == null && ' · tài khoản của bạn chưa gắn với nhân sự nào'}
+            {screen === 'team' && (
+              <>
+                Phạm vi quyền: <strong className="text-tr-text">{SCOPE_LABEL[data.scope]}</strong>·
+                đang xem {selected.length} người ·
+              </>
+            )}{' '}
+            so với kỳ trước {formatDateShort(data.prev_from)} – {formatDateShort(data.prev_to)}
           </p>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -311,7 +395,11 @@ export default function PerformancePage() {
             <Tile
               label="Thời gian xử lý TB"
               value={formatDays(avgCycleDays(totals))}
-              hint={`${totals.slips} lần dời hạn trong kỳ`}
+              hint={
+                screen === 'me'
+                  ? `${totals.slips} lần dời hạn · ${formatHours(totals.spent_hours)} thực tế`
+                  : `${totals.slips} lần dời hạn trong kỳ`
+              }
             />
           </div>
 
@@ -329,46 +417,48 @@ export default function PerformancePage() {
             )}
           </div>
 
-          <Panel
-            title={view === 'units' && !solo ? 'Theo đơn vị' : 'Theo cá nhân'}
-            action={
-              !solo && (
-                <div role="group" aria-label="Cách xem" className="flex gap-1">
-                  {(
-                    [
-                      ['units', 'Theo đơn vị'],
-                      ['people', 'Theo cá nhân'],
-                    ] as [View, string][]
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={view === key}
-                      onClick={() => setView(key)}
-                      className={`min-h-9 rounded-control px-2.5 text-sm ${focusRing} ${
-                        view === key
-                          ? 'bg-tr-primary/10 font-medium text-tr-primary'
-                          : 'text-tr-subtle hover:bg-tr-hover'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )
-            }
-          >
-            {view === 'units' && !solo ? (
-              <UnitTable roots={roots} me={data.me} onSelect={selectSubject} />
-            ) : (
-              <PeopleTable
-                people={data.people}
-                me={data.me}
-                unitName={(id) => unitById.get(id ?? -1)}
-                onSelect={selectSubject}
-              />
-            )}
-          </Panel>
+          {screen === 'team' && (
+            <Panel
+              title={view === 'units' && !onlyOne ? 'Theo đơn vị' : 'Theo cá nhân'}
+              action={
+                !onlyOne && (
+                  <div role="group" aria-label="Cách xem" className="flex gap-1">
+                    {(
+                      [
+                        ['units', 'Theo đơn vị'],
+                        ['people', 'Theo cá nhân'],
+                      ] as [View, string][]
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-pressed={view === key}
+                        onClick={() => setView(key)}
+                        className={`min-h-9 rounded-control px-2.5 text-sm ${focusRing} ${
+                          view === key
+                            ? 'bg-tr-primary/10 font-medium text-tr-primary'
+                            : 'text-tr-subtle hover:bg-tr-hover'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )
+              }
+            >
+              {view === 'units' && !onlyOne ? (
+                <UnitTable roots={roots} me={data.me} onSelect={selectSubject} />
+              ) : (
+                <PeopleTable
+                  people={data.people}
+                  me={data.me}
+                  unitName={(id) => unitById.get(id ?? -1)}
+                  onSelect={selectSubject}
+                />
+              )}
+            </Panel>
+          )}
         </>
       )}
     </div>
@@ -637,7 +727,7 @@ function PersonButton({
   return (
     <button
       type="button"
-      onClick={() => onSelect(isMe ? 'me' : `person:${person.contact_id}`)}
+      onClick={() => onSelect(`person:${person.contact_id}`)}
       className={`inline-flex items-center gap-1.5 rounded-control text-left text-tr-text hover:text-tr-primary hover:underline ${focusRing}`}
     >
       {person.name}
