@@ -1,12 +1,14 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check } from 'lucide-react';
+import { Check, ImagePlus } from 'lucide-react';
 import { Button, Field, FormError, Input, Segmented } from '../common/ui';
 import { focusRing } from '../common/ui';
 import { useUiStore } from '../../stores/uiStore';
 import { IDLE_OPTIONS, LOCK_SCENES, useLockStore, type IdleMinutes } from '../../stores/lockStore';
 import { digitsOnly, LOCK_STATUS_KEY, lockApi } from './lockApi';
-import { SCENE_INFO, SceneBackdrop } from './scenes';
+import { SCENE_INFO, SceneBackdrop, useLockPhoto } from './scenes';
+import { removeLockPhoto, saveLockPhoto } from '../../lib/lockPhoto';
+import type { LockScene } from '../../stores/lockStore';
 
 /**
  * Khoa man hinh & man cho — mo tu menu tai khoan.
@@ -37,11 +39,41 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 function ScenePicker({ onPreview }: { onPreview: () => void }) {
   const prefs = useLockStore((s) => s.prefs);
   const setPrefs = useLockStore((s) => s.setPrefs);
+  const pushToast = useUiStore((s) => s.pushToast);
+  const photo = useLockPhoto();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const scenes: readonly LockScene[] = photo ? ['photo', ...LOCK_SCENES] : LOCK_SCENES;
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setPhotoError(null);
+    try {
+      await saveLockPhoto(file);
+      setPrefs({ scene: 'photo' });
+      pushToast('Đã đặt ảnh làm nền màn chờ', 'success');
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : 'Không lưu được ảnh');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const removePhoto = () => {
+    removeLockPhoto();
+    if (prefs.scene === 'photo') setPrefs({ scene: 'aurora' });
+  };
 
   return (
-    <Section title="Màn chờ" hint="Chọn khung cảnh để nghỉ mắt. Có thể đổi ngay trên màn chờ.">
+    <Section
+      title="Màn chờ"
+      hint="Chọn khung cảnh để nghỉ mắt, hoặc dùng ảnh của bạn. Có thể đổi ngay trên màn chờ."
+    >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {LOCK_SCENES.map((scene) => {
+        {scenes.map((scene) => {
           const active = prefs.scene === scene;
           return (
             <button
@@ -75,7 +107,41 @@ function ScenePicker({ onPreview }: { onPreview: () => void }) {
             </button>
           );
         })}
+        {!photo && (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className={`flex aspect-video flex-col items-center justify-center gap-1 rounded-panel border border-dashed border-tr-border text-sm text-tr-muted transition hover:border-tr-primary/50 hover:text-tr-text sm:aspect-auto ${focusRing}`}
+          >
+            <ImagePlus size={20} aria-hidden="true" />
+            {uploading ? 'Đang xử lý ảnh…' : 'Tải ảnh của bạn'}
+          </button>
+        )}
       </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => void upload(event.target.files?.[0])}
+      />
+      {photo && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <ImagePlus size={14} aria-hidden="true" />
+            {uploading ? 'Đang xử lý ảnh…' : 'Đổi ảnh'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={removePhoto}>
+            Gỡ ảnh
+          </Button>
+        </div>
+      )}
+      {photoError && <FormError error={new Error(photoError)} />}
+      <p className="mt-2 text-xs text-tr-muted">
+        Ảnh chỉ lưu trên máy này, tự thu nhỏ để nhẹ. Nên chọn ảnh ngang, chủ thể lệch trái để chừa
+        chỗ cho đồng hồ bên phải.
+      </p>
 
       <div className="mt-3 space-y-2">
         <Toggle

@@ -10,6 +10,10 @@
  * khi he dieu hanh bat "giam chuyen dong".
  */
 
+/* Cung thu tu layer voi Tailwind: file nay co the nap TRUOC index.css, ma layer
+   xuat hien dau tien moi quyet dinh thu tu. */
+@layer theme, base, components, utilities;
+
 .ls-scene {
   position: absolute;
   inset: 0;
@@ -335,26 +339,183 @@
   }
 }
 
-/* Chu tren canh: canh nao cung co vung sang, nen chu luon trang kem bong mo. */
-.ls-ink {
-  color: #ffffff;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+/* Anh nguoi dung tai len. */
+.ls-photo {
+  background-size: cover;
+  background-position: center;
 }
-.ls-glass {
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #ffffff;
-  backdrop-filter: blur(12px);
+
+/* Lam toi mep phai va day de chu trang doc duoc tren moi anh/canh. */
+.ls-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.18) 0%,
+      rgba(0, 0, 0, 0) 22%,
+      rgba(0, 0, 0, 0) 70%,
+      rgba(0, 0, 0, 0.35) 100%
+    );
 }
-.ls-glass:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-.ls-glass::placeholder {
-  color: rgba(255, 255, 255, 0.7);
-}
-.ls-glass:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
+
+/* Kieu dieu khien nam trong @layer components de class tien ich Tailwind (px-*, items-*)
+   dat cung phan tu van thang — CSS ngoai layer luon de len moi layer. */
+@layer components {
+  /* ---------- Chu va khung kinh mo ---------- */
+  .ls-ink {
+    color: #ffffff;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+  }
+  .ls-spaced {
+    letter-spacing: 0.18em;
+    opacity: 0.9;
+  }
+  .ls-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .ls-card,
+  .ls-panel,
+  .ls-dock {
+    background: rgba(16, 28, 22, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 22px;
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    text-shadow: none;
+  }
+  .ls-panel {
+    border-radius: 18px;
+    background: rgba(16, 28, 22, 0.6);
+  }
+  .ls-dock {
+    border-radius: 16px;
+  }
+  .ls-panel-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .ls-note {
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .ls-field {
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #ffffff;
+    outline: none;
+  }
+  .ls-field::placeholder {
+    color: rgba(255, 255, 255, 0.65);
+  }
+  .ls-field:focus {
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+  }
+  .ls-field[aria-invalid='true'] {
+    border-color: #ffb4a8;
+  }
+  .ls-primary {
+    border-radius: 12px;
+    background: #e2f2d3;
+    color: #1c2a1e;
+    font-weight: 600;
+    transition: filter 0.15s;
+  }
+  .ls-primary:hover {
+    filter: brightness(1.05);
+  }
+  .ls-primary:disabled {
+    opacity: 0.7;
+  }
+  .ls-round,
+  .ls-icon-btn {
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(10px);
+    transition: background 0.15s;
+  }
+  .ls-icon-btn {
+    display: flex;
+    height: 2rem;
+    width: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border-color: transparent;
+    background: transparent;
+  }
+  .ls-round:hover,
+  .ls-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .ls-dock-btn {
+    border-radius: 12px;
+    color: #ffffff;
+    transition: background 0.15s;
+  }
+  .ls-dock-btn:hover,
+  .ls-dock-btn-on {
+    background: rgba(255, 255, 255, 0.14);
+  }
+  .ls-chip {
+    display: inline-flex;
+    white-space: nowrap;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: background 0.15s;
+  }
+  .ls-chip:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .ls-chip-on {
+    background: #e2f2d3;
+    color: #1c2a1e;
+    border-color: #e2f2d3;
+  }
+  .ls-progress {
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+  }
+  .ls-progress > span {
+    display: block;
+    height: 100%;
+    background: #e2f2d3;
+    transition: width 0.25s linear;
+  }
+  .ls-range {
+    accent-color: #e2f2d3;
+  }
+  .ls-day {
+    border-radius: 8px;
+    padding: 0.2rem 0;
+  }
+  .ls-day-today {
+    background: #e2f2d3;
+    color: #1c2a1e;
+  }
+  .ls-root button:focus-visible,
+  .ls-root input:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+  }
 }
 
 .ls-shake {

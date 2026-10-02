@@ -11,7 +11,8 @@ import { create } from 'zustand';
  * Sang/Toi), con ma PIN nam o may chu theo tai khoan (/api/lock-screen).
  */
 
-export type LockScene = 'aurora' | 'sunset' | 'night' | 'ocean' | 'forest' | 'minimal';
+export type LockScene = 'photo' | 'aurora' | 'sunset' | 'night' | 'ocean' | 'forest' | 'minimal';
+/** Canh ve san. 'photo' = anh nguoi dung tai len (lockPhoto.ts), chi chon duoc khi da co anh. */
 export const LOCK_SCENES: readonly LockScene[] = [
   'aurora',
   'sunset',
@@ -20,6 +21,7 @@ export const LOCK_SCENES: readonly LockScene[] = [
   'forest',
   'minimal',
 ];
+const ALL_SCENES: readonly LockScene[] = ['photo', ...LOCK_SCENES];
 
 /** 0 = khong tu khoa. */
 export const IDLE_OPTIONS = [0, 5, 10, 15, 30, 60] as const;
@@ -36,7 +38,7 @@ export interface LockPrefs {
 export const DEFAULT_LOCK_PREFS: LockPrefs = {
   scene: 'aurora',
   idleMinutes: 0,
-  showSeconds: false,
+  showSeconds: true,
   showLunar: true,
   showQuote: true,
 };
@@ -67,7 +69,7 @@ export function parsePrefs(raw: string | null): LockPrefs {
   try {
     const value = JSON.parse(raw ?? '') as Partial<LockPrefs>;
     return {
-      scene: LOCK_SCENES.includes(value.scene as LockScene)
+      scene: ALL_SCENES.includes(value.scene as LockScene)
         ? (value.scene as LockScene)
         : DEFAULT_LOCK_PREFS.scene,
       idleMinutes: IDLE_OPTIONS.includes(value.idleMinutes as IdleMinutes)

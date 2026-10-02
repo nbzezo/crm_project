@@ -23,8 +23,9 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
     title: 'Khóa màn hình với màn chờ thư giãn',
     changes: [
       'Nút 🔒 cạnh chuông thông báo (hoặc phím Ctrl + Shift + L) khóa màn hình ngay khi rời bàn. Trên điện thoại: menu tài khoản → Khóa ngay.',
-      'Màn chờ để nghỉ mắt: đồng hồ lớn, thứ ngày tháng kèm âm lịch và một câu nhắn nhẹ nhàng. Không hiện việc hay thông báo nào.',
-      'Sáu khung cảnh chuyển động chậm: Cực quang, Hoàng hôn, Đêm sao, Biển, Rừng sương, Tối giản. Chọn trong menu tài khoản → Khóa màn hình & màn chờ, hoặc bấm nút đổi cảnh ngay trên màn chờ.',
+      'Màn chờ để nghỉ mắt: tên app góc trái, đồng hồ có giây, thứ ngày tháng kèm âm lịch và thẻ "Chào mừng trở lại" bên phải. Không hiện việc hay thông báo nào.',
+      'Nền màn chờ: dùng ảnh của bạn (tải lên trong menu tài khoản → Khóa màn hình & màn chờ, chỉ lưu trên máy) hoặc một trong sáu khung cảnh chuyển động chậm: Cực quang, Hoàng hôn, Đêm sao, Biển, Rừng sương, Tối giản. Đổi cảnh ngay trên màn chờ bằng nút góc phải; có nút toàn màn hình.',
+      'Thanh tiện ích dưới màn chờ: Đếm ngược (5/15/25/50 phút hoặc tự nhập, chuông báo khi hết giờ), Nhạc study (đàn lofi, mưa, sóng biển, tiếng ồn nâu, tạo ngay trên máy, không cần mạng) và Lịch âm / dương theo tháng.',
       'Mã mở khóa 4–6 số, không bắt buộc. Chưa đặt mã thì bấm hoặc gõ phím bất kỳ là vào lại. Đặt, đổi hoặc tắt mã trong menu tài khoản; mã dùng chung trên mọi máy bạn đăng nhập.',
       'Quên mã: bấm "Quên mã?" để nhận lại đúng mã đang dùng qua email tài khoản (mã không đổi). Luôn có nút Đăng xuất để vào lại.',
       'Tùy chọn tự khóa sau 5 phút đến 1 giờ không dùng (mặc định tắt). Khóa ở một tab thì mọi tab cùng khóa; tải lại trang vẫn giữ khóa. Đang gõ dở gì vẫn còn nguyên khi mở khóa.',
