@@ -112,7 +112,9 @@ function recordView(link: ShareLinkRow, req: Request, action: 'view' | 'download
           ? `SELECT customer_id, deal_id FROM documents WHERE id = ?`
           : link.entity_type === 'quotation'
             ? `SELECT customer_id, deal_id FROM quotations WHERE id = ?`
-            : `SELECT customer_id, deal_id FROM contracts WHERE id = ?`
+            : link.entity_type === 'page'
+              ? `SELECT customer_id, deal_id FROM meeting_notes WHERE id = ?`
+              : `SELECT customer_id, deal_id FROM contracts WHERE id = ?`
       )
       .get(link.entity_id) as { customer_id: number | null; deal_id: number | null } | undefined;
     db.prepare(

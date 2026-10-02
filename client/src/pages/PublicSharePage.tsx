@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Download, Eye, FileText, Lock } from 'lucide-react';
 import { formatDate, formatDateTime, formatVND } from '../lib/format';
 import { SHARE_ENTITY_LABEL, type ShareEntityType } from '../lib/share';
@@ -20,11 +20,41 @@ interface SharedFile {
   size: number;
 }
 
+interface PublicRun {
+  t: string;
+  b?: true;
+  i?: true;
+  u?: true;
+  s?: true;
+  c?: true;
+  href?: string;
+}
+
+interface PublicBlock {
+  type:
+    | 'paragraph'
+    | 'heading'
+    | 'bullet'
+    | 'number'
+    | 'check'
+    | 'quote'
+    | 'code'
+    | 'divider'
+    | 'table'
+    | 'omitted';
+  level?: number;
+  checked?: boolean;
+  runs: PublicRun[];
+  rows?: PublicRun[][][];
+  children: PublicBlock[];
+}
+
 interface Payload {
   requires_password: false;
   type: ShareEntityType;
   title: string;
   fields: Record<string, string | number | null>;
+  blocks?: PublicBlock[];
   files: SharedFile[];
   allow_download: boolean;
   locked_version: boolean;
@@ -82,7 +112,9 @@ function rowsFor(data: Payload): Row[] {
             ['Trạng thái', t.contractStatus[text('status')] ?? text('status')],
             ['Điều khoản thanh toán', text('payment_terms')],
           ]
-        : [['Mô tả', text('description')]];
+        : data.type === 'page'
+          ? [['Thời gian họp', text('purpose_key') === 'meeting' ? formatDateTime(text('meeting_at')) : '']]
+          : [['Mô tả', text('description')]];
   return rows.filter(([, value]) => value);
 }
 
@@ -90,6 +122,131 @@ function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function Runs({ runs }: { runs: PublicRun[] }) {
+  return (
+    <>
+      {runs.map((run, index) => {
+        let node: ReactNode = run.t;
+        if (run.c) node = <code className="rounded bg-tr-hover px-1 py-0.5 text-[0.9em]">{node}</code>;
+        if (run.b) node = <strong>{node}</strong>;
+        if (run.i) node = <em>{node}</em>;
+        if (run.u) node = <u>{node}</u>;
+        if (run.s) node = <s>{node}</s>;
+        if (run.href) {
+          node = (
+            <a
+              href={run.href}
+              target="_blank"
+              rel="noreferrer noopener nofollow"
+              className="text-tr-primary underline"
+            >
+              {node}
+            </a>
+          );
+        }
+        return <span key={index}>{node}</span>;
+      })}
+    </>
+  );
+}
+
+/** Cay khoi da duoc may chu loc; chi dung phan tu React (khong dangerouslySetInnerHTML). */
+function Blocks({ blocks }: { blocks: PublicBlock[] }) {
+  let counter = 0;
+  return (
+    <>
+      {blocks.map((block, index) => {
+        counter = block.type === 'number' ? counter + 1 : 0;
+        const kids = block.children.length > 0 && (
+          <div className="ml-5">
+            <Blocks blocks={block.children} />
+          </div>
+        );
+        switch (block.type) {
+          case 'heading': {
+            const cls = ['text-xl font-bold', 'text-lg font-semibold', 'text-base font-semibold'][
+              (block.level ?? 1) - 1
+            ];
+            const Tag = (['h2', 'h3', 'h4'] as const)[(block.level ?? 1) - 1];
+            return (
+              <div key={index} className="mt-4">
+                <Tag className={cls}>
+                  <Runs runs={block.runs} />
+                </Tag>
+                {kids}
+              </div>
+            );
+          }
+          case 'bullet':
+          case 'number':
+          case 'check':
+            return (
+              <div key={index}>
+                <p className="flex gap-2">
+                  <span aria-hidden="true" className="w-5 shrink-0 text-right text-tr-muted">
+                    {block.type === 'bullet' ? '•' : block.type === 'number' ? `${counter}.` : block.checked ? '☑' : '☐'}
+                  </span>
+                  <span className={block.type === 'check' && block.checked ? 'text-tr-muted line-through' : ''}>
+                    <Runs runs={block.runs} />
+                  </span>
+                </p>
+                {kids}
+              </div>
+            );
+          case 'quote':
+            return (
+              <div key={index} className="my-1 border-l-4 border-tr-border pl-3 text-tr-subtle">
+                <Runs runs={block.runs} />
+                {kids}
+              </div>
+            );
+          case 'code':
+            return (
+              <pre key={index} className="my-1 overflow-x-auto rounded-control bg-tr-hover p-2 text-sm">
+                <Runs runs={block.runs} />
+              </pre>
+            );
+          case 'divider':
+            return <hr key={index} className="my-3 border-tr-border" />;
+          case 'table':
+            return (
+              <div key={index} className="my-2 overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <tbody>
+                    {(block.rows ?? []).map((row, r) => (
+                      <tr key={r}>
+                        {row.map((cell, c) => (
+                          <td key={c} className="border border-tr-border px-2 py-1 align-top">
+                            <Runs runs={cell} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          case 'omitted':
+            return (
+              <p key={index} className="my-1 text-sm">
+                <Runs runs={block.runs} />
+              </p>
+            );
+          default:
+            return (
+              <div key={index} className="min-h-[1.5em]">
+                <p>
+                  <Runs runs={block.runs} />
+                </p>
+                {kids}
+              </div>
+            );
+        }
+      })}
+    </>
+  );
 }
 
 export default function PublicSharePage({ token }: { token: string }) {
@@ -246,6 +403,16 @@ export default function PublicSharePage({ token }: { token: string }) {
               </dl>
             )}
 
+            {state.data.blocks && (
+              <section className="mt-5 text-[0.95rem] leading-relaxed" aria-label="Nội dung trang">
+                {state.data.blocks.length === 0 ? (
+                  <p className="text-sm text-tr-muted">Trang này chưa có nội dung.</p>
+                ) : (
+                  <Blocks blocks={state.data.blocks} />
+                )}
+              </section>
+            )}
+
             {state.data.files.length > 0 && (
               <section className="mt-5" aria-label="Tệp đính kèm">
                 <h2 className="mb-2 text-sm font-semibold">Tệp đính kèm</h2>
@@ -297,7 +464,8 @@ export default function PublicSharePage({ token }: { token: string }) {
             <p className="mt-5 text-xs text-tr-muted">
               {state.data.expires_at
                 ? `Liên kết có hiệu lực đến ${formatDateTime(state.data.expires_at.replace(' ', 'T'))}.`
-                : 'Liên kết không có hạn sử dụng.'}
+                : 'Liên kết không có hạn sử dụng.'}{' '}
+              Lượt truy cập được ghi lại (thời gian và địa chỉ IP) để người chia sẻ biết nội dung đã được xem.
             </p>
           </article>
         )}

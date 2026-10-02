@@ -33,6 +33,9 @@ import {
 
 const router = Router();
 
+/** So ngay giu nhat ky luot mo (IP, trinh duyet cua nguoi nhan). */
+const VIEW_RETENTION_DAYS = 180;
+
 const createSchema = z.object({
   entity_type: z.enum(SHARE_ENTITY_TYPES),
   entity_id: z.number().int().positive(),
@@ -85,9 +88,10 @@ function assertEntityAccess(
     throw new HttpError(403, 'Bạn không có quyền dùng chức năng này');
   }
   const info = required(loadEntity(db, type, id), 'Không tìm thấy bản ghi cần chia sẻ');
-  /* Tai lieu khong co chu so huu rieng (khong nam trong pham vi du lieu) nen chi
-     kiem quyen tinh nang; bao gia va hop dong thi kiem ca pham vi. */
-  if (type !== 'document') {
+  /* Tai lieu va Trang tai lieu khong nam trong pham vi du lieu (cac route cua chung
+     cung chi chan theo tinh nang) nen o day cung chi kiem quyen tinh nang; bao gia
+     va hop dong thi kiem ca pham vi. */
+  if (type !== 'document' && type !== 'page') {
     assertInScope(req, resource, action, info.ownerContactId, 'Không tìm thấy bản ghi cần chia sẻ');
   }
   return info;
@@ -171,6 +175,12 @@ router.post('/', (req, res) => {
             .get(`+${body.expires_in_days} days`) as { at: string }
         ).at;
 
+  /* Nhat ky luot mo luu IP cua nguoi ngoai: chi giu VIEW_RETENTION_DAYS ngay. Don khi co
+     nguoi tao link moi — khong can tac vu nen rieng. */
+  db.prepare(`DELETE FROM share_link_views WHERE viewed_at < datetime('now','localtime', ?)`).run(
+    `-${VIEW_RETENTION_DAYS} days`
+  );
+
   const result = db
     .prepare(
       `INSERT INTO share_links
@@ -226,6 +236,19 @@ router.post('/:id/revoke', (req, res) => {
   db.prepare(
     `UPDATE share_links SET revoked_at = COALESCE(revoked_at, datetime('now','localtime')) WHERE id = ?`
   ).run(link.id);
+  res.json(serialize(db.prepare(`SELECT * FROM share_links WHERE id = ?`).get(link.id) as ShareLinkRow));
+});
+
+/* Gia han: dat lai han tu BAY GIO (khong cong don vao han cu), ke ca link da het han.
+   Link da thu hoi thi khong gia han — thu hoi la quyet dinh co chu y, khong dao nguoc im lang. */
+router.post('/:id/extend', (req, res) => {
+  const link = loadManagedLink(req);
+  const body = parseBody(z.object({ days: z.union([z.literal(1), z.literal(7), z.literal(30)]) }), req);
+  if (link.revoked_at) throw new HttpError(409, 'Liên kết đã bị thu hồi, hãy tạo liên kết mới');
+  db.prepare(`UPDATE share_links SET expires_at = datetime('now','localtime', ?) WHERE id = ?`).run(
+    `+${body.days} days`,
+    link.id
+  );
   res.json(serialize(db.prepare(`SELECT * FROM share_links WHERE id = ?`).get(link.id) as ShareLinkRow));
 });
 

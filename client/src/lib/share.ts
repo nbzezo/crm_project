@@ -3,7 +3,7 @@
  * Khop voi server/src/routes/shares.ts va services/shareService.ts.
  */
 
-export type ShareEntityType = 'document' | 'quotation' | 'contract';
+export type ShareEntityType = 'document' | 'quotation' | 'contract' | 'page';
 export type ShareStatus = 'active' | 'expired' | 'revoked';
 
 export interface ShareLink {
@@ -42,6 +42,7 @@ export const SHARE_ENTITY_LABEL: Record<ShareEntityType, string> = {
   document: 'Tài liệu',
   quotation: 'Báo giá',
   contract: 'Hợp đồng',
+  page: 'Trang tài liệu',
 };
 
 export const SHARE_STATUS_LABEL: Record<ShareStatus, string> = {

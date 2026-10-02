@@ -35,6 +35,15 @@ export default function SharesPage() {
     },
   });
 
+  const extend = useMutation({
+    mutationFn: ({ id, days }: { id: number; days: number }) =>
+      api.post<ShareLink>(`/api/shares/${id}/extend`, { days }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['shares'] });
+      pushToast('Đã gia hạn liên kết', 'success');
+    },
+  });
+
   const toggle = useMutation({
     mutationFn: (enabled: boolean) =>
       api.put<{ public_enabled: boolean }>('/api/shares/settings', { public_enabled: enabled }),
@@ -46,7 +55,7 @@ export default function SharesPage() {
   return (
     <div className="mx-auto w-full max-w-3xl p-4">
       <p className="mb-3 text-sm text-tr-subtle">
-        Các liên kết công khai (chỉ xem) đã tạo cho tài liệu, báo giá và hợp đồng. Thu hồi một liên
+        Các liên kết công khai (chỉ xem) đã tạo cho tài liệu, trang tài liệu, báo giá và hợp đồng. Thu hồi một liên
         kết là vô hiệu hóa nó ngay lập tức.
       </p>
 
@@ -112,6 +121,8 @@ export default function SharesPage() {
               showTitle
               onRevoke={() => revoke.mutate(link.id)}
               revoking={revoke.isPending}
+              onExtend={(days) => extend.mutate({ id: link.id, days })}
+              extending={extend.isPending}
             />
           ))}
         </ul>

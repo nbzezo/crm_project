@@ -20,10 +20,11 @@ import {
 } from '../../lib/share';
 import { useUiStore } from '../../stores/uiStore';
 
-const RESOURCE_OF: Record<ShareEntityType, 'documents' | 'quotations' | 'contracts'> = {
+const RESOURCE_OF: Record<ShareEntityType, 'documents' | 'quotations' | 'contracts' | 'notes'> = {
   document: 'documents',
   quotation: 'quotations',
   contract: 'contracts',
+  page: 'notes',
 };
 
 const STATUS_COLOR = {
@@ -145,6 +146,16 @@ export function ShareDialog({
       void queryClient.invalidateQueries({ queryKey: listKey });
       void queryClient.invalidateQueries({ queryKey: ['shares', 'all'] });
       pushToast('Đã thu hồi liên kết', 'success');
+    },
+  });
+
+  const extend = useMutation({
+    mutationFn: ({ id, days }: { id: number; days: number }) =>
+      api.post<ShareLink>(`/api/shares/${id}/extend`, { days }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: listKey });
+      void queryClient.invalidateQueries({ queryKey: ['shares', 'all'] });
+      pushToast('Đã gia hạn liên kết', 'success');
     },
   });
 
@@ -307,6 +318,8 @@ export function ShareDialog({
                 link={link}
                 onRevoke={() => revoke.mutate(link.id)}
                 revoking={revoke.isPending}
+                onExtend={(days) => extend.mutate({ id: link.id, days })}
+                extending={extend.isPending}
               />
             ))}
           </ul>
@@ -321,11 +334,15 @@ export function ShareLinkItem({
   link,
   onRevoke,
   revoking,
+  onExtend,
+  extending,
   showTitle = false,
 }: {
   link: ShareLink;
   onRevoke: () => void;
   revoking: boolean;
+  onExtend: (days: number) => void;
+  extending: boolean;
   showTitle?: boolean;
 }) {
   const [showViews, setShowViews] = useState(false);
@@ -367,6 +384,11 @@ export function ShareLinkItem({
         <Button size="sm" onClick={() => setShowViews((v) => !v)} aria-expanded={showViews}>
           <Eye size={13} aria-hidden="true" /> {showViews ? 'Ẩn lượt mở' : 'Xem lượt mở'}
         </Button>
+        {link.status !== 'revoked' && (
+          <Button size="sm" disabled={extending} onClick={() => onExtend(7)}>
+            Gia hạn 7 ngày
+          </Button>
+        )}
         {link.status === 'active' && (
           <Button size="sm" variant="danger" disabled={revoking} onClick={onRevoke}>
             Thu hồi

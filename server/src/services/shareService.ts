@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { Database } from 'better-sqlite3';
 import type { PermissionResource } from '@workflow/contracts';
+import { toPublicBlocks, type PublicBlock } from './shareBlocks.ts';
 
 /*
  * Chia se cong khai (chi xem) qua duong lien ket.
@@ -13,13 +14,15 @@ import type { PermissionResource } from '@workflow/contracts';
  *    GIO nam trong do, du cot tuong ung co trong bang.
  */
 
-export const SHARE_ENTITY_TYPES = ['document', 'quotation', 'contract'] as const;
+export const SHARE_ENTITY_TYPES = ['document', 'quotation', 'contract', 'page'] as const;
 export type ShareEntityType = (typeof SHARE_ENTITY_TYPES)[number];
 
 export const SHARE_RESOURCE: Record<ShareEntityType, PermissionResource> = {
   document: 'documents',
   quotation: 'quotations',
   contract: 'contracts',
+  /* "Trang tai lieu" (meeting_notes) dung chung quyen `notes` voi cac ghi chu khac. */
+  page: 'notes',
 };
 
 export interface ShareLinkRow {
@@ -57,6 +60,8 @@ export interface SharePayload {
   type: ShareEntityType;
   title: string;
   fields: Record<string, FieldValue>;
+  /** Chi voi `page`: noi dung trang da loc sang cay an toan (xem shareBlocks.ts). */
+  blocks?: PublicBlock[];
   files: SharedFile[];
   allow_download: boolean;
   locked_version: boolean;
@@ -73,6 +78,7 @@ export interface EntityInfo {
   /** Ly do khong cho chia se cong khai (vd tai lieu mat). */
   blockedReason?: string;
   fields: Record<string, FieldValue>;
+  blocks?: PublicBlock[];
   files: SharedFile[];
 }
 
@@ -162,6 +168,40 @@ const EXTRA_FILE_SELECT = `SELECT dc.id, dc.name, dc.file_name,
    WHERE dc.deleted_at IS NULL AND dc.confidentiality <> 'confidential'`;
 
 export function loadEntity(db: Database, type: ShareEntityType, id: number): EntityInfo | undefined {
+  if (type === 'page') {
+    const row = db
+      .prepare(
+        `SELECT id, title, purpose_key, meeting_at, content_json, owner_contact_id, customer_id, deal_id
+           FROM meeting_notes WHERE id = ? AND deleted_at IS NULL`
+      )
+      .get(id) as
+      | {
+          id: number;
+          title: string;
+          purpose_key: string;
+          meeting_at: string | null;
+          content_json: string;
+          owner_contact_id: number | null;
+          customer_id: number | null;
+          deal_id: number | null;
+        }
+      | undefined;
+    if (!row) return undefined;
+    const files = db
+      .prepare(`${EXTRA_FILE_SELECT} AND dc.meeting_note_id = ? ORDER BY dc.created_at DESC`)
+      .all(id) as SharedFile[];
+    return {
+      title: row.title || 'Trang không có tiêu đề',
+      ownerContactId: row.owner_contact_id,
+      customerId: row.customer_id,
+      dealId: row.deal_id,
+      /* Khong dua ra: nguoi tham du, tom tat AI, ten khach hang/co hoi/du an. */
+      fields: { purpose_key: row.purpose_key, meeting_at: row.meeting_at },
+      blocks: toPublicBlocks(row.content_json),
+      files,
+    };
+  }
+
   if (type === 'document') {
     const row = db
       .prepare(
@@ -307,11 +347,12 @@ export function loadEntity(db: Database, type: ShareEntityType, id: number): Ent
 
 interface Snapshot {
   fields: Record<string, FieldValue>;
+  blocks?: PublicBlock[];
   files: SharedFile[];
 }
 
 export function makeSnapshot(info: EntityInfo): string {
-  const snapshot: Snapshot = { fields: info.fields, files: info.files };
+  const snapshot: Snapshot = { fields: info.fields, blocks: info.blocks, files: info.files };
   return JSON.stringify(snapshot);
 }
 
@@ -334,13 +375,14 @@ export function buildPayload(db: Database, link: ShareLinkRow): SharePayload | u
   const live = loadEntity(db, link.entity_type, link.entity_id);
   if (!live || live.blockedReason) return undefined;
   const locked = link.snapshot_json ? (JSON.parse(link.snapshot_json) as Snapshot) : null;
-  const source: Snapshot = locked ?? { fields: live.fields, files: live.files };
+  const source: Snapshot = locked ?? { fields: live.fields, blocks: live.blocks, files: live.files };
   /* Tep da dong bang van phai CON ton tai va con duoc phep chia se. */
   const files = locked ? source.files.filter((f) => fileStillShareable(db, f.id)) : source.files;
   return {
     type: link.entity_type,
     title: locked ? link.title : live.title,
     fields: source.fields,
+    blocks: source.blocks,
     files,
     allow_download: link.allow_download === 1,
     locked_version: Boolean(locked),

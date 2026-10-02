@@ -122,16 +122,56 @@ after(async () => {
   fs.rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
-test('v51: bang chia se co rang buoc loai ban ghi va quay lui duoc', async () => {
+test('v51 -> v52: bo CHECK loai ban ghi, giu nguyen link va nhat ky, quay lui duoc', async () => {
   const { default: Database } = await import('better-sqlite3');
   const { migrate } = await import('../db/migrate.ts');
   const mem = new Database(':memory:');
   mem.pragma('foreign_keys = ON');
   migrate(mem, 50);
-  migrate(mem);
+  migrate(mem, 51);
   assert.throws(() =>
     mem
-      .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h', 'deal', 1)`)
+      .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h', 'page', 1)`)
+      .run()
+  );
+  mem
+    .prepare(
+      `INSERT INTO share_links (token_hash, entity_type, entity_id, title) VALUES ('h1', 'document', 7, 'Cu')`
+    )
+    .run();
+  mem.prepare(`INSERT INTO share_link_views (link_id, ip) VALUES (1, '1.2.3.4')`).run();
+
+  migrate(mem);
+  const kept = mem.prepare(`SELECT id, title FROM share_links`).all();
+  assert.deepEqual(kept, [{ id: 1, title: 'Cu' }]);
+  assert.equal(
+    (mem.prepare(`SELECT COUNT(*) AS n FROM share_link_views`).get() as { n: number }).n,
+    1
+  );
+  mem
+    .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h2', 'page', 1)`)
+    .run();
+  assert.deepEqual(mem.pragma('foreign_key_check'), []);
+  /* Xoa link thi nhat ky xoa theo: khoa ngoai van noi dung sau khi thay bang. */
+  mem.prepare(`DELETE FROM share_links WHERE id = 1`).run();
+  assert.equal(
+    (mem.prepare(`SELECT COUNT(*) AS n FROM share_link_views`).get() as { n: number }).n,
+    0
+  );
+
+  mem.exec(fs.readFileSync(new URL('../db/migrate-v52-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    (
+      mem.prepare(`SELECT COUNT(*) AS n FROM share_links WHERE entity_type = 'page'`).get() as {
+        n: number;
+      }
+    ).n,
+    0,
+    'link trang tai lieu bi go khi quay ve v51'
+  );
+  assert.throws(() =>
+    mem
+      .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h3', 'page', 1)`)
       .run()
   );
   mem.exec(fs.readFileSync(new URL('../db/migrate-v51-rollback.sql', import.meta.url), 'utf8'));
@@ -140,6 +180,11 @@ test('v51: bang chia se co rang buoc loai ban ghi va quay lui duoc', async () =>
   ).map((t) => t.name);
   assert.equal(tables.includes('share_links'), false);
   assert.equal(tables.includes('drive_backup_settings'), true);
+});
+
+test('loai ban ghi la do API chan (khong con CHECK o CSDL)', async () => {
+  const res = await call('POST', '/api/shares', { entity_type: 'deal', entity_id: 1 });
+  assert.equal(res.status, 400);
 });
 
 test('bao gia: link dong bang, an ghi chu noi bo, mo duoc khong can dang nhap', async () => {
@@ -387,4 +432,161 @@ test('route quan ly can dang nhap', async () => {
     false
   );
   assert.equal(res.status, 401);
+});
+
+test('Trang tai lieu: chia se noi dung da loc, khong lo nguoi tham du / id / khoi tuy chinh', async () => {
+  const content = [
+    {
+      id: 'a1',
+      type: 'heading',
+      props: { level: 2 },
+      content: [{ type: 'text', text: 'Muc tieu', styles: { bold: true } }],
+    },
+    {
+      id: 'a2',
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'Gui ', styles: {} },
+        {
+          type: 'link',
+          href: 'javascript:alert(1)',
+          content: [{ type: 'text', text: 'link doc', styles: {} }],
+        },
+        {
+          type: 'link',
+          href: 'https://example.com',
+          content: [{ type: 'text', text: 'an toan', styles: {} }],
+        },
+        { type: 'mention', props: { contactId: 4242, label: 'Nguyen Van A' } },
+      ],
+      children: [
+        { id: 'a3', type: 'bulletListItem', content: [{ type: 'text', text: 'y con', styles: {} }] },
+      ],
+    },
+    { id: 'a4', type: 'flowchart', props: { data: 'BI-MAT-SO-DO' } },
+    {
+      id: 'a5',
+      type: 'checkListItem',
+      props: { checked: true },
+      content: [{ type: 'text', text: 'xong', styles: {} }],
+    },
+  ];
+  const attendee = Number(
+    db
+      .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (?, 'Nguoi Tham Du Bi Mat')`)
+      .run(customerId).lastInsertRowid
+  );
+  const pageId = Number(
+    db
+      .prepare(
+        `INSERT INTO meeting_notes (title, purpose_key, content_json, content_text, search_text, customer_id)
+         VALUES ('Ke hoach Q4', 'plan', ?, 'x', 'ke hoach q4', ?)`
+      )
+      .run(JSON.stringify(content), customerId).lastInsertRowid
+  );
+  db.prepare(`INSERT INTO meeting_note_attendees (meeting_note_id, contact_id) VALUES (?, ?)`).run(
+    pageId,
+    attendee
+  );
+  db.prepare(
+    `INSERT INTO documents (name, file_name, stored_name, mime, size, meeting_note_id, search_text)
+     VALUES ('Dinh kem', 'dk.txt', 'x-share.txt', 'text/plain', 20, ?, 'dk')`
+  ).run(pageId);
+
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'page',
+    entity_id: pageId,
+    notify_on_view: true,
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.json.locked_version, false);
+  const view = await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
+  assert.equal(view.status, 200);
+  assert.equal(view.json.title, 'Ke hoach Q4');
+  assert.equal(view.json.blocks[0].type, 'heading');
+  assert.equal(view.json.blocks[0].level, 2);
+  assert.equal(view.json.blocks[0].runs[0].b, true);
+  assert.equal(view.json.blocks[1].children[0].type, 'bullet');
+  assert.equal(view.json.blocks[2].type, 'omitted');
+  assert.equal(view.json.blocks[3].checked, true);
+  const runs = view.json.blocks[1].runs as { t: string; href?: string }[];
+  assert.equal(runs.find((r) => r.t === 'link doc')?.href, undefined, 'javascript: bi bo');
+  assert.equal(runs.find((r) => r.t === 'an toan')?.href, 'https://example.com');
+  assert.ok(runs.some((r) => r.t === '@Nguyen Van A'));
+  assert.equal(view.text.includes('BI-MAT-SO-DO'), false, 'khoi tuy chinh khong lo props');
+  assert.equal(view.text.includes('4242'), false, 'khong lo id danh ba');
+  assert.equal(view.text.includes('Nguoi Tham Du Bi Mat'), false);
+  assert.equal(view.text.includes('Cong ty Khach'), false, 'khong lo ten khach hang');
+  assert.equal(view.json.files.length, 1);
+  const reminder = db
+    .prepare(`SELECT customer_id FROM reminders WHERE title LIKE '%Ke hoach Q4%'`)
+    .all() as { customer_id: number }[];
+  assert.equal(reminder.length, 1);
+  assert.equal(reminder[0].customer_id, customerId);
+
+  /* Dong bang: sua trang sau khi chia se khong doi thu nguoi nhan thay. */
+  const locked = await call('POST', '/api/shares', {
+    entity_type: 'page',
+    entity_id: pageId,
+    lock_version: true,
+  });
+  db.prepare(`UPDATE meeting_notes SET title = 'Da doi ten', content_json = '[]' WHERE id = ?`).run(
+    pageId
+  );
+  const frozen = await call('GET', `/api/public/share/${locked.json.token}`, undefined, false);
+  assert.equal(frozen.json.title, 'Ke hoach Q4');
+  assert.equal(frozen.json.blocks.length, 4);
+  const live = await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
+  assert.equal(live.json.title, 'Da doi ten');
+
+  /* Xoa mem trang thi link ngung hoat dong. */
+  db.prepare(`UPDATE meeting_notes SET deleted_at = datetime('now','localtime') WHERE id = ?`).run(
+    pageId
+  );
+  const gone = await call('GET', `/api/public/share/${locked.json.token}`, undefined, false);
+  assert.equal(gone.status, 404);
+});
+
+test('gia han: dat lai han tu bay gio, link da thu hoi thi khong gia han', async () => {
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+    expires_in_days: 1,
+  });
+  db.prepare(
+    `UPDATE share_links SET expires_at = datetime('now','localtime','-1 minutes') WHERE id = ?`
+  ).run(created.json.id);
+  const before = await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
+  assert.equal(before.status, 410);
+  const extended = await call('POST', `/api/shares/${created.json.id}/extend`, { days: 30 });
+  assert.equal(extended.status, 200);
+  assert.equal(extended.json.status, 'active');
+  const after = await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
+  assert.equal(after.status, 200);
+
+  await call('POST', `/api/shares/${created.json.id}/revoke`);
+  const refused = await call('POST', `/api/shares/${created.json.id}/extend`, { days: 7 });
+  assert.equal(refused.status, 409);
+  const bad = await call('POST', `/api/shares/${created.json.id}/extend`, { days: 5 });
+  assert.equal(bad.status, 400);
+});
+
+test('nhat ky luot mo qua 180 ngay bi don khi tao link moi', async () => {
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+  });
+  db.prepare(
+    `INSERT INTO share_link_views (link_id, viewed_at, ip) VALUES (?, datetime('now','localtime','-200 days'), 'cu')`
+  ).run(created.json.id);
+  db.prepare(
+    `INSERT INTO share_link_views (link_id, viewed_at, ip) VALUES (?, datetime('now','localtime','-10 days'), 'moi')`
+  ).run(created.json.id);
+  await call('POST', '/api/shares', { entity_type: 'document', entity_id: documentId });
+  const ips = (
+    db.prepare(`SELECT ip FROM share_link_views WHERE link_id = ?`).all(created.json.id) as {
+      ip: string;
+    }[]
+  ).map((r) => r.ip);
+  assert.deepEqual(ips, ['moi']);
 });
