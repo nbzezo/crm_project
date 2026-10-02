@@ -56,6 +56,20 @@ trang. Tài liệu này là nguồn quyết định duy nhất cho câu hỏi "g
 | "Hành động tiếp theo" *và* "Next Action" | **Next Action** | Hai tên cho cùng một thứ, có chỗ đứng cạnh nhau trong một dòng (`InteractionTimeline`: nhãn "Hành động tiếp theo", hint "Sẽ cập nhật Next Action của cơ hội"). |
 | "Chế độ model" | **Mức độ chi tiết** | Thuật ngữ kỹ thuật lọt ra giao diện người dùng. Ba mức giữ nguyên nghĩa: Nhanh / Cân bằng / Suy luận. |
 
+## Luồng việc, cột, giai đoạn (1.9.0)
+
+| Khái niệm | Tên hiển thị | Định nghĩa |
+|---|---|---|
+| board | **Bảng – Luồng việc** (thanh bên, tiêu đề trang); **Luồng việc** ở chỗ hẹp | Một mảng công việc có quy trình riêng. Dự án chỉ có một luồng thì luồng đó là ngầm, không bắt người dùng chọn |
+| list | **Cột** | Một bước trong quy trình của luồng việc, gắn với một trạng thái |
+| phase (dự án) | **Giai đoạn** | Luồng việc **có mốc bàn giao**. Không phải thực thể riêng (`boards.milestone_date`) |
+| dạng xem `board` | **Kanban** (trong luồng việc), **Cây việc** (tab Công việc của dự án) | |
+| dạng xem `table` | **Bảng tính** | Không gọi là "Bảng" để khỏi trùng với luồng việc |
+
+Ranh giới: luồng việc chia việc theo **mảng**, giai đoạn là luồng việc được gắn **mốc thời
+gian**, cột chia việc theo **bước** bên trong một luồng. "Giai đoạn" của cơ hội (stage) là
+khái niệm của Kinh doanh, không liên quan.
+
 ## Khi thêm thuật ngữ mới
 
 Đặt chuỗi vào `client/src/i18n/vi.ts` chứ không viết thẳng vào JSX, rồi bổ sung một dòng

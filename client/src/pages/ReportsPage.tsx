@@ -261,7 +261,7 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
           hint={
             sales
               ? 'Chọn một khoảng thời gian rộng hơn, hoặc ghi nhận thêm cơ hội và công việc rồi quay lại.'
-              : 'Chọn một khoảng thời gian rộng hơn, hoặc gắn bảng công việc vào dự án rồi quay lại.'
+              : 'Chọn một khoảng thời gian rộng hơn, hoặc gắn luồng việc vào dự án rồi quay lại.'
           }
         />
       )}
@@ -789,7 +789,7 @@ function ProjectProgress({ rows }: { rows: ReportsData['by_project'] }) {
     <Panel title="Tiến độ theo dự án" className="lg:col-span-2">
       {rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-tr-muted">
-          Chưa có dự án đang chạy nào có bảng công việc.
+          Chưa có dự án đang chạy nào có công việc.
         </p>
       ) : (
         <div

@@ -8,7 +8,7 @@ import { nextPosition } from '../lib/position.ts';
 import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
 import { applyBoardTemplate } from '../services/deliveryService.ts';
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
-import type { CardStatus } from '@workflow/contracts';
+import { insertBoard } from '../services/boardService.ts';
 
 const router = Router();
 
@@ -33,21 +33,6 @@ const boardUpdate = z.object({
     .nullable()
     .optional(),
 });
-
-/**
- * Cot mac dinh kem NGHIA vong doi cua chung (v19).
- *
- * Truoc day bon cot nay trung ten voi bon trang thai nhung khong lien he gi voi
- * nhau — keo the sang 'Hoan thanh' khong lam no xong. Gan `status_mapping` ngay
- * luc tao bang de bang moi hoat dong dung tu dau; cot tu them ve sau mac dinh
- * khong anh xa, nguoi dung tu khai neu muon.
- */
-const DEFAULT_LISTS: [string, CardStatus][] = [
-  ['Cần làm', 'todo'],
-  ['Đang làm', 'doing'],
-  ['Chờ duyệt', 'review'],
-  ['Hoàn thành', 'done'],
-];
 
 function boardCustomerForProject(
   projectId: number | null | undefined,
@@ -111,28 +96,14 @@ router.post('/', (req, res) => {
   const body = parseBody(boardCreate, req);
   assertEntityLinks(db, { customer_id: body.customer_id });
   const customerId = boardCustomerForProject(body.project_id, body.customer_id);
-  const background = body.background ?? '#0079bf';
   const result = db.transaction(() => {
-    const info = db
-      .prepare(
-        `INSERT INTO boards (name, color, background, customer_id, project_id, owner_contact_id)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        body.name,
-        background,
-        background,
-        customerId,
-        body.project_id ?? null,
-        defaultOwner(req)
-      );
-    const boardId = Number(info.lastInsertRowid);
-    const insertList = db.prepare(
-      `INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`
-    );
-    DEFAULT_LISTS.forEach(([name, status], i) =>
-      insertList.run(boardId, name, (i + 1) * 1024, status)
-    );
+    const boardId = insertBoard(db, {
+      name: body.name,
+      background: body.background,
+      customerId,
+      projectId: body.project_id ?? null,
+      ownerContactId: defaultOwner(req),
+    });
     return db.prepare(`SELECT * FROM boards WHERE id = ?`).get(boardId);
   })();
   res.status(201).json(result);

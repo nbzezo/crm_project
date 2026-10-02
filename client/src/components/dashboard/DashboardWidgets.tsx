@@ -1217,7 +1217,7 @@ export function RecentActivityWidget({ interactions }: { interactions: Interacti
 export function BoardSummaryWidget({ boards }: { boards: DashboardData['recent_boards'] }) {
   return (
     <Panel
-      title="Bảng công việc"
+      title="Bảng – Luồng việc"
       className="h-full"
       action={
         <Link

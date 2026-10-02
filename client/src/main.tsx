@@ -77,7 +77,11 @@ const router = createBrowserRouter([
       {
         path: 'boards/:boardId',
         element: <BoardPage />,
-        handle: { permission: 'boards:read', title: 'Chi tiết bảng', mobileChrome: 'no-topbar' },
+        handle: {
+          permission: 'boards:read',
+          title: 'Chi tiết luồng việc',
+          mobileChrome: 'no-topbar',
+        },
       },
       {
         path: 'customers',

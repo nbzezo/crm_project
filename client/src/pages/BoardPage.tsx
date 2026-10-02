@@ -146,7 +146,7 @@ export default function BoardPage() {
         <Link
           to={board.project_id ? `/projects/${board.project_id}` : '/boards'}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded md:hidden"
-          aria-label="Quay lại danh sách bảng"
+          aria-label="Quay lại danh sách luồng việc"
         >
           <ChevronLeft size={22} />
         </Link>
@@ -189,8 +189,8 @@ export default function BoardPage() {
         <button
           onClick={() => patchBoard.mutate({ is_starred: !board.is_starred })}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition hover:bg-white/20 fine:h-8 fine:w-8"
-          aria-label={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao bảng này'}
-          title={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao bảng này'}
+          aria-label={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao luồng việc này'}
+          title={board.is_starred ? 'Bỏ gắn sao' : 'Gắn sao luồng việc này'}
         >
           <Star
             size={17}
@@ -205,7 +205,7 @@ export default function BoardPage() {
           <Link
             to={`/projects/${board.project_id}`}
             className="tr-header-btn hidden max-w-44 truncate md:inline-flex"
-            title="Bảng này thuộc dự án — mọi công việc bên trong cũng vậy"
+            title="Luồng việc này thuộc dự án — mọi công việc bên trong cũng vậy"
           >
             <FolderKanban size={14} /> {board.project_name}
           </Link>
@@ -250,15 +250,15 @@ export default function BoardPage() {
           <button
             onClick={() => setMenuOpen(true)}
             className="flex h-11 w-11 items-center justify-center rounded text-white transition hover:bg-white/20 fine:h-8 fine:w-8"
-            aria-label="Mở menu bảng"
-            title="Menu bảng"
+            aria-label="Mở menu luồng việc"
+            title="Menu luồng việc"
           >
             <MoreHorizontal size={18} />
           </button>
         </div>
         <div className="basis-full pb-1 md:hidden">
           <div className="mb-1 px-2 text-xs text-white/85">
-            {board.project_name ?? board.customer_name ?? 'Bảng'} ·{' '}
+            {board.project_name ?? board.customer_name ?? 'Luồng việc'} ·{' '}
             {board.lists.reduce((sum, list) => sum + list.cards.length, 0)} thẻ
           </div>
           <BoardViewSegmented value={view} onChange={setView} />

@@ -78,7 +78,7 @@ function TaskTooltip({
     ['Ưu tiên', t.priority[item.priority]],
     ...(progress !== null ? [['Tiến độ', `${progress}%`]] : []),
     ...(item.customer_name ? [['Khách hàng', item.customer_name]] : []),
-    ...(item.board_name ? [['Bảng / dự án', item.board_name]] : []),
+    ...(item.board_name ? [['Luồng việc', item.board_name]] : []),
   ];
 
   return createPortal(

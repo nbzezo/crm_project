@@ -18,6 +18,19 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.9.0',
+    date: '2026-10-02',
+    title: 'Bảng – Luồng việc; dự án một luồng không còn bắt chọn bảng; Giai đoạn là luồng có mốc',
+    changes: [
+      '"Bảng công việc" đổi tên thành "Bảng – Luồng việc" (dạng ngắn "Luồng việc"). Mỗi luồng việc là một mảng công việc có quy trình riêng; các cột bên trong là các bước (trước gọi là "danh sách").',
+      'Tạo dự án mới là có sẵn một luồng việc mang tên dự án — thêm công việc được ngay, không phải tạo bảng trước. Đổi tên dự án thì luồng này đổi theo.',
+      'Dự án chỉ có một luồng việc: form công việc không còn ô chọn luồng, Tổng quan dự án ẩn khung luồng việc. Tab Công việc có lối "Kanban theo cột" để mở luồng đó.',
+      'Tab Giai đoạn chỉ liệt kê luồng việc có mốc bàn giao. Luồng chưa có mốc nằm trong mục thu gọn để đặt mốc tại chỗ; thêm giai đoạn mới bằng tên và ngày mốc ngay trong tab.',
+      'Số giai đoạn dùng để gợi ý mô hình triển khai A/B chỉ đếm luồng việc có mốc. Mô hình đã chốt không đổi.',
+      'Dạng xem đổi tên cho rõ: "Kanban" trong luồng việc, "Cây việc" trong tab Công việc của dự án, "Bảng tính" ở trang Công việc.',
+    ],
+  },
+  {
     version: '1.8.1',
     date: '2026-10-02',
     title:

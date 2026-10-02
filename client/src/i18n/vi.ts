@@ -20,7 +20,7 @@ export const t = {
   },
   nav: {
     dashboard: 'Tổng quan',
-    boards: 'Bảng công việc',
+    boards: 'Bảng – Luồng việc',
     projects: 'Dự án',
     customers: 'Khách hàng',
     pipeline: 'Cơ hội bán hàng',
@@ -613,17 +613,17 @@ export const t = {
     difficult: 'Không thuận lợi',
   } as Record<string, string>,
   board: {
-    newBoard: 'Tạo bảng mới',
-    boardName: 'Tên bảng',
-    addList: 'Thêm danh sách',
-    listName: 'Tên danh sách',
+    newBoard: 'Tạo luồng việc',
+    boardName: 'Tên luồng việc',
+    addList: 'Thêm cột',
+    listName: 'Tên cột',
     addCard: 'Thêm thẻ',
     cardTitle: 'Tiêu đề thẻ',
     archived: 'Đã lưu trữ',
     archive: 'Lưu trữ',
     unarchive: 'Bỏ lưu trữ',
     linkedCustomer: 'Khách hàng liên quan',
-    noBoards: 'Chưa có bảng nào. Tạo bảng đầu tiên để bắt đầu.',
+    noBoards: 'Chưa có luồng việc nào. Tạo luồng việc đầu tiên để bắt đầu.',
   },
   card: {
     description: 'Mô tả',
@@ -699,8 +699,8 @@ export const t = {
 
   /** Hai mô hình quản lý triển khai của đặc tả 6.2. */
   deliveryModel: {
-    A: 'Mô hình A — bảng dự án riêng',
-    B: 'Mô hình B — bảng triển khai chung',
+    A: 'Mô hình A — luồng việc riêng của dự án',
+    B: 'Mô hình B — luồng triển khai chung',
   } as Record<string, string>,
 
   /** Trạng thái mốc của một giai đoạn — suy ra khi đọc. */
@@ -881,7 +881,7 @@ export const t = {
     cancelled: 'Đã hủy',
   } as Record<CalEventStatus, string>,
   timeline: {
-    groupByBoard: 'Theo bảng',
+    groupByBoard: 'Theo luồng việc',
     groupByCustomer: 'Theo khách hàng',
     zoomWeek: 'Tuần',
     zoomMonth: 'Tháng',

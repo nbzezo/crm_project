@@ -5,7 +5,7 @@ import { PageHeader } from '../components/common/PageShell';
 export default function TimelinePage() {
   return (
     <div className="space-y-4 p-6">
-      <PageHeader description="Mốc thời gian của mọi bảng trên một trục chung." />
+      <PageHeader description="Mốc thời gian của mọi luồng việc trên một trục chung." />
       <TimelineBoard />
     </div>
   );

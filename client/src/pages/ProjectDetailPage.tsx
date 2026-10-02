@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, ListTree, MoreHorizontal, Pencil, Plus, Trash2, Trello } from 'lucide-react';
 import { api } from '../api/client';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Tabs } from '../components/common/Tabs';
@@ -23,7 +23,12 @@ import {
 import { AssigneeChip } from '../components/tasks/AssigneePicker';
 import { TaskTree } from '../components/tasks/TaskTree';
 import { TaskTable } from '../components/tasks/TaskTable';
-import { BoardViewChip, BOARD_VIEWS, type BoardViewMode } from '../components/kanban/BoardViews';
+import {
+  BoardViewChip,
+  BOARD_VIEWS,
+  type BoardViewMode,
+  type BoardViewOption,
+} from '../components/kanban/BoardViews';
 import { TimelineBoard } from '../components/views/TimelineBoard';
 import { LazyCalendarView } from '../components/calendar/LazyCalendarView';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
@@ -194,7 +199,7 @@ export default function ProjectDetailPage() {
       <ProjectForm open={editing} onClose={() => setEditing(false)} project={project} />
       <ConfirmDialog
         open={confirmDelete}
-        message={`Xóa dự án “${project.name}”? Công việc, bảng và hợp đồng bên trong KHÔNG bị xóa — chúng chỉ bỏ liên kết với dự án này.`}
+        message={`Xóa dự án “${project.name}”? Công việc, luồng việc và hợp đồng bên trong KHÔNG bị xóa — chúng chỉ bỏ liên kết với dự án này.`}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
           setConfirmDelete(false);
@@ -203,6 +208,16 @@ export default function ProjectDetailPage() {
       />
     </PageShell>
   );
+}
+
+/** Dạng 'board' của tab này hiển thị cây việc của cả dự án, không phải Kanban theo cột. */
+const PROJECT_TASK_VIEWS: BoardViewOption[] = BOARD_VIEWS.map((v) =>
+  v.value === 'board' ? { ...v, label: 'Cây việc', icon: ListTree } : v
+);
+
+/** Luồng việc đang hoạt động của dự án — đúng một luồng thì luồng đó là ngầm. */
+function activeBoards(project: ProjectDetail) {
+  return project.boards.filter((board) => !board.is_archived);
 }
 
 /**
@@ -227,9 +242,16 @@ function TasksTab({ project }: { project: ProjectDetail }) {
     setSearchParams(next, { replace: true });
   };
 
-  /* Dự án chưa có bảng nào thì KHÔNG có chỗ hợp lệ để thả việc vào — tạo bảng
-     trước. Trước v19, nút "Thêm công việc" ở đây thả việc vào bảng của khách hàng
-     hoặc bảng gắn sao đầu tiên, tức là ra ngoài dự án. */
+  const composeTask = () =>
+    openTaskComposer({
+      context: project.customer_id ? { customer_id: project.customer_id } : {},
+      projectId: project.id,
+    });
+
+  /* Dự án tạo từ 1.9.0 có sẵn luồng việc ngầm. Dự án cũ chưa có luồng nào thì
+     KHÔNG có chỗ hợp lệ để thả việc vào: "Bắt đầu" tạo luồng ngầm rồi mở form.
+     Trước v19, nút "Thêm công việc" ở đây thả việc vào bảng của khách hàng hoặc
+     bảng gắn sao đầu tiên, tức là ra ngoài dự án. */
   const createBoard = useMutation({
     mutationFn: () =>
       api.post<{ id: number }>('/api/boards', {
@@ -237,17 +259,19 @@ function TasksTab({ project }: { project: ProjectDetail }) {
         project_id: project.id,
         customer_id: project.customer_id,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project', project.id] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['project', project.id] });
       queryClient.invalidateQueries({ queryKey: ['boards'] });
+      composeTask();
     },
   });
 
-  if (project.boards.length === 0) {
+  const boards = activeBoards(project);
+  if (boards.length === 0) {
     return (
       <EmptyState
-        message="Dự án chưa có bảng công việc nào."
-        hint="Công việc phải nằm trong một bảng thuộc dự án — tạo bảng trước rồi thêm việc vào đó."
+        message="Dự án chưa có công việc nào."
+        hint="Bấm Bắt đầu để thêm công việc đầu tiên của dự án."
         action={
           <Button
             variant="primary"
@@ -255,7 +279,7 @@ function TasksTab({ project }: { project: ProjectDetail }) {
             onClick={() => createBoard.mutate()}
           >
             <Plus size={15} aria-hidden="true" />
-            {createBoard.isPending ? 'Đang tạo…' : `Tạo bảng “${project.name}”`}
+            {createBoard.isPending ? 'Đang chuẩn bị…' : 'Bắt đầu'}
           </Button>
         }
       />
@@ -265,18 +289,19 @@ function TasksTab({ project }: { project: ProjectDetail }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {boards.length === 1 && (
+          <Link
+            to={`/boards/${boards[0].id}`}
+            className={`inline-flex items-center gap-1.5 rounded-control px-2 py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}
+            title="Mở luồng việc của dự án dạng Kanban, kéo thả công việc qua các cột"
+          >
+            <Trello size={15} aria-hidden="true" /> Kanban theo cột
+          </Link>
+        )}
         <div className="rounded-panel bg-tr-hover-strong px-1">
-          <BoardViewChip value={view} onChange={setView} />
+          <BoardViewChip value={view} onChange={setView} views={PROJECT_TASK_VIEWS} />
         </div>
-        <Button
-          variant="primary"
-          onClick={() =>
-            openTaskComposer({
-              context: project.customer_id ? { customer_id: project.customer_id } : {},
-              projectId: project.id,
-            })
-          }
-        >
+        <Button variant="primary" onClick={composeTask}>
           <Plus size={15} aria-hidden="true" /> Thêm công việc
         </Button>
       </div>
@@ -285,7 +310,7 @@ function TasksTab({ project }: { project: ProjectDetail }) {
         <TaskTree
           tasks={project.tasks}
           emptyMessage="Dự án chưa có công việc nào."
-          emptyHint="Thêm công việc vào một trong các bảng của dự án."
+          emptyHint="Bấm Thêm công việc để bắt đầu."
         />
       )}
       {view === 'table' && <TaskTable tasks={project.tasks} />}
@@ -370,13 +395,10 @@ function Overview({ project }: { project: ProjectDetail }) {
         </div>
       )}
 
-      <Panel title={`Bảng công việc (${project.boards.length})`} className="lg:col-span-2">
-        {project.boards.length === 0 ? (
-          <EmptyState
-            message="Chưa có bảng nào thuộc dự án này."
-            hint="Mở một bảng rồi chọn dự án trong menu bảng để gắn vào đây."
-          />
-        ) : (
+      {/* Một luồng việc thì luồng đó là ngầm — không thêm thông tin gì cho tổng quan.
+          Lối vào Kanban của nó nằm ở tab Công việc. */}
+      {activeBoards(project).length > 1 && (
+        <Panel title={`Luồng việc (${project.boards.length})`} className="lg:col-span-2">
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {project.boards.map((board) => (
               <li key={board.id}>
@@ -390,13 +412,13 @@ function Overview({ project }: { project: ProjectDetail }) {
                     style={{ background: board.background }}
                   />
                   <span className="min-w-0 flex-1 truncate text-sm text-tr-text">{board.name}</span>
-                  <span className="text-xs text-tr-muted">{board.card_count} thẻ</span>
+                  <span className="text-xs text-tr-muted">{board.card_count} việc</span>
                 </Link>
               </li>
             ))}
           </ul>
-        )}
-      </Panel>
+        </Panel>
+      )}
 
       {project.notes && (
         <Panel title={t.customer.notes} className="lg:col-span-2">
@@ -430,68 +452,163 @@ const MILESTONE_TONE: Record<MilestoneState, string> = {
 };
 
 /**
- * Giai đoạn của dự án — mỗi Bảng là một giai đoạn (đặc tả 3.2, 6.2).
+ * Giai đoạn của dự án = luồng việc CÓ mốc bàn giao (đặc tả 3.2, 6.2).
  *
- * Không có thực thể "Phase" riêng: quan hệ Dự án → Bảng đã tồn tại từ v17, và
- * một giai đoạn chính là một bảng có hạn. Đặt hạn ngay tại đây thay vì bắt người
- * dùng đi sang từng bảng.
+ * Không có thực thể "Phase" riêng: quan hệ Dự án → Luồng việc đã tồn tại từ v17.
+ * Luồng chia việc theo MẢNG; gắn thêm mốc thời gian thì nó thành một giai đoạn.
+ * Luồng chưa có mốc (luồng ngầm, "Việc chung") không phải giai đoạn — chúng nằm
+ * trong mục thu gọn để đặt mốc ngay tại đây.
  */
 function Phases({ project }: { project: ProjectDetail }) {
   const queryClient = useQueryClient();
+  const [name, setName] = useState('');
+  const [date, setDate] = useState<string | null>(null);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['project', project.id] });
+
   const setMilestone = useMutation({
     mutationFn: ({ boardId, date }: { boardId: number; date: string | null }) =>
       api.patch(`/api/boards/${boardId}`, { milestone_date: date }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['project', project.id] }),
+    onSuccess: refresh,
   });
 
-  const phases = project.phases ?? [];
+  /* Thêm giai đoạn = tạo một luồng việc mới của dự án rồi đặt mốc cho nó. */
+  const addPhase = useMutation({
+    mutationFn: async () => {
+      const board = await api.post<{ id: number }>('/api/boards', {
+        name: name.trim(),
+        project_id: project.id,
+        customer_id: project.customer_id,
+      });
+      await api.patch(`/api/boards/${board.id}`, { milestone_date: date });
+    },
+    onSuccess: () => {
+      setName('');
+      setDate(null);
+      refresh();
+      queryClient.invalidateQueries({ queryKey: ['boards'] });
+    },
+  });
+
+  const all = project.phases ?? [];
+  const phases = all.filter((phase) => phase.milestone_date);
+  const unscheduled = all.filter((phase) => !phase.milestone_date && !phase.is_archived);
 
   return (
     <Panel title={`Giai đoạn & mốc bàn giao (${phases.length})`}>
+      <p className="mb-3 text-xs text-tr-muted">
+        Giai đoạn là một luồng việc có mốc bàn giao. Luồng việc chia công việc theo mảng; cột bên
+        trong luồng là các bước.
+      </p>
+
       {phases.length === 0 ? (
         <EmptyState
-          message="Chưa có bảng nào thuộc dự án này."
-          hint="Mỗi bảng của dự án là một giai đoạn. Gắn bảng vào dự án rồi đặt hạn cho nó."
+          message="Dự án chưa chia giai đoạn."
+          hint="Đặt mốc cho một luồng việc bên dưới, hoặc thêm giai đoạn mới cho từng đợt bàn giao."
         />
       ) : (
         <ul className="space-y-1.5">
           {phases.map((phase) => (
-            <li
+            <PhaseRow
               key={phase.id}
-              className="flex flex-wrap items-center gap-2 rounded-control border border-tr-border px-3 py-2.5"
-            >
-              <Link
-                to={`/boards/${phase.id}`}
-                className={`min-w-0 flex-1 truncate text-sm font-medium text-tr-text hover:underline ${focusRing}`}
-              >
-                {phase.name}
-              </Link>
-
-              <span className="shrink-0 text-xs text-tr-muted tabular-nums">
-                {phase.card_done}/{phase.card_total} việc
-              </span>
-
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${MILESTONE_TONE[phase.state]}`}
-              >
-                {t.milestoneState[phase.state]}
-                {phase.state === 'overdue' && phase.days_left !== null
-                  ? ` ${Math.abs(phase.days_left)} ngày`
-                  : ''}
-              </span>
-
-              <div className="w-36 shrink-0">
-                <DateInput
-                  value={phase.milestone_date}
-                  onChange={(date) => setMilestone.mutate({ boardId: phase.id, date })}
-                  aria-label={`Hạn của giai đoạn ${phase.name}`}
-                />
-              </div>
-            </li>
+              phase={phase}
+              onDate={(value) => setMilestone.mutate({ boardId: phase.id, date: value })}
+            />
           ))}
         </ul>
       )}
+
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (name.trim() && date) addPhase.mutate();
+        }}
+      >
+        <div className="min-w-48 flex-1">
+          <Field label="Giai đoạn mới">
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="VD: Đợt 1 — Bàn giao phân hệ Kế toán"
+            />
+          </Field>
+        </div>
+        <div className="w-40">
+          <Field label="Mốc bàn giao">
+            <DateInput
+              value={date}
+              onChange={setDate}
+              aria-label="Mốc bàn giao của giai đoạn mới"
+            />
+          </Field>
+        </div>
+        <Button type="submit" disabled={!name.trim() || !date || addPhase.isPending}>
+          <Plus size={15} aria-hidden="true" />
+          {addPhase.isPending ? 'Đang thêm…' : 'Thêm giai đoạn'}
+        </Button>
+      </form>
+
+      {unscheduled.length > 0 && (
+        <details className="mt-4" open={phases.length === 0}>
+          <summary className="cursor-pointer text-sm font-medium text-tr-subtle">
+            Luồng việc chưa đặt mốc ({unscheduled.length})
+          </summary>
+          <ul className="mt-2 space-y-1.5">
+            {unscheduled.map((phase) => (
+              <PhaseRow
+                key={phase.id}
+                phase={phase}
+                onDate={(value) => setMilestone.mutate({ boardId: phase.id, date: value })}
+              />
+            ))}
+          </ul>
+        </details>
+      )}
     </Panel>
+  );
+}
+
+function PhaseRow({
+  phase,
+  onDate,
+}: {
+  phase: ProjectDetail['phases'][number];
+  onDate: (date: string | null) => void;
+}) {
+  return (
+    <li className="flex flex-wrap items-center gap-2 rounded-control border border-tr-border px-3 py-2.5">
+      <Link
+        to={`/boards/${phase.id}`}
+        className={`min-w-0 flex-1 truncate text-sm font-medium text-tr-text hover:underline ${focusRing}`}
+      >
+        {phase.name}
+      </Link>
+
+      <span className="shrink-0 text-xs text-tr-muted tabular-nums">
+        {phase.card_done}/{phase.card_total} việc
+      </span>
+
+      {phase.milestone_date && (
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${MILESTONE_TONE[phase.state]}`}
+        >
+          {t.milestoneState[phase.state]}
+          {phase.state === 'overdue' && phase.days_left !== null
+            ? ` ${Math.abs(phase.days_left)} ngày`
+            : ''}
+        </span>
+      )}
+
+      <div className="w-36 shrink-0">
+        <DateInput
+          value={phase.milestone_date}
+          onChange={onDate}
+          aria-label={
+            phase.milestone_date ? `Mốc của giai đoạn ${phase.name}` : `Đặt mốc cho ${phase.name}`
+          }
+        />
+      </div>
+    </li>
   );
 }
 

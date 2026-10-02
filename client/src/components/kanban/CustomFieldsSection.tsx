@@ -63,7 +63,7 @@ export function CustomFieldsSection({
                 <button
                   onClick={() => setConfirmDelete(field)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-tr-muted opacity-100 transition hover:text-tr-danger hoverable:opacity-0 hoverable:group-hover:opacity-100 fine:h-7 fine:w-7"
-                  title="Xóa trường này khỏi bảng"
+                  title="Xóa trường này khỏi luồng việc"
                 >
                   <Trash2 size={11} />
                 </button>
@@ -92,7 +92,7 @@ export function CustomFieldsSection({
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Xóa trường "${confirmDelete?.name}" khỏi bảng? Giá trị đã nhập ở mọi thẻ cũng sẽ mất.`}
+        message={`Xóa trường "${confirmDelete?.name}" khỏi luồng việc? Giá trị đã nhập ở mọi thẻ cũng sẽ mất.`}
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => {
           if (confirmDelete) removeField.mutate(confirmDelete.id);
@@ -227,7 +227,9 @@ function NewFieldForm({
         >
           {t.common.cancel}
         </button>
-        <span className="ml-auto text-xs text-tr-muted">Áp dụng cho mọi thẻ trong bảng này</span>
+        <span className="ml-auto text-xs text-tr-muted">
+          Áp dụng cho mọi công việc trong luồng này
+        </span>
       </div>
     </div>
   );

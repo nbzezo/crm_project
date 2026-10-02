@@ -74,7 +74,7 @@ export const TASK_COLUMN_LABELS: Record<TaskColumnKey, string> = {
   status: 'Trạng thái',
   customer: 'Khách hàng',
   project: 'Dự án',
-  board: 'Bảng',
+  board: 'Luồng việc',
   progress: 'Tiến độ',
   creator: 'Người tạo',
   createdAt: 'Ngày tạo',

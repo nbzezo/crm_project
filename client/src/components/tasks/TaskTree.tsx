@@ -265,9 +265,9 @@ export function TaskTree({
           )}
           <span
             className="block truncate px-1.5 text-xs text-tr-subtle"
-            title={`Khách hàng: ${task.customer_name ?? 'Chưa gắn'} · Bảng: ${task.board_name} · Danh sách: ${task.list_name}`}
+            title={`Khách hàng: ${task.customer_name ?? 'Chưa gắn'} · Luồng việc: ${task.board_name} · Cột: ${task.list_name}`}
           >
-            Khách hàng: {task.customer_name ?? 'Chưa gắn'} · Bảng: {task.board_name}
+            Khách hàng: {task.customer_name ?? 'Chưa gắn'} · Luồng việc: {task.board_name}
           </span>
         </div>
 
@@ -454,7 +454,9 @@ export function TaskTree({
               {showDetails && (
                 <span className="hidden lg:block">{cols.customer ? 'Khách hàng' : ''}</span>
               )}
-              {showDetails && <span className="hidden lg:block">{cols.board ? 'Bảng' : ''}</span>}
+              {showDetails && (
+                <span className="hidden lg:block">{cols.board ? 'Luồng việc' : ''}</span>
+              )}
               <span>Trạng thái</span>
               {showDetails && <span>Danh sách / Nhãn</span>}
               <span className="text-right">Thao tác</span>

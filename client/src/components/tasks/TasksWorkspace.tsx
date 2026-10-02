@@ -530,15 +530,15 @@ function FilterPanel({ onClose }: { onClose: () => void }) {
         />
       </label>
       <label className="text-xs font-semibold text-tr-subtle">
-        Bảng
+        Luồng việc
         <Combobox
           value={filters.boardId}
           onChange={(value) => setFilters({ boardId: value === '' ? '' : Number(value) })}
           options={boards.map((item) => ({ id: item.id, label: item.name }))}
-          placeholder="Mọi bảng"
-          searchPlaceholder="Tìm bảng…"
+          placeholder="Mọi luồng việc"
+          searchPlaceholder="Tìm luồng việc…"
           emptyText="Không tìm thấy."
-          ariaLabel="Bảng"
+          ariaLabel="Luồng việc"
         />
       </label>
       <label className="text-xs font-semibold text-tr-subtle sm:col-span-2">
@@ -847,7 +847,7 @@ export function TasksWorkspace() {
                             ['status', 'Trạng thái'],
                             ['priority', 'Ưu tiên'],
                             ['assignee', 'Phụ trách'],
-                            ['board', 'Bảng'],
+                            ['board', 'Luồng việc'],
                             ['customer', 'Khách hàng'],
                             ['none', 'Không nhóm'],
                           ] as [TaskGroup, string][]
@@ -909,7 +909,7 @@ export function TasksWorkspace() {
                     <option value="status">Nhóm: Trạng thái</option>
                     <option value="priority">Nhóm: Ưu tiên</option>
                     <option value="assignee">Nhóm: Phụ trách</option>
-                    <option value="board">Nhóm: Bảng</option>
+                    <option value="board">Nhóm: Luồng việc</option>
                     <option value="customer">Nhóm: Khách hàng</option>
                     <option value="none">Không nhóm</option>
                   </select>

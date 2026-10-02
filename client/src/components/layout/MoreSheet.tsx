@@ -138,8 +138,8 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
             </section>
           )}
           {starred.length > 0 && (
-            <section aria-label="Bảng đã ghim">
-              <h3 className="mb-2 text-sm font-semibold text-tr-muted">Bảng đã ghim</h3>
+            <section aria-label="Luồng việc đã ghim">
+              <h3 className="mb-2 text-sm font-semibold text-tr-muted">Luồng việc đã ghim</h3>
               <div className="flex gap-2 overflow-x-auto">
                 {starred.map((board) => (
                   <NavLink

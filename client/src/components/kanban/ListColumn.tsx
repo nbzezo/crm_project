@@ -117,7 +117,7 @@ export const ListColumn = memo(function ListColumn({
           {...attributes}
           {...listeners}
           className={`touch-none flex h-11 w-11 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing fine:h-8 ${focusRing}`}
-          aria-label={`Di chuyển danh sách ${list.name}`}
+          aria-label={`Di chuyển cột ${list.name}`}
         >
           <GripVertical size={16} aria-hidden="true" />
         </button>
@@ -125,7 +125,7 @@ export const ListColumn = memo(function ListColumn({
           type="button"
           onClick={() => onCollapseList(list.id, false)}
           className="rounded-control p-1.5 text-tr-subtle transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
-          aria-label={`Mở rộng danh sách ${list.name}`}
+          aria-label={`Mở rộng cột ${list.name}`}
         >
           <ChevronsLeftRight size={16} aria-hidden="true" />
         </button>
@@ -157,7 +157,7 @@ export const ListColumn = memo(function ListColumn({
             {...attributes}
             {...listeners}
             className={`touch-none hidden h-11 w-11 shrink-0 cursor-grab items-center justify-center rounded-control text-tr-muted active:cursor-grabbing hoverable:flex fine:h-8 fine:w-7 ${focusRing}`}
-            aria-label={`Di chuyển danh sách ${list.name}`}
+            aria-label={`Di chuyển cột ${list.name}`}
           >
             <GripVertical size={15} aria-hidden="true" />
           </button>
@@ -179,7 +179,7 @@ export const ListColumn = memo(function ListColumn({
                   setEditingName(false);
                 }
               }}
-              aria-label="Tên danh sách"
+              aria-label="Tên cột"
               className="w-full rounded-control border-2 border-tr-primary bg-tr-panel px-2 py-1 text-sm font-semibold text-tr-text outline-none"
             />
           ) : coarsePointer ? (
@@ -200,7 +200,7 @@ export const ListColumn = memo(function ListColumn({
             <button
               type="button"
               onClick={() => setEditingName(true)}
-              aria-label={`Đổi tên danh sách ${list.name}`}
+              aria-label={`Đổi tên cột ${list.name}`}
               className="tr-list-title flex-1 truncate rounded-control px-2 py-1 text-left text-sm font-semibold text-tr-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary"
             >
               {list.name}
@@ -226,7 +226,7 @@ export const ListColumn = memo(function ListColumn({
             type="button"
             onClick={menu.toggle}
             className="flex h-11 w-11 items-center justify-center rounded-control text-tr-subtle transition hover:bg-tr-hover fine:h-8 fine:w-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary"
-            aria-label={`Thao tác với danh sách ${list.name}`}
+            aria-label={`Thao tác với cột ${list.name}`}
             aria-haspopup="dialog"
             aria-expanded={menu.open}
           >
@@ -325,7 +325,7 @@ export const ListColumn = memo(function ListColumn({
         open={menu.open && !sortMenu && !statusMenu}
         anchor={menu.anchor}
         onClose={menu.close}
-        title="Thao tác với danh sách"
+        title="Thao tác với cột"
       >
         <PopoverItem
           icon={<Pencil size={15} />}
@@ -337,7 +337,7 @@ export const ListColumn = memo(function ListColumn({
             requestAnimationFrame(() => setEditingName(true));
           }}
         >
-          Đổi tên danh sách
+          Đổi tên cột
         </PopoverItem>
         {coarsePointer && (
           <>
@@ -373,7 +373,7 @@ export const ListColumn = memo(function ListColumn({
           {t.board.addCard}
         </PopoverItem>
         <PopoverItem icon={<Copy size={15} />} onClick={() => (menu.close(), onCopyList(list.id))}>
-          Sao chép danh sách
+          Sao chép cột
         </PopoverItem>
         <PopoverItem icon={<ArrowDownWideNarrow size={15} />} onClick={() => setSortMenu(true)}>
           Sắp xếp thẻ…
@@ -385,7 +385,7 @@ export const ListColumn = memo(function ListColumn({
           icon={<ChevronsLeftRight size={15} />}
           onClick={() => (menu.close(), onCollapseList(list.id, true))}
         >
-          Thu gọn danh sách
+          Thu gọn cột
         </PopoverItem>
         <div className="my-2 border-t border-tr-border" />
         <PopoverItem
@@ -393,7 +393,7 @@ export const ListColumn = memo(function ListColumn({
           danger
           onClick={() => (menu.close(), onDeleteList(list.id))}
         >
-          Xóa danh sách
+          Xóa cột
         </PopoverItem>
       </Popover>
 

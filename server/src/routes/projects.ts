@@ -9,6 +9,7 @@ import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { assertProjectCustomerChange, resolveAssignee } from '../lib/entityRelations.ts';
 import { listTasksByProject } from '../services/cardService.ts';
 import { decorateProject, PROJECT_SELECT } from '../services/projectService.ts';
+import { insertBoard } from '../services/boardService.ts';
 import {
   chooseDeliveryModel,
   classifyProject,
@@ -203,7 +204,7 @@ router.get('/:id', (req, res) => {
     people,
     tasks: listTasksByProject(id),
     changes: listChanges(db, 'project', id),
-    /* Moi Bang cua du an la mot giai doan; trang thai moc tinh khi doc (v26). */
+    /* Luong viec co moc la giai doan; trang thai moc tinh khi doc (v26). */
     phases: listPhases(db, id),
     classification: classifyProject(db, id),
     risks: listRisks(db, id),
@@ -225,39 +226,49 @@ router.post('/', (req, res) => {
     );
   }
 
-  const info = db
-    .prepare(
-      `INSERT INTO projects (name, code, customer_id, owner_contact_id, status, plan_start,
-                             plan_end, actual_start, actual_end, budget_vnd, notes,
-                             acceptance_criteria, accepted_at, accepted_note, search_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      body.name,
-      body.code ?? null,
-      body.customer_id ?? null,
-      owner,
-      body.status ?? 'planning',
-      body.plan_start ?? null,
-      body.plan_end ?? null,
-      body.actual_start ?? null,
-      body.actual_end ?? null,
-      body.budget_vnd ?? 0,
-      body.notes ?? '',
-      body.acceptance_criteria ?? '',
-      body.accepted_at ?? null,
-      body.accepted_note ?? null,
-      buildSearchText(body.name, body.code, body.notes)
-    );
+  /* Du an moi tao kem san MOT Bang – Luong viec ngam, ten = ten du an. Truoc
+     day du an rong khong co cho dat viec: tab Cong viec chan nut them viec cho
+     den khi nguoi dung tu tao bang — mot buoc thua voi du an chi can mot luong. */
+  const projectId = db.transaction(() => {
+    const info = db
+      .prepare(
+        `INSERT INTO projects (name, code, customer_id, owner_contact_id, status, plan_start,
+                               plan_end, actual_start, actual_end, budget_vnd, notes,
+                               acceptance_criteria, accepted_at, accepted_note, search_text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        body.name,
+        body.code ?? null,
+        body.customer_id ?? null,
+        owner,
+        body.status ?? 'planning',
+        body.plan_start ?? null,
+        body.plan_end ?? null,
+        body.actual_start ?? null,
+        body.actual_end ?? null,
+        body.budget_vnd ?? 0,
+        body.notes ?? '',
+        body.acceptance_criteria ?? '',
+        body.accepted_at ?? null,
+        body.accepted_note ?? null,
+        buildSearchText(body.name, body.code, body.notes)
+      );
+    const id = Number(info.lastInsertRowid);
+    insertBoard(db, {
+      name: body.name,
+      customerId: body.customer_id ?? null,
+      projectId: id,
+      ownerContactId: owner,
+    });
+    return id;
+  })();
 
   res
     .status(201)
     .json(
       decorateProject(
-        db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(Number(info.lastInsertRowid)) as Record<
-          string,
-          unknown
-        >
+        db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(projectId) as Record<string, unknown>
       )
     );
 });
@@ -328,6 +339,16 @@ router.patch('/:id', (req, res) => {
         body.customer_id,
         id
       );
+    }
+    if (body.name !== undefined && body.name !== current.name) {
+      /* Luong ngam mang ten du an; doi ten du an thi doi theo. Chi khi du an con
+         dung MOT luong va luong do chua bi dat ten khac — ten nguoi dung tu dat
+         thi khong dong vao. */
+      db.prepare(
+        `UPDATE boards SET name = ?, updated_at = datetime('now','localtime')
+          WHERE project_id = ? AND name = ? AND is_archived = 0
+            AND (SELECT COUNT(*) FROM boards WHERE project_id = ? AND is_archived = 0) = 1`
+      ).run(body.name, id, current.name, id);
     }
     recordChanges(db, 'project', id, current, body, audit);
   })();

@@ -163,7 +163,7 @@ export function TaskTable({
           const task = info.row.original;
           const metadata = [
             task.customer_name ? `Khách hàng: ${task.customer_name}` : null,
-            task.board_name ? `Bảng: ${task.board_name}` : null,
+            task.board_name ? `Luồng việc: ${task.board_name}` : null,
             task.deal_title ? `Cơ hội: ${task.deal_title}` : null,
           ]
             .filter(Boolean)
@@ -264,7 +264,7 @@ export function TaskTable({
         ),
       }),
       columnHelper.accessor('board_name', {
-        header: 'Bảng',
+        header: 'Luồng việc',
         cell: (info) => (
           <span className="block max-w-40 truncate text-xs" title={info.getValue()}>
             {info.getValue()}
@@ -284,7 +284,7 @@ export function TaskTable({
       /* Doi tieu de tu "Trạng thái" sang "Danh sách": cot nay chuyen the giua cac
          cot Kanban, khong phai vong doi cong viec — v16 moi co trang thai that. */
       columnHelper.accessor('list_name', {
-        header: 'Danh sách',
+        header: 'Cột',
         cell: (info) => (
           <StatusSelect
             task={info.row.original}
@@ -359,13 +359,13 @@ export function TaskTable({
     return onClearFilters ? (
       <EmptyState
         message="Không có công việc nào khớp bộ lọc."
-        hint="Thử nới bộ lọc hoặc thêm công việc mới từ bảng Kanban."
+        hint="Thử nới bộ lọc hoặc thêm công việc mới từ dạng xem Kanban."
         action={<Button onClick={onClearFilters}>{t.common.clearFilter}</Button>}
       />
     ) : (
       <EmptyState
         message="Chưa có công việc nào."
-        hint="Công việc gom mọi đầu việc trên các bảng, dự án và khách hàng về một chỗ để bạn theo dõi hạn và mức ưu tiên."
+        hint="Công việc gom mọi đầu việc trên các luồng việc, dự án và khách hàng về một chỗ để bạn theo dõi hạn và mức ưu tiên."
       />
     );
   }

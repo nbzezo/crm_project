@@ -237,7 +237,7 @@ test('trang thai moc tinh tu ngay va tu viec ben trong, xong thi thang moi dieu 
   );
 });
 
-test('moi bang cua du an la mot giai doan, sap theo han', async () => {
+test('luong viec co moc la giai doan, sap theo han', async () => {
   const projectId = await newProject('Du an nhieu giai doan');
   for (const [name, date] of [
     ['Giai doan 3', '2026-12-01'],
@@ -249,12 +249,66 @@ test('moi bang cua du an la mot giai doan, sap theo han', async () => {
   }
 
   const detail = await json('GET', `/api/projects/${projectId}`);
-  const phases = detail.data.phases as { name: string; milestone_date: string; state: string }[];
+  /* Luong ngam (ten du an) khong co moc nen khong phai giai doan — van tra ve,
+     nam cuoi, de man Giai doan cho dat moc tai cho. */
+  const all = detail.data.phases as {
+    name: string;
+    milestone_date: string | null;
+    state: string;
+  }[];
+  assert.deepEqual(
+    all.filter((p) => !p.milestone_date).map((p) => p.name),
+    ['Du an nhieu giai doan']
+  );
+  const phases = all.filter((p) => p.milestone_date);
   assert.deepEqual(
     phases.map((p) => p.name),
     ['Giai doan 1', 'Giai doan 2', 'Giai doan 3']
   );
   assert.ok(phases.every((p) => p.state !== 'none'));
+});
+
+/* ---------- 1.9.0: Bang – Luong viec ngam ---------- */
+
+test('tao du an thi co san mot luong viec ngam mang ten du an', async () => {
+  const projectId = await newProject('Du an luong ngam');
+  const detail = await json('GET', `/api/projects/${projectId}`);
+  const boards = detail.data.boards as { id: number; name: string }[];
+  assert.equal(boards.length, 1);
+  assert.equal(boards[0].name, 'Du an luong ngam');
+
+  const full = await json('GET', `/api/boards/${boards[0].id}/full`);
+  assert.deepEqual(
+    (full.data.lists as { status_mapping: string }[]).map((l) => l.status_mapping),
+    ['todo', 'doing', 'review', 'done']
+  );
+
+  /* Doi ten du an thi luong ngam doi theo. */
+  await json('PATCH', `/api/projects/${projectId}`, { name: 'Du an doi ten' });
+  const renamed = await json('GET', `/api/projects/${projectId}`);
+  assert.equal((renamed.data.boards as { name: string }[])[0].name, 'Du an doi ten');
+});
+
+test('doi ten du an khong dong vao luong viec khi du an co nhieu luong', async () => {
+  const projectId = await newProject('Du an hai luong');
+  await json('POST', '/api/boards', { name: 'Thi cong', project_id: projectId });
+  await json('PATCH', `/api/projects/${projectId}`, { name: 'Du an hai luong moi' });
+  const detail = await json('GET', `/api/projects/${projectId}`);
+  assert.deepEqual((detail.data.boards as { name: string }[]).map((b) => b.name).sort(), [
+    'Du an hai luong',
+    'Thi cong',
+  ]);
+});
+
+test('so giai doan chi dem luong viec co moc', async () => {
+  const projectId = await newProject('Du an dem giai doan');
+  await json('POST', '/api/boards', { name: 'Ho tro', project_id: projectId });
+  const phase = await json('POST', '/api/boards', { name: 'Dot 1', project_id: projectId });
+  await json('PATCH', `/api/boards/${Number(phase.data.id)}`, { milestone_date: '2026-12-01' });
+
+  const res = await json('GET', `/api/projects/${projectId}/classification`);
+  const count = (res.data.signals as Signal[]).find((s) => s.key === 'phase_count');
+  assert.equal(count?.value, 1);
 });
 
 /* ---------- R-13: so rui ro va nghiem thu ---------- */

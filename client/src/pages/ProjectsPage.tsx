@@ -72,7 +72,7 @@ export default function ProjectsPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           message="Chưa có dự án nào."
-          hint="Dự án gom nhiều bảng, công việc và hợp đồng lại để theo dõi tiến độ chung."
+          hint="Dự án gom các luồng việc, công việc và hợp đồng lại để theo dõi tiến độ chung."
           action={<Button onClick={() => setCreating(true)}>Tạo dự án đầu tiên</Button>}
         />
       ) : (

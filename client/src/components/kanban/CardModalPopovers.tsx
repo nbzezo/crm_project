@@ -35,13 +35,7 @@ export function ListPopover({ card, pop, onDone }: Props) {
   });
 
   return (
-    <Popover
-      open={pop.open}
-      anchor={pop.anchor}
-      onClose={pop.close}
-      title="Chuyển danh sách"
-      width={272}
-    >
+    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Chuyển cột" width={272}>
       <div className="space-y-1">
         {board?.lists.map((list) => (
           <button
@@ -80,7 +74,7 @@ export function LabelsPopover({ card, pop, onDone }: Props) {
   return (
     <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.card.labels}>
       {labels.length === 0 && (
-        <p className="text-sm text-tr-muted">Chưa có nhãn nào — tạo trong Menu bảng.</p>
+        <p className="text-sm text-tr-muted">Chưa có nhãn nào — tạo trong Menu luồng việc.</p>
       )}
       <div className="space-y-1.5">
         {labels.map((label) => {

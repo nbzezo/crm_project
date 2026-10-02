@@ -147,8 +147,11 @@ export function classifyProject(db: Database, projectId: number): Classification
                   WHERE ct.project_id = p.id) AS contract_value,
                 (SELECT COALESCE(MAX(COALESCE(d.won_value_vnd, d.value_vnd)), 0) FROM deals d
                   WHERE d.project_id = p.id) AS deal_value,
+                /* Giai doan = luong viec CO MOC. Luong khong dat moc (luong ngam,
+                   "Viec chung") khong lam du an trong lon hon. */
                 (SELECT COUNT(*) FROM boards b
-                  WHERE b.project_id = p.id AND b.is_archived = 0) AS phase_count,
+                  WHERE b.project_id = p.id AND b.is_archived = 0
+                    AND b.milestone_date IS NOT NULL) AS phase_count,
                 (SELECT COUNT(DISTINCT k.assignee_org_id) FROM cards k
                    JOIN lists l ON l.id = k.list_id
                    JOIN boards b ON b.id = l.board_id
@@ -356,7 +359,11 @@ interface Phase extends PhaseRow {
   days_left: number | null;
 }
 
-/** Cac giai doan cua mot du an — moi Bang la mot giai doan, sap theo han. */
+/**
+ * Cac luong viec cua mot du an kem trang thai moc, sap theo han. Luong CO
+ * `milestone_date` la mot giai doan; luong chua co moc van tra ve de man Giai doan
+ * cho dat moc ngay tai cho (state = 'none').
+ */
 export function listPhases(db: Database, projectId: number): Phase[] {
   const rows = db
     .prepare(

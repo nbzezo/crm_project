@@ -146,7 +146,7 @@ export function DeliverySettings() {
         </div>
       </Panel>
 
-      <Panel title="Bộ mẫu danh sách cho bảng triển khai">
+      <Panel title="Bộ mẫu cột cho luồng việc triển khai">
         <FormError error={save.error} />
 
         <div className="mb-3">
@@ -181,7 +181,7 @@ export function DeliverySettings() {
                   next[index] = { ...item, name: event.target.value };
                   patchItems(next);
                 }}
-                aria-label={`Tên danh sách ${index + 1}`}
+                aria-label={`Tên cột ${index + 1}`}
               />
               <Select
                 value={item.status ?? ''}
@@ -193,7 +193,7 @@ export function DeliverySettings() {
                   };
                   patchItems(next);
                 }}
-                aria-label={`Trạng thái của danh sách ${index + 1}`}
+                aria-label={`Trạng thái của cột ${index + 1}`}
                 className="max-w-44 shrink-0"
               >
                 <option value="">— không mang nghĩa —</option>
@@ -206,7 +206,7 @@ export function DeliverySettings() {
               <button
                 type="button"
                 onClick={() => patchItems(items.filter((_, i) => i !== index))}
-                aria-label={`Xóa danh sách ${index + 1}`}
+                aria-label={`Xóa cột ${index + 1}`}
                 className={`shrink-0 rounded p-1 text-tr-muted transition hover:text-tr-danger ${focusRing}`}
               >
                 <Trash2 size={14} aria-hidden="true" />
@@ -217,7 +217,7 @@ export function DeliverySettings() {
 
         <div className="mt-3 flex items-center gap-2 border-t border-tr-border pt-3">
           <Button onClick={() => patchItems([...items, { name: '', status: null }])}>
-            <Plus size={15} aria-hidden="true" /> Thêm danh sách
+            <Plus size={15} aria-hidden="true" /> Thêm cột
           </Button>
           <span className="flex-1" />
           <Button
@@ -231,14 +231,13 @@ export function DeliverySettings() {
 
         {invalid && (
           <p className="mt-2 text-xs text-tr-danger">
-            Còn danh sách chưa đặt tên, hoặc bộ “large”/“small” đang rỗng — cả hai bộ này là bắt
-            buộc.
+            Còn cột chưa đặt tên, hoặc bộ “large”/“small” đang rỗng — cả hai bộ này là bắt buộc.
           </p>
         )}
 
         <p className="mt-3 text-xs text-tr-muted">
-          Đổi bộ mẫu chỉ ảnh hưởng tới bảng đổ mẫu sau này. Bảng đã có công việc không bao giờ bị
-          thay danh sách.
+          Đổi bộ mẫu chỉ ảnh hưởng tới luồng việc đổ mẫu sau này. Luồng đã có công việc không bao
+          giờ bị thay cột.
         </p>
       </Panel>
     </div>

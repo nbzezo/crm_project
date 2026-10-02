@@ -443,11 +443,12 @@ test('tao viec trong va tu phan loai khi bo sung khach hang, co hoi co du an', a
     customer_id: customerId,
   });
   assert.equal(project.status, 201);
-  const projectBoard = await json('POST', '/api/boards', {
-    name: 'Bang du an phan loai task',
-    project_id: Number(project.data.id),
-  });
-  assert.equal(projectBoard.status, 201);
+  // Du an moi tao kem san luong viec ngam (1.9.0) — viec phai roi vao do.
+  const projectBoardId = (
+    db.prepare(`SELECT id FROM boards WHERE project_id = ?`).get(Number(project.data.id)) as {
+      id: number;
+    }
+  ).id;
   const deal = await json('POST', '/api/deals', {
     title: 'Co hoi phan loai task',
     customer_id: customerId,
@@ -458,7 +459,7 @@ test('tao viec trong va tu phan loai khi bo sung khach hang, co hoi co du an', a
     deal_id: Number(deal.data.id),
   });
   assert.equal(byProject.status, 200);
-  assert.equal(boardOf(byProject.data.list_id), Number(projectBoard.data.id));
+  assert.equal(boardOf(byProject.data.list_id), projectBoardId);
   assert.equal(byProject.data.status, 'doing');
 
   const backToCommon = await json('PATCH', `/api/cards/${cardId}`, { customer_id: null });
@@ -977,10 +978,9 @@ test('du an suy tu bang, khong con cot rieng tren the', async () => {
      chuyen sang bang cua du an dich, nhung project_id van KHONG duoc luu tren card. */
   const targetProject = await json('POST', '/api/projects', { name: 'Du an dich cua picker' });
   const targetProjectId = Number(targetProject.data.id);
-  const targetBoard = await json('POST', '/api/boards', {
-    name: 'Bang dich cua picker',
-    project_id: targetProjectId,
-  });
+  const targetBoardId = (
+    db.prepare(`SELECT id FROM boards WHERE project_id = ?`).get(targetProjectId) as { id: number }
+  ).id;
   await json('PATCH', `/api/cards/${cardId}`, { status: 'doing' });
   const switched = await json('PATCH', `/api/cards/${cardId}`, {
     project_id: targetProjectId,
@@ -991,7 +991,7 @@ test('du an suy tu bang, khong con cot rieng tren the', async () => {
   const switchedList = db
     .prepare(`SELECT board_id, status_mapping FROM lists WHERE id = ?`)
     .get(Number(switched.data.list_id)) as { board_id: number; status_mapping: string | null };
-  assert.equal(switchedList.board_id, Number(targetBoard.data.id));
+  assert.equal(switchedList.board_id, targetBoardId);
   assert.equal(switchedList.status_mapping, 'doing');
 
   const emptyProject = await json('POST', '/api/projects', { name: 'Du an chua co bang' });

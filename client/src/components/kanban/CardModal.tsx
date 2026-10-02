@@ -249,7 +249,7 @@ export function CardModal() {
               type="button"
               onClick={listPop.toggle}
               className={`inline-flex min-h-11 items-center gap-1 rounded-control bg-tr-hover px-2.5 py-1 text-sm font-medium text-tr-text transition hover:bg-tr-hover-strong fine:min-h-0 ${focusRing}`}
-              aria-label={`Danh sách: ${card.board?.list_name}. Chuyển sang danh sách khác`}
+              aria-label={`Cột: ${card.board?.list_name}. Chuyển sang cột khác`}
               aria-haspopup="dialog"
             >
               {card.board?.list_name}
@@ -648,7 +648,7 @@ export function CardModal() {
                 id={SECTION_IDS.fields}
                 icon={<SlidersHorizontal size={16} className="text-tr-subtle" />}
                 title="Trường thông tin"
-                hint="Cột dữ liệu riêng của bảng — áp dụng cho mọi thẻ."
+                hint="Cột dữ liệu riêng của luồng việc — áp dụng cho mọi công việc trong đó."
                 count={card.fields?.length ?? 0}
               >
                 <CustomFieldsSection
@@ -966,7 +966,7 @@ function ActivityColumn({ card }: { card: CardDetail }) {
     card.completed_at ? { text: 'Đánh dấu hoàn thành', at: card.completed_at } : null,
     card.created_at
       ? {
-          text: `Đã thêm thẻ này vào danh sách ${card.board?.list_name ?? ''}`,
+          text: `Đã thêm thẻ này vào cột ${card.board?.list_name ?? ''}`,
           at: card.created_at,
         }
       : null,
@@ -1372,7 +1372,7 @@ function ProjectPopover({
     <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.nav.projects}>
       <FormField
         label="Chọn dự án"
-        hint="Công việc sẽ chuyển sang bảng của dự án và giữ nguyên trạng thái nếu bảng đích có cột tương ứng."
+        hint="Công việc sẽ chuyển sang luồng việc của dự án và giữ nguyên trạng thái nếu luồng đích có cột tương ứng."
       >
         <Combobox
           value={card.project_id ?? ''}
@@ -1456,23 +1456,23 @@ function MovePopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone
     <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Di chuyển thẻ">
       <div className="space-y-3">
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-tr-subtle">Bảng</span>
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">Luồng việc</span>
           <Combobox
             value={targetBoardId ?? ''}
             onChange={(v) => {
               if (v !== '') setBoardId(v);
             }}
             options={boards.map((b) => ({ id: b.id, label: b.name }))}
-            searchPlaceholder="Tìm bảng…"
-            emptyText="Không tìm thấy bảng."
-            ariaLabel="Bảng"
+            searchPlaceholder="Tìm luồng việc…"
+            emptyText="Không tìm thấy luồng việc."
+            ariaLabel="Luồng việc"
             allowClear={false}
             onQuickCreate={async (name) => {
               const created = await api.post<Board>('/api/boards', { name });
               queryClient.invalidateQueries({ queryKey: ['boards'] });
               return { id: created.id, label: created.name };
             }}
-            quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
+            quickCreateLabel={(q) => `+ Tạo luồng việc "${q}"`}
           />
         </label>
         <div>

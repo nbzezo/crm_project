@@ -88,7 +88,10 @@ export default function BoardsPage() {
 
   return (
     <div className="p-6">
-      <PageHeader className="mb-5" description="Bảng Kanban theo nhóm việc." />
+      <PageHeader
+        className="mb-5"
+        description="Mỗi luồng việc là một mảng công việc có quy trình (các cột) riêng. Luồng việc có mốc bàn giao là một giai đoạn của dự án."
+      />
       <div className="mb-5 flex items-center justify-between">
         <label className="flex items-center gap-2 text-sm text-tr-subtle">
           <input
@@ -97,7 +100,7 @@ export default function BoardsPage() {
             onChange={(e) => setShowArchived(e.target.checked)}
             className="h-4 w-4 rounded border-tr-border"
           />
-          Hiện cả bảng {t.board.archived.toLowerCase()}
+          Hiện cả luồng việc {t.board.archived.toLowerCase()}
         </label>
         <button
           onClick={create.toggle}
@@ -125,8 +128,8 @@ export default function BoardsPage() {
           message={t.board.noBoards}
           hint={
             showArchived
-              ? 'Không có bảng nào trong kho lưu trữ.'
-              : 'Tạo bảng đầu tiên để bắt đầu sắp xếp công việc theo cột.'
+              ? 'Không có luồng việc nào trong kho lưu trữ.'
+              : 'Tạo luồng việc đầu tiên để bắt đầu sắp xếp công việc theo cột.'
           }
           action={
             !showArchived && (
@@ -199,7 +202,7 @@ export default function BoardsPage() {
         open={create.open}
         anchor={create.anchor}
         onClose={create.close}
-        title="Tạo bảng"
+        title="Tạo luồng việc"
         width={304}
       >
         <div className="space-y-3">

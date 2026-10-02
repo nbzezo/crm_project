@@ -740,7 +740,7 @@ test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
 
   /* Sửa trực tiếp trong tab dự án phải làm mới chính query chi tiết dự án. Trước
      đây API đã lưu nhưng ô Người phụ trách vẫn hiện "Chưa giao" cho tới khi tải lại. */
-  await page.getByRole('button', { name: 'Bảng', exact: true }).click();
+  await page.getByRole('button', { name: 'Cây việc', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Dạng xem' })
     .getByRole('button', { name: /Bảng tính/ })
@@ -892,7 +892,7 @@ test('WCAG AA scan, skip-link va reflow 200%', async ({ page, request }, testInf
           ? [page.getByRole('button', { name: /Tìm thẻ/ })]
           : /* Tay nam keo cot chi hien voi con tro hover (`hoverable:flex`); tren cam
                ung thao tac cot di qua menu. */
-            await page.getByRole('button', { name: /Thao tác với danh sách/ }).all();
+            await page.getByRole('button', { name: /Thao tác với cột/ }).all();
       expect(touchTargets.length).toBeGreaterThan(0);
       for (const target of touchTargets) {
         const box = await target.boundingBox();
@@ -1429,9 +1429,9 @@ test.describe('mobile layout', () => {
     const lists = ((await full.json()) as { lists: { id: number; name: string }[] }).lists;
     expect(lists.length).toBeGreaterThan(0);
     await page.goto(`/boards/${board.id}`);
-    await page.getByRole('button', { name: `Thao tác với danh sách ${lists[0].name}` }).click();
-    await page.getByRole('button', { name: 'Đổi tên danh sách' }).click();
-    const editor = page.getByRole('textbox', { name: 'Tên danh sách' });
+    await page.getByRole('button', { name: `Thao tác với cột ${lists[0].name}` }).click();
+    await page.getByRole('button', { name: 'Đổi tên cột' }).click();
+    const editor = page.getByRole('textbox', { name: 'Tên cột' });
     await editor.fill('Cột mobile');
     await editor.press('Enter');
     await expect(page.getByText('Cột mobile').first()).toBeVisible();

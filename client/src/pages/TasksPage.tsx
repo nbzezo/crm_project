@@ -149,7 +149,7 @@ function TaskFilterBar() {
     filters.boardId !== ''
       ? {
           key: 'board',
-          label: `Bảng: ${boards.find((item) => item.id === filters.boardId)?.name ?? 'Đã chọn'}`,
+          label: `Luồng việc: ${boards.find((item) => item.id === filters.boardId)?.name ?? 'Đã chọn'}`,
           clear: () => setFilters({ boardId: '' }),
         }
       : null,
@@ -325,7 +325,7 @@ function TaskFilterBar() {
             className="mt-3 block text-xs font-semibold text-tr-subtle"
             htmlFor="task-board-filter"
           >
-            Bảng
+            Luồng việc
           </label>
           <div className="mt-1.5">
             <Select
@@ -335,7 +335,7 @@ function TaskFilterBar() {
                 setFilters({ boardId: event.target.value === '' ? '' : Number(event.target.value) })
               }
             >
-              <option value="">Mọi bảng</option>
+              <option value="">Mọi luồng việc</option>
               {boards.map((board) => (
                 <option key={board.id} value={board.id}>
                   {board.name}
@@ -566,7 +566,7 @@ export function LegacyTasksPage() {
     : {
         emptyMessage: 'Chưa có công việc nào.',
         emptyHint:
-          'Công việc gom mọi đầu việc trên các bảng, dự án và khách hàng về một chỗ để bạn theo dõi hạn và mức ưu tiên.',
+          'Công việc gom mọi đầu việc trên các luồng việc, dự án và khách hàng về một chỗ để bạn theo dõi hạn và mức ưu tiên.',
         emptyAction: <Button onClick={() => setAdding(true)}>Thêm công việc đầu tiên</Button>,
       };
   const [mode, setMode] = useState<'tree' | 'table'>('tree');
@@ -579,7 +579,7 @@ export function LegacyTasksPage() {
     <PageShell width="wide" spacing="none">
       <PageHeader
         title="Công việc"
-        description="Theo dõi, ưu tiên và cập nhật công việc trên mọi bảng, dự án và khách hàng."
+        description="Theo dõi, ưu tiên và cập nhật công việc trên mọi luồng việc, dự án và khách hàng."
         className="mb-4 flex-col sm:flex-row sm:items-center"
         actions={
           <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
@@ -591,7 +591,7 @@ export function LegacyTasksPage() {
               {(
                 [
                   ['tree', 'Phân cấp', <ListTree key="tree" size={15} aria-hidden="true" />],
-                  ['table', 'Bảng', <List key="table" size={15} aria-hidden="true" />],
+                  ['table', 'Bảng tính', <List key="table" size={15} aria-hidden="true" />],
                 ] as const
               ).map(([value, label, icon]) => (
                 <button
@@ -651,7 +651,7 @@ export function LegacyTasksPage() {
                 <option value="priority">Ưu tiên</option>
                 <option value="customer">Khách hàng</option>
                 <option value="assignee">{t.card.assignee}</option>
-                <option value="board">Bảng</option>
+                <option value="board">Luồng việc</option>
               </Select>
             </span>
           </label>
@@ -789,20 +789,20 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
               setListId('');
             }}
             options={boards.map((b) => ({ id: b.id, label: b.name }))}
-            searchPlaceholder="Tìm bảng…"
-            emptyText="Không tìm thấy bảng."
-            ariaLabel="Bảng"
+            searchPlaceholder="Tìm luồng việc…"
+            emptyText="Không tìm thấy luồng việc."
+            ariaLabel="Luồng việc"
             allowClear={false}
             onQuickCreate={async (name) => {
               const created = await api.post<Board>('/api/boards', { name });
               queryClient.invalidateQueries({ queryKey: ['boards'] });
               return { id: created.id, label: created.name };
             }}
-            quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
+            quickCreateLabel={(q) => `+ Tạo luồng việc "${q}"`}
           />
         </div>
         <div className="w-36">
-          <Select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Danh sách">
+          <Select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Cột">
             {board?.lists.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}

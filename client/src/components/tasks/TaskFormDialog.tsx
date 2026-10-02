@@ -199,6 +199,10 @@ export function TaskFormDialog() {
   const markEdited = () => {
     if (aiMeta) setAiEdited(true);
   };
+  /* Dự án chỉ có MỘT luồng việc thì luồng đó là ngầm: không bắt người dùng chọn
+     thứ chỉ có một lựa chọn. Ô "Cột" bên dưới vẫn lọc đúng các cột của luồng đó. */
+  const implicitBoard =
+    projectId != null && context?.boards.length === 1 ? context.boards[0] : null;
   const boardId = useMemo(
     () => context?.lists.find((l) => l.id === listId)?.board_id ?? '',
     [context?.lists, listId]
@@ -565,45 +569,47 @@ export function TaskFormDialog() {
           </Field>
         </div>
 
-        <Field label="Bảng">
-          <Combobox
-            value={boardId}
-            onChange={async (v) => {
-              const nextBoard = v === '' ? '' : Number(v);
-              setListTouched(true);
-              let first = context?.lists.find((l) => l.board_id === nextBoard);
-              // Bang vua tao nhanh chua kip vao `context` — doc truc tiep danh sach mac dinh cua no.
-              if (!first && nextBoard !== '') {
-                try {
-                  const full = await api.get<BoardFull>(`/api/boards/${nextBoard}/full`);
-                  const firstList = full.lists[0];
-                  if (firstList)
-                    first = { id: firstList.id, name: firstList.name, board_id: nextBoard };
-                } catch {
-                  /* giu list rong, nguoi dung tu chon */
+        {!implicitBoard && (
+          <Field label="Luồng việc">
+            <Combobox
+              value={boardId}
+              onChange={async (v) => {
+                const nextBoard = v === '' ? '' : Number(v);
+                setListTouched(true);
+                let first = context?.lists.find((l) => l.board_id === nextBoard);
+                // Bang vua tao nhanh chua kip vao `context` — doc truc tiep danh sach mac dinh cua no.
+                if (!first && nextBoard !== '') {
+                  try {
+                    const full = await api.get<BoardFull>(`/api/boards/${nextBoard}/full`);
+                    const firstList = full.lists[0];
+                    if (firstList)
+                      first = { id: firstList.id, name: firstList.name, board_id: nextBoard };
+                  } catch {
+                    /* giu list rong, nguoi dung tu chon */
+                  }
                 }
-              }
-              setListId(first?.id ?? '');
-            }}
-            options={(context?.boards ?? []).map((b) => ({ id: b.id, label: b.name }))}
-            placeholder={t.common.selectPlaceholder}
-            searchPlaceholder="Tìm bảng…"
-            emptyText="Không tìm thấy bảng."
-            ariaLabel="Bảng"
-            allowClear={false}
-            onQuickCreate={async (name) => {
-              const created = await api.post<Board>('/api/boards', {
-                name,
-                project_id: projectId ?? undefined,
-              });
-              queryClient.invalidateQueries({ queryKey: ['card-context'] });
-              return { id: created.id, label: created.name };
-            }}
-            quickCreateLabel={(q) => `+ Tạo bảng "${q}"`}
-          />
-        </Field>
+                setListId(first?.id ?? '');
+              }}
+              options={(context?.boards ?? []).map((b) => ({ id: b.id, label: b.name }))}
+              placeholder={t.common.selectPlaceholder}
+              searchPlaceholder="Tìm luồng việc…"
+              emptyText="Không tìm thấy luồng việc."
+              ariaLabel="Luồng việc"
+              allowClear={false}
+              onQuickCreate={async (name) => {
+                const created = await api.post<Board>('/api/boards', {
+                  name,
+                  project_id: projectId ?? undefined,
+                });
+                queryClient.invalidateQueries({ queryKey: ['card-context'] });
+                return { id: created.id, label: created.name };
+              }}
+              quickCreateLabel={(q) => `+ Tạo luồng việc "${q}"`}
+            />
+          </Field>
+        )}
         <Field
-          label="Danh sách"
+          label="Cột"
           hint={
             !listTouched
               ? suggestedList
@@ -662,7 +668,7 @@ export function TaskFormDialog() {
 
           Trước đây ô này ghi thẳng `cards.project_id`, cho phép tạo ra việc mang
           dự án A trong khi nằm ở bảng của dự án B. Nay muốn đổi dự án thì chọn
-          bảng khác, và ô Bảng ở trên đã nói rõ bảng nào thuộc dự án nào.
+          luồng việc khác, và ô Luồng việc ở trên đã nói rõ luồng nào thuộc dự án nào.
         */}
         <div className="sm:col-span-2 grid grid-cols-2 gap-3">
           <Field label={t.card.startDate}>

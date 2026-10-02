@@ -108,7 +108,7 @@ export function BoardMenu({
   if (!open) return null;
 
   const titles: Record<View, string> = {
-    main: 'Menu bảng',
+    main: 'Menu luồng việc',
     background: 'Đổi hình nền',
     labels: t.settings.manageLabels,
   };
@@ -137,7 +137,7 @@ export function BoardMenu({
         <div className="tr-scroll flex-1 overflow-y-auto p-3">
           {view === 'main' && (
             <div className="space-y-1">
-              <MenuRow icon={<Pencil size={18} />} label="Đổi tên bảng" onClick={onRename} />
+              <MenuRow icon={<Pencil size={18} />} label="Đổi tên luồng việc" onClick={onRename} />
               <div className="md:hidden">
                 <MenuRow
                   icon={<SlidersHorizontal size={18} />}
@@ -184,7 +184,7 @@ export function BoardMenu({
                 onClick={() => setConfirmDelete(true)}
                 className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm text-tr-danger transition hover:bg-tr-hover"
               >
-                <Trash2 size={17} /> Xóa bảng này
+                <Trash2 size={17} /> Xóa luồng việc này
               </button>
             </div>
           )}
@@ -278,7 +278,7 @@ export function BoardMenu({
 
       <ConfirmDialog
         open={confirmDelete}
-        message={`Xóa bảng "${board.name}" sẽ xóa toàn bộ danh sách và thẻ bên trong.`}
+        message={`Xóa luồng việc "${board.name}" sẽ xóa toàn bộ cột và công việc bên trong.`}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
           setConfirmDelete(false);

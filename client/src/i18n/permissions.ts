@@ -17,7 +17,7 @@ export const RESOURCE_LABELS: Record<PermissionResource, string> = {
   revenues: 'Doanh thu',
   services: 'Danh mục dịch vụ',
   projects: 'Dự án',
-  boards: 'Bảng công việc',
+  boards: 'Bảng – Luồng việc',
   tasks: 'Công việc',
   documents: 'Tài liệu',
   notes: 'Ghi chú',

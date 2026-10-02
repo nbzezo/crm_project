@@ -509,7 +509,7 @@ export function BoardView({
                 <input
                   autoFocus
                   value={listDraft}
-                  placeholder="Nhập tiêu đề danh sách…"
+                  placeholder="Nhập tiêu đề cột…"
                   aria-label={t.board.addList}
                   onChange={(e) => setListDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -558,7 +558,7 @@ export function BoardView({
 
       <ConfirmDialog
         open={deleteListId !== null}
-        message="Xóa danh sách này sẽ xóa toàn bộ thẻ bên trong. Bạn có chắc không?"
+        message="Xóa cột này sẽ xóa toàn bộ thẻ bên trong. Bạn có chắc không?"
         onCancel={() => setDeleteListId(null)}
         onConfirm={() => {
           const listId = deleteListId;
@@ -571,7 +571,7 @@ export function BoardView({
           setBoard({ ...board, lists: board.lists.filter((l) => l.id !== listId) });
 
           undoableDelete({
-            message: `Đã xóa danh sách “${name}”`,
+            message: `Đã xóa cột “${name}”`,
             commit: () => deleteList.mutate(listId),
             revert: () => (snapshot ? setBoard(snapshot) : refetchBoard()),
           });

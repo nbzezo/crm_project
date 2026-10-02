@@ -5,8 +5,14 @@ import { focusRing } from '../common/ui';
 
 export type BoardViewMode = 'board' | 'calendar' | 'timeline' | 'table';
 
-export const BOARD_VIEWS: { value: BoardViewMode; label: string; icon: typeof Trello }[] = [
-  { value: 'board', label: 'Bảng', icon: Trello },
+export interface BoardViewOption {
+  value: BoardViewMode;
+  label: string;
+  icon: typeof Trello;
+}
+
+export const BOARD_VIEWS: BoardViewOption[] = [
+  { value: 'board', label: 'Kanban', icon: Trello },
   { value: 'calendar', label: t.nav.calendar, icon: CalendarDays },
   { value: 'timeline', label: t.nav.timeline, icon: GanttChartSquare },
   { value: 'table', label: 'Bảng tính', icon: Table2 },
@@ -19,12 +25,15 @@ export const BOARD_VIEWS: { value: BoardViewMode; label: string; icon: typeof Tr
 export function BoardViewChip({
   value,
   onChange,
+  views = BOARD_VIEWS,
 }: {
   value: BoardViewMode;
   onChange: (mode: BoardViewMode) => void;
+  /** Nơi hiển thị dạng 'board' khác Kanban (tab Công việc của dự án) tự đặt nhãn. */
+  views?: BoardViewOption[];
 }) {
   const pop = usePopover();
-  const current = BOARD_VIEWS.find((v) => v.value === value)!;
+  const current = views.find((v) => v.value === value)!;
   const Icon = current.icon;
 
   return (
@@ -32,14 +41,14 @@ export function BoardViewChip({
       <button
         onClick={pop.toggle}
         className="inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-sm font-medium text-white transition hover:bg-white/20"
-        title="Đổi dạng xem của bảng này"
+        title="Đổi dạng xem của luồng việc này"
       >
         <Icon size={16} />
         {current.label}
         <ChevronDown size={13} />
       </button>
       <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Dạng xem" width={240}>
-        {BOARD_VIEWS.map(({ value: mode, label, icon: ItemIcon }) => (
+        {views.map(({ value: mode, label, icon: ItemIcon }) => (
           <PopoverItem
             key={mode}
             icon={<ItemIcon size={15} />}

@@ -457,7 +457,7 @@ export function TaskWorkspaceList({
                 )}
                 {has('board') && (
                   <th scope="col" className="min-w-40 border-b border-tr-border px-2 py-2">
-                    Bảng
+                    Luồng việc
                   </th>
                 )}
                 {has('progress') && (
@@ -713,7 +713,7 @@ export function TaskWorkspaceList({
                           <td className="max-w-48 truncate border-b border-tr-border px-2 text-xs text-tr-subtle">
                             {task.project_name
                               ? `Dự án · ${task.project_name}`
-                              : `Bảng · ${task.board_name}`}
+                              : `Luồng việc · ${task.board_name}`}
                           </td>
                         )}
                       </tr>
