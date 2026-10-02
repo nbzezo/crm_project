@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Database } from 'better-sqlite3';
-import type { CardStatus } from '@workflow/contracts';
+import { normalizeOrgName, type CardStatus } from '@workflow/contracts';
 import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 49;
+export const LATEST_VERSION = 50;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -125,6 +125,35 @@ function linkRevenueAmUsers(db: Database): void {
     `[db] v47: ghep ${linked}/${lines.length} dong doanh thu voi nguoi dung` +
       (dropped ? `; bo ${dropped} chi tieu KPI khong ghep duoc AM` : '')
   );
+}
+
+/**
+ * v50: dua ten to chuc da co ve dang "Viet Hoa Chu Dau" — cung quy tac voi luc luu
+ * (normalizeOrgName). Chi du lieu, khong doi schema; search_text da fold ve chu
+ * thuong nen khong can tinh lai. Ham luy dang nen chay lai cung vo hai.
+ *
+ * Ten cu cua moi dong bi doi duoc giu trong `customer_names_before_v50` — deploy
+ * khong tu sao luu CSDL truoc migration, va cach viet hoa cu khong suy lai duoc.
+ * Rollback v50 doc lai bang nay.
+ */
+function normalizeCustomerNames(db: Database): number {
+  db.exec(`CREATE TABLE IF NOT EXISTS customer_names_before_v50 (
+             customer_id INTEGER PRIMARY KEY, name TEXT NOT NULL)`);
+  const rows = db.prepare('SELECT id, name FROM customers').all() as { id: number; name: string }[];
+  const update = db.prepare('UPDATE customers SET name = ? WHERE id = ?');
+  const keep = db.prepare(
+    'INSERT OR IGNORE INTO customer_names_before_v50 (customer_id, name) VALUES (?, ?)'
+  );
+  let changed = 0;
+  for (const row of rows) {
+    const next = normalizeOrgName(row.name);
+    if (next && next !== row.name) {
+      keep.run(row.id, row.name);
+      update.run(next, row.id);
+      changed += 1;
+    }
+  }
+  return changed;
 }
 
 function readSql(name: string): string {
@@ -826,5 +855,17 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v49 (sao luu len Google Drive)');
     current = 49;
+  }
+
+  if (current === 49 && targetVersion >= 50) {
+    let changed = 0;
+    db.transaction(() => {
+      changed = normalizeCustomerNames(db);
+      db.pragma('user_version = 50');
+    })();
+    console.log(
+      `[db] Da nang cap len v50 (chuan hoa ${changed} ten to chuc ve dang Viet Hoa Chu Dau)`
+    );
+    current = 50;
   }
 }
