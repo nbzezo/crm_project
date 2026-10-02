@@ -28,6 +28,7 @@ const { ensureAdminUser } = await import('../services/auth/bootstrapAdmin.ts');
 const { updateProviderConfig } = await import('../services/ai/configService.ts');
 const { mergeSuggestion, namesLikelyMatch, normalizeWebsite } =
   await import('../services/ai/companyLookup.ts');
+const { normalizeOrgName } = await import('@workflow/contracts');
 
 await ensureAdminUser();
 
@@ -142,7 +143,7 @@ test('du lieu dang ky de len du lieu AI', () => {
       address: 'Hà Nội',
     }
   );
-  assert.equal(merged.suggestion.name, 'CÔNG TY CỔ PHẦN SAO MAI');
+  assert.equal(merged.suggestion.name, 'Công Ty Cổ Phần Sao Mai');
   assert.equal(merged.sources.name, 'registry');
   assert.equal(merged.suggestion.address, 'Hà Nội');
   assert.equal(merged.sources.industry, 'ai');
@@ -150,13 +151,53 @@ test('du lieu dang ky de len du lieu AI', () => {
   assert.equal(merged.suggestion.email, undefined, 'email sai dinh dang bi bo');
 });
 
+test('chuan hoa ten to chuc: Viet Hoa Chu Dau, giu viet tat', () => {
+  const cases: [string, string][] = [
+    ['CÔNG TY CỔ PHẦN TẬP ĐOÀN GOLDEN GATE', 'Công Ty Cổ Phần Tập Đoàn Golden Gate'],
+    [
+      'NGÂN HÀNG THƯƠNG MẠI CỔ PHẦN ĐẦU TƯ VÀ PHÁT TRIỂN VIỆT NAM',
+      'Ngân Hàng Thương Mại Cổ Phần Đầu Tư Và Phát Triển Việt Nam',
+    ],
+    ['CÔNG TY TNHH MTV DỊCH VỤ FPT', 'Công Ty TNHH MTV Dịch Vụ FPT'],
+    ['CÔNG TY TNHH SÀI GÒN-HÀ NỘI (VIỆT NAM)', 'Công Ty TNHH Sài Gòn-Hà Nội (Việt Nam)'],
+    ['CÔNG TY CP XÂY DỰNG SỐ II', 'Công Ty CP Xây Dựng Số II'],
+    ['  công   ty cổ phần sao mai ', 'Công Ty Cổ Phần Sao Mai'],
+    ['công ty tnhh mtv y tế', 'Công Ty TNHH MTV Y Tế'],
+    // Ten da co chu thuong: chu nguoi dung go hoa duoc giu nguyen.
+    ['Ngân hàng TMCP Ngoại thương (Vietcombank)', 'Ngân Hàng TMCP Ngoại Thương (Vietcombank)'],
+    ['HUD Holdings', 'HUD Holdings'],
+    ['eBay Việt Nam', 'eBay Việt Nam'],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(normalizeOrgName(input), expected);
+    assert.equal(normalizeOrgName(expected), expected, 'chuan hoa lan hai khong doi gi');
+  }
+});
+
 /* ---------- Route ---------- */
+
+test('luu khach hang: ten duoc chuan hoa khi tao va khi sua ten', async () => {
+  const send = (method: string, url: string, body: unknown) =>
+    realFetch(`${baseUrl}${url}`, {
+      method,
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const created = (await (
+    await send('POST', '/api/customers', { name: 'CÔNG TY TNHH ÁNH DƯƠNG' })
+  ).json()) as { id: number; name: string };
+  assert.equal(created.name, 'Công Ty TNHH Ánh Dương');
+  const renamed = (await (
+    await send('PATCH', `/api/customers/${created.id}`, { name: 'công ty tnhh ánh dương mới' })
+  ).json()) as { name: string };
+  assert.equal(renamed.name, 'Công Ty TNHH Ánh Dương Mới');
+});
 
 test('chua co AI: go MST van dien duoc tu CSDL dang ky', async () => {
   globalThis.fetch = fakeWorld({});
   const { status, data } = await assist('0102 030 405');
   assert.equal(status, 200);
-  assert.equal(data.suggestion.name, 'CÔNG TY CỔ PHẦN SAO MAI');
+  assert.equal(data.suggestion.name, 'Công Ty Cổ Phần Sao Mai');
   assert.equal(data.suggestion.tax_code, '0102030405');
   assert.equal(data.sources.address, 'registry');
   assert.ok(data.warnings.some((w) => /Chưa cấu hình AI/.test(w)));
@@ -182,7 +223,7 @@ test('co AI: MST + AI bo sung nganh nghe, quy mo', async () => {
   });
   const { status, data } = await assist('0102030405');
   assert.equal(status, 200);
-  assert.equal(data.suggestion.name, 'CÔNG TY CỔ PHẦN SAO MAI');
+  assert.equal(data.suggestion.name, 'Công Ty Cổ Phần Sao Mai');
   assert.equal(data.suggestion.short_name, 'SAO MAI JSC');
   assert.equal(data.suggestion.industry, 'Phân phối thiết bị');
   assert.equal(data.sources.industry, 'ai');

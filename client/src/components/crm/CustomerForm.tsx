@@ -6,7 +6,7 @@ import { Modal } from '../common/Modal';
 import { Field, FormError, FormModalActions, Input, Select, Textarea } from '../common/ui';
 import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
 import { invalidateCrmViews } from '../../lib/queryKeys';
-import { ORG_KINDS } from '@workflow/contracts';
+import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import type { Customer, OrgKind } from '../../types';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { AssigneePicker } from '../tasks/AssigneePicker';
@@ -185,7 +185,11 @@ export function CustomerForm({
               id="customer-name"
               autoFocus
               value={form.name}
-              onBlur={() => setTouchedName(true)}
+              onBlur={() => {
+                setTouchedName(true);
+                // Hien ngay dang da chuan hoa — server cung chuan hoa y nhu vay khi luu.
+                if (form.name.trim()) set('name', normalizeOrgName(form.name));
+              }}
               onChange={(e) => set('name', e.target.value)}
             />
           </Field>

@@ -322,7 +322,7 @@ test('khach hang chua co: tao moi cung hop dong, tep va nguoi dai dien', async (
   const customer = db
     .prepare(`SELECT * FROM customers WHERE id = ?`)
     .get(saved.data.customer_id) as { name: string; status: string; org_kind: string };
-  assert.equal(customer.name, 'Công ty Mới Hoàn Toàn');
+  assert.equal(customer.name, 'Công Ty Mới Hoàn Toàn');
   assert.equal(customer.org_kind, 'customer');
   const contact = db
     .prepare(`SELECT full_name, is_primary FROM contacts WHERE customer_id = ?`)

@@ -374,7 +374,7 @@ test('tao cong viec tu mot khoa CRM tu suy ra cac lien ket cap tren', async () =
   });
   assert.equal(
     (context.data.display as Record<string, unknown>).customer_name,
-    'Khach hang suy dien'
+    'Khach Hang Suy Dien'
   );
   assert.equal((context.data.deals as unknown[]).length, 1);
   assert.ok(context.data.suggested_list_id);
@@ -1354,7 +1354,7 @@ test('AI task goi y ngay, khach hang, co hoi, du an va nguoi phu trach tu ban nh
     assert.equal(proposed.links.deal_id, Number(deal.data.id));
     assert.equal(proposed.project_id, Number(project.data.id));
     assert.equal(proposed.assignee_contact_id, Number(contact.data.id));
-    assert.equal(proposed.labels.customer_id, 'Khách hàng Sao Bắc');
+    assert.equal(proposed.labels.customer_id, 'Khách Hàng Sao Bắc');
     assert.equal(proposed.labels.deal_id, 'Cơ hội Nâng cấp CRM');
     assert.equal(proposed.labels.project_id, 'Dự án Bắc Đẩu');
     assert.equal(proposed.labels.assignee_contact_id, 'Nguyễn Thị Mai');
