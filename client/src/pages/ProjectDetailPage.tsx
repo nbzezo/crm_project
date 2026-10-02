@@ -33,7 +33,7 @@ import { TimelineBoard } from '../components/views/TimelineBoard';
 import { LazyCalendarView } from '../components/calendar/LazyCalendarView';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPanel';
-import { ProjectForm } from './ProjectsPage';
+import { ProjectForm } from '../components/crm/ProjectForm';
 import { HealthBadge } from '../components/crm/ProjectHealthBadge';
 import { t } from '../i18n/vi';
 import { formatDateShort, formatVND, formatVNDShort } from '../lib/format';

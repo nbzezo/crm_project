@@ -47,6 +47,10 @@ import { LabelsPopover, ListPopover } from './CardModalPopovers';
 import { SubtaskSection } from './SubtaskSection';
 import { ScheduleSection } from './ScheduleSection';
 import { AssigneeChip, AssigneePicker } from '../tasks/AssigneePicker';
+import { CustomerForm } from '../crm/CustomerForm';
+import { DealForm } from '../crm/DealForm';
+import { ProjectForm } from '../crm/ProjectForm';
+import { CrmLinkHint, readCrmHintHidden, writeCrmHintHidden, type CreateKind } from './CrmLinkHint';
 import { CARD_STATUS_TONE } from '../tasks/CardStatusControl';
 import { CARD_STATUSES } from '@workflow/contracts';
 import { api } from '../../api/client';
@@ -85,6 +89,12 @@ export function CardModal() {
   const reminderPop = usePopover();
   const listPop = usePopover();
   const menuPop = usePopover();
+  /**
+   * Biểu mẫu tạo đầy đủ đang mở từ màn việc. Giữ ở đây chứ không trong popover:
+   * popover đóng ngay khi bấm vào biểu mẫu (nằm ngoài nó), kéo biểu mẫu đi theo.
+   */
+  const [creating, setCreating] = useState<{ kind: CreateKind; name: string } | null>(null);
+  const [crmHintHidden, setCrmHintHidden] = useState(false);
 
   const { data: card } = useQuery({
     queryKey: ['card', cardId],
@@ -128,6 +138,8 @@ export function CardModal() {
       setTitle(card.title);
       setDescription(card.description ?? '');
       setEditingDesc(false);
+      setCreating(null);
+      setCrmHintHidden(readCrmHintHidden(card.id));
     }
   }, [card?.id]);
 
@@ -186,6 +198,52 @@ export function CardModal() {
       useUiStore.getState().openCard(created.id);
     },
   });
+
+  /** Gắn bản ghi vừa tạo vào việc. Lỗi phải nói ra: bản ghi đã tạo dù chưa gắn được. */
+  const linkCreated = (patch: Record<string, unknown>, what: string) =>
+    update.mutate(patch, {
+      onSuccess: () => useUiStore.getState().pushToast(`Đã tạo và gắn ${what}`, 'success'),
+      onError: (err) =>
+        useUiStore
+          .getState()
+          .pushToast(
+            `Đã tạo ${what} nhưng chưa gắn được vào công việc${err instanceof Error ? `: ${err.message}` : ''}`
+          ),
+    });
+
+  const linkCreatedDeal = (deal: Deal) => {
+    if (!card) return;
+    // Cơ hội của khách hàng khác thì việc đi theo khách hàng đó — máy chủ bỏ các
+    // liên kết cũ của khách hàng trước.
+    linkCreated(
+      deal.customer_id === card.customer_id
+        ? { deal_id: deal.id }
+        : { customer_id: deal.customer_id, deal_id: deal.id },
+      `cơ hội "${deal.title}"`
+    );
+  };
+
+  const linkCreatedProject = async (project: Project) => {
+    if (!card) return;
+    const sameCustomer = project.customer_id === card.customer_id;
+    /* Cơ hội của việc chưa có dự án triển khai thì nối luôn — đó chính là dự án
+       sinh ra từ cơ hội này. Đã có dự án khác thì giữ nguyên, không ghi đè. */
+    if (sameCustomer && card.deal_id) {
+      try {
+        const deal = await api.get<Deal>(`/api/deals/${card.deal_id}`);
+        if (deal.project_id == null)
+          await api.patch(`/api/deals/${card.deal_id}`, { project_id: project.id });
+      } catch {
+        /* không nối được cơ hội thì vẫn gắn dự án cho việc — nối sau ở form cơ hội */
+      }
+    }
+    linkCreated(
+      sameCustomer || project.customer_id == null
+        ? { project_id: project.id }
+        : { customer_id: project.customer_id, project_id: project.id },
+      `dự án "${project.name}"`
+    );
+  };
 
   /**
    * Truoc day bam ra nen dong the ngay, ke ca khi tieu de/mo ta dang go do:
@@ -531,6 +589,18 @@ export function CardModal() {
                 </div>
               )}
 
+              {card.customer_id && (!card.deal_id || !card.project_id) && !crmHintHidden && (
+                <CrmLinkHint
+                  missingDeal={!card.deal_id}
+                  missingProject={!card.project_id}
+                  onCreate={(kind) => setCreating({ kind, name: '' })}
+                  onHide={() => {
+                    setCrmHintHidden(true);
+                    writeCrmHintHidden(card.id);
+                  }}
+                />
+              )}
+
               <div className="mb-5 pl-8">
                 <Field label={t.card.labels}>
                   <div className="flex flex-wrap items-center gap-1">
@@ -803,7 +873,15 @@ export function CardModal() {
         pop={priorityPop}
         onChange={(p) => update.mutate({ priority: p })}
       />
-      <CustomerPopover card={card} pop={customerPop} onChange={(p) => update.mutate(p)} />
+      <CustomerPopover
+        card={card}
+        pop={customerPop}
+        onChange={(p) => update.mutate(p)}
+        onCreateFull={(kind, name) => {
+          customerPop.close();
+          setCreating({ kind, name });
+        }}
+      />
       <AssigneePopover card={card} pop={assigneePop} onChange={(p) => update.mutate(p)} />
       <ProjectPopover
         card={card}
@@ -811,6 +889,36 @@ export function CardModal() {
         onChange={(projectId) =>
           update.mutate({ project_id: projectId }, { onSuccess: () => projectPop.close() })
         }
+        onCreateFull={(name) => {
+          projectPop.close();
+          setCreating({ kind: 'project', name });
+        }}
+      />
+
+      <CustomerForm
+        open={creating?.kind === 'customer'}
+        onClose={() => setCreating(null)}
+        defaultName={creating?.name ?? ''}
+        onCreated={(customer) =>
+          linkCreated({ customer_id: customer.id }, `khách hàng "${customer.name}"`)
+        }
+      />
+      <DealForm
+        open={creating?.kind === 'deal'}
+        onClose={() => setCreating(null)}
+        defaultCustomerId={card.customer_id ?? undefined}
+        defaults={{ title: creating?.name || card.title, project_id: card.project_id }}
+        onCreated={linkCreatedDeal}
+      />
+      <ProjectForm
+        open={creating?.kind === 'project'}
+        onClose={() => setCreating(null)}
+        requireCustomer
+        defaults={{
+          name: creating?.name || card.deal_title || card.customer_name || '',
+          customer_id: card.customer_id,
+        }}
+        onCreated={(project) => void linkCreatedProject(project)}
       />
       <StatusPopover card={card} pop={statusPop} onChange={(p) => update.mutate(p)} />
       <CoverPopover
@@ -1154,10 +1262,12 @@ function CustomerPopover({
   card,
   pop,
   onChange,
+  onCreateFull,
 }: {
   card: CardDetail;
   pop: Pop;
   onChange: (patch: Record<string, unknown>) => void;
+  onCreateFull: (kind: 'customer' | 'deal', name: string) => void;
 }) {
   const queryClient = useQueryClient();
   const { data: customers = [] } = useQuery({
@@ -1190,8 +1300,22 @@ function CustomerPopover({
             invalidateCrmViews(queryClient);
             return { id: created.id, label: created.name };
           }}
-          quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
+          quickCreateLabel={(q) => `+ Tạo nhanh khách hàng "${q}"`}
+          onCreateFull={(q) => onCreateFull('customer', q)}
+          createFullLabel={(q) => (q ? `Tạo khách hàng "${q}" đầy đủ…` : 'Tạo khách hàng mới…')}
         />
+
+        {/* Chưa có khách hàng vẫn tạo được cơ hội: biểu mẫu cơ hội cho chọn hoặc
+            tạo khách hàng ngay bên trong, rồi việc đi theo khách hàng đó. */}
+        {!card.customer_id && (
+          <button
+            type="button"
+            onClick={() => onCreateFull('deal', '')}
+            className={`flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm text-tr-primary transition hover:bg-tr-hover ${focusRing}`}
+          >
+            <Plus size={14} aria-hidden="true" /> Tạo cơ hội mới (kèm khách hàng)…
+          </button>
+        )}
 
         {card.customer_id && (
           <label className="block">
@@ -1214,7 +1338,9 @@ function CustomerPopover({
                 });
                 return { id: created.id, label: created.title };
               }}
-              quickCreateLabel={(q) => `+ Tạo cơ hội "${q}"`}
+              quickCreateLabel={(q) => `+ Tạo nhanh cơ hội "${q}"`}
+              onCreateFull={(q) => onCreateFull('deal', q)}
+              createFullLabel={(q) => (q ? `Tạo cơ hội "${q}" đầy đủ…` : 'Tạo cơ hội mới…')}
             />
           </label>
         )}
@@ -1373,11 +1499,14 @@ function ProjectPopover({
   card,
   pop,
   onChange,
+  onCreateFull,
 }: {
   card: CardDetail;
   pop: Pop;
   onChange: (projectId: number | null) => void;
+  onCreateFull: (name: string) => void;
 }) {
+  const queryClient = useQueryClient();
   const { data: projects = [] } = useQuery({
     queryKey: ['projects', 'picker'],
     queryFn: () => api.get<Project[]>('/api/projects'),
@@ -1403,6 +1532,23 @@ function ProjectPopover({
           searchPlaceholder="Tìm dự án…"
           emptyText="Không tìm thấy dự án."
           ariaLabel="Chọn dự án cho công việc"
+          /* Tạo nhanh chỉ khi việc đã có khách hàng — dự án tạo từ màn việc phải
+             thuộc một khách hàng. Chưa có thì đi đường biểu mẫu đầy đủ để chọn. */
+          onQuickCreate={
+            card.customer_id
+              ? async (name) => {
+                  const created = await api.post<Project>('/api/projects', {
+                    name,
+                    customer_id: card.customer_id,
+                  });
+                  void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                  return { id: created.id, label: created.name };
+                }
+              : undefined
+          }
+          quickCreateLabel={(q) => `+ Tạo nhanh dự án "${q}"`}
+          onCreateFull={onCreateFull}
+          createFullLabel={(q) => (q ? `Tạo dự án "${q}" đầy đủ…` : 'Tạo dự án mới…')}
         />
       </FormField>
     </Popover>

@@ -10,6 +10,8 @@ import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
 import { AssigneePicker, useAssignees } from './AssigneePicker';
+import { CustomerForm } from '../crm/CustomerForm';
+import { DealForm } from '../crm/DealForm';
 import type { Board, BoardFull, Card, Contact, Customer, Deal, Priority } from '../../types';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
@@ -105,6 +107,11 @@ export function TaskFormDialog() {
   const [aiMeta, setAiMeta] = useState<{ requestId: string; warnings: string[] } | null>(null);
   /** Nguoi dung co sua lai sau khi AI dien khong — gui kem phan hoi chat luong. */
   const [aiEdited, setAiEdited] = useState(false);
+  /** Biểu mẫu tạo đầy đủ khách hàng/cơ hội đang mở chồng lên form này. */
+  const [creatingFull, setCreatingFull] = useState<{
+    kind: 'customer' | 'deal';
+    name: string;
+  } | null>(null);
 
   /**
    * Nap lai form ngay trong luc render khi phien soan thao doi.
@@ -151,6 +158,7 @@ export function TaskFormDialog() {
       draft?.aiRequestId ? { requestId: draft.aiRequestId, warnings: draft.aiWarnings ?? [] } : null
     );
     setAiEdited(false);
+    setCreatingFull(null);
   }
 
   const { data: context } = useQuery({
@@ -713,7 +721,9 @@ export function TaskFormDialog() {
               queryClient.invalidateQueries({ queryKey: ['customers'] });
               return { id: created.id, label: created.name };
             }}
-            quickCreateLabel={(q) => `+ Tạo khách hàng "${q}"`}
+            quickCreateLabel={(q) => `+ Tạo nhanh khách hàng "${q}"`}
+            onCreateFull={(name) => setCreatingFull({ kind: 'customer', name })}
+            createFullLabel={(q) => (q ? `Tạo khách hàng "${q}" đầy đủ…` : 'Tạo khách hàng mới…')}
           />
 
           <LinkSelect
@@ -760,7 +770,10 @@ export function TaskFormDialog() {
                     return { id: created.id, label: created.title };
                   }
             }
-            quickCreateLabel={(q) => `+ Tạo cơ hội "${q}"`}
+            quickCreateLabel={(q) => `+ Tạo nhanh cơ hội "${q}"`}
+            /* Không cần khách hàng trước: biểu mẫu cơ hội tự chọn/tạo khách hàng. */
+            onCreateFull={(name) => setCreatingFull({ kind: 'deal', name })}
+            createFullLabel={(q) => (q ? `Tạo cơ hội "${q}" đầy đủ…` : 'Tạo cơ hội mới…')}
           />
 
           <LinkSelect
@@ -797,6 +810,28 @@ export function TaskFormDialog() {
           </Field>
         </div>
       </div>
+
+      <CustomerForm
+        open={creatingFull?.kind === 'customer'}
+        onClose={() => setCreatingFull(null)}
+        defaultName={creatingFull?.name ?? ''}
+        onCreated={(customer) => changeLink('customer_id', customer.id)}
+      />
+      <DealForm
+        open={creatingFull?.kind === 'deal'}
+        onClose={() => setCreatingFull(null)}
+        defaultCustomerId={
+          valueOf('customer_id') === '' ? undefined : Number(valueOf('customer_id'))
+        }
+        defaults={{ title: creatingFull?.name || title.trim() }}
+        onCreated={(deal) => {
+          markEdited();
+          // Cơ hội của khách hàng khác thì việc đi theo khách hàng đó, bỏ các liên kết cũ.
+          if (deal.customer_id !== valueOf('customer_id'))
+            setLinks({ customer_id: deal.customer_id, deal_id: deal.id });
+          else changeLink('deal_id', deal.id);
+        }}
+      />
     </Modal>
   );
 }
@@ -811,6 +846,8 @@ function LinkSelect({
   options,
   onQuickCreate,
   quickCreateLabel,
+  onCreateFull,
+  createFullLabel,
 }: {
   linkKey: LinkKey;
   value: number | '';
@@ -820,6 +857,8 @@ function LinkSelect({
   options: ComboboxOption[];
   onQuickCreate?: (query: string) => Promise<ComboboxOption>;
   quickCreateLabel?: (query: string) => string;
+  onCreateFull?: (query: string) => void;
+  createFullLabel?: (query: string) => string;
 }) {
   const disabled = locked || disabledBy !== undefined;
   const hint = locked
@@ -841,6 +880,8 @@ function LinkSelect({
         ariaLabel={LINK_LABELS[linkKey]}
         onQuickCreate={onQuickCreate}
         quickCreateLabel={quickCreateLabel}
+        onCreateFull={onCreateFull}
+        createFullLabel={createFullLabel}
       />
     </Field>
   );

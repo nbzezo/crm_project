@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, FilePlus2, Plus, Search } from 'lucide-react';
 import { Popover, PopoverItem } from './Popover';
 import { focusRing } from './ui';
 import { normalizeSearchText } from '../../lib/text';
@@ -31,6 +31,8 @@ export function Combobox({
   disabled = false,
   onQuickCreate,
   quickCreateLabel,
+  onCreateFull,
+  createFullLabel,
   id,
   'aria-describedby': ariaDescribedBy,
   'aria-invalid': ariaInvalid,
@@ -51,6 +53,13 @@ export function Combobox({
   /** Khi co, cho phep tao nhanh mot ban ghi moi tu chinh o tim kiem — khong roi khoi form. */
   onQuickCreate?: (query: string) => Promise<ComboboxOption>;
   quickCreateLabel?: (query: string) => string;
+  /**
+   * Khi co, them dong "tao day du": dong o chon va giao cho noi goi mo bieu mau
+   * day du (kem chu dang go lam ten). Noi goi tu chon ban ghi moi sau khi luu —
+   * o nay khong biet bieu mau kia ket thuc luc nao.
+   */
+  onCreateFull?: (query: string) => void;
+  createFullLabel?: (query: string) => string;
   /**
    * `Field` bom id + cac thuoc tinh aria vao con cua no bang cloneElement. Truoc
    * day component nay huy cac prop do vi chi destructure mot danh sach co dinh
@@ -217,7 +226,21 @@ export function Combobox({
                 : (quickCreateLabel?.(query.trim()) ?? `Tạo mới "${query.trim()}"`)}
             </button>
           )}
-          {filtered.length === 0 && !(onQuickCreate && query.trim()) && (
+          {onCreateFull && (
+            <button
+              type="button"
+              onClick={() => {
+                const trimmed = query.trim();
+                close();
+                onCreateFull(trimmed);
+              }}
+              className="flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm text-tr-primary transition hover:bg-tr-hover"
+            >
+              <FilePlus2 size={14} className="shrink-0" />
+              {createFullLabel?.(query.trim()) ?? 'Tạo mới đầy đủ…'}
+            </button>
+          )}
+          {filtered.length === 0 && !(onQuickCreate && query.trim()) && !onCreateFull && (
             <p className="px-1 py-3 text-center text-xs text-tr-muted">{emptyText}</p>
           )}
           {createError && <p className="px-2 pb-1 text-xs text-tr-danger">{createError}</p>}

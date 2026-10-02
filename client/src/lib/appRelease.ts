@@ -14,9 +14,22 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-02';
+export const APP_UPDATED_AT = '2026-10-03';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.12.0',
+    date: '2026-10-03',
+    title: 'Tạo khách hàng, cơ hội, dự án ngay từ màn công việc',
+    changes: [
+      'Ô Khách hàng, Cơ hội và Dự án trong chi tiết công việc có thêm dòng "Tạo … đầy đủ…": mở biểu mẫu đầy đủ chồng lên công việc, điền sẵn tên vừa gõ. Lưu xong bản ghi mới được gắn ngay vào công việc. Dòng "Tạo nhanh" theo tên vẫn giữ nguyên.',
+      'Biểu mẫu tự điền theo công việc: cơ hội lấy khách hàng, tên việc và dự án của việc; dự án lấy khách hàng và tên cơ hội. Chỉ bắt buộc chọn khách hàng, các trường khác bổ sung sau cũng được.',
+      'Việc chưa có khách hàng vẫn tạo được cơ hội: ô Khách hàng trong biểu mẫu cơ hội (và dự án) cho tạo khách hàng mới ngay bên trong, không phải thoát ra.',
+      'Tạo dự án từ một việc đã gắn cơ hội thì cơ hội đó tự nối với dự án mới (nếu chưa có dự án triển khai). Việc chuyển sang luồng việc của dự án, giữ nguyên trạng thái.',
+      'Việc có khách hàng nhưng chưa thuộc cơ hội hoặc dự án nào hiện một dòng gợi ý kèm nút "Tạo cơ hội" / "Tạo dự án"; bấm × để ẩn gợi ý cho riêng việc đó.',
+      'Biểu mẫu Tạo việc cũng có lối tạo khách hàng và cơ hội đầy đủ như trên.',
+    ],
+  },
   {
     version: '1.11.1',
     date: '2026-10-02',

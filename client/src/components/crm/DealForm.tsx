@@ -23,6 +23,7 @@ import {
   t,
 } from '../../i18n/vi';
 import { AssigneePicker } from '../tasks/AssigneePicker';
+import { CustomerCombobox } from './CustomerCombobox';
 import { formatVND } from '../../lib/format';
 import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { invalidateCrmViews } from '../../lib/queryKeys';
@@ -42,6 +43,8 @@ interface Props {
     product?: string;
     notes?: string;
     is_renewal?: boolean;
+    /** Dự án triển khai điền sẵn — ví dụ tạo từ một công việc đã thuộc dự án. */
+    project_id?: number | null;
   };
   /** Gọi sau khi TẠO MỚI thành công, kèm cơ hội vừa tạo. */
   onCreated?: (deal: Deal) => void;
@@ -120,7 +123,8 @@ export function DealForm({
     setLostReason(deal?.lost_reason ?? '');
     setLostNote(deal?.lost_note ?? '');
     setNotes(deal?.notes ?? defaults?.notes ?? '');
-    setProjectId(deal?.project_id ? String(deal.project_id) : '');
+    const initialProject = deal ? deal.project_id : defaults?.project_id;
+    setProjectId(initialProject ? String(initialProject) : '');
     setHandoverReady(Boolean(deal?.handover_ready));
     setPocScope(deal?.poc_scope ?? '');
     setPocStart(deal?.poc_start_date ?? null);
@@ -270,7 +274,7 @@ export function DealForm({
           required
           error={submitted && customerMissing ? t.common.required : undefined}
         >
-          <Combobox
+          <CustomerCombobox
             id="deal-customer"
             value={customerId === '' ? '' : Number(customerId)}
             onChange={(v) => {

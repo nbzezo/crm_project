@@ -50,12 +50,18 @@ export function CustomerForm({
   customer,
   defaultOrgKind = 'customer',
   showOrgKind = false,
+  defaultName = '',
+  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   customer?: Customer;
   defaultOrgKind?: OrgKind;
   showOrgKind?: boolean;
+  /** Điền sẵn tên khi tạo mới — chữ người dùng vừa gõ ở ô chọn khách hàng. */
+  defaultName?: string;
+  /** Gọi sau khi TẠO MỚI thành công, để nơi mở form gắn ngay khách hàng vừa tạo. */
+  onCreated?: (customer: Customer) => void;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY);
@@ -87,7 +93,7 @@ export function CustomerForm({
           care_tier: customer.care_tier ?? 'standard',
           care_cadence_days: customer.care_cadence_days ?? null,
         }
-      : { ...EMPTY, org_kind: defaultOrgKind };
+      : { ...EMPTY, org_kind: defaultOrgKind, name: defaultName };
     setForm(next);
     initialRef.current = next;
     setTouchedName(false);
@@ -108,9 +114,10 @@ export function CustomerForm({
     mutationFn: () =>
       customer
         ? api.patch(`/api/customers/${customer.id}`, form)
-        : api.post('/api/customers', form),
-    onSuccess: () => {
+        : api.post<Customer>('/api/customers', form),
+    onSuccess: (saved) => {
       invalidateCrmViews(queryClient, customer?.id);
+      if (!customer && saved && typeof saved === 'object') onCreated?.(saved as Customer);
       onClose();
     },
   });
