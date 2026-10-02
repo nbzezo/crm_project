@@ -18,6 +18,21 @@ export const APP_UPDATED_AT = '2026-10-03';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.14.0',
+    date: '2026-10-03',
+    title: 'Khóa màn hình với màn chờ thư giãn',
+    changes: [
+      'Nút 🔒 cạnh chuông thông báo (hoặc phím Ctrl + Shift + L) khóa màn hình ngay khi rời bàn. Trên điện thoại: menu tài khoản → Khóa ngay.',
+      'Màn chờ để nghỉ mắt: đồng hồ lớn, thứ ngày tháng kèm âm lịch và một câu nhắn nhẹ nhàng. Không hiện việc hay thông báo nào.',
+      'Sáu khung cảnh chuyển động chậm: Cực quang, Hoàng hôn, Đêm sao, Biển, Rừng sương, Tối giản. Chọn trong menu tài khoản → Khóa màn hình & màn chờ, hoặc bấm nút đổi cảnh ngay trên màn chờ.',
+      'Mã mở khóa 4–6 số, không bắt buộc. Chưa đặt mã thì bấm hoặc gõ phím bất kỳ là vào lại. Đặt, đổi hoặc tắt mã trong menu tài khoản; mã dùng chung trên mọi máy bạn đăng nhập.',
+      'Quên mã: bấm "Quên mã?" để nhận lại đúng mã đang dùng qua email tài khoản (mã không đổi). Luôn có nút Đăng xuất để vào lại.',
+      'Tùy chọn tự khóa sau 5 phút đến 1 giờ không dùng (mặc định tắt). Khóa ở một tab thì mọi tab cùng khóa; tải lại trang vẫn giữ khóa. Đang gõ dở gì vẫn còn nguyên khi mở khóa.',
+      'Nút chọn giao diện (Sáng/Tối…) chuyển vào menu tài khoản trên mọi màn hình.',
+      'Bỏ mục Trợ lý AI ở thanh điều hướng: dùng nút ✨ Trợ lý AI nhanh trên thanh trên cùng (điện thoại: nút Tạo → Trợ lý AI).',
+    ],
+  },
+  {
     version: '1.13.1',
     date: '2026-10-03',
     title: 'Sửa mục Giao diện trong menu tài khoản trên điện thoại',

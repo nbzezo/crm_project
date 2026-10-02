@@ -1,0 +1,394 @@
+/*
+ * Canh nen man cho (1.14.0).
+ *
+ * Mau o day CO Y khong theo theme: man cho la mot "khung cua so" nhin ra ngoai,
+ * giong nhau o moi giao dien. Moi canh dung bon lop .ls-a .. .ls-d (div rong)
+ * ve bang gradient, va chi dung don vi % / cqmin de cung mot canh thu nho duoc
+ * thanh anh xem truoc trong hop Cai dat.
+ *
+ * Chuyen dong cham (40–120 giay mot vong) — de nghi mat, khong de nhin. Tat het
+ * khi he dieu hanh bat "giam chuyen dong".
+ */
+
+.ls-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  container-type: size;
+}
+
+.ls-scene > .ls-layer {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* ---------- Cuc quang ---------- */
+.ls-aurora {
+  background: radial-gradient(120% 90% at 50% 110%, #1b2a4a 0%, #0b1026 55%, #05060f 100%);
+}
+.ls-aurora .ls-layer {
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  filter: blur(7cqmin);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+.ls-aurora .ls-a {
+  left: -10%;
+  top: -10%;
+  background: radial-gradient(circle, #2dd4bf 0%, transparent 65%);
+  animation: ls-drift-a 48s ease-in-out infinite alternate;
+}
+.ls-aurora .ls-b {
+  right: -15%;
+  top: 5%;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 65%);
+  animation: ls-drift-b 62s ease-in-out infinite alternate;
+}
+.ls-aurora .ls-c {
+  left: 20%;
+  bottom: -25%;
+  background: radial-gradient(circle, #ec4899 0%, transparent 65%);
+  opacity: 0.35;
+  animation: ls-drift-c 75s ease-in-out infinite alternate;
+}
+.ls-aurora .ls-d {
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  filter: none;
+  opacity: 0.5;
+  mix-blend-mode: normal;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 12%, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 38% 32%, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 40%, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 55% 8%, #ffffff 50%, transparent 51%);
+}
+
+/* ---------- Hoang hon ---------- */
+.ls-sunset {
+  background: linear-gradient(
+    180deg,
+    #2b1b4a 0%,
+    #7a3b69 35%,
+    #e46f5a 62%,
+    #f7b267 80%,
+    #f4d58d 100%
+  );
+}
+.ls-sunset .ls-a {
+  left: 50%;
+  top: 52%;
+  width: 26cqmin;
+  height: 26cqmin;
+  margin-left: -13cqmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff3c4 0%, #ffd27f 45%, rgba(255, 190, 120, 0) 70%);
+  animation: ls-sun 90s ease-in-out infinite alternate;
+}
+.ls-sunset .ls-b {
+  left: -10%;
+  right: -10%;
+  bottom: -18%;
+  height: 45%;
+  border-radius: 50% 50% 0 0 / 60% 60% 0 0;
+  background: #3b2346;
+}
+.ls-sunset .ls-c {
+  left: 30%;
+  right: -30%;
+  bottom: -25%;
+  height: 45%;
+  border-radius: 50% 50% 0 0 / 70% 70% 0 0;
+  background: #26162f;
+}
+.ls-sunset .ls-d {
+  left: -20%;
+  top: 22%;
+  width: 60%;
+  height: 8%;
+  border-radius: 50%;
+  background: rgba(255, 214, 196, 0.25);
+  filter: blur(1cqmin);
+  animation: ls-cloud 120s linear infinite;
+}
+
+/* ---------- Dem sao ---------- */
+.ls-night {
+  background: linear-gradient(180deg, #050a1f 0%, #0d1b3d 55%, #1d2f5c 100%);
+}
+.ls-night .ls-a,
+.ls-night .ls-b {
+  inset: 0;
+  background-repeat: repeat;
+}
+.ls-night .ls-a {
+  background-image:
+    radial-gradient(1.5px 1.5px at 20px 30px, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 90px 120px, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 160px 60px, #cfe0ff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 210px 170px, #ffffff 50%, transparent 51%);
+  background-size: 240px 200px;
+  animation: ls-twinkle 7s ease-in-out infinite alternate;
+}
+.ls-night .ls-b {
+  background-image:
+    radial-gradient(1px 1px at 50px 80px, #ffffff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 130px 20px, #fff4d6 50%, transparent 51%),
+    radial-gradient(1px 1px at 300px 140px, #ffffff 50%, transparent 51%);
+  background-size: 340px 260px;
+  animation: ls-twinkle 11s ease-in-out infinite alternate-reverse;
+}
+.ls-night .ls-c {
+  right: 14%;
+  top: 12%;
+  width: 14cqmin;
+  height: 14cqmin;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fffbe8 0%, #f1e9c6 60%, #d8cfa6 100%);
+  box-shadow: 0 0 6cqmin 1cqmin rgba(255, 246, 210, 0.25);
+}
+.ls-night .ls-d {
+  left: -10%;
+  right: -10%;
+  bottom: -6%;
+  height: 22%;
+  border-radius: 50% 50% 0 0 / 40% 40% 0 0;
+  background: #060b1a;
+}
+
+/* ---------- Bien ---------- */
+/* Song la duong sin ve bang SVG nhung san; diem dau va cuoi cung do doc nen lat
+   ngang khong lo moi noi. Lop rong 200% truot -50% la vua mot vong. */
+.ls-ocean {
+  background: linear-gradient(
+    180deg,
+    #0f3b57 0%,
+    #1f6f8b 40%,
+    #8cc3cc 58%,
+    #2a7f9e 60%,
+    #06324a 100%
+  );
+}
+.ls-ocean .ls-a,
+.ls-ocean .ls-b,
+.ls-ocean .ls-c {
+  left: 0;
+  width: 200%;
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+}
+.ls-ocean .ls-a {
+  bottom: 22%;
+  height: 22%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 100' preserveAspectRatio='none'%3E%3Cpath d='M0 40 Q100 0 200 40 T400 40 T600 40 T800 40 V100 H0Z' fill='%232b86a5'/%3E%3C/svg%3E");
+  opacity: 0.75;
+  animation: ls-wave 46s linear infinite;
+}
+.ls-ocean .ls-b {
+  bottom: 8%;
+  height: 24%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 100' preserveAspectRatio='none'%3E%3Cpath d='M0 40 Q100 0 200 40 T400 40 T600 40 T800 40 V100 H0Z' fill='%231a6886'/%3E%3C/svg%3E");
+  opacity: 0.9;
+  animation: ls-wave 64s linear infinite reverse;
+}
+.ls-ocean .ls-c {
+  bottom: -2%;
+  height: 22%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 100' preserveAspectRatio='none'%3E%3Cpath d='M0 40 Q100 0 200 40 T400 40 T600 40 T800 40 V100 H0Z' fill='%230c4560'/%3E%3C/svg%3E");
+  animation: ls-wave 82s linear infinite;
+}
+.ls-ocean .ls-d {
+  left: 60%;
+  top: 28%;
+  width: 18cqmin;
+  height: 18cqmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 245, 220, 0.9) 0%, rgba(255, 245, 220, 0) 70%);
+}
+
+/* ---------- Rung suong ---------- */
+.ls-forest {
+  background: linear-gradient(180deg, #c9d8cf 0%, #8fae9e 40%, #4b6b5c 75%, #2a4237 100%);
+}
+.ls-forest .ls-a {
+  left: -5%;
+  right: -5%;
+  bottom: 18%;
+  height: 45%;
+  background: #6f8f80;
+  clip-path: polygon(
+    0 100%,
+    0 55%,
+    10% 35%,
+    22% 52%,
+    35% 20%,
+    48% 45%,
+    60% 25%,
+    74% 50%,
+    86% 30%,
+    100% 48%,
+    100% 100%
+  );
+}
+.ls-forest .ls-b {
+  left: -5%;
+  right: -5%;
+  bottom: 0;
+  height: 42%;
+  background: #3d5a4c;
+  clip-path: polygon(
+    0 100%,
+    0 40%,
+    8% 55%,
+    18% 25%,
+    30% 50%,
+    42% 30%,
+    55% 58%,
+    68% 22%,
+    80% 45%,
+    92% 28%,
+    100% 42%,
+    100% 100%
+  );
+}
+.ls-forest .ls-c,
+.ls-forest .ls-d {
+  width: 80%;
+  height: 22%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  filter: blur(3.5cqmin);
+}
+.ls-forest .ls-c {
+  left: -20%;
+  bottom: 30%;
+  animation: ls-fog 80s ease-in-out infinite alternate;
+}
+.ls-forest .ls-d {
+  right: -25%;
+  bottom: 12%;
+  animation: ls-fog 100s ease-in-out infinite alternate-reverse;
+}
+
+/* ---------- Toi gian ---------- */
+.ls-minimal {
+  background: radial-gradient(120% 120% at 50% 0%, #26282c 0%, #121315 70%);
+}
+
+/* ---------- Chuyen dong ---------- */
+@keyframes ls-drift-a {
+  to {
+    transform: translate(25%, 20%) scale(1.15);
+  }
+}
+@keyframes ls-drift-b {
+  to {
+    transform: translate(-30%, 25%) scale(0.9);
+  }
+}
+@keyframes ls-drift-c {
+  to {
+    transform: translate(20%, -30%) scale(1.2);
+  }
+}
+@keyframes ls-sun {
+  from {
+    transform: translateY(-6%);
+  }
+  to {
+    transform: translateY(14%);
+  }
+}
+@keyframes ls-cloud {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(180%);
+  }
+}
+@keyframes ls-twinkle {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ls-wave {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes ls-fog {
+  to {
+    transform: translateX(30%);
+  }
+}
+
+/* Chu tren canh: canh nao cung co vung sang, nen chu luon trang kem bong mo. */
+.ls-ink {
+  color: #ffffff;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+}
+.ls-glass {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  backdrop-filter: blur(12px);
+}
+.ls-glass:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.ls-glass::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+.ls-glass:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.ls-shake {
+  animation: ls-shake 0.4s ease-in-out;
+}
+@keyframes ls-shake {
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+.ls-fade-in {
+  animation: ls-fade-in 0.6s ease-out;
+}
+@keyframes ls-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Anh xem truoc trong Cai dat: dung mot canh, dung yen. */
+.ls-thumb .ls-layer {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-scene .ls-layer,
+  .ls-shake,
+  .ls-fade-in {
+    animation: none !important;
+  }
+}

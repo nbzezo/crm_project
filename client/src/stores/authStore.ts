@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { clearLockOnSignOut } from './lockStore';
 import type { PermissionMap } from '@workflow/contracts';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
@@ -92,12 +93,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } finally {
+      clearLockOnSignOut();
       set({ status: 'anonymous', user: null });
     }
   },
 
   markSignedOut: () => {
-    if (get().status !== 'anonymous') set({ status: 'anonymous', user: null });
+    if (get().status !== 'anonymous') {
+      clearLockOnSignOut();
+      set({ status: 'anonymous', user: null });
+    }
   },
 
   setUser: (user) => set({ status: 'authenticated', user }),

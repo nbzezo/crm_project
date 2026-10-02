@@ -1,8 +1,8 @@
 import type { MailMessage } from './emailService.ts';
 
 /*
- * Noi dung hai la thu duy nhat he thong gui. Giu o day de sua chu khong phai mo
- * route ra, va de ca hai dung chung mot khung HTML.
+ * Noi dung cac thu he thong gui (moi, dat lai mat khau, ma khoa man hinh). Giu o
+ * day de sua chu khong phai mo route ra, va de tat ca dung chung mot khung HTML.
  *
  * Moi thu deu co ban `text` day du — mot so may khach hang doc thu noi bo chan
  * HTML, va lien ket dat lai mat khau ma khong bam duoc thi coi nhu thu bo di.
@@ -74,6 +74,31 @@ export function resetEmail(to: string, fullName: string, link: string): MailMess
        <p style="margin:12px 0 0">Nếu bạn không yêu cầu, hãy bỏ qua thư này — mật khẩu hiện tại vẫn giữ nguyên.</p>`,
       link,
       'Đặt lại mật khẩu'
+    ),
+  };
+}
+
+/** Thu nhac lai ma khoa man hinh (v58). Gui DUNG ma dang dung — khong doi, khong dat lai. */
+export function lockPinEmail(to: string, fullName: string, pin: string, link: string): MailMessage {
+  const greeting = fullName ? `Chào ${fullName},` : 'Xin chào,';
+  return {
+    to,
+    subject: 'Mã mở khóa màn hình WorkFlow',
+    text:
+      `${greeting}\n\n` +
+      `Mã mở khóa màn hình WorkFlow của bạn là: ${pin}\n\n` +
+      `Mã không thay đổi. Bạn có thể đổi mã trong menu tài khoản → Khóa màn hình & màn chờ.\n` +
+      `Nếu bạn không yêu cầu, hãy đổi mã ngay vì có thể ai đó đang dùng máy của bạn.\n\n` +
+      `${link}\n`,
+    html: layout(
+      'Mã mở khóa màn hình',
+      `<p style="margin:0 0 12px">${escapeHtml(greeting)}</p>
+       <p style="margin:0 0 12px">Mã mở khóa màn hình WorkFlow của bạn là:</p>
+       <p style="margin:0 0 12px;font-size:28px;font-weight:700;letter-spacing:8px">${escapeHtml(pin)}</p>
+       <p style="margin:0">Mã không thay đổi. Bạn có thể đổi mã trong <strong>menu tài khoản → Khóa màn hình &amp; màn chờ</strong>.
+       Nếu bạn không yêu cầu, hãy đổi mã ngay vì có thể ai đó đang dùng máy của bạn.</p>`,
+      link,
+      'Mở WorkFlow'
     ),
   };
 }

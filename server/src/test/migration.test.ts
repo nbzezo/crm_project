@@ -552,3 +552,30 @@ test('v57: them ba cot ma lien ket da ma hoa, link cu giu nguyen va quay lui duo
   );
   scratch.close();
 });
+
+test('v58: them bang ma khoa man hinh, xoa tai khoan thi xoa ma, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 57);
+  scratch
+    .prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('an', 'h', 's')`)
+    .run();
+  migrate(scratch, 58);
+  scratch
+    .prepare(
+      `INSERT INTO user_lock_pins (user_id, pin_ciphertext, pin_iv, pin_tag) VALUES (1, 'c', 'i', 't')`
+    )
+    .run();
+  scratch.prepare(`DELETE FROM users WHERE id = 1`).run();
+  assert.equal(
+    (scratch.prepare(`SELECT COUNT(*) AS n FROM user_lock_pins`).get() as { n: number }).n,
+    0
+  );
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v58-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'user_lock_pins'`).get(),
+    undefined
+  );
+  scratch.close();
+});

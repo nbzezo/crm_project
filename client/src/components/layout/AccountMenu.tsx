@@ -1,14 +1,18 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { ChevronDown, LogOut, Palette, UserCog } from 'lucide-react';
+import { ChevronDown, Lock, LogOut, MonitorPause, Palette, UserCog } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Modal } from '../common/Modal';
 import { focusRing } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { useAuthStore } from '../../stores/authStore';
 import { ThemeOptionItems, useThemeLabel } from './ThemeToggle';
+import { useLockStore } from '../../stores/lockStore';
 
 const AccountSettings = lazy(() =>
   import('../settings/AccountSettings').then((m) => ({ default: m.AccountSettings }))
+);
+const LockSettings = lazy(() =>
+  import('../lock/LockSettings').then((m) => ({ default: m.LockSettings }))
 );
 
 /**
@@ -37,6 +41,8 @@ export function AccountMenu() {
   const logout = useAuthStore((s) => s.logout);
   const pop = usePopover();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [lockOpen, setLockOpen] = useState(false);
+  const lock = useLockStore((s) => s.lock);
   const [themeOpen, setThemeOpen] = useState(false);
   const themeLabel = useThemeLabel();
   /* Menu dong (chon xong, bam ra ngoai, Esc) thi thu danh sach Giao dien lai —
@@ -90,8 +96,9 @@ export function AccountMenu() {
         >
           {t.account.title}
         </PopoverItem>
-        {/* Chi tren dien thoai — man rong da co nut Giao dien rieng tren thanh tren. */}
-        <div className="md:hidden">
+        {/* Giao dien o day tren MOI co man hinh (1.14.0) — thanh tren nhuong cho cho
+            nut Khoa man hinh. */}
+        <div>
           <PopoverItem
             icon={<Palette size={15} />}
             expanded={themeOpen}
@@ -114,6 +121,27 @@ export function AccountMenu() {
           )}
         </div>
         <PopoverItem
+          icon={<MonitorPause size={15} />}
+          onClick={() => {
+            pop.close();
+            setLockOpen(true);
+          }}
+        >
+          Khóa màn hình &amp; màn chờ
+        </PopoverItem>
+        {/* Man rong da co nut Khoa canh chuong; dien thoai khoa tu day. */}
+        <div className="md:hidden">
+          <PopoverItem
+            icon={<Lock size={15} />}
+            onClick={() => {
+              pop.close();
+              lock();
+            }}
+          >
+            Khóa ngay
+          </PopoverItem>
+        </div>
+        <PopoverItem
           icon={<LogOut size={15} />}
           danger
           onClick={() => {
@@ -128,6 +156,17 @@ export function AccountMenu() {
       <Modal open={accountOpen} onClose={() => setAccountOpen(false)} title={t.account.title}>
         <Suspense fallback={<p className="p-4 text-sm text-tr-muted">{t.common.loading}</p>}>
           <AccountSettings />
+        </Suspense>
+      </Modal>
+
+      <Modal open={lockOpen} onClose={() => setLockOpen(false)} title="Khóa màn hình & màn chờ">
+        <Suspense fallback={<p className="p-4 text-sm text-tr-muted">{t.common.loading}</p>}>
+          <LockSettings
+            onPreview={() => {
+              setLockOpen(false);
+              lock();
+            }}
+          />
         </Suspense>
       </Modal>
     </>

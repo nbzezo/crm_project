@@ -16,6 +16,7 @@ import positions from './routes/positions.ts';
 import driveBackup from './routes/driveBackup.ts';
 import email from './routes/email.ts';
 import myContacts from './routes/myContacts.ts';
+import lockScreen from './routes/lockScreen.ts';
 import boards from './routes/boards.ts';
 import lists from './routes/lists.ts';
 import cards from './routes/cards.ts';
@@ -153,6 +154,7 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/drive-backup', driveBackup);
   /* Danh ba ca nhan: ai dang nhap cung co; rao rieng tu nam trong tung truy van. */
   app.use('/api/my-contacts', myContacts);
+  app.use('/api/lock-screen', lockScreen);
   app.use('/api/nudges', requireResource('tasks'), nudges);
   app.use('/api/projects', requireResource('projects'), projects);
   app.use('/api/calendar', requireResource('tasks'), calendarEvents);

@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   ListChecks,
   Settings,
-  Sparkles,
   Target,
   Trello,
   Users,
@@ -42,12 +41,6 @@ export const HOME_NAV: NavItem = {
   label: t.nav.dashboard,
   icon: LayoutDashboard,
   end: true,
-};
-export const AI_NAV: NavItem = {
-  to: '/ai',
-  label: t.nav.ai,
-  icon: Sparkles,
-  permission: 'ai:read',
 };
 export const SETTINGS_NAV: NavItem = { to: '/settings', label: t.nav.settings, icon: Settings };
 export const SETTINGS_PERMISSIONS: PermissionKey[] = [

@@ -5,6 +5,8 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
 import { AssistantLauncher } from './components/layout/AssistantLauncher';
+import { LockScreen } from './components/lock/LockScreen';
+import { useLockTriggers } from './components/lock/useLockTriggers';
 import { MobileTabBar } from './components/layout/MobileTabBar';
 import { Toasts } from './components/common/Toasts';
 import { usePermissionCheck, type PermissionKey } from './lib/permissions';
@@ -30,6 +32,7 @@ export default function App() {
   const mainRef = useRef<HTMLElement>(null);
   useRouteViewport(mainRef);
   useViewportInsets();
+  useLockTriggers();
   const matches = useMatches();
   const pageHandle = [...matches]
     .reverse()
@@ -120,6 +123,7 @@ export default function App() {
         <QuickNotesBoard />
       </Suspense>
       <AssistantLauncher />
+      <LockScreen />
       <div className="contents print:hidden">
         <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
         <MobileTabBar />

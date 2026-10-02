@@ -1,5 +1,5 @@
 import { Check, Contrast, Monitor, Moon, Orbit, Sun, type LucideIcon } from 'lucide-react';
-import { Popover, PopoverItem, usePopover } from '../common/Popover';
+import { PopoverItem } from '../common/Popover';
 import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 
 interface ThemeOption {
@@ -66,8 +66,8 @@ function ThemeSwatch({ colors }: { colors: ThemeOption['colors'] }) {
 }
 
 /**
- * Danh sach giao dien dang `menuitemradio` — dung chung cho nut Giao dien tren
- * thanh tren (man rong) va menu tai khoan (dien thoai, AccountMenu).
+ * Danh sach giao dien dang `menuitemradio`, mo trong menu tai khoan (AccountMenu).
+ * Tu 1.14.0 thanh tren khong con nut Giao dien rieng.
  */
 export function ThemeOptionItems({ onPicked }: { onPicked: () => void }) {
   const mode = useThemeStore((s) => s.mode);
@@ -109,48 +109,8 @@ export function ThemeOptionItems({ onPicked }: { onPicked: () => void }) {
   );
 }
 
-/** Ten giao dien dang dung — hien trong menu tai khoan tren dien thoai. */
+/** Ten giao dien dang dung — hien canh muc Giao dien trong menu tai khoan. */
 export function useThemeLabel(): string {
   const mode = useThemeStore((s) => s.mode);
   return (OPTIONS.find((option) => option.mode === mode) ?? OPTIONS[1]).label;
-}
-
-export function ThemeToggle() {
-  const mode = useThemeStore((s) => s.mode);
-  const pop = usePopover();
-  const activeOption = OPTIONS.find((option) => option.mode === mode) ?? OPTIONS[1];
-  const Current = activeOption.icon;
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={pop.toggle}
-        /* Be rong TU DONG voi nguong toi thieu, khong phai be rong co dinh.
-           Ban truoc dat `w-11 fine:w-9 xl:w-auto`: tu xl tro len ca `fine:w-9`
-           lan `xl:w-auto` cung khop, va `fine:w-9` thang trong thu tu CSS — nut
-           ket o 36px con nhan "Ubuntu 26" thi xuong dong thanh hai dong de len
-           nhau. Dung `min-w-*` thi khong con hai luat tranh nhau: duoi xl nhan bi
-           an nen noi dung chi la icon, `min-w` giu dung hinh tron; tu xl nhan
-           hien ra va nut tu gian thanh vien thuoc. */
-        className="flex h-11 w-auto min-w-11 shrink-0 items-center justify-center gap-2 rounded-full border border-tr-border bg-tr-panel whitespace-nowrap text-tr-muted shadow-sm transition hover:border-tr-primary/20 hover:text-tr-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tr-primary fine:h-9 fine:min-w-9 xl:px-2.5"
-        aria-label={`Giao diện: ${activeOption.label}`}
-        aria-haspopup="dialog"
-        aria-expanded={pop.open}
-      >
-        <Current size={18} aria-hidden="true" />
-        <span className="hidden text-xs font-semibold xl:inline">{activeOption.label}</span>
-      </button>
-
-      <Popover
-        open={pop.open}
-        anchor={pop.anchor}
-        onClose={pop.close}
-        title="Giao diện"
-        width={286}
-      >
-        <ThemeOptionItems onPicked={pop.close} />
-      </Popover>
-    </>
-  );
 }

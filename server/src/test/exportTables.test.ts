@@ -63,6 +63,9 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     // Ket qua AI phan tich cua man Trong tam (v55): sinh lai duoc bang mot lan bam,
     // gan voi tung tai khoan (`users` nam ngoai goi sao luu) — khong phai du lieu nghiep vu.
     'focus_ai_plans',
+    // Ma khoa man hinh cho (v58), ma hoa bang khoa cua may chu: rieng tung tai khoan,
+    // khong phai du lieu nghiep vu, va xuat ra la lo ma cua moi nguoi.
+    'user_lock_pins',
   ]);
   const exportSet = new Set<string>(EXPORT_TABLES);
   const missing = tables

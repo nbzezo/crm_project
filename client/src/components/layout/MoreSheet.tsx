@@ -10,7 +10,6 @@ import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 import type { Board } from '../../types';
 import { BottomSheet } from '../common/BottomSheet';
 import {
-  AI_NAV,
   NAV_GROUPS,
   SETTINGS_NAV,
   loadNavOrder,
@@ -104,14 +103,13 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
           {NAV_GROUPS.map((group) => {
             const items = groupItems(group).filter((item) => !inTabBar.has(item.to));
             const isDaily = group.id === 'daily';
-            const extras = isDaily && (allowed('ai:read') || allowed('notes:read'));
+            const extras = isDaily && allowed('notes:read');
             if (items.length === 0 && !extras) return null;
             return (
               <section key={group.id} aria-label={group.label}>
                 <h3 className="mb-2 text-sm font-semibold text-tr-muted">{group.label}</h3>
                 <div className="grid grid-cols-4 gap-1">
                   {items.map(renderItem)}
-                  {isDaily && allowed('ai:read') && renderItem(AI_NAV)}
                   {isDaily && allowed('notes:read') && (
                     <button
                       type="button"

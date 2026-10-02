@@ -3,9 +3,9 @@ import { Link, NavLink } from 'react-router';
 import { Logo } from '../common/Logo';
 import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
-import { ThemeToggle } from './ThemeToggle';
 import { AccountMenu } from './AccountMenu';
 import { AssistantButton } from './AssistantLauncher';
+import { LockButton } from '../lock/LockButton';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import { focusRing } from '../common/ui';
@@ -57,14 +57,8 @@ export function Topbar({ title }: { title: string }) {
         <Search size={20} aria-hidden="true" />
       </button>
 
-      {/* Giao diện Sáng/Tối giữ nguyên ở đây chứ không vào menu tài khoản: đó là
-          thao tác một chạm dùng nhiều lần trong ngày, chôn vào menu là làm chậm
-          đi để đổi lấy gọn gàng. */}
-      {/* Tren dien thoai nut Giao dien nam trong menu tai khoan: thanh tren hep
-          khong con cho cho tieu de trang. */}
-      <div className="hidden md:contents">
-        <ThemeToggle />
-      </div>
+      {/* Nut Giao dien da vao menu tai khoan o moi co man hinh (1.14.0): doi giao
+          dien it khi, con thanh tren can cho cho nut Khoa man hinh. */}
       <AssistantButton />
       {canReadNotes && (
         <button
@@ -93,6 +87,9 @@ export function Topbar({ title }: { title: string }) {
           <Settings size={18} aria-hidden="true" />
         </NavLink>
       )}
+      {/* Khoa man hinh canh chuong. Tren dien thoai thanh tren qua hep — nut nam
+          trong menu tai khoan. */}
+      <LockButton className="hidden md:flex" />
       <ReminderBell />
       <AccountMenu />
     </header>

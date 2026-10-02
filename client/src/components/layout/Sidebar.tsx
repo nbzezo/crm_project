@@ -33,14 +33,12 @@ import {
 import { api } from '../../api/client';
 import { backgroundStyle } from '../../lib/backgrounds';
 import { t } from '../../i18n/vi';
-import { usePermissionCheck } from '../../lib/permissions';
 import type { Board } from '../../types';
 import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from '../common/useDialog';
 import { focusRing } from '../common/ui';
 import { buildDndAnnouncements } from '../../lib/dnd/announcements';
 import {
-  AI_NAV,
   DEFAULT_NAV_ORDER,
   HOME_NAV,
   NAV_GROUPS,
@@ -292,7 +290,6 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
     <>
       <nav aria-label={t.app.name} className="px-2.5 py-3">
         <NavItemLink item={HOME_NAV} onNavigate={onNavigate} />
-        {usePermissionCheck()('ai:read') && <NavItemLink item={AI_NAV} onNavigate={onNavigate} />}
         <StarredBoards boards={starred} onNavigate={onNavigate} />
 
         {NAV_GROUPS.map((group) => {
@@ -437,7 +434,6 @@ function CollapsedNav({ order }: { order: NavOrder }) {
   return (
     <nav aria-label={t.app.name} className="flex flex-1 flex-col items-center gap-1 py-3">
       <CollapsedNavLink item={HOME_NAV} />
-      {usePermissionCheck()('ai:read') && <CollapsedNavLink item={AI_NAV} />}
       {NAV_GROUPS.map((group) => {
         const items = groupItems(group);
         if (items.length === 0) return null;
