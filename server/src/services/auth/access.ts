@@ -128,6 +128,29 @@ function scopeUnitsOf(positions: PositionRow[], ownUnitId: number | null): numbe
   return [...units];
 }
 
+/**
+ * Cac don vi nguoi nay dang lam TRUONG tren so do (`org_units.head_contact_id`).
+ *
+ * Truong mot o tren so do tu dong XEM duoc du lieu cua ca nhanh ben duoi o do,
+ * khong can cau hinh vi tri rieng: xep nguoi vao o "Truong" la du de cap tren
+ * thay cap duoi. Chi mo rong quyen DOC — sua/xoa ban ghi cua cap duoi van theo
+ * ma tran quyen cua vi tri, vi "xem duoc" va "sua duoc" la hai quyet dinh khac
+ * nhau, va gop chung thi dat ai lam truong cung la trao quyen xoa du lieu.
+ */
+function headedUnitsOf(contactId: number | null): number[] {
+  if (contactId == null) return [];
+  const rows = db
+    .prepare('SELECT id FROM org_units WHERE head_contact_id = ? AND is_active = 1')
+    .all(contactId) as { id: number }[];
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Du lieu CA NHAN — lam truong don vi cung khong mo ra. Ghi chu nhanh la mau giay
+ * dan tren man hinh cua rieng mot nguoi (xem dataScope.test.ts).
+ */
+const PERSONAL_RESOURCES: ReadonlySet<PermissionResource> = new Set(['notes']);
+
 export function buildAccess(userId: number, contactId: number | null): Access {
   const orgUnitId =
     contactId == null
@@ -143,6 +166,7 @@ export function buildAccess(userId: number, contactId: number | null): Access {
 
   const permissions = loadPermissions(userId);
   const scopeUnits = scopeUnitsOf(positions, orgUnitId);
+  const headedUnits = headedUnitsOf(contactId);
 
   /* Nho lai trong PHAM VI mot request: mot endpoint co the hoi cung mot quyen o
      nhieu cho (kiem tra dau vao, loc danh sach, dem tong). Cache nay chet cung
@@ -170,11 +194,16 @@ export function buildAccess(userId: number, contactId: number | null): Access {
         result = 'all';
       } else if (scope === 'none') {
         result = [];
-      } else if (scope === 'own') {
-        result = contactId == null ? [] : [contactId];
       } else {
-        const units = scope === 'unit' ? scopeUnits : scopeUnits.flatMap(unitSubtree);
-        const ids = new Set(contactsInUnits(units));
+        const ids = new Set<number>();
+        if (scope !== 'own') {
+          const units = scope === 'unit' ? scopeUnits : scopeUnits.flatMap(unitSubtree);
+          for (const id of contactsInUnits(units)) ids.add(id);
+        }
+        /* `none` da loai o tren: lam truong khong mo mot tinh nang vi tri da tat. */
+        if (action === 'read' && headedUnits.length > 0 && !PERSONAL_RESOURCES.has(resource)) {
+          for (const id of contactsInUnits(headedUnits.flatMap(unitSubtree))) ids.add(id);
+        }
         /* Luon thay du lieu CUA CHINH MINH, ke ca khi chua duoc xep vao don vi
            nao. Khong co dong nay thi mot nhan vien moi vao, chua ai xep phong,
            se mo he thong len va thay trong tron — ke ca viec ho tu tao. */

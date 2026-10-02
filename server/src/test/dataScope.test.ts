@@ -438,3 +438,53 @@ test('Lich khong hien moc cua co hoi ngoai pham vi', async () => {
 
   assert.ok(staff < admin, 'moc chot cua co hoi tren lich cung phai theo pham vi');
 });
+
+/* ---------- Truong don vi tren so do (head_contact_id) ---------- */
+
+test('lam truong mot o tren so do la XEM duoc ca nhanh ben duoi, khong sua duoc', async () => {
+  const p2 = unitId('Phòng P2');
+  const n2Customer = (
+    db.prepare(`SELECT id FROM customers WHERE owner_contact_id = ?`).get(n2.contactId) as {
+      id: number;
+    }
+  ).id;
+
+  /* N1 la nhan vien (pham vi `own`) — chi co the thay N2 nho o Truong. */
+  db.prepare('UPDATE org_units SET head_contact_id = ? WHERE id = ?').run(n1.contactId, p2);
+  try {
+    await signInAs(n1);
+    const names = ((await call('GET', '/api/customers')).data as { name: string }[]).map(
+      (row) => row.name
+    );
+    assert.ok(names.includes('Khách của N2'), 'truong Phong P2 phai thay khach cua N2');
+    assert.ok(!names.includes('Khách của Trưởng phòng'), 'khong thay ngang cap/cap tren');
+    assert.equal((await call('GET', `/api/customers/${n2Customer}/full`)).status, 200);
+
+    const write = await call('PATCH', `/api/customers/${n2Customer}`, { notes: 'sua' });
+    assert.equal(write.status, 404, 'lam truong chi mo quyen XEM');
+
+    /* Du lieu ca nhan van rieng, ke ca voi truong don vi. */
+    await signInAs(n2);
+    await call('POST', '/api/quick-notes', { title: 'Ghi chú riêng của N2' });
+    await signInAs(n1);
+    assert.ok(!JSON.stringify((await call('GET', '/api/quick-notes')).data).includes('N2'));
+  } finally {
+    db.prepare('UPDATE org_units SET head_contact_id = NULL WHERE id = ?').run(p2);
+  }
+
+  await signInAs(n1);
+  const after = ((await call('GET', '/api/customers')).data as { name: string }[]).map(
+    (row) => row.name
+  );
+  assert.ok(!after.includes('Khách của N2'), 'thoi lam truong la mat quyen xem ngay');
+});
+
+test('so do: /api/org-units/people tra nhan su kem vi tri', async () => {
+  await signInAs('admin');
+  const res = await call('GET', '/api/org-units/people');
+  assert.equal(res.status, 200);
+  const rows = res.data as { id: number; org_unit_id: number | null; positions: unknown[] }[];
+  const n1Row = rows.find((row) => row.id === n1.contactId);
+  assert.equal(n1Row?.org_unit_id, unitId('Phòng P1'));
+  assert.equal(n1Row?.positions.length, 1);
+});

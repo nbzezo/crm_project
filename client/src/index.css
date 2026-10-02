@@ -1573,3 +1573,78 @@ select.tr-field-control {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- So do to chuc dang cay (Cai dat → So do to chuc) ----------
+   Duong noi ve bang vien cua ::before/::after tren tung <li>: moi node tu ve nua
+   duong ngang cua minh, nen them/xoa nhanh khong phai tinh lai toa do nao.
+   Dung class thay vi selector `ul`/`li`: ben trong moi o con co danh sach nguoi,
+   va selector the se ve ca duong noi len do. */
+.tr-orgtree {
+  --tr-orgtree-line: color-mix(in srgb, var(--tr-muted) 55%, transparent);
+}
+.tr-orgtree-branch {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 1.25rem 0 0;
+}
+.tr-orgtree-root {
+  padding-top: 0;
+}
+.tr-orgtree-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.25rem 0.375rem 0;
+  list-style: none;
+}
+.tr-orgtree-node::before,
+.tr-orgtree-node::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 1.25rem;
+  border-top: 1px solid var(--tr-orgtree-line);
+}
+.tr-orgtree-node::after {
+  right: auto;
+  left: 50%;
+  border-left: 1px solid var(--tr-orgtree-line);
+}
+.tr-orgtree-node:only-child::before,
+.tr-orgtree-node:only-child::after {
+  display: none;
+}
+.tr-orgtree-node:only-child {
+  padding-top: 0;
+}
+.tr-orgtree-node:first-child::before,
+.tr-orgtree-node:last-child::after {
+  border: 0 none;
+}
+.tr-orgtree-node:last-child::before {
+  border-right: 1px solid var(--tr-orgtree-line);
+  border-radius: 0 0.375rem 0 0;
+}
+.tr-orgtree-node:first-child::after {
+  border-radius: 0.375rem 0 0 0;
+}
+.tr-orgtree-branch .tr-orgtree-branch::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 1.25rem;
+  border-left: 1px solid var(--tr-orgtree-line);
+}
+.tr-orgtree-root > .tr-orgtree-node {
+  padding-top: 0;
+}
+.tr-orgtree-root > .tr-orgtree-node::before,
+.tr-orgtree-root > .tr-orgtree-node::after {
+  display: none;
+}

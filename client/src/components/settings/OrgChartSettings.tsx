@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { api } from '../../api/client';
@@ -10,8 +10,10 @@ import {
   Input,
   Panel,
   Select,
+  Segmented,
   SkeletonRows,
 } from '../common/ui';
+import { OrgChartTree } from './OrgChartTree';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
@@ -69,6 +71,16 @@ const EMPTY_DRAFT: Draft = {
   head_contact_id: null,
 };
 
+function draftOf(unit: OrgUnit): Draft {
+  return {
+    name: unit.name,
+    parent_id: unit.parent_id,
+    kind_id: unit.kind_id,
+    code: unit.code ?? '',
+    head_contact_id: unit.head_contact_id,
+  };
+}
+
 export function OrgChartSettings() {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
@@ -76,6 +88,15 @@ export function OrgChartSettings() {
   const [confirmDelete, setConfirmDelete] = useState<OrgUnit | null>(null);
   const [showKinds, setShowKinds] = useState(false);
   const [newKind, setNewKind] = useState('');
+  const [view, setView] = useState<'chart' | 'list'>('chart');
+  const formRef = useRef<HTMLDivElement>(null);
+  const editingKey = editing ? `${editing.id}:${editing.draft.parent_id}` : null;
+
+  /* Bam Sua tren mot o nam sau trong so do thi form o dau trang — keo len cho
+     nguoi dung thay ngay, khong thi bam xong tuong nhu khong co gi xay ra. */
+  useEffect(() => {
+    if (editingKey) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [editingKey]);
 
   const units = useQuery({
     queryKey: ['org-units'],
@@ -193,18 +214,7 @@ export function OrgChartSettings() {
             </IconButton>
             <IconButton
               label={t.common.edit}
-              onClick={() =>
-                setEditing({
-                  id: unit.id,
-                  draft: {
-                    name: unit.name,
-                    parent_id: unit.parent_id,
-                    kind_id: unit.kind_id,
-                    code: unit.code ?? '',
-                    head_contact_id: unit.head_contact_id,
-                  },
-                })
-              }
+              onClick={() => setEditing({ id: unit.id, draft: draftOf(unit) })}
             >
               <Pencil size={14} aria-hidden />
             </IconButton>
@@ -284,7 +294,7 @@ export function OrgChartSettings() {
       ) : null}
 
       {editing ? (
-        <div className="mb-4 space-y-3 rounded-control border border-tr-border p-3">
+        <div ref={formRef} className="mb-4 space-y-3 rounded-control border border-tr-border p-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t.orgChart.unitName} required>
               <Input
@@ -385,8 +395,31 @@ export function OrgChartSettings() {
         </div>
       ) : null}
 
+      <div className="mb-3">
+        <Segmented
+          label={t.orgChart.title}
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'chart', label: t.orgChart.viewChart },
+            { value: 'list', label: t.orgChart.viewList },
+          ]}
+        />
+      </div>
+
       {units.isPending ? <SkeletonRows rows={4} /> : null}
-      {(childrenOf.get(null) ?? []).map((unit) => renderUnit(unit, 0))}
+      {view === 'chart' && units.data ? (
+        <OrgChartTree
+          units={units.data}
+          childrenOf={childrenOf}
+          onAddChild={(unit) =>
+            setEditing({ id: null, draft: { ...EMPTY_DRAFT, parent_id: unit.id } })
+          }
+          onEdit={(unit) => setEditing({ id: unit.id, draft: draftOf(unit) })}
+          onDelete={(unit) => setConfirmDelete(unit)}
+        />
+      ) : null}
+      {view === 'list' ? (childrenOf.get(null) ?? []).map((unit) => renderUnit(unit, 0)) : null}
 
       <ConfirmDialog
         open={confirmDelete !== null}

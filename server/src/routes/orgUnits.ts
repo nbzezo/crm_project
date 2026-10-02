@@ -168,6 +168,64 @@ router.delete('/:id', (req, res) => {
 
 /* ---------- Xep nguoi vao don vi ---------- */
 
+/**
+ * Nhan su cong ty minh kem cho ngoi, tai khoan va vi tri — du de ve tung o tren
+ * so do. Mot lan goi cho ca cay thay vi moi o mot lan: so do cua mot cong ty chi
+ * vai tram nguoi, con N lan goi thi moi lan mo man hinh la N lan cho.
+ *
+ * Nguoi lien he ben khach hang khong co cho tren so do (`org_kind = 'own'`).
+ */
+router.get('/people', (_req, res) => {
+  const people = db
+    .prepare(
+      `SELECT ct.id, ct.full_name, ct.title, ct.email, ct.org_unit_id,
+              u.id AS user_id, u.is_active AS user_active
+         FROM contacts ct
+         JOIN customers c ON c.id = ct.customer_id AND c.org_kind = 'own'
+         LEFT JOIN users u ON u.contact_id = ct.id
+        WHERE ct.is_active = 1
+        ORDER BY ct.full_name`
+    )
+    .all() as { user_id: number | null }[];
+  const positions = db
+    .prepare(
+      `SELECT up.user_id, p.id AS position_id, p.name AS position_name, up.is_primary,
+              up.scope_unit_id
+         FROM user_positions up JOIN positions p ON p.id = up.position_id
+        ORDER BY up.is_primary DESC, p.position, p.id`
+    )
+    .all() as {
+    user_id: number;
+    position_id: number;
+    position_name: string;
+    is_primary: number;
+    scope_unit_id: number | null;
+  }[];
+  /* Kem `scope_unit_id`: man so do ghi de ca tap vi tri cua mot nguoi
+     (PUT /api/positions/assignments) — thieu cot nay thi luu mot lan la xoa mat
+     don vi kiem nhiem. */
+  const byUser = new Map<
+    number,
+    {
+      position_id: number;
+      position_name: string;
+      is_primary: boolean;
+      scope_unit_id: number | null;
+    }[]
+  >();
+  for (const { user_id, is_primary, ...rest } of positions) {
+    const list = byUser.get(user_id) ?? [];
+    list.push({ ...rest, is_primary: Boolean(is_primary) });
+    byUser.set(user_id, list);
+  }
+  res.json(
+    people.map((person) => ({
+      ...person,
+      positions: person.user_id == null ? [] : (byUser.get(person.user_id) ?? []),
+    }))
+  );
+});
+
 const memberSchema = z.object({
   contact_ids: z.array(z.number().int().positive()).min(1).max(500),
   org_unit_id: z.number().int().positive().nullable(),

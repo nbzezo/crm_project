@@ -14,9 +14,21 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-01';
+export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.2.0',
+    date: '2026-10-02',
+    title: 'Sơ đồ tổ chức và quyền xem theo cấp quản lý',
+    changes: [
+      'Sơ đồ tổ chức dạng cây: mỗi phòng ban, khối là một ô, hiển thị người và vị trí của từng người.',
+      'Xếp người vào đơn vị, đặt trưởng đơn vị và gán vị trí ngay trên sơ đồ.',
+      'Trưởng đơn vị tự động xem được dữ liệu của cả nhánh bên dưới; quyền sửa, xoá vẫn theo vị trí.',
+      'Ghi chú nhanh luôn riêng tư, kể cả với cấp trên.',
+      'Liệt kê những người chưa được xếp vào đơn vị nào để không bỏ sót.',
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-10-01',
