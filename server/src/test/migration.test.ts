@@ -401,3 +401,32 @@ test('v53 them danh ba ca nhan, xoa nguoi dung thi xoa theo, va quay lui duoc', 
   assert.equal(tables.includes('personal_contacts'), false);
   assert.ok(tables.includes('drive_backup_settings'), 'bang cua dot truoc con nguyen');
 });
+
+test('v54 luu ket qua AI Trong tam, xoa nguoi dung thi xoa theo, va quay lui duoc', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 53);
+  migrate(db);
+  const user = Number(
+    db
+      .prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('a', '', '')`)
+      .run().lastInsertRowid
+  );
+  const insert = db.prepare(
+    `INSERT INTO focus_ai_plans (user_id, mode, period_from, period_to, plan_json) VALUES (?, 'me', '2026-10-05', '2026-10-11', '{}')`
+  );
+  insert.run(user);
+  assert.throws(() => insert.run(user), 'moi nguoi mot ban cho moi ky');
+  db.prepare(`DELETE FROM users WHERE id = ?`).run(user);
+  assert.equal(
+    (db.prepare(`SELECT COUNT(*) AS n FROM focus_ai_plans`).get() as { n: number }).n,
+    0
+  );
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v54-rollback.sql', import.meta.url), 'utf8'));
+  const tables = (
+    db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]
+  ).map((t) => t.name);
+  assert.equal(tables.includes('focus_ai_plans'), false);
+  assert.ok(tables.includes('personal_contacts'), 'bang cua dot truoc con nguyen');
+});

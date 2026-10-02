@@ -22,6 +22,33 @@ import { emptyTaskFilters, useUiStore } from '../stores/uiStore';
 import { t } from '../i18n/vi';
 import { AiBrief } from '../components/ai/AiBrief';
 import { FocusView } from '../components/focus/FocusView';
+import { readPrefs } from '../components/focus/focusPrefs';
+import { periodFor } from '../components/focus/focusPeriod';
+import { focusPlanKey, focusPlanUrl, planStatus } from '../components/focus/focusPlanStatus';
+import type { FocusPlan } from '../components/focus/focusTypes';
+import { usePermission } from '../lib/permissions';
+import { todayStr } from '../lib/format';
+
+/**
+ * Ket qua AI cua ky Trong tam mac dinh (loai ky + pham vi lan truoc, tinh tu hom
+ * nay) da cu chua — de dat cham nhac tren tab khi nguoi dung dang o Toan canh.
+ * Chi doc ket qua da luu (GET), khong bao gio goi AI.
+ */
+function useFocusPlanStale(enabled: boolean): string | null {
+  const canUseAi = usePermission('ai', 'read');
+  const prefs = readPrefs();
+  const period = periodFor(prefs.kind, todayStr());
+  const { data: plan } = useQuery({
+    queryKey: focusPlanKey(period.from, period.to, prefs.mode),
+    queryFn: () => api.get<FocusPlan | null>(focusPlanUrl(period.from, period.to, prefs.mode)),
+    enabled: enabled && canUseAi,
+    staleTime: 5 * 60_000,
+  });
+  // Dang o tab Trong tam thi da co dai nhac ngay trong khoi AI — khong can cham.
+  if (!enabled || !plan) return null;
+  const status = planStatus(plan, period);
+  return status.stale ? status.reasons.join(' ') : null;
+}
 
 type DashboardView = 'overview' | 'focus';
 const VIEW_KEY = 'dashboard.view';
@@ -70,6 +97,7 @@ function DashboardTabs({
   onChange: (view: DashboardView) => void;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const staleReason = useFocusPlanStale(view !== 'focus');
   const onKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();
@@ -109,6 +137,14 @@ function DashboardTabs({
           >
             <Icon size={15} aria-hidden="true" />
             {tab.label}
+            {tab.value === 'focus' && staleReason && (
+              <span
+                className="h-2 w-2 rounded-full bg-tr-warning"
+                title={`Kết quả AI đã cũ — ${staleReason}`}
+              >
+                <span className="sr-only">(kết quả AI đã cũ, nên phân tích lại)</span>
+              </span>
+            )}
           </button>
         );
       })}

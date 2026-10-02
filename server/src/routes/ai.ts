@@ -52,7 +52,13 @@ import {
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { assistCustomer } from '../services/ai/companyLookup.ts';
 import { buildFocus, canSeeTeam, focusScopeOf } from '../services/focusService.ts';
-import { generateFocusPlan, type FocusPlanResult } from '../services/focusAi.ts';
+import {
+  diffSnapshot,
+  generateFocusPlan,
+  loadFocusPlan,
+  saveFocusPlan,
+  snapshotOf,
+} from '../services/focusAi.ts';
 import { listNineRouterSearchModels } from '../services/ai/providers.ts';
 import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
@@ -259,50 +265,69 @@ router.post('/brief', async (req, res) => {
   }
 });
 
-const focusPlanRequest = z.object({
+const focusPlanQuery = z.object({
   from: z.string(),
   to: z.string(),
   mode: z.enum(['me', 'team']).default('me'),
+});
+const focusPlanRequest = focusPlanQuery.extend({
   ai_mode: z.enum(['fast', 'balanced', 'reasoning']).default('balanced'),
-  refresh: z.boolean().default(false),
 });
 
 /*
- * Ket qua AI cua man hinh Trong tam, giu trong bo nho theo (nguoi, che do, ky).
- *
- * Mo lai tab khong nen ton them mot lan goi AI — va quan trong hon, khong nen
- * sinh lai mot loat de xuat viec trung voi lan truoc. Nut "Phân tích lại" gui
- * `refresh` de bo qua. Mat khi khoi dong lai may chu la chap nhan duoc: day la
- * goi y, khong phai du lieu.
+ * Ket qua AI cua man Trong tam LUU TRONG CSDL (v54), moi nguoi mot ban cho moi
+ * (che do, ky). Chi thay khi nguoi dung bam "Phân tích lại" (POST) — mo lai
+ * trang, doi may khong goi AI lai. GET kem `changes`: so voi anh chup luc phan
+ * tich, du lieu ky da doi bao nhieu — man hinh dua vao do de nhac "da cu".
  */
-const FOCUS_PLAN_TTL_MS = 6 * 60 * 60_000;
-const focusPlanCache = new Map<string, { at: number; result: FocusPlanResult }>();
+function focusPlanContext(req: Request, query: z.infer<typeof focusPlanQuery>) {
+  const access = accessOf(req);
+  if (!access.can('tasks', 'read')) throw new HttpError(403, 'Bạn không có quyền xem công việc');
+  const mode: 'me' | 'team' = query.mode === 'team' && canSeeTeam(access) ? 'team' : 'me';
+  const data = buildFocus(db, {
+    from: query.from,
+    to: query.to,
+    scope: focusScopeOf(access, mode),
+  });
+  /* userId 0 = che do tat xac thuc (test) — khong co tai khoan de gan ket qua. */
+  const key =
+    access.userId > 0 ? { userId: access.userId, mode, from: query.from, to: query.to } : null;
+  return { access, data, key };
+}
+
+router.get('/focus-plan', (req, res) => {
+  const parsed = focusPlanQuery.safeParse(req.query);
+  if (!parsed.success) throw new HttpError(400, 'Thiếu khoảng ngày cần xem');
+  const { data, key } = focusPlanContext(req, parsed.data);
+  const stored = key ? loadFocusPlan(db, key) : null;
+  if (!stored) {
+    res.json(null);
+    return;
+  }
+  res.json({
+    ...stored.plan,
+    generated_at: stored.generated_at,
+    changes: diffSnapshot(stored.snapshot, data),
+  });
+});
 
 router.post('/focus-plan', async (req, res) => {
   try {
     const body = parseBody(focusPlanRequest, req);
-    const access = accessOf(req);
-    if (!access.can('tasks', 'read')) throw new HttpError(403, 'Bạn không có quyền xem công việc');
-    const mode = body.mode === 'team' && canSeeTeam(access) ? 'team' : 'me';
-    const key = `${access.userId}|${access.contactId}|${mode}|${body.from}|${body.to}`;
-    const cached = focusPlanCache.get(key);
-    if (!body.refresh && cached && Date.now() - cached.at < FOCUS_PLAN_TTL_MS) {
-      res.json({ ...cached.result, cached: true });
-      return;
-    }
-    const data = buildFocus(db, {
-      from: body.from,
-      to: body.to,
-      scope: focusScopeOf(access, mode),
-    });
+    const { access, data, key } = focusPlanContext(req, body);
     const result = await generateFocusPlan(db, data, {
       mode: body.ai_mode,
       assigneeContactId: access.contactId,
       withProposals: true,
     });
-    if (focusPlanCache.size > 500) focusPlanCache.clear();
-    focusPlanCache.set(key, { at: Date.now(), result });
-    res.json({ ...result, cached: false });
+    const generatedAt = key
+      ? saveFocusPlan(db, key, result, snapshotOf(data))
+      : result.generated_at;
+    res.json({
+      ...result,
+      generated_at: generatedAt,
+      changes: { done: 0, added: 0, moved: 0, total: 0 },
+    });
   } catch (error) {
     asHttpError(error);
   }

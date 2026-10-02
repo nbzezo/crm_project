@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.5.0',
+    date: '2026-10-02',
+    title: 'Kết quả AI ở Trọng tâm được lưu lại và tự nhắc khi đã cũ',
+    changes: [
+      'Phân tích AI ở tab Trọng tâm được lưu cho từng kỳ: mở lại trang, đổi máy hay xem trên điện thoại vẫn thấy, không tốn thêm lượt AI. Chỉ thay khi bạn bấm Phân tích lại.',
+      'Luôn hiện thời điểm phân tích; dải vàng nhắc khi kết quả đã cũ, nói rõ lý do: bao nhiêu việc đã xong, việc mới, việc bị dời, hoặc đã quá lâu (kỳ ngày 4 giờ, kỳ tuần 1 ngày, kỳ tháng 3 ngày).',
+      'Ưu tiên AI gợi ý đã làm xong được gạch đi; xong hết thì nhắc phân tích lại để có kế hoạch tiếp theo.',
+      'Chấm vàng trên tab Trọng tâm khi kết quả AI của kỳ bạn hay xem đã cũ.',
+    ],
+  },
+  {
     version: '1.4.1',
     date: '2026-10-02',
     title: 'Trọng tâm hiển thị đủ lịch và nhắc hẹn',

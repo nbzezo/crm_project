@@ -172,7 +172,9 @@ export interface FocusPlan {
     explanation?: string;
     status: 'pending' | 'approved' | 'rejected' | 'executed' | 'failed' | string;
   }[];
+  /** Gio phan tich (gio dia phuong cua may chu, 'YYYY-MM-DDTHH:mm:ss'). */
   generated_at: string;
-  cached: boolean;
+  /** So voi du lieu luc phan tich: bao nhieu muc da xong / moi / bi doi ngay. */
+  changes: { done: number; added: number; moved: number; total: number };
   meta: { provider: string; model: string; inputTokens: number; outputTokens: number };
 }

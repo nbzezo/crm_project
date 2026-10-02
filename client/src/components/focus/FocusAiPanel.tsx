@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
+  CircleCheck,
+  History,
   ArrowRightLeft,
   CalendarPlus,
   Check,
@@ -21,6 +23,7 @@ import { Button, FormError, Panel, focusRing } from '../common/ui';
 import type { FocusData, FocusMode, FocusPlan } from './focusTypes';
 import { useOpenItem } from './FocusItemRow';
 import { dayMonth, weekdayShort } from './focusPeriod';
+import { focusPlanKey, focusPlanUrl, planStatus } from './focusPlanStatus';
 
 function Section({
   icon: Icon,
@@ -43,33 +46,26 @@ function Section({
   );
 }
 
-export function FocusAiPanel({
-  data,
-  mode,
-  plan,
-  onPlan,
-}: {
-  data: FocusData;
-  mode: FocusMode;
-  /** Ket qua giu o FocusView theo tung ky — doi ky roi quay lai khong mat. */
-  plan: FocusPlan | undefined;
-  onPlan: (plan: FocusPlan) => void;
-}) {
+export function FocusAiPanel({ data, mode }: { data: FocusData; mode: FocusMode }) {
   const canUseAi = usePermission('ai', 'read');
+  const { from, to } = data.range;
+  const planKey = focusPlanKey(from, to, mode);
+  /* Ket qua luu o may chu (v54) cho toi khi bam "Phân tích lại" — GET khong goi
+     AI. Nam duoi khoa 'focus' nen moi lan du lieu ky doi, `changes` tinh lai. */
+  const { data: plan } = useQuery({
+    queryKey: planKey,
+    queryFn: () => api.get<FocusPlan | null>(focusPlanUrl(from, to, mode)),
+    enabled: canUseAi,
+  });
   const canCreateEvent = usePermission('tasks', 'create');
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
+  const onPlan = (next: FocusPlan) => queryClient.setQueryData(planKey, next);
   const openItem = useOpenItem();
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   const generate = useMutation({
-    mutationFn: (refresh: boolean) =>
-      api.post<FocusPlan>('/api/ai/focus-plan', {
-        from: data.range.from,
-        to: data.range.to,
-        mode,
-        refresh,
-      }),
+    mutationFn: () => api.post<FocusPlan>('/api/ai/focus-plan', { from, to, mode }),
     onSuccess: (result) => {
       setAdded(new Set());
       onPlan(result);
@@ -140,7 +136,7 @@ export function FocusAiPanel({
             variant="primary"
             className="shrink-0"
             disabled={generate.isPending}
-            onClick={() => generate.mutate(false)}
+            onClick={() => generate.mutate()}
           >
             <Sparkles size={14} aria-hidden="true" />
             {generate.isPending ? 'Đang phân tích…' : 'Phân tích'}
@@ -152,6 +148,16 @@ export function FocusAiPanel({
   }
 
   const pendingProposals = plan.proposals.filter((p) => p.status === 'pending').length;
+  const status = planStatus(plan, data.range);
+  /* Uu tien tro toi mot muc da xong — hoac da roi khoi ky (thuong la vi da xu ly). */
+  const priorityDone = (ref: string | null | undefined) => {
+    if (!ref) return false;
+    const item = itemByKey.get(ref);
+    return item ? item.done : true;
+  };
+  const linkedPriorities = plan.priorities.filter((p) => p.ref);
+  const allPrioritiesDone =
+    linkedPriorities.length > 0 && linkedPriorities.every((p) => priorityDone(p.ref));
   const scheduleByDate = plan.schedule.reduce<Record<string, FocusPlan['schedule']>>(
     (acc, block) => {
       (acc[block.date] ??= []).push(block);
@@ -170,15 +176,17 @@ export function FocusAiPanel({
       }
       action={
         <span className="flex items-center gap-2 print:hidden">
-          <span className="hidden text-xs text-tr-muted sm:inline">
-            {plan.cached ? 'Kết quả đã lưu · ' : ''}
-            {plan.meta.model}
+          <span
+            className={`hidden items-center gap-1 text-xs sm:inline-flex ${status.stale ? 'text-tr-warning' : 'text-tr-muted'}`}
+            title={`${plan.meta.provider} · ${plan.meta.model}`}
+          >
+            <History size={12} aria-hidden="true" /> Phân tích {status.ageLabel}
           </span>
           <Button
             size="sm"
             variant="ghost"
             disabled={generate.isPending}
-            onClick={() => generate.mutate(true)}
+            onClick={() => generate.mutate()}
           >
             <RefreshCw
               size={13}
@@ -190,6 +198,39 @@ export function FocusAiPanel({
         </span>
       }
     >
+      {(status.stale || allPrioritiesDone) && (
+        <div
+          role="status"
+          className="mb-3 flex flex-col gap-2 rounded-panel border border-tr-warning/40 bg-tr-warning/10 p-2.5 sm:flex-row sm:items-center sm:justify-between print:hidden"
+        >
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold text-tr-warning">
+              {allPrioritiesDone ? 'Đã xử lý hết các ưu tiên AI gợi ý' : 'Kết quả AI có thể đã cũ'}
+            </p>
+            <p className="text-tr-subtle">
+              {[
+                ...(allPrioritiesDone ? ['Phân tích lại để có kế hoạch tiếp theo.'] : []),
+                ...status.reasons,
+              ].join(' ')}{' '}
+              <span className="text-tr-muted">(phân tích {status.ageLabel})</span>
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            className="shrink-0"
+            disabled={generate.isPending}
+            onClick={() => generate.mutate()}
+          >
+            <RefreshCw
+              size={13}
+              className={generate.isPending ? 'animate-spin' : ''}
+              aria-hidden="true"
+            />
+            {generate.isPending ? 'Đang phân tích…' : 'Phân tích lại'}
+          </Button>
+        </div>
+      )}
       <p className="text-base font-semibold text-tr-text">{plan.headline}</p>
       {plan.summary && (
         <p className="mt-1 text-sm leading-relaxed text-tr-subtle">{plan.summary}</p>
@@ -202,12 +243,24 @@ export function FocusAiPanel({
             <ol className="space-y-1.5">
               {plan.priorities.map((p, index) => {
                 const item = p.ref ? itemByKey.get(p.ref) : undefined;
+                const done = priorityDone(p.ref);
                 return (
-                  <li key={`${index}-${p.title}`} className="flex gap-2 text-sm">
-                    <span className="tr-rank flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-tr-primary/10 text-xs font-bold text-tr-primary">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0">
+                  <li
+                    key={`${index}-${p.title}`}
+                    className={`flex gap-2 text-sm ${done ? 'opacity-60' : ''}`}
+                  >
+                    {done ? (
+                      <CircleCheck
+                        size={20}
+                        className="shrink-0 text-tr-success"
+                        aria-label="Đã xong"
+                      />
+                    ) : (
+                      <span className="tr-rank flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-tr-primary/10 text-xs font-bold text-tr-primary">
+                        {index + 1}
+                      </span>
+                    )}
+                    <span className={`min-w-0 ${done ? 'line-through' : ''}`}>
                       {item ? (
                         <button
                           type="button"

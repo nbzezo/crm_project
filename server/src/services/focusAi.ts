@@ -204,3 +204,122 @@ export async function generateFocusPlan(
     },
   };
 }
+
+/* ---------- Luu ket qua va phat hien ket qua da cu (v54) ---------- */
+
+/** Anh chup du lieu ky luc phan tich: khoa muc -> [ngay, da xong]. */
+export interface FocusSnapshot {
+  items: Record<string, [string, 0 | 1]>;
+}
+
+export interface FocusChanges {
+  /** Muc da xong — hoac bien mat khoi ky (thuong la xong, xoa, hay doi ra ngoai ky). */
+  done: number;
+  /** Muc moi xuat hien tu luc phan tich. */
+  added: number;
+  /** Muc chua xong nhung da doi sang ngay khac. */
+  moved: number;
+  total: number;
+}
+
+export function snapshotOf(data: FocusData): FocusSnapshot {
+  const items: FocusSnapshot['items'] = {};
+  for (const item of [...data.items, ...data.carry_over]) {
+    items[item.key] = [item.date, item.done ? 1 : 0];
+  }
+  return { items };
+}
+
+export function diffSnapshot(snapshot: FocusSnapshot, data: FocusData): FocusChanges {
+  const current = new Map(
+    [...data.items, ...data.carry_over].map((item) => [item.key, item] as const)
+  );
+  let done = 0;
+  let moved = 0;
+  for (const [key, [date, wasDone]] of Object.entries(snapshot.items ?? {})) {
+    if (wasDone) continue;
+    const now = current.get(key);
+    if (!now || now.done) done += 1;
+    else if (now.date !== date) moved += 1;
+  }
+  let added = 0;
+  for (const [key, item] of current) {
+    if (!(key in (snapshot.items ?? {})) && !item.done) added += 1;
+  }
+  return { done, added, moved, total: done + added + moved };
+}
+
+interface StoredPlanRow {
+  plan_json: string;
+  snapshot_json: string;
+  generated_at: string;
+}
+
+export interface StoredFocusPlan {
+  plan: FocusPlanResult;
+  snapshot: FocusSnapshot;
+  generated_at: string;
+}
+
+export function loadFocusPlan(
+  db: Database,
+  key: { userId: number; mode: string; from: string; to: string }
+): StoredFocusPlan | null {
+  const row = db
+    .prepare(
+      `SELECT plan_json, snapshot_json, generated_at FROM focus_ai_plans
+        WHERE user_id = ? AND mode = ? AND period_from = ? AND period_to = ?`
+    )
+    .get(key.userId, key.mode, key.from, key.to) as StoredPlanRow | undefined;
+  if (!row) return null;
+  const plan = JSON.parse(row.plan_json) as FocusPlanResult;
+  /* Trang thai de xuat (cho duyet / da tao / bo qua) doc lai tu bang goc — no
+     doi sau luc luu, va hien sai se dan toi duyet trung mot viec. */
+  const ids = (plan.proposals as { id: number }[]).map((p) => p.id).filter(Number.isInteger);
+  if (ids.length > 0) {
+    const statuses = new Map(
+      (
+        db
+          .prepare(
+            `SELECT id, status FROM ai_action_proposals WHERE id IN (${ids.map(() => '?').join(',')})`
+          )
+          .all(...ids) as { id: number; status: string }[]
+      ).map((r) => [r.id, r.status])
+    );
+    plan.proposals = (plan.proposals as { id: number; status: string }[]).map((p) => ({
+      ...p,
+      status: statuses.get(p.id) ?? p.status,
+    }));
+  }
+  return {
+    plan,
+    snapshot: JSON.parse(row.snapshot_json) as FocusSnapshot,
+    generated_at: row.generated_at,
+  };
+}
+
+export function saveFocusPlan(
+  db: Database,
+  key: { userId: number; mode: string; from: string; to: string },
+  plan: FocusPlanResult,
+  snapshot: FocusSnapshot
+): string {
+  const row = db
+    .prepare(
+      `INSERT INTO focus_ai_plans (user_id, mode, period_from, period_to, plan_json, snapshot_json)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id, mode, period_from, period_to) DO UPDATE SET
+         plan_json = excluded.plan_json, snapshot_json = excluded.snapshot_json,
+         generated_at = strftime('%Y-%m-%dT%H:%M:%S','now','localtime')
+       RETURNING generated_at`
+    )
+    .get(
+      key.userId,
+      key.mode,
+      key.from,
+      key.to,
+      JSON.stringify(plan),
+      JSON.stringify(snapshot)
+    ) as { generated_at: string };
+  return row.generated_at;
+}

@@ -325,3 +325,54 @@ test('lich, nhac hen chua co chu (tao truoc ban 1.4.1) van hien o che do ca nhan
   // Lich co chu la nguoi khac thi van khong lot vao
   assert.ok(!data.items.some((i) => i.title === 'Họp của Bình'));
 });
+
+test('ket qua AI: luu, doc lai, dem thay doi tu luc phan tich', async () => {
+  const { diffSnapshot, loadFocusPlan, saveFocusPlan, snapshotOf } =
+    await import('../services/focusAi.ts');
+  const user = Number(
+    db
+      .prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('an', '', '')`)
+      .run().lastInsertRowid
+  );
+  const before = build(scope('me'));
+  const key = { userId: user, mode: 'me', from: FROM, to: TO };
+  const plan = {
+    headline: 'Kế hoạch tuần',
+    summary: '',
+    priorities: [],
+    risks: [],
+    schedule: [],
+    delegate: [],
+    suggested_tasks: [],
+    messages: [],
+    proposals: [],
+    generated_at: '',
+    meta: { provider: 'demo', model: 'demo', inputTokens: 0, outputTokens: 0 },
+  };
+  saveFocusPlan(db, key, plan as never, snapshotOf(before));
+  assert.equal(loadFocusPlan(db, key)?.plan.headline, 'Kế hoạch tuần');
+  assert.equal(loadFocusPlan(db, { ...key, mode: 'team' }), null, 'moi che do mot ban');
+
+  // Chua doi gi -> khong co thay doi
+  assert.deepEqual(diffSnapshot(loadFocusPlan(db, key)!.snapshot, before), {
+    done: 0,
+    added: 0,
+    moved: 0,
+    total: 0,
+  });
+
+  // Xong mot viec, doi han mot viec, them mot viec moi
+  db.prepare(`UPDATE cards SET is_done = 1, completed_at = '2026-10-07 10:00:00' WHERE id = ?`).run(
+    today
+  );
+  db.prepare(`UPDATE cards SET due_date = '2026-10-10' WHERE id = ?`).run(givenToMe);
+  card('Việc mới phát sinh', listA, '2026-10-08', A, A);
+  const changes = diffSnapshot(loadFocusPlan(db, key)!.snapshot, build(scope('me')));
+  assert.deepEqual(changes, { done: 1, added: 1, moved: 1, total: 3 });
+
+  // Phan tich lai thi ghi de, khong tao ban thu hai
+  saveFocusPlan(db, key, { ...plan, headline: 'Bản mới' } as never, snapshotOf(build(scope('me'))));
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM focus_ai_plans`).get() as { n: number };
+  assert.equal(count.n, 1);
+  assert.equal(loadFocusPlan(db, key)?.plan.headline, 'Bản mới');
+});
