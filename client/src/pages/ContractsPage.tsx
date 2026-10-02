@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Share2,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import {
 import { CONTRACT_STATUS_COLORS, CONTRACT_STATUS_ORDER, t } from '../i18n/vi';
 import { formatDate, formatVND, formatVNDShort } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
+import { ShareDialog, useCanShare } from '../components/share/ShareButton';
 import type { Contract } from '../types';
 import { PageHeader } from '../components/common/PageShell';
 
@@ -85,6 +87,8 @@ export default function ContractsPage() {
   );
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [menuFor, setMenuFor] = useState<{ id: number; anchor: HTMLElement } | null>(null);
+  const [shareTarget, setShareTarget] = useState<{ id: number; name: string } | null>(null);
+  const canShare = useCanShare('contract');
   const focusId = Number(searchParams.get('focus')) || null;
 
   const {
@@ -476,6 +480,14 @@ export default function ContractsPage() {
           setDeleteId(null);
         }}
       />
+      {shareTarget && (
+        <ShareDialog
+          entityType="contract"
+          entityId={shareTarget.id}
+          label={`Hợp đồng ${shareTarget.name}`}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
       {menuFor && menuTarget && (
         <Popover
           open
@@ -502,6 +514,17 @@ export default function ContractsPage() {
           >
             Tạo công việc
           </PopoverItem>
+          {canShare && (
+            <PopoverItem
+              icon={<Share2 size={15} aria-hidden="true" />}
+              onClick={() => {
+                setShareTarget({ id: menuTarget.id, name: menuTarget.name });
+                setMenuFor(null);
+              }}
+            >
+              Chia sẻ (cho phép xem)
+            </PopoverItem>
+          )}
           {menuTarget.status === 'active' && (
             <PopoverItem
               icon={<RefreshCw size={15} aria-hidden="true" />}

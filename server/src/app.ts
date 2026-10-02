@@ -44,6 +44,8 @@ import system from './routes/system.ts';
 import ai from './routes/ai.ts';
 import notifications from './routes/notifications.ts';
 import telegram from './routes/telegram.ts';
+import shares from './routes/shares.ts';
+import publicShare from './routes/publicShare.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(here, '../../client/dist');
@@ -94,6 +96,10 @@ export function createApp(options: AppOptions = {}): Express {
     res.json({ ok: true, app: 'WorkFlow', database: 'ready' });
   });
 
+  /* Lien ket chia se cong khai: KHONG dang nhap, nen phai nam TRUOC requireAuth.
+     Router tu gioi han toc do va chi tra ra cac truong da duoc loc. */
+  app.use('/api/public/share', publicShare);
+
   if (useAuth) {
     app.use('/api/auth', auth);
     app.use('/api', requireAuth);
@@ -138,6 +144,8 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/reminders', requireResource('tasks'), reminders);
   app.use('/api/notifications', notifications);
   app.use('/api/telegram', requireResource('settings.telegram'), telegram);
+  /* Tu kiem quyen ben trong (theo loai ban ghi duoc chia se), khong dung requireResource. */
+  app.use('/api/shares', shares);
   /* Truoc `app.use('/api', requireResource('deals'), scoring)` ben duoi: router do bat moi
      duong /api chua khop va doi quyen `deals`, nen mount sau no se bi chan nham. */
   app.use('/api/drive-backup', driveBackup);
