@@ -268,7 +268,7 @@ test('luong viec co moc la giai doan, sap theo han', async () => {
   assert.ok(phases.every((p) => p.state !== 'none'));
 });
 
-/* ---------- 1.9.0: Bang – Luong viec ngam ---------- */
+/* ---------- 1.10.0: Bang – Luong viec ngam ---------- */
 
 test('tao du an thi co san mot luong viec ngam mang ten du an', async () => {
   const projectId = await newProject('Du an luong ngam');

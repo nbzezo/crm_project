@@ -1,4 +1,4 @@
-import type { RevenueTotals } from '../types';
+import type { RevenueLine, RevenueTotals } from '../types';
 
 const EMPTY_TOTALS: RevenueTotals = {
   amount_vnd: 0,
@@ -58,4 +58,43 @@ export function sumTotals(list: (RevenueTotals | undefined)[]): RevenueTotals {
 export function formatPeriod(period: string | null | undefined): string {
   if (!period) return '—';
   return `T${Number(period.slice(5, 7))}/${period.slice(0, 4)}`;
+}
+
+/** Các dòng doanh thu của một khách hàng — mỗi dòng là một cặp hợp đồng × dịch vụ. */
+export interface RevenueCustomerGroup {
+  customer_id: number;
+  customer_name: string;
+  lines: RevenueLine[];
+  /** Số hợp đồng khác nhau (không tính dòng chưa gắn hợp đồng). */
+  contract_count: number;
+  /** Số dịch vụ khác nhau (không tính dòng chưa gán dịch vụ). */
+  service_count: number;
+}
+
+/**
+ * Gom dòng doanh thu theo khách hàng, giữ nguyên thứ tự xuất hiện đầu tiên của
+ * khách hàng. Trong nhóm, các dòng cùng hợp đồng đứng liền nhau (dòng chưa gắn
+ * hợp đồng xuống cuối); cùng hợp đồng thì giữ thứ tự sẵn có.
+ */
+function byContract(a: RevenueLine, b: RevenueLine): number {
+  if (a.contract_name === b.contract_name) return 0;
+  if (a.contract_name === null) return 1;
+  if (b.contract_name === null) return -1;
+  return a.contract_name.localeCompare(b.contract_name, 'vi');
+}
+
+export function groupLinesByCustomer(lines: RevenueLine[]): RevenueCustomerGroup[] {
+  const byCustomer = new Map<number, RevenueLine[]>();
+  for (const line of lines) {
+    const list = byCustomer.get(line.customer_id);
+    if (list) list.push(line);
+    else byCustomer.set(line.customer_id, [line]);
+  }
+  return [...byCustomer.entries()].map(([customer_id, list]) => ({
+    customer_id,
+    customer_name: list[0].customer_name,
+    lines: [...list].sort(byContract),
+    contract_count: new Set(list.map((l) => l.contract_id).filter((id) => id !== null)).size,
+    service_count: new Set(list.map((l) => l.service_id).filter((id) => id !== null)).size,
+  }));
 }

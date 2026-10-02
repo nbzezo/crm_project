@@ -74,9 +74,7 @@ export function mailtoHref(title: string, url: string, hasPassword: boolean): st
 }
 
 export function telegramHref(title: string, url: string, hasPassword: boolean): string {
-  const text = hasPassword
-    ? `${title} (mật khẩu mở liên kết sẽ gửi riêng)`
-    : title;
+  const text = hasPassword ? `${title} (mật khẩu mở liên kết sẽ gửi riêng)` : title;
   return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
 }
 

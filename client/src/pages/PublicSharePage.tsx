@@ -87,7 +87,8 @@ type Row = [label: string, value: string];
 function rowsFor(data: Payload): Row[] {
   const f = data.fields;
   const text = (key: string): string => (f[key] == null ? '' : String(f[key]));
-  const money = (key: string): string => (typeof f[key] === 'number' ? formatVND(f[key] as number) : '');
+  const money = (key: string): string =>
+    typeof f[key] === 'number' ? formatVND(f[key] as number) : '';
   const date = (key: string): string => formatDate(text(key));
   const rows: Row[] =
     data.type === 'quotation'
@@ -113,7 +114,12 @@ function rowsFor(data: Payload): Row[] {
             ['Điều khoản thanh toán', text('payment_terms')],
           ]
         : data.type === 'page'
-          ? [['Thời gian họp', text('purpose_key') === 'meeting' ? formatDateTime(text('meeting_at')) : '']]
+          ? [
+              [
+                'Thời gian họp',
+                text('purpose_key') === 'meeting' ? formatDateTime(text('meeting_at')) : '',
+              ],
+            ]
           : [['Mô tả', text('description')]];
   return rows.filter(([, value]) => value);
 }
@@ -129,7 +135,8 @@ function Runs({ runs }: { runs: PublicRun[] }) {
     <>
       {runs.map((run, index) => {
         let node: ReactNode = run.t;
-        if (run.c) node = <code className="rounded bg-tr-hover px-1 py-0.5 text-[0.9em]">{node}</code>;
+        if (run.c)
+          node = <code className="rounded bg-tr-hover px-1 py-0.5 text-[0.9em]">{node}</code>;
         if (run.b) node = <strong>{node}</strong>;
         if (run.i) node = <em>{node}</em>;
         if (run.u) node = <u>{node}</u>;
@@ -186,9 +193,19 @@ function Blocks({ blocks }: { blocks: PublicBlock[] }) {
               <div key={index}>
                 <p className="flex gap-2">
                   <span aria-hidden="true" className="w-5 shrink-0 text-right text-tr-muted">
-                    {block.type === 'bullet' ? '•' : block.type === 'number' ? `${counter}.` : block.checked ? '☑' : '☐'}
+                    {block.type === 'bullet'
+                      ? '•'
+                      : block.type === 'number'
+                        ? `${counter}.`
+                        : block.checked
+                          ? '☑'
+                          : '☐'}
                   </span>
-                  <span className={block.type === 'check' && block.checked ? 'text-tr-muted line-through' : ''}>
+                  <span
+                    className={
+                      block.type === 'check' && block.checked ? 'text-tr-muted line-through' : ''
+                    }
+                  >
                     <Runs runs={block.runs} />
                   </span>
                 </p>
@@ -204,7 +221,10 @@ function Blocks({ blocks }: { blocks: PublicBlock[] }) {
             );
           case 'code':
             return (
-              <pre key={index} className="my-1 overflow-x-auto rounded-control bg-tr-hover p-2 text-sm">
+              <pre
+                key={index}
+                className="my-1 overflow-x-auto rounded-control bg-tr-hover p-2 text-sm"
+              >
                 <Runs runs={block.runs} />
               </pre>
             );
@@ -329,7 +349,10 @@ export default function PublicSharePage({ token }: { token: string }) {
         {state.kind === 'loading' && <p className="text-center text-tr-muted">Đang tải…</p>}
 
         {state.kind === 'error' && (
-          <div role="alert" className="rounded-card border border-tr-border bg-tr-panel p-6 text-center">
+          <div
+            role="alert"
+            className="rounded-card border border-tr-border bg-tr-panel p-6 text-center"
+          >
             <p className="text-lg font-semibold">Không mở được liên kết</p>
             <p className="mt-2 text-sm text-tr-subtle">{state.message}</p>
             <p className="mt-3 text-xs text-tr-muted">
@@ -352,7 +375,10 @@ export default function PublicSharePage({ token }: { token: string }) {
                 ? `${state.data.shared_by} đã chia sẻ ${SHARE_ENTITY_LABEL[state.data.type].toLowerCase()} này với bạn.`
                 : 'Nhập mật khẩu mà người gửi đã cung cấp.'}
             </p>
-            <label htmlFor="share-password" className="mt-4 block text-xs font-semibold text-tr-subtle">
+            <label
+              htmlFor="share-password"
+              className="mt-4 block text-xs font-semibold text-tr-subtle"
+            >
               Mật khẩu
             </label>
             <input
@@ -382,7 +408,7 @@ export default function PublicSharePage({ token }: { token: string }) {
 
         {state.kind === 'ready' && (
           <article className="rounded-card border border-tr-border bg-tr-panel p-5 sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-tr-muted">
+            <p className="text-xs font-semibold text-tr-muted">
               {SHARE_ENTITY_LABEL[state.data.type]}
             </p>
             <h1 className="mt-1 text-xl font-semibold">{state.data.title}</h1>
@@ -421,7 +447,9 @@ export default function PublicSharePage({ token }: { token: string }) {
                     <li key={file.id} className="rounded-control border border-tr-border p-3">
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <FileText size={16} aria-hidden="true" />
-                        <span className="min-w-0 flex-1 break-words font-medium">{file.file_name}</span>
+                        <span className="min-w-0 flex-1 break-words font-medium">
+                          {file.file_name}
+                        </span>
                         <span className="text-xs text-tr-muted">{formatSize(file.size)}</span>
                         {state.data.allow_download && (
                           <a
@@ -465,7 +493,8 @@ export default function PublicSharePage({ token }: { token: string }) {
               {state.data.expires_at
                 ? `Liên kết có hiệu lực đến ${formatDateTime(state.data.expires_at.replace(' ', 'T'))}.`
                 : 'Liên kết không có hạn sử dụng.'}{' '}
-              Lượt truy cập được ghi lại (thời gian và địa chỉ IP) để người chia sẻ biết nội dung đã được xem.
+              Lượt truy cập được ghi lại (thời gian và địa chỉ IP) để người chia sẻ biết nội dung đã
+              được xem.
             </p>
           </article>
         )}

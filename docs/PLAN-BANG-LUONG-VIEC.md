@@ -1,7 +1,7 @@
 # Phương án: "Bảng – Luồng việc", ẩn bảng khi thừa, tách rõ Giai đoạn
 
 Nhánh: `claude/project-task-board-overlap-2373f3` (tách từ `main` @ 153a301, bản 1.8.0)
-Trạng thái: **đã triển khai trong 1.9.0** — Q1 dùng "Luồng việc" ở chỗ hẹp; Q2 luồng ngầm mang tên dự án; Q3 chỉ đếm luồng có mốc; Q4 giữ nguyên tên cột P01–P09
+Trạng thái: **đã triển khai trong 1.10.0** — Q1 dùng "Luồng việc" ở chỗ hẹp; Q2 luồng ngầm mang tên dự án; Q3 chỉ đếm luồng có mốc; Q4 giữ nguyên tên cột P01–P09
 
 ---
 

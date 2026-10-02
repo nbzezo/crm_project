@@ -456,9 +456,15 @@ export default function MyContactsPage() {
                       onChange={togglePage}
                     />
                   </th>
-                  <th scope="col" className="py-1.5 pr-3 font-semibold">Liên hệ</th>
-                  <th scope="col" className="py-1.5 pr-3 font-semibold">Điện thoại / Email</th>
-                  <th scope="col" className="py-1.5 font-semibold">Trong CRM</th>
+                  <th scope="col" className="py-1.5 pr-3 font-semibold">
+                    Liên hệ
+                  </th>
+                  <th scope="col" className="py-1.5 pr-3 font-semibold">
+                    Điện thoại / Email
+                  </th>
+                  <th scope="col" className="py-1.5 font-semibold">
+                    Trong CRM
+                  </th>
                 </tr>
               </thead>
               <tbody>

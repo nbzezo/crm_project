@@ -51,8 +51,7 @@ function userName(req: Request): string {
   const userId = req.session?.userId;
   if (!userId) return 'Hệ thống';
   const row = db.prepare(`SELECT full_name, username FROM users WHERE id = ?`).get(userId) as
-    | { full_name: string | null; username: string }
-    | undefined;
+    { full_name: string | null; username: string } | undefined;
   return row?.full_name || row?.username || 'Hệ thống';
 }
 
@@ -236,20 +235,27 @@ router.post('/:id/revoke', (req, res) => {
   db.prepare(
     `UPDATE share_links SET revoked_at = COALESCE(revoked_at, datetime('now','localtime')) WHERE id = ?`
   ).run(link.id);
-  res.json(serialize(db.prepare(`SELECT * FROM share_links WHERE id = ?`).get(link.id) as ShareLinkRow));
+  res.json(
+    serialize(db.prepare(`SELECT * FROM share_links WHERE id = ?`).get(link.id) as ShareLinkRow)
+  );
 });
 
 /* Gia han: dat lai han tu BAY GIO (khong cong don vao han cu), ke ca link da het han.
    Link da thu hoi thi khong gia han — thu hoi la quyet dinh co chu y, khong dao nguoc im lang. */
 router.post('/:id/extend', (req, res) => {
   const link = loadManagedLink(req);
-  const body = parseBody(z.object({ days: z.union([z.literal(1), z.literal(7), z.literal(30)]) }), req);
+  const body = parseBody(
+    z.object({ days: z.union([z.literal(1), z.literal(7), z.literal(30)]) }),
+    req
+  );
   if (link.revoked_at) throw new HttpError(409, 'Liên kết đã bị thu hồi, hãy tạo liên kết mới');
   db.prepare(`UPDATE share_links SET expires_at = datetime('now','localtime', ?) WHERE id = ?`).run(
     `+${body.days} days`,
     link.id
   );
-  res.json(serialize(db.prepare(`SELECT * FROM share_links WHERE id = ?`).get(link.id) as ShareLinkRow));
+  res.json(
+    serialize(db.prepare(`SELECT * FROM share_links WHERE id = ?`).get(link.id) as ShareLinkRow)
+  );
 });
 
 router.get('/:id/views', (req, res) => {

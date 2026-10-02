@@ -56,7 +56,7 @@ trang. Tài liệu này là nguồn quyết định duy nhất cho câu hỏi "g
 | "Hành động tiếp theo" *và* "Next Action" | **Next Action** | Hai tên cho cùng một thứ, có chỗ đứng cạnh nhau trong một dòng (`InteractionTimeline`: nhãn "Hành động tiếp theo", hint "Sẽ cập nhật Next Action của cơ hội"). |
 | "Chế độ model" | **Mức độ chi tiết** | Thuật ngữ kỹ thuật lọt ra giao diện người dùng. Ba mức giữ nguyên nghĩa: Nhanh / Cân bằng / Suy luận. |
 
-## Luồng việc, cột, giai đoạn (1.9.0)
+## Luồng việc, cột, giai đoạn (1.10.0)
 
 | Khái niệm | Tên hiển thị | Định nghĩa |
 |---|---|---|

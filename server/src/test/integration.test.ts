@@ -443,7 +443,7 @@ test('tao viec trong va tu phan loai khi bo sung khach hang, co hoi co du an', a
     customer_id: customerId,
   });
   assert.equal(project.status, 201);
-  // Du an moi tao kem san luong viec ngam (1.9.0) — viec phai roi vao do.
+  // Du an moi tao kem san luong viec ngam (1.10.0) — viec phai roi vao do.
   const projectBoardId = (
     db.prepare(`SELECT id FROM boards WHERE project_id = ?`).get(Number(project.data.id)) as {
       id: number;

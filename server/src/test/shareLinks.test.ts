@@ -30,6 +30,7 @@ let cookie = '';
 
 interface Reply {
   status: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- du lieu test, kiem tung truong
   json: Record<string, any>;
   text: string;
   res: Response;
@@ -50,6 +51,7 @@ async function call(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- du lieu test, kiem tung truong
   let json: Record<string, any> = {};
   try {
     json = JSON.parse(text);
@@ -83,7 +85,9 @@ before(async () => {
 
   customerId = Number(
     db
-      .prepare(`INSERT INTO customers (name, search_text) VALUES ('Cong ty Khach', 'cong ty khach')`)
+      .prepare(
+        `INSERT INTO customers (name, search_text) VALUES ('Cong ty Khach', 'cong ty khach')`
+      )
       .run().lastInsertRowid
   );
   quotationId = Number(
@@ -131,7 +135,9 @@ test('v51 -> v52: bo CHECK loai ban ghi, giu nguyen link va nhat ky, quay lui du
   migrate(mem, 51);
   assert.throws(() =>
     mem
-      .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h', 'page', 1)`)
+      .prepare(
+        `INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h', 'page', 1)`
+      )
       .run()
   );
   mem
@@ -149,7 +155,9 @@ test('v51 -> v52: bo CHECK loai ban ghi, giu nguyen link va nhat ky, quay lui du
     1
   );
   mem
-    .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h2', 'page', 1)`)
+    .prepare(
+      `INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h2', 'page', 1)`
+    )
     .run();
   assert.deepEqual(mem.pragma('foreign_key_check'), []);
   /* Xoa link thi nhat ky xoa theo: khoa ngoai van noi dung sau khi thay bang. */
@@ -171,7 +179,9 @@ test('v51 -> v52: bo CHECK loai ban ghi, giu nguyen link va nhat ky, quay lui du
   );
   assert.throws(() =>
     mem
-      .prepare(`INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h3', 'page', 1)`)
+      .prepare(
+        `INSERT INTO share_links (token_hash, entity_type, entity_id) VALUES ('h3', 'page', 1)`
+      )
       .run()
   );
   mem.exec(fs.readFileSync(new URL('../db/migrate-v51-rollback.sql', import.meta.url), 'utf8'));
@@ -247,7 +257,12 @@ test('khong do duoc tep ngoai danh sach da chia se, va token sai tra 404', async
     entity_id: quotationId,
   });
   const token = String(created.json.token);
-  const other = await call('GET', `/api/public/share/${token}/file/${secretDocId}`, undefined, false);
+  const other = await call(
+    'GET',
+    `/api/public/share/${token}/file/${secretDocId}`,
+    undefined,
+    false
+  );
   assert.equal(other.status, 404);
   const bad = await call('GET', `/api/public/share/${'a'.repeat(43)}`, undefined, false);
   assert.equal(bad.status, 404);
@@ -256,7 +271,10 @@ test('khong do duoc tep ngoai danh sach da chia se, va token sai tra 404', async
 });
 
 test('tai lieu mat khong duoc chia se cong khai', async () => {
-  const res = await call('POST', '/api/shares', { entity_type: 'document', entity_id: secretDocId });
+  const res = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: secretDocId,
+  });
   assert.equal(res.status, 422);
   assert.equal(res.json.code, 'SHARE_BLOCKED');
 });
@@ -297,6 +315,7 @@ test('mat khau: can mo khoa, sai thi bi chan, dung thi xem va tai duoc', async (
   const res = await fetch(`${baseUrl}/api/public/share/${token}`, {
     headers: { 'x-share-access': access },
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- du lieu test, kiem tung truong
   const json = (await res.json()) as Record<string, any>;
   assert.equal(json.requires_password, false);
   assert.equal(json.files[0].id, documentId);
@@ -348,7 +367,12 @@ test('chi xem: chan tai ve va chan tep khong xem truc tiep duoc', async () => {
     allow_download: false,
   });
   const token = String(created.json.token);
-  const inline = await call('GET', `/api/public/share/${token}/file/${documentId}`, undefined, false);
+  const inline = await call(
+    'GET',
+    `/api/public/share/${token}/file/${documentId}`,
+    undefined,
+    false
+  );
   assert.equal(inline.status, 200);
   assert.match(String(inline.res.headers.get('content-disposition')), /^inline/);
   const download = await call(
@@ -366,7 +390,10 @@ test('chi xem: chan tai ve va chan tep khong xem truc tiep duoc', async () => {
 });
 
 test('het han va thu hoi: tra 410, giu nguyen nhat ky', async () => {
-  const created = await call('POST', '/api/shares', { entity_type: 'document', entity_id: documentId });
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+  });
   const token = String(created.json.token);
   assert.equal((await call('GET', `/api/public/share/${token}`, undefined, false)).status, 200);
 
@@ -377,7 +404,10 @@ test('het han va thu hoi: tra 410, giu nguyen nhat ky', async () => {
   assert.equal(expired.status, 410);
   assert.equal(expired.json.code, 'expired');
 
-  const another = await call('POST', '/api/shares', { entity_type: 'document', entity_id: documentId });
+  const another = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+  });
   const revoke = await call('POST', `/api/shares/${another.json.id}/revoke`);
   assert.equal(revoke.json.status, 'revoked');
   const gone = await call('GET', `/api/public/share/${another.json.token}`, undefined, false);
@@ -386,7 +416,10 @@ test('het han va thu hoi: tra 410, giu nguyen nhat ky', async () => {
 });
 
 test('xoa ban ghi goc thi link ngung hoat dong', async () => {
-  const created = await call('POST', '/api/shares', { entity_type: 'document', entity_id: documentId });
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+  });
   db.prepare(`UPDATE documents SET deleted_at = datetime('now','localtime') WHERE id = ?`).run(
     documentId
   );
@@ -415,10 +448,16 @@ test('nhac theo doi: lan mo dau tien bao vao chuong thong bao, khong tao nhac he
 });
 
 test('quan tri tat chia se cong khai: tao moi bi chan, link cu tra 410', async () => {
-  const created = await call('POST', '/api/shares', { entity_type: 'document', entity_id: documentId });
+  const created = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+  });
   const off = await call('PUT', '/api/shares/settings', { public_enabled: false });
   assert.equal(off.json.public_enabled, false);
-  const blocked = await call('POST', '/api/shares', { entity_type: 'document', entity_id: documentId });
+  const blocked = await call('POST', '/api/shares', {
+    entity_type: 'document',
+    entity_id: documentId,
+  });
   assert.equal(blocked.status, 403);
   const old = await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
   assert.equal(old.status, 410);
@@ -464,7 +503,11 @@ test('Trang tai lieu: chia se noi dung da loc, khong lo nguoi tham du / id / kho
         { type: 'mention', props: { contactId: 4242, label: 'Nguyen Van A' } },
       ],
       children: [
-        { id: 'a3', type: 'bulletListItem', content: [{ type: 'text', text: 'y con', styles: {} }] },
+        {
+          id: 'a3',
+          type: 'bulletListItem',
+          content: [{ type: 'text', text: 'y con', styles: {} }],
+        },
       ],
     },
     { id: 'a4', type: 'flowchart', props: { data: 'BI-MAT-SO-DO' } },

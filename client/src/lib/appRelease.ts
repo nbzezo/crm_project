@@ -18,7 +18,7 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
-    version: '1.9.0',
+    version: '1.10.0',
     date: '2026-10-02',
     title: 'Bảng – Luồng việc; dự án một luồng không còn bắt chọn bảng; Giai đoạn là luồng có mốc',
     changes: [
@@ -28,6 +28,19 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       'Tab Giai đoạn chỉ liệt kê luồng việc có mốc bàn giao. Luồng chưa có mốc nằm trong mục thu gọn để đặt mốc tại chỗ; thêm giai đoạn mới bằng tên và ngày mốc ngay trong tab.',
       'Số giai đoạn dùng để gợi ý mô hình triển khai A/B chỉ đếm luồng việc có mốc. Mô hình đã chốt không đổi.',
       'Dạng xem đổi tên cho rõ: "Kanban" trong luồng việc, "Cây việc" trong tab Công việc của dự án, "Bảng tính" ở trang Công việc.',
+    ],
+  },
+  {
+    version: '1.9.0',
+    date: '2026-10-02',
+    title: 'Bảng doanh thu nhóm theo khách hàng',
+    changes: [
+      'Khách hàng có nhiều dòng doanh thu (nhiều hợp đồng hoặc nhiều dịch vụ) được gom thành một nhóm. Dòng đầu nhóm ghi số hợp đồng, số dịch vụ và cộng sẵn doanh thu, công nợ, từng tháng của cả nhóm.',
+      'Mỗi dòng trong nhóm là một cặp hợp đồng × dịch vụ: ô đầu ghi tên hợp đồng, các dòng cùng hợp đồng đứng liền nhau, dòng chưa gắn hợp đồng ghi "Không gắn hợp đồng".',
+      'Nút "N dòng" bên phải tên khách hàng để mở hoặc thu gọn nhóm; các nhóm mở sẵn. Có thêm "Mở tất cả" / "Thu gọn tất cả".',
+      'Cuối mỗi nhóm có "+ Thêm dòng doanh thu", mở form với khách hàng đã điền sẵn.',
+      'Ô "Nhóm theo khách hàng" để bật hoặc tắt cách xem này; trình duyệt nhớ lựa chọn cho lần sau. Khách hàng chỉ có một dòng vẫn hiển thị như cũ.',
+      'Nhãn trạng thái liên kết chia sẻ (Đang hoạt động / Hết hạn / Đã thu hồi) đổi màu theo giao diện sáng / tối, dễ đọc hơn ở chế độ tối.',
     ],
   },
   {

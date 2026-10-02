@@ -248,7 +248,7 @@ function TasksTab({ project }: { project: ProjectDetail }) {
       projectId: project.id,
     });
 
-  /* Dự án tạo từ 1.9.0 có sẵn luồng việc ngầm. Dự án cũ chưa có luồng nào thì
+  /* Dự án tạo từ 1.10.0 có sẵn luồng việc ngầm. Dự án cũ chưa có luồng nào thì
      KHÔNG có chỗ hợp lệ để thả việc vào: "Bắt đầu" tạo luồng ngầm rồi mở form.
      Trước v19, nút "Thêm công việc" ở đây thả việc vào bảng của khách hàng hoặc
      bảng gắn sao đầu tiên, tức là ra ngoài dự án. */
