@@ -18,6 +18,19 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.3.0',
+    date: '2026-10-02',
+    title: 'Danh bạ cá nhân và đồng bộ danh bạ Google',
+    changes: [
+      'Trang Danh bạ cá nhân: danh bạ điện thoại và Gmail của riêng từng nhân viên, chỉ chủ sở hữu nhìn thấy.',
+      'Nạp danh bạ từ file .vcf (iPhone, Android, Outlook) hoặc .csv (Google Contacts); nạp lại không tạo bản sao.',
+      'Kết nối Gmail để kéo danh bạ về (chỉ đọc, không ghi ngược lên Google), đồng bộ thủ công hoặc tự động mỗi ngày.',
+      'Phát hiện liên hệ trùng số điện thoại hoặc email với CRM; chọn nhiều người để đưa vào khách hàng, hoặc liên kết với người đã có.',
+      'Chia sẻ tài liệu, báo giá, hợp đồng và Trang tài liệu bằng link chỉ xem, có thể gia hạn.',
+      'Chuẩn hóa tên khách hàng về dạng Viết Hoa Chữ Đầu.',
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-10-02',
     title: 'Sơ đồ tổ chức và quyền xem theo cấp quản lý',
