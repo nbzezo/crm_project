@@ -85,7 +85,7 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
       .getByRole('button', { name: 'Thêm' })
       .click();
     const sheet = page.getByRole('dialog', { name: 'Tất cả mục' });
-    for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh'])
+    for (const group of ['Bàn làm việc', 'Kinh doanh', 'Dự án'])
       await expect(sheet.getByRole('region', { name: group })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Cơ hội bán hàng' })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
@@ -96,7 +96,7 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
 
   const container = page.getByRole('complementary');
 
-  for (const group of ['Hôm nay', 'Dự án', 'Kinh doanh']) {
+  for (const group of ['Bàn làm việc', 'Kinh doanh', 'Dự án']) {
     await expect(container.getByRole('button', { name: group, exact: true })).toBeVisible();
   }
   const projectsGroup = container.getByRole('button', { name: 'Dự án', exact: true });
@@ -540,7 +540,8 @@ test('timeline full-width, filter, tooltip, group va responsive sidebar', async 
   await overdueBar.hover();
   await expect(page.getByRole('tooltip')).toContainText(/Quá hạn \d+ ngày/);
 
-  await expect(page.getByText('Hôm nay', { exact: true })).toHaveCount(3);
+  // Moc "Hom nay" tren dong thoi gian; nhom menu dau da doi ten "Ban lam viec" tu 1.8.0.
+  await expect(page.getByText('Hôm nay', { exact: true })).toHaveCount(2);
   const search = page.getByRole('searchbox', { name: 'Tìm công việc trên dòng thời gian' });
   await search.fill(taskTitle);
   await expect(page.getByText('1/2 công việc đã xếp lịch')).toBeVisible();
