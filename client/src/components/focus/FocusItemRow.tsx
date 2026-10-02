@@ -110,11 +110,14 @@ export function FocusItemRow({
   today,
   showDate = false,
   compact = false,
+  wrap = false,
 }: {
   item: AgendaItem;
   today: string;
   showDate?: boolean;
   compact?: boolean;
+  /** Xuong dong thay vi cat tieu de — dung khi o co cho (hop phong to mot ngay). */
+  wrap?: boolean;
 }) {
   const open = useOpenItem();
   const { complete, reschedule, pending } = useFocusActions();
@@ -175,7 +178,7 @@ export function FocusItemRow({
               <Icon size={13} className={`shrink-0 ${meta.tone}`} aria-label={meta.label} />
             )}
             <span
-              className={`truncate text-sm font-medium text-tr-text ${item.done ? 'line-through' : ''}`}
+              className={`${wrap ? 'min-w-0 break-words' : 'truncate'} text-sm font-medium text-tr-text ${item.done ? 'line-through' : ''}`}
               title={item.title}
             >
               {item.title}
@@ -186,7 +189,7 @@ export function FocusItemRow({
           </span>
           {!compact && (item.meta || item.slip_count > 1 || item.blocked || item.value_vnd) && (
             <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-tr-muted">
-              {item.meta && <span className="truncate">{item.meta}</span>}
+              {item.meta && <span className={wrap ? 'break-words' : 'truncate'}>{item.meta}</span>}
               {item.value_vnd ? (
                 <span className="font-medium text-tr-subtle">{formatVNDShort(item.value_vnd)}</span>
               ) : null}

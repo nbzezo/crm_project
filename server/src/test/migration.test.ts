@@ -487,3 +487,38 @@ test('v55 luu ket qua AI Trong tam, xoa nguoi dung thi xoa theo, va quay lui duo
   assert.equal(tables.includes('focus_ai_plans'), false);
   assert.ok(tables.includes('customer_suggestions'), 'bang cua dot truoc con nguyen');
 });
+
+test('v56: nhac hen "Khach vua mo lien ket" cu chuyen sang chuong thong bao', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 55);
+  const open = Number(
+    scratch.prepare(`INSERT INTO customers (name, search_text) VALUES ('K', 'k')`).run()
+      .lastInsertRowid
+  );
+  scratch
+    .prepare(
+      `INSERT INTO reminders (title, note, due_at, customer_id) VALUES
+         ('Khách vừa mở liên kết: BG', 'mo lan dau', '2026-10-02T04:36', ?),
+         ('Khách vừa mở liên kết: Cu', 'da xu ly', '2026-10-01T04:36', NULL),
+         ('Goi lai khach', '', '2026-10-02T09:00', ?)`
+    )
+    .run(open, open);
+  scratch.prepare(`UPDATE reminders SET is_done = 1 WHERE title LIKE '%Cu'`).run();
+  migrate(scratch, 56);
+  const left = scratch.prepare(`SELECT title FROM reminders ORDER BY id`).all() as {
+    title: string;
+  }[];
+  assert.deepEqual(
+    left.map((r) => r.title),
+    ['Khách vừa mở liên kết: Cu', 'Goi lai khach'],
+    'chi chuyen nhac chua xong'
+  );
+  const moved = scratch
+    .prepare(`SELECT title, body, link FROM ai_notifications WHERE fingerprint LIKE 'share-view-%'`)
+    .all();
+  assert.deepEqual(moved, [
+    { title: 'Khách vừa mở liên kết: BG', body: 'mo lan dau', link: `/customers/${open}` },
+  ]);
+  scratch.close();
+});

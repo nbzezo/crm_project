@@ -17,6 +17,7 @@ import {
   verifyPassword,
   type ShareLinkRow,
 } from '../services/shareService.ts';
+import { notifyShareViewTelegram } from '../services/telegram/telegramNotifier.ts';
 
 /*
  * Phuc vu lien ket chia se CONG KHAI — khong dang nhap.
@@ -92,19 +93,18 @@ function recordView(link: ShareLinkRow, req: Request, action: 'view' | 'download
     if (recent) return;
   }
   db.transaction(() => {
-    db.prepare(`INSERT INTO share_link_views (link_id, ip, user_agent, action) VALUES (?, ?, ?, ?)`).run(
-      link.id,
-      ip.slice(0, 64),
-      String(req.get('user-agent') ?? '').slice(0, 300),
-      action
-    );
+    db.prepare(
+      `INSERT INTO share_link_views (link_id, ip, user_agent, action) VALUES (?, ?, ?, ?)`
+    ).run(link.id, ip.slice(0, 64), String(req.get('user-agent') ?? '').slice(0, 300), action);
     if (action === 'view') {
       db.prepare(
         `UPDATE share_links SET view_count = view_count + 1, last_viewed_at = datetime('now','localtime') WHERE id = ?`
       ).run(link.id);
     }
   })();
-  /* Lan mo DAU TIEN: tao nhac viec theo doi gan voi khach hang / co hoi (neu duoc yeu cau). */
+  /* Lan mo DAU TIEN: bao cho nguoi chia se (neu duoc yeu cau). Day la CANH BAO
+     "vua xay ra", khong phai lich hen — nen vao chuong thong bao, khong tao
+     `reminders` (truoc v56 no chen vao Lich trinh / Lich nhu mot cuoc hen). */
   if (action === 'view' && link.notify_on_view === 1 && link.view_count === 0) {
     const entity = db
       .prepare(
@@ -117,18 +117,20 @@ function recordView(link: ShareLinkRow, req: Request, action: 'view' | 'download
               : `SELECT customer_id, deal_id FROM contracts WHERE id = ?`
       )
       .get(link.entity_id) as { customer_id: number | null; deal_id: number | null } | undefined;
-    db.prepare(
-      `INSERT INTO reminders (title, note, due_at, customer_id, deal_id, owner_contact_id)
-       VALUES (?, ?, strftime('%Y-%m-%dT%H:%M','now','localtime'), ?, ?,
-               (SELECT contact_id FROM users WHERE id = ?))`
-    ).run(
-      `Khách vừa mở liên kết: ${link.title}`.slice(0, 200),
-      `Liên kết do ${link.created_by_name} chia sẻ vừa được mở lần đầu. Đây là lúc nên theo dõi.`,
-      entity?.customer_id ?? null,
-      entity?.deal_id ?? null,
-      // Nhac thuoc nguoi da tao lien ket — khach mo link thi nguoi do can theo doi.
-      link.created_by_user_id
-    );
+    const title = `Khách vừa mở liên kết: ${link.title}`.slice(0, 200);
+    const body = `Liên kết do ${link.created_by_name} chia sẻ vừa được mở lần đầu. Đây là lúc nên theo dõi.`;
+    const target = entity?.deal_id
+      ? `/deals/${entity.deal_id}`
+      : entity?.customer_id
+        ? `/customers/${entity.customer_id}`
+        : null;
+    const inserted = db
+      .prepare(
+        `INSERT OR IGNORE INTO ai_notifications (severity, title, body, link, fingerprint)
+         VALUES ('info', ?, ?, ?, ?)`
+      )
+      .run(title, body, target, `share-view-${link.id}`);
+    if (inserted.changes > 0) notifyShareViewTelegram(db, `👀 ${title}`);
   }
 }
 

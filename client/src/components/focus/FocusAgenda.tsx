@@ -1,5 +1,6 @@
 import { useMemo, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Maximize2 } from 'lucide-react';
+import { Modal } from '../common/Modal';
 import { EmptyState, Panel, Segmented, focusRing } from '../common/ui';
 import type { AgendaGroup, AgendaItem, DayLoad, FocusData } from './focusTypes';
 import { DRAG_TYPE, FocusItemRow, KIND_META, useOpenItem } from './FocusItemRow';
@@ -116,7 +117,7 @@ function GroupedList({ data }: { data: FocusData }) {
 
 /* ---------- Mot ngay: dong thoi gian theo gio ---------- */
 
-function DayView({ data, date }: { data: FocusData; date: string }) {
+function DayView({ data, date, wrap = false }: { data: FocusData; date: string; wrap?: boolean }) {
   const items = data.items.filter((item) => item.date === date);
   const timed = items.filter((item) => item.time);
   const slots = data.free_slots.filter((slot) => slot.date === date);
@@ -127,7 +128,7 @@ function DayView({ data, date }: { data: FocusData; date: string }) {
   const rows: Row[] = [
     ...timed.map((item) => ({
       at: item.time!,
-      node: <FocusItemRow key={item.key} item={item} today={data.range.today} />,
+      node: <FocusItemRow key={item.key} item={item} today={data.range.today} wrap={wrap} />,
     })),
     ...slots.map((slot) => ({
       at: slot.start,
@@ -162,7 +163,7 @@ function DayView({ data, date }: { data: FocusData; date: string }) {
         ) : (
           <ul className="divide-y divide-tr-border">
             {untimedTodo.map((item) => (
-              <FocusItemRow key={item.key} item={item} today={data.range.today} />
+              <FocusItemRow key={item.key} item={item} today={data.range.today} wrap={wrap} />
             ))}
           </ul>
         )}
@@ -171,7 +172,7 @@ function DayView({ data, date }: { data: FocusData; date: string }) {
             <h3 className="mt-3 mb-1 text-xs font-semibold text-tr-subtle">Mốc & sự kiện</h3>
             <ul className="divide-y divide-tr-border">
               {untimedOther.map((item) => (
-                <FocusItemRow key={item.key} item={item} today={data.range.today} />
+                <FocusItemRow key={item.key} item={item} today={data.range.today} wrap={wrap} />
               ))}
             </ul>
           </>
@@ -190,6 +191,8 @@ function loadLabel(day: DayLoad | undefined): string | null {
 
 function ColumnsView({ data }: { data: FocusData }) {
   const { over, props } = useDayDrop(data);
+  /* O ngay hep, tieu de bi cat — bam vao o (ngoai cac muc) de phong to ca ngay. */
+  const [zoomed, setZoomed] = useState<string | null>(null);
   const days = eachDay(data.range.from, data.range.to);
   const loadByDate = new Map(data.days.map((day) => [day.date, day]));
   return (
@@ -213,7 +216,12 @@ function ColumnsView({ data }: { data: FocusData }) {
             key={date}
             aria-label={`${weekdayLong(date)} ${dayMonth(date)}`}
             {...props(date)}
-            className={`flex min-h-24 min-w-0 flex-col rounded-panel border p-1.5 transition ${
+            onClick={(event) => {
+              // Bam vao mot muc (mo / danh dau xong) thi de muc do xu ly.
+              if ((event.target as HTMLElement).closest('button, a, li')) return;
+              setZoomed(date);
+            }}
+            className={`flex min-h-24 min-w-0 cursor-zoom-in flex-col rounded-panel border p-1.5 transition ${
               over === date
                 ? 'border-tr-primary bg-tr-primary/5'
                 : isToday
@@ -229,14 +237,25 @@ function ColumnsView({ data }: { data: FocusData }) {
               >
                 {weekdayShort(date)} {dayMonth(date)}
               </span>
-              {loadLabel(load) && (
-                <span
-                  className={`text-[11px] tabular-nums ${load?.overloaded ? 'font-semibold text-tr-danger' : 'text-tr-muted'}`}
-                  title="Ước tính giờ việc + giờ họp"
+              <span className="flex items-center gap-1">
+                {loadLabel(load) && (
+                  <span
+                    className={`text-[11px] tabular-nums ${load?.overloaded ? 'font-semibold text-tr-danger' : 'text-tr-muted'}`}
+                    title="Ước tính giờ việc + giờ họp"
+                  >
+                    {loadLabel(load)}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setZoomed(date)}
+                  className={`rounded-control p-0.5 text-tr-muted hover:bg-tr-hover hover:text-tr-text print:hidden ${focusRing}`}
+                  aria-label={`Phóng to ${weekdayLong(date)} ${dayMonth(date)}`}
+                  title="Xem toàn bộ lịch trình ngày này"
                 >
-                  {loadLabel(load)}
-                </span>
-              )}
+                  <Maximize2 size={12} aria-hidden="true" />
+                </button>
+              </span>
             </header>
             {items.length === 0 ? (
               <p className="px-1 py-2 text-xs text-tr-muted">—</p>
@@ -250,6 +269,25 @@ function ColumnsView({ data }: { data: FocusData }) {
           </section>
         );
       })}
+      <Modal
+        open={zoomed !== null}
+        onClose={() => setZoomed(null)}
+        width="max-w-3xl"
+        title={
+          zoomed && (
+            <>
+              {weekdayLong(zoomed)} {dayMonth(zoomed)}
+              {loadLabel(loadByDate.get(zoomed)) && (
+                <span className="ml-2 text-sm font-normal text-tr-muted">
+                  · {loadLabel(loadByDate.get(zoomed))}
+                </span>
+              )}
+            </>
+          )
+        }
+      >
+        {zoomed && <DayView data={data} date={zoomed} wrap />}
+      </Modal>
     </div>
   );
 }

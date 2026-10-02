@@ -19,6 +19,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** Phien ban quay lui duoc, va tep SQL tuong ung. Them dan khi co ban moi. */
 const ROLLBACKS: Record<number, string> = {
+  56: 'migrate-v56-rollback.sql',
   55: 'migrate-v55-rollback.sql',
   54: 'migrate-v54-rollback.sql',
   53: 'migrate-v53-rollback.sql',

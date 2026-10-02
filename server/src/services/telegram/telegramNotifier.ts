@@ -170,6 +170,21 @@ export function notifyAssigneeChangeTelegram(db: Database, cardId: number): void
   })();
 }
 
+/** Khach mo lien ket chia se lan dau — di cung cong tac "Nhac hen" nhu truoc v56. */
+export function notifyShareViewTelegram(db: Database, text: string): void {
+  void (async () => {
+    try {
+      const config = getTelegramConfig(db);
+      if (!config.enabled || !config.has_token || !config.chat_id || !config.notify_reminders) {
+        return;
+      }
+      await sendTelegramMessage(db, text);
+    } catch (error) {
+      console.error('[telegram] Gui thong bao mo lien ket that bai:', error);
+    }
+  })();
+}
+
 let scheduler: ReturnType<typeof setInterval> | null = null;
 
 export function startTelegramNotifierScheduler(db: Database) {

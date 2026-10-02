@@ -18,6 +18,16 @@ export const APP_UPDATED_AT = '2026-10-02';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.7.0',
+    date: '2026-10-02',
+    title: 'Phóng to một ngày trong Lịch trình; báo khách mở liên kết qua chuông thông báo',
+    changes: [
+      'Lịch trình ở tab Trọng tâm (xem theo tuần): bấm vào ô một ngày, hoặc nút phóng to ở góc ô, để mở toàn bộ lịch trình ngày đó — tiêu đề hiện đầy đủ, chia theo giờ, việc trong ngày, mốc & sự kiện và khoảng trống có thể làm việc tập trung.',
+      'Khi khách mở liên kết chia sẻ lần đầu, bạn nhận một thông báo trong chuông (bấm để tới khách hàng / cơ hội) thay vì một nhắc hẹn chen vào Lịch trình và Lịch.',
+      'Các nhắc hẹn "Khách vừa mở liên kết" chưa xử lý trước đây được tự chuyển sang chuông thông báo.',
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-10-02',
     title: 'Kết quả AI ở Trọng tâm được lưu lại và tự nhắc khi đã cũ',

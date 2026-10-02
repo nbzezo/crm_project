@@ -287,7 +287,7 @@ export function ShareDialog({
             <span>
               Nhắc tôi theo dõi khi khách mở lần đầu
               <span className="block text-xs text-tr-muted">
-                Tạo một nhắc việc gắn với khách hàng / cơ hội của bản ghi này.
+                Gửi một thông báo (chuông) dẫn tới khách hàng / cơ hội của bản ghi này.
               </span>
             </span>
           </label>

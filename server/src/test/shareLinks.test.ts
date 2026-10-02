@@ -395,7 +395,7 @@ test('xoa ban ghi goc thi link ngung hoat dong', async () => {
   db.prepare(`UPDATE documents SET deleted_at = NULL WHERE id = ?`).run(documentId);
 });
 
-test('nhac theo doi: lan mo dau tien tao nhac viec gan khach hang', async () => {
+test('nhac theo doi: lan mo dau tien bao vao chuong thong bao, khong tao nhac hen', async () => {
   const created = await call('POST', '/api/shares', {
     entity_type: 'quotation',
     entity_id: quotationId,
@@ -403,11 +403,15 @@ test('nhac theo doi: lan mo dau tien tao nhac viec gan khach hang', async () => 
   });
   await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
   await call('GET', `/api/public/share/${created.json.token}`, undefined, false);
+  const alerts = db
+    .prepare(`SELECT title, link FROM ai_notifications WHERE title LIKE 'Khách vừa mở liên kết%'`)
+    .all() as { title: string; link: string | null }[];
+  assert.equal(alerts.length, 1, 'chi bao mot lan');
+  assert.equal(alerts[0].link, `/customers/${customerId}`, 'thong bao dan toi khach hang');
   const reminders = db
-    .prepare(`SELECT title, customer_id FROM reminders WHERE title LIKE 'Khách vừa mở liên kết%'`)
-    .all() as { title: string; customer_id: number }[];
-  assert.equal(reminders.length, 1, 'chi nhac mot lan');
-  assert.equal(reminders[0].customer_id, customerId);
+    .prepare(`SELECT COUNT(*) AS n FROM reminders WHERE title LIKE 'Khách vừa mở liên kết%'`)
+    .get() as { n: number };
+  assert.equal(reminders.n, 0, 'khong chen vao lich trinh');
 });
 
 test('quan tri tat chia se cong khai: tao moi bi chan, link cu tra 410', async () => {
@@ -518,11 +522,11 @@ test('Trang tai lieu: chia se noi dung da loc, khong lo nguoi tham du / id / kho
   assert.equal(view.text.includes('Nguoi Tham Du Bi Mat'), false);
   assert.equal(view.text.includes('Cong ty Khach'), false, 'khong lo ten khach hang');
   assert.equal(view.json.files.length, 1);
-  const reminder = db
-    .prepare(`SELECT customer_id FROM reminders WHERE title LIKE '%Ke hoach Q4%'`)
-    .all() as { customer_id: number }[];
-  assert.equal(reminder.length, 1);
-  assert.equal(reminder[0].customer_id, customerId);
+  const alert = db
+    .prepare(`SELECT link FROM ai_notifications WHERE title LIKE '%Ke hoach Q4%'`)
+    .all() as { link: string | null }[];
+  assert.equal(alert.length, 1);
+  assert.equal(alert[0].link, `/customers/${customerId}`);
 
   /* Dong bang: sua trang sau khi chia se khong doi thu nguoi nhan thay. */
   const locked = await call('POST', '/api/shares', {
