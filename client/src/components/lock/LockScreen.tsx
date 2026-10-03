@@ -18,7 +18,9 @@ import { t } from '../../i18n/vi';
 import { digitsOnly, LOCK_STATUS_KEY, lockApi } from './lockApi';
 import { headlineOfDay, quoteOfDay, SCENE_INFO, SceneBackdrop, useLockPhoto } from './scenes';
 import { AMBIENT_INFO, stopAmbient, type AmbientKind } from './ambient';
-import { CalendarPanel, CountdownPanel, formatClock, MusicPanel, useCountdown } from './LockPanels';
+import type { MusicLink } from '../../lib/musicLinks';
+import { CalendarPanel, CountdownPanel, formatClock, useCountdown } from './LockPanels';
+import { MusicPanel } from './MusicPanel';
 
 /*
  * Man khoa / man cho (1.14.0).
@@ -69,6 +71,7 @@ function LockOverlay() {
   const timer = useCountdown();
   const [panel, setPanel] = useState<Panel | null>(null);
   const [music, setMusic] = useState<AmbientKind | null>(null);
+  const [musicLink, setMusicLink] = useState<MusicLink | null>(null);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -348,23 +351,26 @@ function LockOverlay() {
           </div>
 
           <div className="relative md:mx-auto md:w-fit">
-            {panel && (
-              <div
-                className="ls-panel absolute bottom-full left-1/2 mb-3 w-[min(22rem,calc(100vw-2.5rem))] -translate-x-1/2 p-4"
-                role="region"
-                aria-label={
-                  panel === 'timer'
-                    ? 'Đếm ngược'
-                    : panel === 'music'
-                      ? 'Nhạc study'
-                      : 'Lịch âm dương'
-                }
-              >
-                {panel === 'timer' && <CountdownPanel timer={timer} />}
-                {panel === 'music' && <MusicPanel playing={music} onChange={setMusic} />}
-                {panel === 'calendar' && <CalendarPanel today={now} />}
+            {/* Luon gan (an bang `hidden`), vi nhac tu link van phai chay khi dong bang. */}
+            <div
+              hidden={!panel}
+              className="ls-panel absolute bottom-full left-1/2 mb-3 max-h-[70vh] w-[min(22rem,calc(100vw-2.5rem))] -translate-x-1/2 overflow-y-auto p-4"
+              role="region"
+              aria-label={
+                panel === 'timer' ? 'Đếm ngược' : panel === 'music' ? 'Nhạc study' : 'Lịch âm dương'
+              }
+            >
+              {panel === 'timer' && <CountdownPanel timer={timer} />}
+              <div hidden={panel !== 'music'}>
+                <MusicPanel
+                  ambient={music}
+                  onAmbient={setMusic}
+                  link={musicLink}
+                  onLink={setMusicLink}
+                />
               </div>
-            )}
+              {panel === 'calendar' && <CalendarPanel today={now} />}
+            </div>
             <nav aria-label="Tiện ích màn chờ" className="ls-dock flex gap-1 p-1.5 sm:gap-2 sm:p-2">
               <DockButton
                 active={panel === 'timer'}
@@ -382,9 +388,9 @@ function LockOverlay() {
                 active={panel === 'music'}
                 onClick={() => setPanel(panel === 'music' ? null : 'music')}
                 icon={<Headphones size={17} aria-hidden="true" />}
-                showLabel={music !== null}
+                showLabel={music !== null || musicLink !== null}
               >
-                {music ? AMBIENT_INFO[music].label : 'Nhạc study'}
+                {musicLink ? musicLink.title : music ? AMBIENT_INFO[music].label : 'Nhạc study'}
               </DockButton>
               <DockButton
                 active={panel === 'calendar'}

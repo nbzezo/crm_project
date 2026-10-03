@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Square } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from 'lucide-react';
 import { canChiYear, toLunar } from '../../lib/lunar';
-import {
-  AMBIENT_INFO,
-  AMBIENT_KINDS,
-  ambientVolume,
-  chime,
-  playAmbient,
-  setAmbientVolume,
-  stopAmbient,
-  type AmbientKind,
-} from './ambient';
+import { chime } from './ambient';
 
 /*
- * Ba bang tren thanh cong cu cua man cho: Dem nguoc, Nhac study, Lich am/duong.
+ * Bang Dem nguoc va Lich am/duong cua man cho (Nhac study o MusicPanel.tsx).
  * Tu ve chu khong dung Popover chung: luc khoa #root bi `inert` va Popover cua app
  * nam duoi tang man khoa.
  */
@@ -166,72 +157,6 @@ export function CountdownPanel({ timer }: { timer: Countdown }) {
           </form>
         </>
       )}
-    </div>
-  );
-}
-
-/* ---------- Nhac study ---------- */
-
-export function MusicPanel({
-  playing,
-  onChange,
-}: {
-  playing: AmbientKind | null;
-  onChange: (kind: AmbientKind | null) => void;
-}) {
-  const [volume, setVolume] = useState(ambientVolume);
-  return (
-    <div>
-      <p className="ls-panel-title">Nhạc study</p>
-      <p className="mt-1 text-xs opacity-75">Âm thanh tạo ngay trên máy, không cần mạng.</p>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {AMBIENT_KINDS.map((kind) => {
-          const on = playing === kind;
-          return (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={on}
-              onClick={() => {
-                if (on) {
-                  stopAmbient();
-                  onChange(null);
-                } else {
-                  playAmbient(kind);
-                  onChange(kind);
-                }
-              }}
-              className={`ls-chip flex-col items-start text-left ${on ? 'ls-chip-on' : ''}`}
-            >
-              <span className="flex items-center gap-1.5 font-medium">
-                {on ? (
-                  <Square size={12} aria-hidden="true" />
-                ) : (
-                  <Play size={12} aria-hidden="true" />
-                )}
-                {AMBIENT_INFO[kind].label}
-              </span>
-              <span className="text-xs opacity-75">{AMBIENT_INFO[kind].description}</span>
-            </button>
-          );
-        })}
-      </div>
-      <label className="mt-3 flex items-center gap-3 text-sm">
-        Âm lượng
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={volume}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            setVolume(value);
-            setAmbientVolume(value);
-          }}
-          className="ls-range flex-1"
-        />
-      </label>
     </div>
   );
 }

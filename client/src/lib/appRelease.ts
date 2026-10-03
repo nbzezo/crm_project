@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-03';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.14.1',
+    date: '2026-10-03',
+    title: 'Nghe nhạc riêng trên màn chờ',
+    changes: [
+      'Nhạc study: dán link YouTube (video, danh sách phát, livestream), Spotify hoặc đường dẫn radio (.mp3) rồi bấm Phát. Link được lưu theo từng máy, đặt tên gợi nhớ để chọn lại nhanh, xóa khi không cần.',
+      'Đóng bảng Nhạc study thì nhạc vẫn phát tiếp; mở khóa hoặc đăng xuất thì nhạc tắt. Tên bài hiện ngay trên thanh dưới.',
+      'Âm thanh tạo sẵn (đàn lofi, mưa, sóng biển, tập trung) vẫn còn cho lúc không có mạng.',
+      'Sửa: chữ mô tả trong bảng Nhạc study bị tràn ra ngoài ô.',
+    ],
+  },
+  {
     version: '1.14.0',
     date: '2026-10-03',
     title: 'Khóa màn hình với màn chờ thư giãn',
