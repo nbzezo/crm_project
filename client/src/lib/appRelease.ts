@@ -14,9 +14,20 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-03';
+export const APP_UPDATED_AT = '2026-10-04';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.14.2',
+    date: '2026-10-04',
+    title: 'Nút thu gọn thanh điều hướng dễ nhận ra hơn',
+    changes: [
+      'Nút thu gọn thanh điều hướng chuyển xuống góc dưới, cạnh nút tùy chỉnh menu, và dùng biểu tượng thanh bên để không nhầm với nút thu gọn của panel Công việc.',
+      'Khi đã thu gọn, nút mở rộng cũng nằm ở góc dưới, đúng chỗ cũ.',
+      'Phím tắt Ctrl + B để thu gọn hoặc mở rộng thanh điều hướng (không ảnh hưởng khi đang gõ chữ).',
+      'Sửa: nút thu gọn cũ bị cắt mất một nửa và đè lên tiêu đề panel bên cạnh.',
+    ],
+  },
   {
     version: '1.14.1',
     date: '2026-10-03',

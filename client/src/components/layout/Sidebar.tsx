@@ -22,9 +22,9 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Check,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   GripVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   RotateCcw,
   Star,
@@ -220,10 +220,44 @@ interface SidebarNavProps {
   onOrderChange: (next: NavOrder) => void;
   onNavigate?: () => void;
   allowCustomize?: boolean;
+  /** Co thi hien nut thu gon thanh ben o chan thanh (chi thanh co dinh tren desktop). */
+  onCollapse?: () => void;
+}
+
+const SIDEBAR_TOGGLE_SHORTCUT = 'Ctrl+B';
+
+/** Nut thu gon/mo rong thanh ben: dung bieu tuong thanh ben de khong nham voi nut `<` cua panel phu. */
+function SidebarToggleButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
+  const label = collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng';
+  const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-expanded={!collapsed}
+      aria-keyshortcuts="Control+B"
+      title={`${collapsed ? 'Mở rộng' : 'Thu gọn'} (${SIDEBAR_TOGGLE_SHORTCUT})`}
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${focusRing}`}
+    >
+      <Icon size={16} aria-hidden="true" />
+    </button>
+  );
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
 /** Phan noi dung dung chung cho ca thanh ben co dinh lan ngan keo tren mobile. */
-function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }: SidebarNavProps) {
+function SidebarNav({
+  order,
+  onOrderChange,
+  onNavigate,
+  allowCustomize = false,
+  onCollapse,
+}: SidebarNavProps) {
   const groupItems = useGroupItems(order);
   const { data: boards = [] } = useBoards();
   const starred = boards.filter((board) => board.is_starred).slice(0, 5);
@@ -390,6 +424,7 @@ function SidebarNav({ order, onOrderChange, onNavigate, allowCustomize = false }
             {editMode && 'Xong'}
           </button>
         )}
+        {onCollapse && <SidebarToggleButton collapsed={false} onClick={onCollapse} />}
       </div>
     </>
   );
@@ -432,7 +467,7 @@ function CollapsedNav({ order }: { order: NavOrder }) {
   const badges = useNavBadges();
 
   return (
-    <nav aria-label={t.app.name} className="flex flex-1 flex-col items-center gap-1 py-3">
+    <nav aria-label={t.app.name} className="flex flex-col items-center gap-1 py-3">
       <CollapsedNavLink item={HOME_NAV} />
       {NAV_GROUPS.map((group) => {
         const items = groupItems(group);
@@ -528,35 +563,47 @@ export function Sidebar() {
     }
   };
 
+  /* Ctrl+B thu gon/mo rong; bo qua khi dang go chu de khong cuop phim in dam cua o soan thao. */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
+      if (event.key.toLowerCase() !== 'b' || event.defaultPrevented) return;
+      if (isEditableTarget(event.target)) return;
+      if (!window.matchMedia('(min-width: 768px)').matches) return;
+      event.preventDefault();
+      setCollapsed((current) => {
+        const next = !current;
+        try {
+          localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? '1' : '0');
+        } catch {
+          // Trinh duyet chan storage van khong duoc lam hong thao tac thu gon trong phien.
+        }
+        return next;
+      });
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <>
       <NavDrawer order={navOrder} onOrderChange={updateNavOrder} />
 
       {collapsed ? (
         <aside className="tr-scroll tr-nav-scroll hidden w-14 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
-          <button
-            type="button"
-            onClick={() => updateCollapsed(false)}
-            className={`mx-auto mt-3 flex h-9 w-9 items-center justify-center rounded-control text-tr-muted transition hover:bg-[var(--tr-nav-hover)] hover:text-[var(--tr-nav-text)] ${focusRing}`}
-            aria-label="Mở rộng thanh điều hướng"
-            aria-expanded={false}
-          >
-            <ChevronRight size={14} aria-hidden="true" />
-          </button>
           <CollapsedNav order={navOrder} />
+          <div className="mt-auto flex justify-center border-t border-[var(--tr-nav-border)] pt-2 pb-3">
+            <SidebarToggleButton collapsed onClick={() => updateCollapsed(false)} />
+          </div>
         </aside>
       ) : (
-        <aside className="tr-scroll tr-nav-scroll relative z-sticky hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
-          <button
-            type="button"
-            onClick={() => updateCollapsed(true)}
-            className={`absolute -right-3 top-3 z-sticky rounded-full border border-[var(--tr-nav-border)] bg-tr-panel p-2 text-[var(--tr-nav-text)] shadow-sm transition hover:bg-[var(--tr-nav-hover)] ${focusRing}`}
-            aria-label="Thu gọn thanh điều hướng"
-            aria-expanded
-          >
-            <ChevronLeft size={14} aria-hidden="true" />
-          </button>
-          <SidebarNav order={navOrder} onOrderChange={updateNavOrder} allowCustomize />
+        <aside className="tr-scroll tr-nav-scroll hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-[var(--tr-nav-border)] bg-[var(--tr-nav-panel)] text-[var(--tr-nav-text)] backdrop-blur-sm md:flex">
+          <SidebarNav
+            order={navOrder}
+            onOrderChange={updateNavOrder}
+            allowCustomize
+            onCollapse={() => updateCollapsed(true)}
+          />
         </aside>
       )}
     </>
