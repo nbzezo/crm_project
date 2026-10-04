@@ -14,9 +14,22 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-04';
+export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.16.0',
+    date: '2026-10-05',
+    title: 'Nhắc việc đúng giờ bằng popup giữa màn hình',
+    changes: [
+      'Mỗi việc có thêm mục "Nhắc lúc" ngay dưới Ngày: chọn nhanh 15 phút nữa, 1 giờ nữa, 9:00 sáng mai, 9:00 ngày hạn, hoặc tự chọn ngày giờ. Một việc đặt được nhiều lần nhắc và bỏ từng lần khi không cần.',
+      'Đến giờ, lời nhắc bật lên giữa màn hình kèm một tiếng chuông nhỏ: bấm Xong việc, Tắt nhắc, Mở việc, hoặc nhắc lại sau 10 phút, 30 phút, 1 giờ, sáng mai. Đóng popup cũng là nhắc lại sau 10 phút, nên không lỡ tay làm mất lời nhắc.',
+      'Nhiều việc nhắc cùng lúc thì popup hiện thành danh sách: mỗi dòng có Xong, Tắt, Hoãn, Mở riêng, và có nút Hoãn tất cả, Tắt tất cả để xử lý một lần.',
+      'Chỉ bật lời nhắc của chính bạn. Việc đã hoàn thành thì không nhắc nữa. Khi màn hình đang khóa, lời nhắc chờ đến lúc mở khóa.',
+      'Thông báo trên máy tính (nếu đã bật ở chuông thông báo) giờ báo đúng lúc đến giờ, thay vì báo ngay khi lịch hẹn còn mấy ngày nữa mới tới.',
+      'Sửa: ô chọn ngày và giờ bị tràn khung, ô ngày co lại chỉ còn biểu tượng lịch.',
+    ],
+  },
   {
     version: '1.15.0',
     date: '2026-10-04',

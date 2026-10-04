@@ -70,6 +70,42 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all());
 });
 
+/**
+ * Nhac da den gio cua NGUOI DANG DANG NHAP — nguon cho popup giua man hinh
+ * (DueReminderPopup.tsx). Khac `upcoming`:
+ *  - chi lay nhac cua chinh minh: popup chan ngang man hinh, nhac cua nguoi
+ *    khac bat len o may minh la lam phien. Nhac chua co chu (truoc v40) van hien.
+ *  - chi lay nhac da toi gio, lui toi da mot ngay: mo may sau ky nghi khong bi
+ *    mot tran popup cu, nhung nhac vua lo trong luc tat may van con.
+ *  - bo nhac cua viec da hoan thanh.
+ * Popup tu het khi nhac duoc danh dau xong hoac doi gio (Hoan) — khong can
+ * bang trang thai rieng, va nhieu tab cung tu dong bo qua lan tai lai ke tiep.
+ */
+router.get('/due', (req, res) => {
+  const me = defaultOwner(req);
+  res.json(
+    db
+      .prepare(
+        `SELECT r.id, r.title, r.note, r.due_at, r.card_id,
+                k.title AS card_title, k.is_done AS card_is_done,
+                c.name AS customer_name, d.title AS deal_title
+           FROM reminders r
+           LEFT JOIN cards k ON k.id = r.card_id
+           LEFT JOIN customers c ON c.id = r.customer_id
+           LEFT JOIN deals d ON d.id = r.deal_id
+          WHERE r.is_done = 0
+            -- Viec da hoan thanh thi nhac con lai cua no khong con y nghia.
+            AND (r.card_id IS NULL OR k.is_done = 0)
+            AND (r.owner_contact_id IS NULL OR r.owner_contact_id = ?)
+            AND r.due_at <= strftime('%Y-%m-%dT%H:%M', 'now', 'localtime')
+            AND r.due_at >= strftime('%Y-%m-%dT%H:%M', datetime('now', 'localtime', '-1 day'))
+          ORDER BY r.due_at, r.id
+          LIMIT 20`
+      )
+      .all(me)
+  );
+});
+
 router.post('/', (req, res) => {
   const body = parseBody(schema, req);
   assertEntityLinks(db, body);

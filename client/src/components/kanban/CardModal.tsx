@@ -58,6 +58,7 @@ import { COVER_COLORS } from '../../lib/backgrounds';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk, formatDate, formatDateTime, nowLocalInput } from '../../lib/format';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
+import { reminderPresets } from '../../lib/reminderTimes';
 import { useUiStore } from '../../stores/uiStore';
 import type { Board, BoardFull, CardDetail, Customer, Deal, Priority, Project } from '../../types';
 
@@ -292,6 +293,10 @@ export function CardModal() {
     card.start_date && card.due_date
       ? `${formatDate(card.start_date)} → ${formatDate(card.due_date)}`
       : formatDate(card.due_date ?? card.start_date);
+  const pendingReminders = card.reminders
+    .filter((r) => !r.is_done)
+    .sort((a, b) => a.due_at.localeCompare(b.due_at));
+  const nextReminder = pendingReminders[0] ?? null;
   // Hai cot chi khi la hop thoai; drawer luon mot cot.
   const wide = presentation !== 'drawer';
   const detailVisibility = mobileTab === 'activity' ? 'hidden lg:block' : '';
@@ -485,6 +490,28 @@ export function CardModal() {
                     <span className="tr-badge-done rounded px-1.5 text-xs font-medium">
                       {t.common.done}
                     </span>
+                  )}
+                </button>
+              </Field>
+
+              {/* Gio nhac cua viec (1.15.0) — toi gio se bat popup giua man hinh. */}
+              <Field row label="Nhắc lúc">
+                <button
+                  type="button"
+                  onClick={reminderPop.toggle}
+                  aria-haspopup="dialog"
+                  className={`inline-flex min-h-7 items-center gap-1.5 rounded bg-tr-hover px-2.5 text-xs text-tr-text transition hover:bg-tr-hover-strong ${focusRing}`}
+                >
+                  <Bell size={13} aria-hidden="true" />
+                  {nextReminder ? (
+                    <span>
+                      {formatDateTime(nextReminder.due_at)}
+                      {pendingReminders.length > 1 && (
+                        <span className="text-tr-muted"> +{pendingReminders.length - 1}</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-tr-muted">Chưa đặt nhắc</span>
                   )}
                 </button>
               </Field>
@@ -1666,39 +1693,95 @@ function ReminderPopover({ card, pop }: { card: CardDetail; pop: Pop }) {
   const [dueAt, setDueAt] = useState(nowLocalInput);
 
   useEffect(() => {
-    if (pop.open) setTitle(card.title);
+    if (!pop.open) return;
+    setTitle(card.title);
+    setDueAt(reminderPresets(new Date())[1].value);
   }, [pop.open, card.title]);
 
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    void queryClient.invalidateQueries({ queryKey: ['reminders'] });
+    void queryClient.invalidateQueries({ queryKey: ['card', card.id] });
+  };
+
   const create = useMutation({
-    mutationFn: () =>
+    mutationFn: (at: string) =>
       api.post('/api/reminders', {
         title: title.trim() || card.title,
-        due_at: dueAt,
+        due_at: at,
         card_id: card.id,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      queryClient.invalidateQueries({ queryKey: ['card', card.id] });
+      refresh();
       pop.close();
     },
   });
 
+  const remove = useMutation({
+    mutationFn: (id: number) => api.del(`/api/reminders/${id}`),
+    onSuccess: refresh,
+  });
+
+  const pending = card.reminders
+    .filter((r) => !r.is_done)
+    .sort((a, b) => a.due_at.localeCompare(b.due_at));
+
   return (
-    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title={t.reminder.newReminder}>
+    <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Nhắc lúc" width={360}>
       <div className="space-y-3">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className={POPOVER_INPUT} />
+        {pending.length > 0 && (
+          <ul className="space-y-1 border-b border-tr-border pb-3">
+            {pending.map((r) => (
+              <li key={r.id} className="flex items-center gap-2 text-sm text-tr-text">
+                <Bell size={13} className="shrink-0 text-tr-muted" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">
+                  {formatDateTime(r.due_at)}
+                  {r.title !== card.title && <span className="text-tr-muted"> · {r.title}</span>}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remove.mutate(r.id)}
+                  disabled={remove.isPending}
+                  aria-label={`Bỏ nhắc lúc ${formatDateTime(r.due_at)}`}
+                  className={`flex h-7 w-7 items-center justify-center rounded text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-wrap gap-1.5">
+          {reminderPresets(new Date(), card.due_date).map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              disabled={create.isPending}
+              onClick={() => create.mutate(preset.value)}
+              className={`rounded-full border border-tr-border px-2.5 py-1 text-xs text-tr-text transition hover:border-tr-primary hover:text-tr-primary ${focusRing}`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-tr-subtle">
-            {t.reminder.dueAt}
-          </span>
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">Hoặc chọn giờ</span>
           <DateTimeInput value={dueAt || null} onChange={(value) => setDueAt(value ?? '')} />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-tr-subtle">Nội dung nhắc</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className={POPOVER_INPUT}
+          />
+        </label>
         <button
-          onClick={() => create.mutate()}
-          className="w-full rounded-compact bg-tr-primary py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover"
+          onClick={() => create.mutate(dueAt)}
+          disabled={!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dueAt) || create.isPending}
+          className="w-full rounded-compact bg-tr-primary py-1.5 text-sm font-medium text-tr-on-primary transition hover:bg-tr-primary-hover disabled:opacity-50"
         >
-          {t.common.save}
+          Đặt nhắc
         </button>
       </div>
     </Popover>

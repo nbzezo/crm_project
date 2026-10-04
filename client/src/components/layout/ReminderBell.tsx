@@ -264,14 +264,28 @@ export function ReminderBell() {
     else if (item.link) navigate(item.link);
   };
 
+  /* Thong bao he dieu hanh bat KHI TOI GIO, khong phai khi muc vua lot vao
+     danh sach (danh sach lay truoc 7 ngay). `clock` buoc hieu ung chay lai moi
+     30 giay de muc tuong lai duoc bao dung luc no toi gio. */
+  const [clock, setClock] = useState(() => format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   useEffect(() => {
+    const timer = setInterval(() => setClock(format(new Date(), "yyyy-MM-dd'T'HH:mm")), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const isDue = (item: NotificationItem) => !item.due_at || item.due_at <= clock;
     if (desktopSeen.current === null) {
-      desktopSeen.current = new Set(data.items.map((item) => item.key));
+      // Lan tai dau: nhung muc da toi gio tu truoc thi khong bao lai.
+      desktopSeen.current = new Set(data.items.filter(isDue).map((item) => item.key));
       return;
     }
     for (const item of data.items) {
       if (desktopSeen.current.has(item.key)) continue;
+      if (!isDue(item)) continue;
       desktopSeen.current.add(item.key);
+      // Nhac hen da co popup giua man hinh tu bao (DueReminderPopup).
+      if (item.kind === 'reminder') continue;
       if (
         preferences.desktop &&
         preferences.enabled[categoryOf(item)] &&
@@ -286,7 +300,7 @@ export function ReminderBell() {
         desktopNotification.onclick = () => window.focus();
       }
     }
-  }, [data.items, preferences.desktop, preferences.enabled]);
+  }, [data.items, clock, preferences.desktop, preferences.enabled]);
 
   const toggleCategory = (category: Category) => {
     setPreferences((current) => ({

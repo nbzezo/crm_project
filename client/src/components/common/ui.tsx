@@ -365,20 +365,25 @@ export function DateTimeInput({
 }) {
   const { date, time } = splitDateTime(value);
   return (
+    /* Kich thuoc dat o KHUNG BOC tung o: `className` cua DateInput roi vao <input>
+       ben trong (khung `relative` cua no van gian theo noi dung), con `w-28` tren
+       Input thi tranh voi `w-full` co san — o ngay bi ep con moi nut lich. */
     <div className={`flex gap-2 ${className}`}>
-      <DateInput
-        {...props}
-        value={date}
-        onChange={(next) => onChange(joinDateTime(next, time))}
-        className="min-w-0 flex-1"
-      />
-      <Input
-        type="time"
-        aria-label="Giờ"
-        value={time}
-        onChange={(e) => onChange(joinDateTime(date, e.target.value))}
-        className="w-28 shrink-0"
-      />
+      <div className="min-w-0 flex-1">
+        <DateInput
+          {...props}
+          value={date}
+          onChange={(next) => onChange(joinDateTime(next, time))}
+        />
+      </div>
+      <div className="w-32 shrink-0">
+        <Input
+          type="time"
+          aria-label="Giờ"
+          value={time}
+          onChange={(e) => onChange(joinDateTime(date, e.target.value))}
+        />
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
 import { AssistantLauncher } from './components/layout/AssistantLauncher';
 import { LockScreen } from './components/lock/LockScreen';
+import { DueReminderPopup } from './components/layout/DueReminderPopup';
 import { useLockTriggers } from './components/lock/useLockTriggers';
 import { MobileTabBar } from './components/layout/MobileTabBar';
 import { Toasts } from './components/common/Toasts';
@@ -123,6 +124,7 @@ export default function App() {
         <QuickNotesBoard />
       </Suspense>
       <AssistantLauncher />
+      <DueReminderPopup />
       <LockScreen />
       <div className="contents print:hidden">
         <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
