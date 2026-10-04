@@ -18,6 +18,16 @@ export const APP_UPDATED_AT = '2026-10-04';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.14.3',
+    date: '2026-10-04',
+    title: 'Xóa cơ hội',
+    changes: [
+      'Trang chi tiết cơ hội có thêm nút Xóa (trong menu thao tác cạnh nút Sửa), kèm hộp xác nhận nói rõ những gì bị xóa theo và những gì được giữ lại.',
+      'Xóa cơ hội sẽ xóa luôn điểm chấm, nhóm quyết định, đối thủ, mốc sự kiện, danh mục bàn giao, trang tài liệu và nhắc việc của cơ hội; hợp đồng, báo giá, tài liệu, hoạt động và công việc vẫn giữ, chỉ bỏ liên kết.',
+      'Chỉ người có quyền xóa cơ hội trong phạm vi quản lý mới xóa được; nếu không đủ quyền, hộp xác nhận báo lỗi ngay.',
+    ],
+  },
+  {
     version: '1.14.2',
     date: '2026-10-04',
     title: 'Nút thu gọn thanh điều hướng dễ nhận ra hơn',
