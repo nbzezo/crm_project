@@ -14,12 +14,12 @@ const REMINDER_SELECT = `
     LEFT JOIN customers c ON c.id = r.customer_id
     LEFT JOIN deals d ON d.id = r.deal_id`;
 
+const LOCAL_MINUTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
 const schema = z.object({
   title: z.string().trim().min(1, 'Tieu de khong duoc de trong'),
   note: z.string().optional(),
-  due_at: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm'),
+  due_at: z.string().regex(LOCAL_MINUTE, 'Thoi diem phai dang YYYY-MM-DDTHH:mm'),
   card_id: z.number().int().nullable().optional(),
   customer_id: z.number().int().nullable().optional(),
   deal_id: z.number().int().nullable().optional(),
@@ -80,9 +80,15 @@ router.get('/', (req, res) => {
  *  - bo nhac cua viec da hoan thanh.
  * Popup tu het khi nhac duoc danh dau xong hoac doi gio (Hoan) — khong can
  * bang trang thai rieng, va nhieu tab cung tu dong bo qua lan tai lai ke tiep.
+ *
+ * `?now=YYYY-MM-DDTHH:mm` la GIO TREN MAY NGUOI DUNG. `due_at` duoc nhap theo gio
+ * trinh duyet, nen so voi gio trinh duyet moi dung — container production tung
+ * chay UTC, lam popup bat tre 7 tieng. Thieu `now` thi dung gio may chu.
  */
 router.get('/due', (req, res) => {
   const me = defaultOwner(req);
+  const clientNow =
+    typeof req.query.now === 'string' && LOCAL_MINUTE.test(req.query.now) ? req.query.now : null;
   res.json(
     db
       .prepare(
@@ -97,12 +103,13 @@ router.get('/due', (req, res) => {
             -- Viec da hoan thanh thi nhac con lai cua no khong con y nghia.
             AND (r.card_id IS NULL OR k.is_done = 0)
             AND (r.owner_contact_id IS NULL OR r.owner_contact_id = ?)
-            AND r.due_at <= strftime('%Y-%m-%dT%H:%M', 'now', 'localtime')
-            AND r.due_at >= strftime('%Y-%m-%dT%H:%M', datetime('now', 'localtime', '-1 day'))
+            AND r.due_at <= COALESCE(?, strftime('%Y-%m-%dT%H:%M', 'now', 'localtime'))
+            AND r.due_at >= strftime('%Y-%m-%dT%H:%M',
+                  datetime(COALESCE(?, datetime('now', 'localtime')), '-1 day'))
           ORDER BY r.due_at, r.id
           LIMIT 20`
       )
-      .all(me)
+      .all(me, clientNow, clientNow)
   );
 });
 

@@ -22,6 +22,12 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
+# Gio Viet Nam: hon 50 truy van dung `datetime('now','localtime')` (nhac hen, qua han,
+# Telegram, sao luu) va so voi gio nguoi dung nhap. Khong dat thi container chay UTC,
+# moi moc gio lech 7 tieng. Chep zoneinfo tu anh build cho chac: thieu thi build bao loi
+# ngay, khong am tham quay ve UTC.
+ENV TZ=Asia/Ho_Chi_Minh
+COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 
 COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules

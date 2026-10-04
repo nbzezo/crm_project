@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { Building2, ListTodo, Plus, Sparkles, Target, Users, Zap } from 'lucide-react';
+import { Building2, ListTodo, Plus, Sparkles, Target, Timer, Users, Zap } from 'lucide-react';
 import { api } from '../../api/client';
 import { focusRing } from '../common/ui';
 import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
@@ -58,6 +58,7 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const pushToast = useUiStore((s) => s.pushToast);
   const setAssistantPanelOpen = useUiStore((s) => s.setAssistantPanelOpen);
+  const setQuickAddOpen = useUiStore((s) => s.setQuickAddOpen);
   /* Dien thoai khong co nut ✨ tren thanh tren — loi vao Tro ly nam o day. */
   const canOpenAssistant = useCanOpenAssistant();
 
@@ -141,6 +142,15 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
 
             <MenuGroup label="Việc & ghi chú" divider />
             <MenuItem
+              icon={<Timer size={16} aria-hidden="true" />}
+              label="Thêm việc nhanh"
+              shortcut="Ctrl J"
+              onClick={() => {
+                setOpen(false);
+                setQuickAddOpen(true);
+              }}
+            />
+            <MenuItem
               icon={<ListTodo size={16} aria-hidden="true" />}
               label="Công việc"
               onClick={() => {
@@ -209,6 +219,14 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
             onClick={() => {
               setOpen(false);
               setCustomerOpen(true);
+            }}
+          />
+          <MobileCreateItem
+            icon={<Timer size={22} />}
+            label="Việc nhanh"
+            onClick={() => {
+              setOpen(false);
+              setQuickAddOpen(true);
             }}
           />
           <MobileCreateItem

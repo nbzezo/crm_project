@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.17.0',
+    date: '2026-10-05',
+    title: 'Thêm việc nhanh bằng một dòng',
+    changes: [
+      'Nhấn Ctrl + J ở bất kỳ màn nào (hoặc chọn "Thêm việc nhanh" trong nút Tạo nhanh) rồi gõ một dòng như "mai 9h gọi anh Nam": nhấn Enter là có việc "Gọi anh Nam", hạn ngày mai, nhắc lúc 9:00.',
+      'Hiểu được: hôm nay, mai, mốt, thứ 2 đến chủ nhật (kèm "tuần sau"), ngày 15/10, giờ 9h, 9h30, 14:00, buổi sáng/trưa/chiều/tối, và "30 phút nữa", "sau 2 tiếng", "3 ngày nữa". Gõ có dấu hay không dấu đều được.',
+      'Gõ tới đâu thấy ngay tên việc và giờ nhắc tới đó. App hiểu nhầm một cụm thành ngày giờ thì bấm "Không phải ngày giờ" để giữ nguyên cả dòng làm tên việc.',
+      'Shift + Enter để tạo rồi gõ tiếp việc khác. Việc mới giao cho bạn và vào danh sách mặc định.',
+      'Sửa: popup nhắc việc (1.16.0) bật trễ 7 tiếng vì máy chủ đang chạy giờ quốc tế (UTC). Máy chủ nay dùng giờ Việt Nam, nên nhắc qua Telegram, việc quá hạn và giờ tạo bản ghi cũng đúng giờ.',
+    ],
+  },
+  {
     version: '1.16.0',
     date: '2026-10-05',
     title: 'Nhắc việc đúng giờ bằng popup giữa màn hình',

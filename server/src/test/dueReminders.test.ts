@@ -137,3 +137,29 @@ test('chi tra nhac da toi gio, chua xong, cua minh, trong mot ngay qua', async (
     [legacy]
   );
 });
+
+test('so voi gio trinh duyet khi may chu lech mui gio (container UTC)', async () => {
+  // Trinh duyet o Viet Nam di truoc may chu UTC 7 tieng.
+  const clientNow = localAt('+7 hours');
+  const res = await call('POST', '/api/reminders', {
+    title: 'Nhắc theo giờ trình duyệt',
+    due_at: localAt('+3 hours'),
+  });
+  assert.equal(res.status, 201);
+  const id = Number((res.data as { id: number }).id);
+
+  const serverClock = (await call('GET', '/api/reminders/due')).data as { id: number }[];
+  assert.ok(!serverClock.some((r) => r.id === id), 'theo gio may chu thi chua toi gio');
+
+  const browserClock = (
+    await call('GET', `/api/reminders/due?now=${encodeURIComponent(clientNow)}`)
+  ).data as { id: number }[];
+  assert.ok(
+    browserClock.some((r) => r.id === id),
+    'theo gio trinh duyet thi da toi gio'
+  );
+
+  // `now` sai dinh dang thi bo qua, dung gio may chu.
+  const bad = (await call('GET', '/api/reminders/due?now=abc')).data as { id: number }[];
+  assert.ok(!bad.some((r) => r.id === id));
+});

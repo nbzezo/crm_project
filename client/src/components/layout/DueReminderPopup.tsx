@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlarmClock, Building2, ChevronDown, ExternalLink, X } from 'lucide-react';
 import { api } from '../../api/client';
-import { formatDateTime, todayStr } from '../../lib/format';
+import { formatDateTime, nowLocalInput, todayStr } from '../../lib/format';
 import { invalidateCalendar, invalidateCardViews } from '../../lib/queryKeys';
 import { snoozePresets } from '../../lib/reminderTimes';
 import { useLockStore } from '../../stores/lockStore';
@@ -105,7 +105,9 @@ export function DueReminderPopup() {
 
   const { data = [] } = useQuery({
     queryKey: ['reminders', 'due'],
-    queryFn: () => api.get<DueReminder[]>('/api/reminders/due'),
+    // Gui kem gio may: `due_at` nhap theo gio trinh duyet, may chu co the khac mui gio.
+    queryFn: () =>
+      api.get<DueReminder[]>(`/api/reminders/due?now=${encodeURIComponent(nowLocalInput())}`),
     refetchInterval: 20_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,

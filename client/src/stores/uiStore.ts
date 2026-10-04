@@ -187,6 +187,10 @@ interface UiState {
   quickCreateOpen: boolean;
   setQuickCreateOpen: (open: boolean) => void;
 
+  /** O nhap nhanh mot dong ("mai 9h gọi anh Nam") — QuickAddTask.tsx, Ctrl+J. */
+  quickAddOpen: boolean;
+  setQuickAddOpen: (open: boolean) => void;
+
   /**
    * Bang Tro ly AI truot tu canh phai — mo tu nut tren Topbar hoac Ctrl+/ o
    * bat ky trang nao, khong phai roi man dang xem sang /ai.
@@ -252,6 +256,9 @@ export const useUiStore = create<UiState>((set) => ({
 
   quickCreateOpen: false,
   setQuickCreateOpen: (open) => set({ quickCreateOpen: open }),
+
+  quickAddOpen: false,
+  setQuickAddOpen: (open) => set({ quickAddOpen: open }),
 
   assistantPanelOpen: false,
   setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
