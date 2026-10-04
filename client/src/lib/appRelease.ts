@@ -18,13 +18,15 @@ export const APP_UPDATED_AT = '2026-10-04';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
-    version: '1.14.3',
+    version: '1.15.0',
     date: '2026-10-04',
-    title: 'Xóa cơ hội',
+    title: 'Xóa cơ hội, tự chọn những gì xóa theo',
     changes: [
-      'Trang chi tiết cơ hội có thêm nút Xóa (trong menu thao tác cạnh nút Sửa), kèm hộp xác nhận nói rõ những gì bị xóa theo và những gì được giữ lại.',
-      'Xóa cơ hội sẽ xóa luôn điểm chấm, nhóm quyết định, đối thủ, mốc sự kiện, danh mục bàn giao, trang tài liệu và nhắc việc của cơ hội; hợp đồng, báo giá, tài liệu, hoạt động và công việc vẫn giữ, chỉ bỏ liên kết.',
-      'Chỉ người có quyền xóa cơ hội trong phạm vi quản lý mới xóa được; nếu không đủ quyền, hộp xác nhận báo lỗi ngay.',
+      'Trang chi tiết cơ hội có thêm nút Xóa (trong menu Thao tác khác).',
+      'Hộp xác nhận liệt kê mọi thứ gắn với cơ hội: tài liệu, trang tài liệu, báo giá, hợp đồng, công việc, hoạt động, nhắc việc. Đánh dấu mục nào thì mục đó xóa cùng; mục không đánh dấu được giữ lại, chỉ bỏ liên kết với cơ hội và gắn về khách hàng.',
+      'Mục đang dùng chung hiện rõ "Còn gắn với: Hợp đồng…, Báo giá…, Dự án…" để cân nhắc trước khi xóa. Hợp đồng còn dòng doanh thu tham chiếu thì không chọn xóa được.',
+      'Tài liệu và trang tài liệu chọn xóa sẽ vào Thùng rác, khôi phục được. Báo giá, hợp đồng, công việc, hoạt động, nhắc việc chọn xóa thì xóa hẳn.',
+      'Sửa: trước đây xóa cơ hội sẽ xóa luôn trang tài liệu (cùng tài liệu đính kèm của trang) và nhắc việc mà không hỏi; nay chỉ xóa khi bạn chọn.',
     ],
   },
   {

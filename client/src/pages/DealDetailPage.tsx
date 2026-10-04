@@ -5,13 +5,13 @@
  * Biểu mẫu sửa nhanh (DealForm dạng modal) giữ nguyên, không thay thế.
  */
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { FolderKanban, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { DealForm } from '../components/crm/DealForm';
-import { Modal } from '../components/common/Modal';
+import { DealDeleteDialog } from '../components/crm/DealDeleteDialog';
 import { DealStageStepper } from '../components/crm/DealStageStepper';
 import { DetailHeader } from '../components/crm/DetailHeader';
 import { DealSmartButtons } from '../components/crm/DealSmartButtons';
@@ -37,7 +37,6 @@ import {
 import { VETO_BADGE_COLOR, t } from '../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
 import { formatDate, formatVND } from '../lib/format';
-import { invalidateCrmViews } from '../lib/queryKeys';
 import { useUiStore } from '../stores/uiStore';
 import type {
   ChangeLogEntry,
@@ -66,8 +65,6 @@ export default function DealDetailPage() {
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
   const tab = (params.get('tab') as Tab) ?? 'score';
@@ -109,16 +106,6 @@ export default function DealDetailPage() {
     queryKey: ['deal', id, 'handover'],
     queryFn: () => api.get<HandoverState>(`/api/deals/${id}/handover`),
     enabled: Number.isFinite(id),
-  });
-
-  const remove = useMutation({
-    mutationFn: () => api.del(`/api/deals/${id}`),
-    onSuccess: () => {
-      setConfirmDelete(false);
-      queryClient.removeQueries({ queryKey: ['deal', id] });
-      invalidateCrmViews(queryClient, deal?.customer_id);
-      navigate('/pipeline');
-    },
   });
 
   if (error)
@@ -367,38 +354,12 @@ export default function DealDetailPage() {
         onClose={() => setEditing(false)}
       />
 
-      <Modal
+      <DealDeleteDialog
+        dealId={id}
+        dealTitle={deal.title}
         open={confirmDelete}
-        onClose={() => {
-          setConfirmDelete(false);
-          remove.reset();
-        }}
-        title="Xóa cơ hội"
-        width="max-w-md"
-        footer={
-          <>
-            <Button onClick={() => setConfirmDelete(false)}>{t.common.cancel}</Button>
-            <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
-              {t.common.delete}
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-tr-subtle">
-          Xóa <strong className="text-tr-text">{deal.title}</strong> sẽ xóa luôn điểm chấm, nhóm
-          quyết định, đối thủ, mốc sự kiện, danh mục bàn giao, trang tài liệu và nhắc việc của cơ
-          hội này.
-        </p>
-        <p className="mt-2 text-sm text-tr-subtle">
-          Hợp đồng, báo giá, tài liệu, hoạt động và công việc đã gắn vẫn được giữ lại, chỉ bỏ liên
-          kết với cơ hội. Không thể hoàn tác.
-        </p>
-        {remove.error && (
-          <p role="alert" className="mt-3 text-sm text-tr-danger">
-            {remove.error.message}
-          </p>
-        )}
-      </Modal>
+        onClose={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

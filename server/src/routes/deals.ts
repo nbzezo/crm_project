@@ -25,6 +25,12 @@ import {
   evaluateStageGate,
 } from '../services/dealService.ts';
 import { listTasksByLink } from '../services/cardService.ts';
+import {
+  DEAL_DELETE_GROUPS,
+  dealDeletePreview,
+  deleteDeal,
+  type DealDeleteSelection,
+} from '../services/dealDeleteService.ts';
 import { decorateProject, PROJECT_SELECT } from '../services/projectService.ts';
 
 const router = Router();
@@ -656,15 +662,29 @@ router.delete('/:id/handover/:itemId', (req, res) => {
   );
 });
 
+/** Liet ke nhung gi gan voi co hoi de nguoi dung chon xoa theo — xem dealDeleteService. */
+router.get('/:id/delete-preview', (req, res) => {
+  res.json(dealDeletePreview(req, intParam(req.params.id)));
+});
+
+const idList = z.array(z.number().int().positive()).max(1000).optional();
+const dealDeleteSchema = z
+  .object(
+    Object.fromEntries(DEAL_DELETE_GROUPS.map((group) => [group, idList])) as Record<
+      (typeof DEAL_DELETE_GROUPS)[number],
+      typeof idList
+    >
+  )
+  .strict();
+
+/**
+ * Body (tuy chon): `{ delete: { documents?: id[], meeting_notes?: id[], ... } }`.
+ * Muc khong co trong danh sach duoc giu lai va bo lien ket voi co hoi.
+ */
 router.delete('/:id', (req, res) => {
-  const id = intParam(req.params.id);
-  const current = required(
-    db.prepare(`SELECT owner_contact_id FROM deals WHERE id = ?`).get(id),
-    'Khong tim thay co hoi'
-  ) as { owner_contact_id: number | null };
-  assertInScope(req, 'deals', 'delete', current.owner_contact_id, 'Khong tim thay co hoi');
-  db.prepare(`DELETE FROM deals WHERE id = ?`).run(id);
-  res.json({ ok: true });
+  const body = parseBody(z.object({ delete: dealDeleteSchema.optional() }).optional(), req);
+  const selection: DealDeleteSelection = body?.delete ?? {};
+  res.json(deleteDeal(req, intParam(req.params.id), selection));
 });
 
 export default router;
