@@ -118,6 +118,8 @@ interface TaskComposerDraft {
   priority?: Priority;
   startDate?: string | null;
   dueDate?: string | null;
+  /** Gio nhac 'YYYY-MM-DDTHH:mm' — tao dong `reminders` ngay sau khi luu viec. */
+  remindAt?: string | null;
   checklist?: string[];
   links?: TaskContext;
   /** Có request id nghĩa là bản nháp đến từ AI và cần gửi phản hồi khi lưu. */

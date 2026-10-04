@@ -22,13 +22,11 @@ import {
   Trash2,
   UserCheck,
   UserRound,
-  X,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { api, qs } from '../../api/client';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
-import { invalidateCardViews } from '../../lib/queryKeys';
 import { useAuthStore } from '../../stores/authStore';
 import {
   countActiveTaskFilters,
@@ -36,21 +34,14 @@ import {
   useUiStore,
   type TaskFilters,
 } from '../../stores/uiStore';
-import type { Assignee, Board, Card, Customer, Priority, Project, TaskRow } from '../../types';
+import type { Assignee, Board, Customer, Priority, Project, TaskRow } from '../../types';
 import { Combobox } from '../common/Combobox';
 import { Popover, usePopover } from '../common/Popover';
 import { PageShell } from '../common/PageShell';
-import {
-  Button,
-  DateInput,
-  ErrorState,
-  FormError,
-  Select,
-  SkeletonRows,
-  focusRing,
-} from '../common/ui';
+import { Button, ErrorState, Select, SkeletonRows, focusRing } from '../common/ui';
 import { parseAssigneeFilter } from '../kanban/BoardFilter';
 import { useAssignees } from './AssigneePicker';
+import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskWorkspaceCalendar } from './TaskWorkspaceCalendar';
 import { TaskWorkspaceKanban } from './TaskWorkspaceKanban';
 import { TaskWorkspaceList } from './TaskWorkspaceList';
@@ -297,78 +288,6 @@ function WorkspaceSidebar({
         )}
       </div>
     </aside>
-  );
-}
-
-function QuickAdd({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const openTaskComposer = useUiStore((state) => state.openTaskComposer);
-  const openCard = useUiStore((state) => state.openCard);
-  const pushToast = useUiStore((state) => state.pushToast);
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState<Priority>('medium');
-  const [dueDate, setDueDate] = useState<string | null>(null);
-  const create = useMutation({
-    mutationFn: () =>
-      api.post<Card>('/api/cards', { title: title.trim(), priority, due_date: dueDate }),
-    onSuccess: (card) => {
-      invalidateCardViews(queryClient);
-      setTitle('');
-      pushToast('Đã tạo công việc', 'success', {
-        label: 'Mở',
-        run: () => openCard(card.id, 'drawer'),
-      });
-    },
-  });
-  const submit = () => title.trim() && !create.isPending && create.mutate();
-  return (
-    <div className="border-b border-tr-border bg-tr-primary/5 px-3 py-3">
-      <FormError error={create.error} />
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="min-w-64 flex-1">
-          <span className="sr-only">Tên công việc mới</span>
-          <input
-            autoFocus
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') submit();
-              if (event.key === 'Escape') onClose();
-            }}
-            placeholder="Tên công việc mới…"
-            className={`h-9 w-full rounded-control border border-tr-primary bg-tr-panel px-3 text-sm text-tr-text outline-none ${focusRing}`}
-          />
-        </label>
-        <Select
-          value={priority}
-          onChange={(event) => setPriority(event.target.value as Priority)}
-          aria-label="Ưu tiên"
-        >
-          {PRIORITY_ORDER.map((value) => (
-            <option key={value} value={value}>
-              {t.priority[value]}
-            </option>
-          ))}
-        </Select>
-        <div className="w-40">
-          <DateInput value={dueDate} onChange={setDueDate} aria-label="Hạn hoàn thành" />
-        </div>
-        <Button variant="primary" disabled={!title.trim() || create.isPending} onClick={submit}>
-          {create.isPending ? 'Đang thêm…' : 'Thêm'}
-        </Button>
-        <Button
-          onClick={() => {
-            openTaskComposer({ context: {}, draft: { title: title.trim(), priority, dueDate } });
-            onClose();
-          }}
-        >
-          Chi tiết…
-        </Button>
-        <Button variant="ghost" onClick={onClose} aria-label="Đóng thêm nhanh">
-          <X size={16} />
-        </Button>
-      </div>
-    </div>
   );
 }
 
@@ -776,7 +695,7 @@ export function TasksWorkspace() {
             )}
           </header>
 
-          {adding && <QuickAdd onClose={() => setAdding(false)} />}
+          {adding && <TaskQuickAdd onClose={() => setAdding(false)} />}
 
           {scope !== 'activity' && (
             <div className="border-b border-tr-border bg-tr-surface/70 px-3 py-2 lg:px-5">

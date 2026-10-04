@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.18.0',
+    date: '2026-10-05',
+    title: 'Chọn giờ nhắc ngay khi tạo việc',
+    changes: [
+      'Form "Tạo công việc" có thêm ô "Nhắc lúc" cạnh Hạn hoàn thành: chọn nhanh 15 phút nữa, 1 giờ nữa, 9:00 sáng mai, 9:00 ngày hạn, hoặc tự chọn giờ.',
+      'Ô thêm việc đầu danh sách Công việc được làm lại: một ô nhập lớn, bên dưới là các nút Ưu tiên, Hạn, Nhắc lúc gọn trên một hàng thay cho ba hàng rời rạc.',
+      'Ô này cũng hiểu ngày giờ như Ctrl + J: gõ "chiều mai gửi báo giá" là tự đặt hạn ngày mai và nhắc 14:00 (ghi "tự hiểu"); bấm vào nút Hạn hay Nhắc để chọn lại, hoặc "Không phải ngày giờ" để bỏ.',
+      'Thêm xong ô vẫn mở để gõ việc tiếp theo; "Chi tiết…" mang theo cả hạn và giờ nhắc sang form đầy đủ.',
+    ],
+  },
+  {
     version: '1.17.0',
     date: '2026-10-05',
     title: 'Thêm việc nhanh bằng một dòng',

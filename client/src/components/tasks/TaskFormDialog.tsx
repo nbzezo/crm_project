@@ -10,6 +10,7 @@ import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore, type TaskComposerState, type TaskContext } from '../../stores/uiStore';
 import { AssigneePicker, useAssignees } from './AssigneePicker';
+import { ReminderField } from './ReminderField';
 import { CustomerForm } from '../crm/CustomerForm';
 import { DealForm } from '../crm/DealForm';
 import type { Board, BoardFull, Card, Contact, Customer, Deal, Priority } from '../../types';
@@ -74,6 +75,8 @@ export function TaskFormDialog() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [startDate, setStartDate] = useState<string | null>(null);
+  /** Gio nhac cua viec sap tao — luu thanh mot dong `reminders` sau khi tao viec. */
+  const [remindAt, setRemindAt] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [listId, setListId] = useState<number | ''>('');
   const [checklistText, setChecklistText] = useState('');
@@ -141,6 +144,7 @@ export function TaskFormDialog() {
     setPriority(draft?.priority ?? 'medium');
     setStartDate(draft?.startDate ?? null);
     setDueDate(draft?.dueDate ?? null);
+    setRemindAt(draft?.remindAt ?? null);
     setChecklistText(draft?.checklist?.join('\n') ?? '');
     setAiSource('');
     setAiSuggestion(null);
@@ -329,8 +333,8 @@ export function TaskFormDialog() {
   };
 
   const save = useMutation({
-    mutationFn: () =>
-      api.post<Card>('/api/cards', {
+    mutationFn: async () => {
+      const created = await api.post<Card>('/api/cards', {
         list_id: listTouched && listId !== '' ? listId : null,
         title: title.trim() || undefined,
         description: description.trim() || aiSource.trim() || undefined,
@@ -347,7 +351,19 @@ export function TaskFormDialog() {
           .split('\n')
           .map((line) => line.trim())
           .filter(Boolean),
-      }),
+      });
+      if (remindAt) {
+        // Viec da tao: nhac loi thi bao rieng, khong bo luon viec vua tao.
+        await api
+          .post('/api/reminders', { title: created.title, due_at: remindAt, card_id: created.id })
+          .catch(() =>
+            pushToast('Đã tạo việc nhưng chưa đặt được giờ nhắc — hãy đặt lại trong việc')
+          );
+        void queryClient.invalidateQueries({ queryKey: ['reminders'] });
+        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      }
+      return created;
+    },
     onSuccess: (created) => {
       invalidateCardViews(queryClient);
       invalidateCrmViews(queryClient, created.customer_id ?? undefined);
@@ -694,7 +710,7 @@ export function TaskFormDialog() {
           dự án A trong khi nằm ở bảng của dự án B. Nay muốn đổi dự án thì chọn
           luồng việc khác, và ô Luồng việc ở trên đã nói rõ luồng nào thuộc dự án nào.
         */}
-        <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+        <div className="sm:col-span-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Field label={t.card.startDate}>
             <DateInput
               value={startDate}
@@ -713,6 +729,12 @@ export function TaskFormDialog() {
               }}
             />
           </Field>
+          {/* Khong boc bang Field: Field gan id/aria vao phan tu con dau tien,
+              ma o day la mot cum nut chu khong phai mot o nhap. */}
+          <div className="col-span-2 sm:col-span-1">
+            <span className="mb-1 block text-xs font-semibold text-tr-subtle">Nhắc lúc</span>
+            <ReminderField value={remindAt} onChange={setRemindAt} dueDate={dueDate} />
+          </div>
         </div>
 
         <div className="sm:col-span-2 grid grid-cols-1 gap-3 border-t border-tr-border pt-3 sm:grid-cols-2">
