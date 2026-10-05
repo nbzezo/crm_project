@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.20.1',
+    date: '2026-10-05',
+    title: 'Danh sách lớn mở nhanh hơn nhiều',
+    changes: [
+      'Các màn Cơ hội, Tổng quan, Khách hàng, Hợp đồng và Báo giá mở nhanh hơn rõ rệt khi dữ liệu nhiều: thử với 5.000 khách hàng và 15.000 cơ hội, màn Cơ hội từ hơn 6 phút còn dưới 1 giây, Khách hàng từ 41 giây còn dưới 1 giây.',
+      'Trang danh sách Bảng không còn chậm dần khi có nhiều bảng và nhiều việc.',
+      'Dữ liệu gửi về trình duyệt được nén, nên các trang nhiều dòng (Công việc, Doanh thu, Lịch) tải nhanh hơn, nhất là qua mạng di động.',
+      'Màn Doanh thu không còn báo lỗi khi số dòng dịch vụ vượt khoảng 32.000.',
+      'Trong lúc một người mở danh sách lớn, những người khác ít bị chờ theo hơn hẳn.',
+    ],
+  },
+  {
     version: '1.20.0',
     date: '2026-10-05',
     title: 'Nghe nhạc ngay trên màn làm việc, lưu link yêu thích',

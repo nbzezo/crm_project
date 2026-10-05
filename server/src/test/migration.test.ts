@@ -606,3 +606,43 @@ test('v59: link nhac yeu thich, moi link mot lan, xoa tai khoan thi xoa link, qu
   );
   scratch.close();
 });
+
+test('v60: chi muc cot lien ket — truy van con theo co hoi/khach khong con quet ca bang, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  migrate(scratch, 60);
+  const plan = (sql: string) =>
+    (scratch.prepare(`EXPLAIN QUERY PLAN ${sql}`).all() as { detail: string }[])
+      .map((r) => r.detail)
+      .join(' | ');
+  /* Cac truy van con nong nhat cua /deals, /customers, /contracts, /quotations. */
+  assert.match(
+    plan(`SELECT MAX(occurred_at) FROM interactions WHERE deal_id = 1`),
+    /idx_interactions_deal/
+  );
+  assert.match(plan(`SELECT COUNT(*) FROM contracts WHERE deal_id = 1`), /idx_contracts_deal/);
+  assert.match(
+    plan(
+      `SELECT title FROM reminders WHERE customer_id = 1 AND is_done = 0 ORDER BY due_at LIMIT 1`
+    ),
+    /idx_reminders_customer/
+  );
+  assert.match(
+    plan(`SELECT COUNT(*) FROM documents WHERE quotation_id = 1`),
+    /idx_documents_quotation/
+  );
+  assert.match(
+    plan(`SELECT COUNT(*) FROM documents WHERE contract_id = 1`),
+    /idx_documents_contract/
+  );
+  assert.match(
+    plan(`SELECT COUNT(*) FROM checklist_items WHERE card_id = 1`),
+    /idx_checklist_items_card/
+  );
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v60-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'idx_interactions_deal'`).get(),
+    undefined
+  );
+  scratch.close();
+});

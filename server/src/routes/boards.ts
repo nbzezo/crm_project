@@ -80,7 +80,10 @@ router.get('/', (req, res) => {
   const rows = db
     .prepare(
       `SELECT b.*, c.name AS customer_name, p.name AS project_name,
-              (SELECT COUNT(*) FROM cards k JOIN lists l ON l.id = k.list_id
+              /* CROSS JOIN ep SQLite di tu cac cot (lists) cua bang roi tra idx_cards_list. Viet
+                 JOIN thuong, bo lap ke hoach co luc quet ca bang cards cho TUNG bang
+                 (5,8 s voi 100 bang / 120.000 viec). */
+              (SELECT COUNT(*) FROM lists l CROSS JOIN cards k ON k.list_id = l.id
                 WHERE l.board_id = b.id AND k.is_done = 0 AND k.is_archived = 0 AND k.parent_id IS NULL) AS card_count
          FROM boards b
          LEFT JOIN customers c ON c.id = b.customer_id

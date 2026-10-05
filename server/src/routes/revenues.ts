@@ -210,27 +210,46 @@ function inList(ids: number[]): string {
   return ids.map(() => '?').join(',');
 }
 
+/* SQLite tu choi cau co qua 32.766 tham so ("too many SQL variables"). Danh sach dong
+   doanh thu tang theo du lieu, nen cac ham doc theo `line_id IN (...)` chia thanh lo. */
+const IN_BATCH = 5000;
+
+function inBatches<T>(ids: number[], read: (batch: number[]) => T[]): T[] {
+  if (ids.length <= IN_BATCH) return read(ids);
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_BATCH) out.push(...read(ids.slice(i, i + IN_BATCH)));
+  return out;
+}
+
 /** Thang dau tien co doanh thu > 0 cua tung dong (moi nam) — moc tu dong. */
 function loadFirstPeriods(ids: number[]): Map<number, string> {
   if (ids.length === 0) return new Map();
-  const rows = db
-    .prepare(
-      `SELECT line_id, MIN(period) AS period FROM service_revenues
-        WHERE amount_vnd > 0 AND line_id IN (${inList(ids)}) GROUP BY line_id`
-    )
-    .all(...ids) as { line_id: number; period: string }[];
+  const rows = inBatches(
+    ids,
+    (batch) =>
+      db
+        .prepare(
+          `SELECT line_id, MIN(period) AS period FROM service_revenues
+            WHERE amount_vnd > 0 AND line_id IN (${inList(batch)}) GROUP BY line_id`
+        )
+        .all(...batch) as { line_id: number; period: string }[]
+  );
   return new Map(rows.map((r) => [r.line_id, r.period]));
 }
 
 /** TB thang nam truoc nhap tay, dung de so voi nam `year`. */
 function loadBaselines(ids: number[], year: number): Map<number, number> {
   if (ids.length === 0) return new Map();
-  const rows = db
-    .prepare(
-      `SELECT line_id, avg_monthly_vnd FROM revenue_baselines
-        WHERE year = ? AND line_id IN (${inList(ids)})`
-    )
-    .all(year, ...ids) as { line_id: number; avg_monthly_vnd: number }[];
+  const rows = inBatches(
+    ids,
+    (batch) =>
+      db
+        .prepare(
+          `SELECT line_id, avg_monthly_vnd FROM revenue_baselines
+            WHERE year = ? AND line_id IN (${inList(batch)})`
+        )
+        .all(year, ...batch) as { line_id: number; avg_monthly_vnd: number }[]
+  );
   return new Map(rows.map((r) => [r.line_id, r.avg_monthly_vnd]));
 }
 
@@ -253,12 +272,16 @@ function groupsOf(line: Record<string, unknown>, anchor: LineAnchor, year: numbe
 
 function loadCells(ids: number[], yearPattern: string) {
   if (ids.length === 0) return [];
-  return db
-    .prepare(
-      `SELECT line_id, period, amount_vnd, forecast_vnd, stage, note FROM service_revenues
-        WHERE period LIKE ? AND line_id IN (${inList(ids)})`
-    )
-    .all(yearPattern, ...ids) as (MonthCell & { line_id: number; period: string })[];
+  return inBatches(
+    ids,
+    (batch) =>
+      db
+        .prepare(
+          `SELECT line_id, period, amount_vnd, forecast_vnd, stage, note FROM service_revenues
+            WHERE period LIKE ? AND line_id IN (${inList(batch)})`
+        )
+        .all(yearPattern, ...batch) as (MonthCell & { line_id: number; period: string })[]
+  );
 }
 
 /**
