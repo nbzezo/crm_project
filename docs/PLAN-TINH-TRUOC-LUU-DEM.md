@@ -1,7 +1,7 @@
 # Phương án: tính trước và lưu đệm cho báo cáo, danh sách nặng
 
 Nhánh: `claude/crm-stability-performance-eval-618dc9` (từ `main` @ cad9336, bản 1.20.0)
-Trạng thái: **đề xuất**. Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
+Trạng thái: **đã chốt hướng, chưa triển khai** (quyết định ở mục 6). Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
 
 ---
 
@@ -125,7 +125,7 @@ trực tiếp.
 - **Đời dữ liệu** = `SELECT total_changes()` trên kết nối dùng chung. Ứng dụng chỉ mở một kết nối,
   nên mọi INSERT/UPDATE/DELETE từ bất kỳ route, job nền hay trigger nào đều làm số này tăng.
   Không cần nhớ gọi "xoá đệm" ở từng chỗ ghi; dữ liệu đổi là khoá đổi.
-- **Hạn dùng** 60 giây cho các số phụ thuộc đồng hồ (quá hạn, hôm nay). Giới hạn LRU khoảng
+- **Hạn dùng** 5 phút cho các số phụ thuộc đồng hồ (quá hạn, hôm nay), có nút Làm mới (mục 6). Giới hạn LRU khoảng
   200 mục / 50 MB.
 - Hai người cùng phạm vi dùng chung kết quả. Khác phạm vi thì khác khoá, nên không thể lộ số.
 - Có header `X-Cache: hit|miss` và một test bắt buộc: hai người khác phạm vi gọi cùng một URL thì
@@ -134,7 +134,7 @@ trực tiếp.
 ### Lớp D — Không chặn luồng chính
 
 - **Phân trang và lọc mặc định** cho `/views/tasks`, `/views/calendar`, `/documents` và
-  `/revenues/lines`. Mặc định lấy việc chưa xong cộng việc xong trong 30 ngày; Lịch chỉ lấy khoảng
+  `/revenues/lines`. Mặc định lấy việc trong 30 ngày, cũ hơn thì tải dần khi cuộn (mục 6); Lịch chỉ lấy khoảng
   đang xem. Giao diện dùng `useInfiniteQuery` và danh sách ảo hoá (`@tanstack/react-virtual`).
   Công việc từ 138 MB xuống còn vài trăm KB mỗi trang.
 - **Worker thread chỉ đọc** cho việc nặng hiếm khi chạy: `/export`, `/export/:entity.csv`, dựng
@@ -167,13 +167,25 @@ trước khi đẩy `main`.
 | Trigger làm chậm thao tác ghi | Trigger chỉ ghi một dòng vào `stats_dirty` (dưới 0,05 ms); không tính toán trong trigger |
 | Nhập Excel hàng loạt làm hàng đợi bẩn phình to | `flushStats` có giới hạn mỗi lần (ví dụ 2.000 id); phần còn lại để job nền làm |
 | Migration thêm trigger lên production | Migration chỉ tạo bảng và trigger, rồi đánh dấu tất cả là bẩn; việc dựng số chạy sau khi khởi động, không chặn khởi động |
-| Đệm giữ số cũ khi sửa CSDL ngoài ứng dụng (thay `app.db` từ bản sao lưu, sửa bằng `sqlite3`) | Thay `app.db` bắt buộc khởi động lại container nên đệm mất; sửa tay thì hạn dùng 60 giây; `*_stats` dựng lại bằng nút tính lại |
+| Đệm giữ số cũ khi sửa CSDL ngoài ứng dụng (thay `app.db` từ bản sao lưu, sửa bằng `sqlite3`) | Thay `app.db` bắt buộc khởi động lại container nên đệm mất; sửa tay thì tối đa 5 phút hoặc bấm Làm mới; `*_stats` dựng lại bằng nút tính lại |
 
-## 6. Cần anh/chị quyết
+## 6. Đã quyết (2026-10-05)
 
-1. **Độ trễ chấp nhận được** của Tổng quan / Báo cáo: theo đời dữ liệu (luôn mới) cộng hạn
-   60 giây như đề xuất, hay chấp nhận cũ tới 5 phút để nhẹ máy hơn?
-2. **Mặc định của màn Công việc** khi phân trang: chỉ việc chưa xong cộng việc xong trong 30 ngày,
-   hay giữ "tất cả" và chỉ tải dần khi cuộn?
-3. **Quy mô dự kiến** trong 12 tháng tới (số khách, cơ hội, việc, dòng doanh thu) để đặt mức
-   cho bộ đo. Hiện đang lấy 5.000 / 15.000 / 120.000 / 10.000 làm mức 1×.
+1. **Độ trễ của Tổng quan / Báo cáo: chấp nhận số cũ tới 5 phút**, nhưng phải có nút **Làm mới**
+   lấy số mới ngay. Lớp C vì vậy dùng hạn dùng 5 phút thay cho 60 giây. Khoá đệm vẫn kèm đời dữ
+   liệu (`total_changes()`), nên thường số đổi ngay khi có người ghi. Mốc 5 phút chỉ là trần cho
+   các số phụ thuộc đồng hồ. Nút Làm mới gửi `?fresh=1`: máy chủ bỏ qua đệm, tính lại, rồi ghi
+   đè mục đệm của phạm vi đó. Màn hình hiện "Cập nhật lúc HH:mm" lấy từ thời điểm tính.
+   Giới hạn `fresh=1` tối đa một lần mỗi 10 giây cho mỗi người, để nút không thành đường làm treo
+   máy chủ.
+2. **Màn Công việc: mặc định hiện việc trong 30 ngày** (chưa xong, hoặc xong / cập nhật trong
+   30 ngày gần nhất). Việc cũ hơn **tải dần khi cuộn** xuống cuối danh sách, theo trang 200 dòng,
+   phân trang bằng con trỏ (`due_date`, `id`) chứ không dùng `OFFSET`.
+3. **Quy mô: 100 nhân viên sale.** Ước tính sau 12 tháng: khoảng 10.000 khách, 40.000 liên hệ,
+   30.000 cơ hội, 250.000 việc, 150.000 tương tác, 20.000 dòng dịch vụ (480.000 ô doanh thu),
+   tức **mức 2×** của bộ đo. Ngoài lượng dữ liệu, cần tính cả **tải đồng thời**: 100 người mở sẵn
+   ứng dụng thì chuông thông báo (60 giây) và nhắc việc (20 giây) đã tạo khoảng 7 request mỗi
+   giây chạy nền. Các request đó chỉ vài chục ms nên không sao, **trừ khi** có một request khác
+   chiếm luồng vài giây: cả 100 người cùng chờ. Vì vậy mục tiêu "không request nào chặn luồng
+   chính quá 200 ms" là bắt buộc, không chỉ là mong muốn, và bộ đo phải có thêm phần giả lập
+   100 người dùng đồng thời.
