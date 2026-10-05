@@ -12,6 +12,9 @@ import {
   YAxis,
 } from 'recharts';
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Check,
   Circle,
   CircleCheck,
@@ -27,6 +30,7 @@ import {
 } from 'lucide-react';
 import { api, qs } from '../api/client';
 import { ChartDataTable } from '../components/common/ChartDataTable';
+import { RevenueCustomerFilter } from '../components/crm/RevenueCustomerFilter';
 import { RevenueLineActions } from '../components/crm/RevenueLineActions';
 import { RevenueFunnelCards } from '../components/crm/RevenueFunnelCards';
 import { RevenueGroupOverview } from '../components/crm/RevenueGroupOverview';
@@ -66,6 +70,7 @@ import type {
   RevenueCell,
   RevenueAmOption,
   RevenueComparisonResponse,
+  RevenueCustomerOption,
   RevenueGroup,
   RevenueLine,
   RevenueLinesResponse,
@@ -107,6 +112,16 @@ const GROUP_BY_CUSTOMER_KEY = 'workflow-revenue-group-by-customer-v1';
 
 /** Dải màu ở mép trái ô đầu, đánh dấu các dòng thuộc một nhóm khách hàng mà không thụt chữ. */
 const GROUP_RAIL = 'shadow-[inset_3px_0_0_color-mix(in_srgb,var(--tr-primary)_55%,transparent)]';
+
+/** Sắp xếp dòng theo doanh thu năm; null giữ thứ tự máy chủ trả về. */
+function sortByTotal(lines: RevenueLine[], dir: 'desc' | 'asc' | null): RevenueLine[] {
+  if (!dir) return lines;
+  return [...lines].sort((a, b) =>
+    dir === 'desc'
+      ? b.totals.amount_vnd - a.totals.amount_vnd
+      : a.totals.amount_vnd - b.totals.amount_vnd
+  );
+}
 
 function periodOf(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
@@ -169,6 +184,14 @@ export default function RevenuePage() {
   const [serviceId, setServiceId] = useState('');
   /** id người dùng làm AM, 'none' = chưa gán AM. */
   const [am, setAm] = useState('');
+  /** Khách hàng chọn ở bộ lọc tiêu đề cột Khách hàng; rỗng = mọi khách. */
+  const [customerIds, setCustomerIds] = useState<number[]>([]);
+  const [contractKind, setContractKind] = useState('');
+  const [contractTerm, setContractTerm] = useState('');
+  /** Chỉ các dòng còn tiền đã xuất hoá đơn mà chưa thu (cột Công nợ > 0). */
+  const [debtOnly, setDebtOnly] = useState(false);
+  /** Sắp xếp theo cột Doanh thu; null = thứ tự mặc định (theo tên khách). */
+  const [totalSort, setTotalSort] = useState<'desc' | 'asc' | null>(null);
   const [chartView, setChartView] = useState<'monthly' | 'cumulative'>('monthly');
   const [chartOpen, setChartOpen] = useState(() => {
     try {
@@ -210,15 +233,39 @@ export default function RevenuePage() {
   const [bulkMonth, setBulkMonth] = useState<number | null>(null);
   const bulkPopover = usePopover();
 
-  const filters = { q: term, status, service_id: serviceId, am_user_id: am, group };
+  /* Bộ lọc nghiệp vụ, dùng chung cho bảng, bảng tổng, KPI và file mẫu nhập. */
+  const baseFilters = {
+    q: term,
+    status,
+    service_id: serviceId,
+    am_user_id: am,
+    customer_ids: customerIds.join(','),
+    contract_kind: contractKind,
+    contract_term: contractTerm,
+    has_debt: debtOnly ? '1' : '',
+  };
+  const filters = { ...baseFilters, group };
   const listKey = ['revenues', 'lines', year, filters] as const;
-  const hasActiveFilters = Boolean(term || status || serviceId || am);
+  const hasActiveFilters = Boolean(
+    term ||
+    status ||
+    serviceId ||
+    am ||
+    customerIds.length ||
+    contractKind ||
+    contractTerm ||
+    debtOnly
+  );
 
   const clearFilters = () => {
     setTerm('');
     setStatus('');
     setServiceId('');
     setAm('');
+    setCustomerIds([]);
+    setContractKind('');
+    setContractTerm('');
+    setDebtOnly(false);
   };
   const toggleGroupByCustomer = (next: boolean) => {
     setGroupByCustomer(next);
@@ -252,8 +299,13 @@ export default function RevenuePage() {
     enabled: view !== 'kpi',
     queryFn: () => api.get<RevenueLinesResponse>(`/api/revenues/lines${qs({ year, ...filters })}`),
   });
-  const lines = data?.lines ?? [];
-  const customerGroups = useMemo(() => groupLinesByCustomer(data?.lines ?? []), [data]);
+  const lines = useMemo(() => sortByTotal(data?.lines ?? [], totalSort), [data, totalSort]);
+  const customerGroups = useMemo(() => {
+    const groups = groupLinesByCustomer(lines);
+    if (!totalSort) return groups;
+    const sum = (g: RevenueCustomerGroup) => g.lines.reduce((a, l) => a + l.totals.amount_vnd, 0);
+    return groups.sort((a, b) => (totalSort === 'desc' ? sum(b) - sum(a) : sum(a) - sum(b)));
+  }, [lines, totalSort]);
   const multiLineGroups = customerGroups.filter((g) => g.lines.length > 1);
 
   const { data: summary } = useQuery({
@@ -280,6 +332,11 @@ export default function RevenuePage() {
   const { data: services = [] } = useQuery({
     queryKey: ['services'],
     queryFn: () => api.get<Service[]>('/api/services'),
+  });
+
+  const { data: customerOptions = [] } = useQuery({
+    queryKey: ['revenues', 'customers'],
+    queryFn: () => api.get<RevenueCustomerOption[]>('/api/revenues/customers'),
   });
 
   const { data: ams = [] } = useQuery({
@@ -711,6 +768,64 @@ export default function RevenuePage() {
             <option value="none">Chưa gán AM</option>
           </Select>
         </div>
+        <div className="order-5 w-full sm:order-none sm:w-36">
+          <Select
+            value={contractKind}
+            onChange={(e) => setContractKind(e.target.value)}
+            aria-label={t.revenue.contractKind}
+          >
+            <option value="">Mọi loại HĐ</option>
+            {Object.entries(t.contractKind).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="order-5 w-full sm:order-none sm:w-36">
+          <Select
+            value={contractTerm}
+            onChange={(e) => setContractTerm(e.target.value)}
+            aria-label={t.revenue.contractTerm}
+          >
+            <option value="">Mọi thời hạn</option>
+            {Object.entries(t.contractTerm).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        {/* KPI không lọc theo công nợ nên ẩn ô này ở màn KPI. */}
+        {view !== 'kpi' && (
+          <label
+            className="order-5 col-span-2 flex items-center gap-2 text-sm text-tr-text sm:order-none sm:col-span-1"
+            title={t.revenue.receivableHint}
+          >
+            <input
+              type="checkbox"
+              checked={debtOnly}
+              onChange={(e) => setDebtOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-tr-border"
+            />
+            Chỉ dòng còn công nợ
+          </label>
+        )}
+        {customerIds.length > 0 && (
+          <span className="order-6 col-span-2 inline-flex items-center gap-1 rounded-control bg-tr-hover px-2 py-1 text-xs text-tr-text sm:order-none sm:col-span-1">
+            {customerIds.length === 1
+              ? (customerOptions.find((c) => c.id === customerIds[0])?.name ?? '1 khách hàng')
+              : `${customerIds.length} khách hàng`}
+            <button
+              type="button"
+              onClick={() => setCustomerIds([])}
+              aria-label="Bỏ lọc khách hàng"
+              className={`rounded-control-inner px-1 text-tr-muted hover:text-tr-primary ${focusRing}`}
+            >
+              ×
+            </button>
+          </span>
+        )}
         {hasActiveFilters && (
           <Button
             className="order-6 col-span-2 sm:order-none sm:col-span-1"
@@ -724,10 +839,7 @@ export default function RevenuePage() {
       </div>
 
       {view === 'kpi' ? (
-        <RevenueKpiView
-          year={year}
-          filters={{ q: term, status, service_id: serviceId, am_user_id: am }}
-        />
+        <RevenueKpiView year={year} filters={baseFilters} />
       ) : (
         <>
           {/* Phễu doanh thu năm: cùng một khoản tiền đi qua các giai đoạn */}
@@ -935,7 +1047,14 @@ export default function RevenuePage() {
                         scope="col"
                         className="sticky top-0 left-0 z-30 min-w-64 border-r border-tr-border bg-tr-surface px-3 py-2.5"
                       >
-                        {t.card.customer}
+                        <span className="flex items-center justify-between gap-2">
+                          {t.card.customer}
+                          <RevenueCustomerFilter
+                            options={customerOptions}
+                            selected={customerIds}
+                            onChange={setCustomerIds}
+                          />
+                        </span>
                       </th>
                       <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
                         {t.revenue.am}
@@ -952,8 +1071,36 @@ export default function RevenuePage() {
                       <th scope="col" className="px-3 py-2.5 whitespace-nowrap">
                         {t.revenue.status}
                       </th>
-                      <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {t.revenue.total}
+                      <th
+                        scope="col"
+                        className="px-3 py-2.5 text-right whitespace-nowrap"
+                        aria-sort={
+                          totalSort === 'desc'
+                            ? 'descending'
+                            : totalSort === 'asc'
+                              ? 'ascending'
+                              : 'none'
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setTotalSort((prev) =>
+                              prev === null ? 'desc' : prev === 'desc' ? 'asc' : null
+                            )
+                          }
+                          title="Sắp xếp theo doanh thu: lớn → nhỏ, nhỏ → lớn, mặc định"
+                          className={`inline-flex items-center gap-1 rounded-control-inner px-1 py-0.5 transition hover:bg-tr-hover hover:text-tr-primary ${totalSort ? 'text-tr-primary' : ''} ${focusRing}`}
+                        >
+                          {t.revenue.total}
+                          {totalSort === 'desc' ? (
+                            <ArrowDown size={13} aria-hidden="true" />
+                          ) : totalSort === 'asc' ? (
+                            <ArrowUp size={13} aria-hidden="true" />
+                          ) : (
+                            <ArrowUpDown size={13} aria-hidden="true" className="text-tr-muted" />
+                          )}
+                        </button>
                       </th>
                       <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">
                         {t.revenue.receivable}
@@ -1099,7 +1246,7 @@ export default function RevenuePage() {
         {importOpen && (
           <RevenueImportDialog
             year={year}
-            filters={{ q: term, status, service_id: serviceId, am_user_id: am }}
+            filters={baseFilters}
             onClose={() => setImportOpen(false)}
           />
         )}

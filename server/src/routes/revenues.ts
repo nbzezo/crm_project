@@ -162,6 +162,15 @@ function buildFilters(req: Request): { sql: string; params: unknown[] } {
     where.push('cs.customer_id = ?');
     params.push(Number(query.customer_id));
   }
+  /* Bo loc o tieu de cot Khach hang: chon nhieu khach, gui dang "1,2,3". */
+  const customerIds = String(query.customer_ids ?? '')
+    .split(',')
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0);
+  if (customerIds.length > 0) {
+    where.push(`cs.customer_id IN (${inList(customerIds)})`);
+    params.push(...customerIds);
+  }
   if (query.service_id) {
     where.push('cs.service_id = ?');
     params.push(Number(query.service_id));
@@ -314,11 +323,16 @@ function selectLines(req: Request, year: number) {
     )
     .all(...params) as Record<string, unknown>[];
   const attached = attachMonths(lines, year, only);
+  /* "Chi dong con cong no": con tien o buoc xuat hoa don ma chua thu, tinh tren
+     cac thang thuoc nhom dang xem — cung cach giao dien tinh cot Cong no. */
+  const debtOnly = req.query.has_debt === '1';
   return {
     only,
-    lines: only
-      ? attached.filter((line) => Object.values(line.groups).some((g) => only.has(g)))
-      : attached,
+    lines: attached.filter(
+      (line) =>
+        (!only || Object.values(line.groups).some((g) => only.has(g))) &&
+        (!debtOnly || line.totals.stage_invoiced_vnd > 0)
+    ),
   };
 }
 
@@ -1469,6 +1483,29 @@ router.get('/ams', (_req, res) => {
           ORDER BY u.is_active DESC, name COLLATE NOCASE`
       )
       .all()
+  );
+});
+
+/**
+ * Khach hang chon duoc o bo loc cot Khach hang: nhung khach co dong doanh thu
+ * ma nguoi xem duoc phep thay. Khong phu thuoc bo loc dang bat, de danh sach
+ * khong co lai khi da chon mot vai khach.
+ */
+router.get('/customers', (req, res) => {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  pushScope(where, params, scopeWhereOrUnowned(req, 'revenues', 'read', 'cs.owner_contact_id'));
+  res.json(
+    db
+      .prepare(
+        `SELECT c.id, c.name, COUNT(cs.id) AS line_count
+           FROM customer_services cs
+           JOIN customers c ON c.id = cs.customer_id AND c.org_kind = 'customer'
+           ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+          GROUP BY c.id
+          ORDER BY c.name COLLATE NOCASE`
+      )
+      .all(...params)
   );
 });
 

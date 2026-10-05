@@ -225,3 +225,52 @@ test('tao dong Nen kem AM la nguoi dung va TB thang nam truoc', async () => {
   });
   assert.equal(noMonth.status, 422);
 });
+
+test('loc nhieu khach hang o cot Khach hang', async () => {
+  const otherId = Number(
+    db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Khách B', 'customer')`).run()
+      .lastInsertRowid
+  );
+  const otherLine = Number(
+    db
+      .prepare(`INSERT INTO customer_services (customer_id, contract_kind) VALUES (?, 'new')`)
+      .run(otherId).lastInsertRowid
+  );
+  addRevenue(otherLine, '2026-02', 70);
+
+  const options = await call('GET', '/api/revenues/customers');
+  assert.deepEqual(
+    options.data.map((c: { name: string }) => c.name),
+    ['Khách A', 'Khách B']
+  );
+
+  const onlyB = await call('GET', `/api/revenues/lines?year=2026&customer_ids=${otherId}`);
+  assert.deepEqual(
+    onlyB.data.lines.map((l: { id: number }) => l.id),
+    [otherLine]
+  );
+  const summary = await call('GET', `/api/revenues/summary?year=2026&customer_ids=${otherId}`);
+  assert.equal(summary.data.totals.amount_vnd, 70);
+
+  const both = await call(
+    'GET',
+    `/api/revenues/lines?year=2026&customer_ids=${customerId},${otherId}`
+  );
+  assert.ok(both.data.lines.some((l: { id: number }) => l.id === lineA));
+  assert.ok(both.data.lines.some((l: { id: number }) => l.id === otherLine));
+
+  /* Chi dong con cong no: dong B co thang 2 dang o buoc xuat hoa don. */
+  db.prepare(`UPDATE service_revenues SET stage = 'invoiced' WHERE line_id = ?`).run(otherLine);
+  const debt = await call('GET', '/api/revenues/lines?year=2026&has_debt=1');
+  assert.deepEqual(
+    debt.data.lines.map((l: { id: number }) => l.id),
+    [otherLine]
+  );
+  const debtSummary = await call('GET', '/api/revenues/summary?year=2026&has_debt=1');
+  assert.equal(debtSummary.data.totals.stage_invoiced_vnd, 70);
+  assert.equal(debtSummary.data.line_count, 1);
+
+  /* Gia tri rac bi bo qua thay vi lam hong truy van. */
+  const junk = await call('GET', '/api/revenues/lines?year=2026&customer_ids=abc,,');
+  assert.equal(junk.status, 200);
+});

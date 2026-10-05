@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.19.0',
+    date: '2026-10-05',
+    title: 'Lọc bảng doanh thu theo khách hàng và công nợ',
+    changes: [
+      'Tiêu đề cột "Khách hàng" trong bảng doanh thu có nút lọc: tìm theo tên (gõ không dấu cũng được), tích chọn một hoặc nhiều khách. Thanh lọc hiện tên khách đang lọc, bấm × để bỏ.',
+      'Thanh lọc có thêm ô chọn Loại hợp đồng (Mới / Mở rộng) và Thời hạn hợp đồng.',
+      'Ô "Chỉ dòng còn công nợ" giữ lại các dòng còn tiền đã xuất hoá đơn mà khách chưa trả; dải phễu và các con số tổng cũng tính theo.',
+      'Bấm tiêu đề cột Doanh thu để sắp xếp lớn → nhỏ, nhỏ → lớn, rồi về thứ tự mặc định. Khi bật "Nhóm theo khách hàng", các nhóm xếp theo tổng doanh thu của khách.',
+      'Lọc theo khách hàng, loại và thời hạn hợp đồng áp dụng cho cả màn KPI và file mẫu nhập Excel.',
+    ],
+  },
+  {
     version: '1.18.0',
     date: '2026-10-05',
     title: 'Chọn giờ nhắc ngay khi tạo việc',

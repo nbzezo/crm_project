@@ -1405,6 +1405,13 @@ export interface RevenueKpiMonth {
 export type RevenueKpiStatus = 'counted' | 'base_growth' | 'lost' | 'pending' | 'missing_baseline';
 
 /** Người dùng chọn được làm AM. */
+/** Khách hàng chọn được ở bộ lọc cột Khách hàng của bảng doanh thu. */
+export interface RevenueCustomerOption {
+  id: number;
+  name: string;
+  line_count: number;
+}
+
 export interface RevenueAmOption {
   id: number;
   name: string;
