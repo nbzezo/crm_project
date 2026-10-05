@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import {
   ArchiveRestore,
@@ -36,6 +36,7 @@ import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import { formatDate, formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
 import { ShareButton } from '../share/ShareButton';
+import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../../types';
 
 type PendingAction = { type: 'trash' | 'permanent'; ids: number[] } | null;
@@ -93,20 +94,27 @@ export function DocumentsLibrary() {
     queryFn: () => api.get<Customer[]>('/api/customers'),
     staleTime: 60_000,
   });
+  /* Co hoi / hop dong / bao gia chi dung trong ngan Tai len va ngan sua thong tin —
+     tai luc mo ngan thay vi luc vao trang. Ba danh sach nay co the len hang chuc MB,
+     va may chu mot luong bat trang tai lieu xep hang cho chung. */
+  const needLinkOptions = uploadOpen || editing !== null;
   const { data: dealsData } = useQuery({
     queryKey: ['deals', 'document-select'],
     queryFn: () => api.get<DealsResponse>('/api/deals'),
     staleTime: 60_000,
+    enabled: needLinkOptions,
   });
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'document-select'],
     queryFn: () => api.get<Contract[]>('/api/contracts'),
     staleTime: 60_000,
+    enabled: needLinkOptions,
   });
   const { data: quotations = [] } = useQuery({
     queryKey: ['quotations', 'document-select'],
     queryFn: () => api.get<Quotation[]>('/api/quotations'),
     staleTime: 60_000,
+    enabled: needLinkOptions,
   });
   const options: DocumentOptions = useMemo(
     () => ({
@@ -118,23 +126,50 @@ export function DocumentsLibrary() {
     [contracts, customers, dealsData, quotations]
   );
 
+  /* Theo trang (1.21.0): moi nhat truoc, tai dan khi cuon. Truoc day tai ca thu
+     vien mot luc — vai chuc nghin tai lieu la hang chuc MB. */
+  const filterParams = {
+    q: debounced,
+    doc_type: docType,
+    customer_id: customerId,
+    trash: view === 'trash' ? 1 : undefined,
+  };
   const {
-    data: documents = [],
+    data: pages,
     isLoading,
     error,
     refetch,
-  } = useQuery({
-    queryKey: ['documents', { q: debounced, docType, customerId, view }],
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['documents', 'library', filterParams],
+    queryFn: ({ pageParam }) =>
+      api.get<{ items: CrmDocument[]; next_cursor: string | null }>(
+        `/api/documents/page${qs({ ...filterParams, cursor: pageParam })}`
+      ),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
+  });
+  const loaded = useMemo(() => pages?.pages.flatMap((page) => page.items) ?? [], [pages]);
+  /* Mo tu lien ket (?focus=): tai lieu do co the chua nam trong trang dau — lay rieng
+     va dat len dau de van cuon toi va to sang duoc. */
+  const focusMissing = focusId != null && !isLoading && !loaded.some((d) => d.id === focusId);
+  const { data: focusDocs = [] } = useQuery({
+    queryKey: ['documents', 'focus', focusId, view],
     queryFn: () =>
       api.get<CrmDocument[]>(
-        `/api/documents${qs({
-          q: debounced,
-          doc_type: docType,
-          customer_id: customerId,
-          trash: view === 'trash' ? 1 : undefined,
-        })}`
+        `/api/documents${qs({ id: focusId, trash: view === 'trash' ? 1 : undefined })}`
       ),
+    enabled: focusMissing,
   });
+  const documents = useMemo(
+    () => (focusMissing ? [...focusDocs, ...loaded] : loaded),
+    [focusDocs, focusMissing, loaded]
+  );
+  const loadMoreDocuments = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   useEffect(() => setSelected([]), [view, docType, customerId, debounced]);
 
@@ -694,6 +729,14 @@ export function DocumentsLibrary() {
               </tbody>
             </table>
           </div>
+        )}
+        {!isLoading && !error && documents.length > 0 && (
+          <LoadMoreSentinel
+            hasMore={Boolean(hasNextPage)}
+            loading={isFetchingNextPage}
+            onLoadMore={loadMoreDocuments}
+            label="Tải thêm tài liệu cũ hơn"
+          />
         )}
       </section>
 

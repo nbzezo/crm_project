@@ -5,9 +5,9 @@ import { NavLink } from 'react-router';
 import { api } from '../../api/client';
 import { usePermissionCheck } from '../../lib/permissions';
 import { useUiStore } from '../../stores/uiStore';
-import type { NotificationFeed, TaskRow } from '../../types';
-import { selectNeedsNudge } from '../../lib/followUp';
+import type { NotificationFeed } from '../../types';
 import { MoreSheet } from './MoreSheet';
+import { useTaskCounts } from '../../hooks/useTaskCounts';
 
 function Badge({ count, tone = 'primary' }: { count: number; tone?: 'primary' | 'danger' }) {
   if (!count) return null;
@@ -30,11 +30,7 @@ export function MobileTabBar() {
     queryFn: () => api.get<NotificationFeed>('/api/notifications'),
     staleTime: 60_000,
   });
-  const { data: tasks } = useQuery({
-    queryKey: ['tasks', 'follow-up'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
-    staleTime: 60_000,
-  });
+  const { data: counts } = useTaskCounts({ staleTime: 60_000 });
   const tabs = [
     { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
     allowed('tasks:read')
@@ -46,7 +42,7 @@ export function MobileTabBar() {
           to: '/follow-up',
           label: 'Theo dõi',
           icon: BellRing,
-          badge: tasks ? selectNeedsNudge(tasks).length : 0,
+          badge: counts?.nudge ?? 0,
           tone: 'danger' as const,
         }
       : null,

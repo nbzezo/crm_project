@@ -118,8 +118,8 @@ function useBoards() {
   });
 }
 
-/* Dung chung queryKey voi ReminderBell ('notifications') va FollowUpPage
-   ('tasks','follow-up') de React Query gop request, khong goi API rieng. */
+/* Dung chung queryKey voi ReminderBell ('notifications') va man Cong viec
+   ('tasks','counts') de React Query gop request, khong goi API rieng. */
 interface NavBadgeProps {
   badge?: number;
   badgeTone?: 'primary' | 'danger';

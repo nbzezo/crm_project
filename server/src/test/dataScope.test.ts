@@ -293,6 +293,15 @@ test('danh sach cong viec: viec cua minh, viec tren bang minh thay, va viec chua
   /* N2 khong so huu bang nao co the, va viec duy nhat trong he thong duoc giao
      cho N1 tren bang cua Truong phong — nen N2 khong thay gi. */
   assert.equal(count((await call('GET', '/api/views/tasks')).data), 0);
+  /* So dem thanh ben va trang "viec cu" dung chung luat pham vi voi danh sach. */
+  const hiddenCounts = (await call('GET', '/api/views/tasks/counts')).data as Record<
+    string,
+    number
+  >;
+  assert.equal(hiddenCounts.owned, 0);
+  const older = await call('GET', '/api/views/tasks/older?days=1');
+  assert.equal(older.status, 200);
+  assert.deepEqual((older.data as { items: unknown[] }).items, []);
 
   await signInAs(n1);
   assert.equal(
@@ -300,6 +309,9 @@ test('danh sach cong viec: viec cua minh, viec tren bang minh thay, va viec chua
     1,
     'viec giao cho minh phai thay du nam tren bang nguoi khac'
   );
+  const counts = (await call('GET', '/api/views/tasks/counts')).data as Record<string, number>;
+  assert.equal(counts.owned, 1);
+  assert.equal(counts.assigned, 1);
 });
 
 test('cong viec chung tach theo nguoi dung va khong lo task giua tai khoan', async () => {

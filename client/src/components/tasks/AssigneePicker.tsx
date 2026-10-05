@@ -13,6 +13,37 @@ const ORG_TONE: Record<OrgKind, string> = {
   vendor: 'bg-violet-500/15 text-violet-400',
 };
 
+/*
+ * Lựa chọn cho ô người phụ trách, dựng MỘT lần cho mỗi bản dữ liệu danh bạ.
+ *
+ * Mỗi dòng của danh sách Công việc có một ô chọn. Dựng lại mảng lựa chọn ở từng
+ * ô, mỗi lần vẽ, là (số dòng × số người) đối tượng — 300 dòng × 20.000 người đủ
+ * làm treo trình duyệt. Mọi ô dùng chung một mảng `assignees` từ React Query nên
+ * khoá theo chính mảng đó.
+ */
+const optionCache = {
+  short: new WeakMap<Assignee[], ComboboxOption[]>(),
+  withTitle: new WeakMap<Assignee[], ComboboxOption[]>(),
+};
+
+function assigneeOptions(
+  assignees: Assignee[],
+  variant: keyof typeof optionCache
+): ComboboxOption[] {
+  const cache = optionCache[variant];
+  const cached = cache.get(assignees);
+  if (cached) return cached;
+  const options = assignees.map((p) => ({
+    id: p.id,
+    label: `${p.full_name}${p.is_me ? ' (tôi)' : ''}${variant === 'withTitle' && p.title ? ` — ${p.title}` : ''}`,
+    sublabel: `${p.org_name} · ${t.orgKind[p.org_kind]}`,
+  }));
+  cache.set(assignees, options);
+  return options;
+}
+
+const NO_ASSIGNEES: Assignee[] = [];
+
 /**
  * Danh bạ người có thể giao việc.
  *
@@ -77,7 +108,7 @@ export function AssigneePicker({
   label?: string;
   hint?: string;
 }) {
-  const { data: assignees = [] } = useAssignees();
+  const { data: assignees = NO_ASSIGNEES } = useAssignees();
   const onQuickCreate = useQuickCreateAssignee(assignees);
 
   return (
@@ -85,11 +116,7 @@ export function AssigneePicker({
       <Combobox
         value={value ?? ''}
         onChange={(v) => onChange(v === '' ? null : v)}
-        options={assignees.map((p) => ({
-          id: p.id,
-          label: `${p.full_name}${p.is_me ? ' (tôi)' : ''}${p.title ? ` — ${p.title}` : ''}`,
-          sublabel: `${p.org_name} · ${t.orgKind[p.org_kind]}`,
-        }))}
+        options={assigneeOptions(assignees, 'withTitle')}
         placeholder={`— ${t.card.unassigned} —`}
         searchPlaceholder="Tìm người phụ trách…"
         emptyText="Không tìm thấy ai phù hợp."
@@ -114,18 +141,14 @@ export function AssigneeSelect({
   onChange: (value: number | null) => void;
   taskTitle: string;
 }) {
-  const { data: assignees = [] } = useAssignees();
+  const { data: assignees = NO_ASSIGNEES } = useAssignees();
   const onQuickCreate = useQuickCreateAssignee(assignees);
 
   return (
     <Combobox
       value={value ?? ''}
       onChange={(v) => onChange(v === '' ? null : v)}
-      options={assignees.map((p) => ({
-        id: p.id,
-        label: `${p.full_name}${p.is_me ? ' (tôi)' : ''}`,
-        sublabel: `${p.org_name} · ${t.orgKind[p.org_kind]}`,
-      }))}
+      options={assigneeOptions(assignees, 'short')}
       placeholder={`— ${t.card.unassigned} —`}
       searchPlaceholder="Tìm người phụ trách…"
       emptyText="Không tìm thấy ai phù hợp."

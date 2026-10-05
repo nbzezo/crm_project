@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { db, FILES_DIR } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { DOC_TYPES } from '../lib/crm.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
@@ -130,7 +131,8 @@ function placeholders(ids: number[]): string {
   return ids.map(() => '?').join(',');
 }
 
-router.get('/', (req, res) => {
+/** Dieu kien loc thu vien tai lieu — dung chung cho danh sach day du va ban phan trang. */
+function documentWhere(req: Request): { where: string[]; params: unknown[] } {
   const where: string[] = [
     req.query.trash === '1' ? 'dc.deleted_at IS NOT NULL' : 'dc.deleted_at IS NULL',
   ];
@@ -140,7 +142,8 @@ router.get('/', (req, res) => {
     where.push(`dc.search_text LIKE '%' || ? || '%'`);
     params.push(q);
   }
-  for (const key of [...LINK_COLUMNS, 'doc_type', 'confidentiality'] as string[]) {
+  /* `id`: mo dung mot tai lieu tu lien ket (?focus=) khi no chua nam trong trang dau. */
+  for (const key of ['id', ...LINK_COLUMNS, 'doc_type', 'confidentiality'] as string[]) {
     if (req.query[key]) {
       where.push(`dc.${key} = ?`);
       params.push(
@@ -150,12 +153,47 @@ router.get('/', (req, res) => {
       );
     }
   }
+  return { where, params };
+}
+
+/** Moc sap xep cua thu vien: ngay xoa (thung rac) hoac ngay tai len. */
+const DOC_SORT_KEY = 'COALESCE(dc.deleted_at, dc.created_at)';
+
+router.get('/', (req, res) => {
+  const { where, params } = documentWhere(req);
   res.json(
     db
       .prepare(
-        `${DOC_SELECT} WHERE ${where.join(' AND ')} ORDER BY COALESCE(dc.deleted_at, dc.created_at) DESC`
+        `${DOC_SELECT} WHERE ${where.join(' AND ')} ORDER BY ${DOC_SORT_KEY} DESC, dc.id DESC`
       )
       .all(...params)
+  );
+});
+
+/**
+ * Thu vien tai lieu theo trang (1.21.0) — moi nhat truoc, tai dan khi cuon. Ban day
+ * du `GET /` van giu cho cac khung tai lieu gan voi mot khach / co hoi / the (it dong).
+ */
+router.get('/page', (req, res) => {
+  const { where, params } = documentWhere(req);
+  const limit = pageLimit(req.query.limit);
+  const after = afterCursor(decodeCursor(req.query.cursor), DOC_SORT_KEY, 'dc.id');
+  if (after.sql) {
+    where.push(after.sql);
+    params.push(...after.params);
+  }
+  const rows = db
+    .prepare(
+      `${DOC_SELECT} WHERE ${where.join(' AND ')} ORDER BY ${DOC_SORT_KEY} DESC, dc.id DESC LIMIT ?`
+    )
+    .all(...params, limit + 1) as Record<string, unknown>[];
+  res.json(
+    toPage(
+      rows,
+      limit,
+      (row) => String(row.deleted_at ?? row.created_at),
+      (row) => Number(row.id)
+    )
   );
 });
 

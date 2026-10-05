@@ -7,6 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
+import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 
 const router = Router();
 
@@ -198,10 +199,38 @@ router.delete('/tasks/saved-views/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/tasks', (req, res) => {
+/** Cung moc voi NUDGE_HORIZON_DAYS o client (lib/followUp.ts). */
+const NUDGE_HORIZON_DAYS = 3;
+
+/** Viec "Can theo doi" — cung luat voi `selectNeedsNudge` o client. */
+const NUDGE_SQL = `(k.parent_id IS NULL AND (k.status IN ('blocked','waiting_customer')
+  OR (k.due_date IS NOT NULL
+      AND substr(k.due_date, 1, 10) <= date('now','localtime','+${NUDGE_HORIZON_DAYS} days'))))`;
+
+/** Pham vi co ban cua danh sach viec: bang/viec chua luu tru + luat pham vi CONG VIEC. */
+function baseTaskWhere(req: Request): { where: string[]; params: unknown[] } {
   const where: string[] = ['b.is_archived = 0', 'k.is_archived = 0'];
   const params: unknown[] = [];
+  /* Pham vi cong viec: viec tren bang minh thay, CONG viec giao cho minh o bat
+     ky dau. Trung tam cua luat nay la nguoi dung phai luon mo duoc chinh viec
+     minh dang phai lam, ke ca khi no nam tren bang cua nguoi khac.
 
+     Viec CHUA GIAO cung hien: do la rui ro lon nhat tren mot bang, giau di thi
+     khong ai biet no ton tai. */
+  const taskScope = scopeWhereOrUnowned(req, 'tasks', 'read', 'b.owner_contact_id');
+  if (taskScope.sql) {
+    where.push(`(${taskScope.sql} OR k.assignee_contact_id = ? OR k.assignee_contact_id IS NULL)`);
+    params.push(...taskScope.params, actorContactId(req));
+  }
+  return { where, params };
+}
+
+/**
+ * Dieu kien loc cua danh sach viec tu query string — dung chung cho `/tasks` va
+ * `/tasks/older` de hai nua cua mot danh sach luon loc giong het nhau.
+ */
+function taskFilterWhere(req: Request): { where: string[]; params: unknown[] } {
+  const { where, params } = baseTaskWhere(req);
   const q = fold(String(req.query.q ?? '').trim());
   if (q) {
     where.push(`k.search_text LIKE '%' || ? || '%'`);
@@ -261,17 +290,6 @@ router.get('/tasks', (req, res) => {
       params.push(me);
     }
   }
-  /* Pham vi cong viec: viec tren bang minh thay, CONG viec giao cho minh o bat
-     ky dau. Trung tam cua luat nay la nguoi dung phai luon mo duoc chinh viec
-     minh dang phai lam, ke ca khi no nam tren bang cua nguoi khac.
-
-     Viec CHUA GIAO cung hien: do la rui ro lon nhat tren mot bang, giau di thi
-     khong ai biet no ton tai. */
-  const taskScope = scopeWhereOrUnowned(req, 'tasks', 'read', 'b.owner_contact_id');
-  if (taskScope.sql) {
-    where.push(`(${taskScope.sql} OR k.assignee_contact_id = ? OR k.assignee_contact_id IS NULL)`);
-    params.push(...taskScope.params, actorContactId(req));
-  }
   if (req.query.done === '1') where.push(`k.is_done = 1`);
   if (req.query.done === '0') where.push(`k.is_done = 0`);
   if (req.query.card_status) {
@@ -284,6 +302,35 @@ router.get('/tasks', (req, res) => {
   if (req.query.overdue === '1')
     where.push(`k.is_done = 0 AND k.due_date IS NOT NULL AND k.due_date < date('now','localtime')`);
 
+  /* "Can theo doi" (FollowUp, huy hieu thanh ben): qua han / sap den han trong
+     NUDGE_HORIZON_DAYS ngay, hoac dang cho. Viec con di theo viec cha. Truoc day
+     client tai TOAN BO viec dang mo roi tu loc — voi vai chuc nghin viec la vai
+     chuc MB cho mot con so tren huy hieu. */
+  if (req.query.nudge === '1') where.push(NUDGE_SQL);
+  return { where, params };
+}
+
+/** Viec da xong tinh moc theo ngay hoan thanh; du lieu cu chua co thi lui ve ngay sua. */
+const DONE_AT = `COALESCE(k.completed_at, k.updated_at)`;
+
+/** So ngay "gan day" hop le cho `recent_days` / `days` (1..365), hoac null neu khong gui. */
+function recentDays(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const days = Number(raw);
+  if (!Number.isInteger(days) || days < 1 || days > 365)
+    throw new HttpError(400, 'So ngay phai tu 1 den 365');
+  return days;
+}
+
+router.get('/tasks', (req, res) => {
+  const { where, params } = taskFilterWhere(req);
+  /* Man Cong viec: viec dang mo luon hien; viec da xong chi lay trong N ngay gan
+     day. Phan cu hon tai dan qua /tasks/older khi nguoi dung cuon xuong. */
+  const days = recentDays(req.query.recent_days);
+  if (days != null) {
+    where.push(`(k.is_done = 0 OR ${DONE_AT} >= datetime('now','localtime','-${days} days'))`);
+  }
+
   const rows = db
     .prepare(
       `${TASK_SELECT} WHERE ${where.join(' AND ')}
@@ -292,6 +339,92 @@ router.get('/tasks', (req, res) => {
     .all(...params) as Record<string, unknown>[];
 
   res.json(attachPersonalTaskState(attachLabels(rows), actorContactId(req)));
+});
+
+/**
+ * Viec da xong CU HON `days` ngay, tung trang, moi nhat truoc — phan "tai dan khi
+ * cuon" cua man Cong viec. Cung bo loc voi `/tasks`.
+ *
+ * Hai buoc: chon id cua mot trang bang truy van gon (chi cards/lists/boards), roi
+ * moi lay du cot. Viet thang `TASK_SELECT ... ORDER BY ... LIMIT` thi SQLite tinh
+ * het 8 truy van con cho MOI viec da xong truoc khi sap xep va cat trang.
+ */
+router.get('/tasks/older', (req, res) => {
+  const days = recentDays(req.query.days) ?? 30;
+  const limit = pageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
+  const { where, params } = taskFilterWhere(req);
+  where.push(`k.is_done = 1`, `${DONE_AT} < datetime('now','localtime','-${days} days')`);
+  const after = afterCursor(cursor, DONE_AT, 'k.id');
+  if (after.sql) {
+    where.push(after.sql);
+    params.push(...after.params);
+  }
+  const ids = (
+    db
+      .prepare(
+        `SELECT k.id FROM cards k
+           JOIN lists l ON l.id = k.list_id
+           JOIN boards b ON b.id = l.board_id
+          WHERE ${where.join(' AND ')}
+          ORDER BY ${DONE_AT} DESC, k.id DESC
+          LIMIT ?`
+      )
+      .all(...params, limit + 1) as { id: number }[]
+  ).map((row) => row.id);
+  const rows =
+    ids.length === 0
+      ? []
+      : (db
+          .prepare(
+            `SELECT * FROM (${TASK_SELECT} WHERE k.id IN (${ids.map(() => '?').join(',')}))
+              ORDER BY COALESCE(completed_at, updated_at) DESC, id DESC`
+          )
+          .all(...ids) as Record<string, unknown>[]);
+  const page = toPage(
+    rows,
+    limit,
+    (row) => String(row.completed_at ?? row.updated_at),
+    (row) => Number(row.id)
+  );
+  res.json({
+    ...page,
+    items: attachPersonalTaskState(attachLabels(page.items), actorContactId(req)),
+  });
+});
+
+/**
+ * So dem cho thanh ben man Cong viec va huy hieu "Can theo doi". Truoc day client tai
+ * TOAN BO viec (ca da xong) chi de dem — request nang nhat cua ca ung dung.
+ */
+router.get('/tasks/counts', (req, res) => {
+  const { where, params } = baseTaskWhere(req);
+  const me = actorContactId(req) ?? -1;
+  const counts = db
+    .prepare(
+      `SELECT COALESCE(SUM(k.is_done = 0), 0) AS owned,
+              COALESCE(SUM(k.is_done = 0 AND k.assignee_contact_id = ?), 0) AS assigned,
+              COALESCE(SUM(k.is_done = 0 AND k.creator_contact_id = ?), 0) AS created,
+              COALESCE(SUM(k.is_done = 1), 0) AS completed,
+              COALESCE(SUM(k.is_done = 0 AND ${NUDGE_SQL}), 0) AS nudge,
+              COALESCE(SUM(k.is_done = 0 AND ${NUDGE_SQL}
+                           AND substr(k.due_date, 1, 10) = date('now','localtime')), 0) AS nudge_today
+         FROM cards k
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+        WHERE ${where.join(' AND ')}`
+    )
+    .get(me, me, ...params) as Record<string, number>;
+  const watching = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM task_watchers tw
+         JOIN cards k ON k.id = tw.card_id
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+        WHERE tw.contact_id = ? AND ${where.join(' AND ')}`
+    )
+    .get(me, ...params) as { n: number };
+  res.json({ ...counts, watching: watching.n });
 });
 
 /** Su kien cho trang Lich — cong viec, nhac hen, ngay chot du kien, han hop dong. */

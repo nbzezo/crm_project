@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   Archive,
@@ -36,6 +36,8 @@ import {
 } from '../../stores/uiStore';
 import type { Assignee, Board, Customer, Priority, Project, TaskRow } from '../../types';
 import { Combobox } from '../common/Combobox';
+import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
+import { useTaskCounts, type TaskCounts } from '../../hooks/useTaskCounts';
 import { Popover, usePopover } from '../common/Popover';
 import { PageShell } from '../common/PageShell';
 import { Button, ErrorState, Select, SkeletonRows, focusRing } from '../common/ui';
@@ -122,27 +124,77 @@ function taskParams(scope: TaskScope, filters: TaskFilters) {
   };
 }
 
+/** Viec da xong cu hon so ngay nay khong tai luc mo trang, ma tai dan khi cuon xuong. */
+const RECENT_DAYS = 30;
+
+interface TaskPage {
+  items: TaskRow[];
+  next_cursor: string | null;
+}
+
 function useWorkspaceTasks(scope: TaskScope) {
   const filters = useUiStore((state) => state.taskFilters);
   const params = taskParams(scope, filters);
-  return useQuery({
+  /* Man nay co the gom viec da xong (tab Hoan thanh, hoac trang thai "Tat ca"):
+     chi khi do moi co phan "cu hon 30 ngay" de tai dan. */
+  const includesDone = params.done !== '0';
+  const recent = useQuery({
     queryKey: ['tasks', 'workspace', scope, params],
-    queryFn: () => api.get<TaskRow[]>(`/api/views/tasks${qs(params)}`),
+    queryFn: () =>
+      api.get<TaskRow[]>(`/api/views/tasks${qs({ ...params, recent_days: RECENT_DAYS })}`),
     enabled: scope !== 'activity',
-    select: (rows) =>
-      rows.filter((task) => {
-        if (filters.due === 'none') return task.due_date === null;
-        if (!filters.due || filters.due === 'overdue') return true;
-        if (!task.due_date) return false;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const due = new Date(`${task.due_date.slice(0, 10)}T00:00:00`);
-        const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
-        if (filters.due === 'today') return days === 0;
-        if (filters.due === 'tomorrow') return days === 1;
-        return days >= 0 && days <= 7;
-      }),
   });
+  /* Bat phan "cu hon" chi sau khi nguoi dung cuon toi cuoi — va gan voi dung bo
+     loc luc do. Da bat thi query la "active", nen sua mot viec (invalidate ['tasks'])
+     se tai lai ca cac trang cu da mo, khong de so lieu cu nam lai. */
+  const olderKey = JSON.stringify([scope, params]);
+  const [olderStartedFor, setOlderStartedFor] = useState<string | null>(null);
+  const olderStarted = olderStartedFor === olderKey;
+  const older = useInfiniteQuery({
+    queryKey: ['tasks', 'workspace-older', scope, params],
+    queryFn: ({ pageParam }) =>
+      api.get<TaskPage>(
+        `/api/views/tasks/older${qs({ ...params, days: RECENT_DAYS, cursor: pageParam })}`
+      ),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
+    enabled: includesDone && scope !== 'activity' && olderStarted,
+  });
+  const { hasNextPage, isFetching: olderFetching, fetchNextPage } = older;
+  const loadOlder = useCallback(() => {
+    if (!olderStarted) setOlderStartedFor(olderKey);
+    else if (hasNextPage && !olderFetching) void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, olderFetching, olderKey, olderStarted]);
+
+  const rows = useMemo(() => {
+    const olderRows = olderStarted ? (older.data?.pages.flatMap((page) => page.items) ?? []) : [];
+    const merged = [...(recent.data ?? []), ...olderRows];
+    return merged.filter((task) => {
+      if (filters.due === 'none') return task.due_date === null;
+      if (!filters.due || filters.due === 'overdue') return true;
+      if (!task.due_date) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const due = new Date(`${task.due_date.slice(0, 10)}T00:00:00`);
+      const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+      if (filters.due === 'today') return days === 0;
+      if (filters.due === 'tomorrow') return days === 1;
+      return days >= 0 && days <= 7;
+    });
+  }, [filters.due, older.data, olderStarted, recent.data]);
+
+  return {
+    data: rows,
+    isLoading: recent.isLoading,
+    error: recent.error,
+    refetch: recent.refetch,
+    older: {
+      enabled: includesDone && scope !== 'activity',
+      hasMore: !olderStarted || Boolean(hasNextPage),
+      loading: olderFetching,
+      load: loadOlder,
+    },
+  };
 }
 
 function WorkspaceSidebar({
@@ -150,7 +202,7 @@ function WorkspaceSidebar({
   onScope,
   collapsed,
   onToggle,
-  summary,
+  counts: serverCounts,
   boards,
   savedViews,
   onApplySavedView,
@@ -160,20 +212,15 @@ function WorkspaceSidebar({
   onScope: (scope: TaskScope) => void;
   collapsed: boolean;
   onToggle: () => void;
-  summary: TaskRow[];
+  counts: TaskCounts | undefined;
   boards: Board[];
   savedViews: SavedTaskView[];
   onApplySavedView: (view: SavedTaskView) => void;
   onDeleteSavedView: (view: SavedTaskView) => void;
 }) {
   const userId = useAuthStore((state) => state.user?.id);
-  const counts = {
-    owned: summary.filter((task) => !task.is_done).length,
-    assigned: summary.filter((task) => !task.is_done && task.is_assigned_to_me).length,
-    created: summary.filter((task) => !task.is_done && task.is_created_by_me).length,
-    watching: summary.filter((task) => task.is_watching).length,
-    completed: summary.filter((task) => task.is_done).length,
-  };
+  /* So dem tinh o may chu (/tasks/counts) — truoc day tai TOAN BO viec ve de dem. */
+  const counts: Partial<TaskCounts> = serverCounts ?? {};
   const items: { key: TaskScope; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'owned', label: 'Đang mở', icon: <UserRound size={16} />, count: counts.owned },
     { key: 'assigned', label: 'Được giao', icon: <UserCheck size={16} />, count: counts.assigned },
@@ -503,12 +550,19 @@ export function TasksWorkspace() {
   const resetFilters = useUiStore((state) => state.resetTaskFilters);
   const filterPopover = usePopover();
   const columnPopover = usePopover();
-  const { data: tasks = [], isLoading, error, refetch } = useWorkspaceTasks(scope);
-  const { data: summary = [] } = useQuery({
-    queryKey: ['tasks', 'workspace-summary'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks'),
-    staleTime: 30_000,
-  });
+  const { data: tasks, isLoading, error, refetch, older } = useWorkspaceTasks(scope);
+  /* Moc tai viec da xong cu hon 30 ngay. O che do Danh sach, no chi hien khi danh
+     sach da ve het cac dong dang co (TaskWorkspaceList ve dan tung dot). */
+  const olderSentinel = older.enabled ? (
+    <LoadMoreSentinel
+      hasMore={older.hasMore}
+      loading={older.loading}
+      onLoadMore={older.load}
+      label={`Tải việc đã xong cũ hơn ${RECENT_DAYS} ngày`}
+      endLabel="Đã hiện hết việc đã xong"
+    />
+  ) : null;
+  const { data: counts } = useTaskCounts();
   const { data: boards = [] } = useQuery({
     queryKey: ['boards', false],
     queryFn: () => api.get<Board[]>('/api/boards'),
@@ -594,7 +648,7 @@ export function TasksWorkspace() {
           onScope={applyScope}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((value) => !value)}
-          summary={summary}
+          counts={counts}
           boards={boards}
           savedViews={savedViews}
           onApplySavedView={applySaved}
@@ -964,9 +1018,15 @@ export function TasksWorkspace() {
             ) : error ? (
               <ErrorState onRetry={() => refetch()} />
             ) : mode === 'kanban' ? (
-              <TaskWorkspaceKanban tasks={tasks} group={group} />
+              <>
+                <TaskWorkspaceKanban tasks={tasks} group={group} />
+                {olderSentinel}
+              </>
             ) : mode === 'calendar' ? (
-              <TaskWorkspaceCalendar tasks={tasks} />
+              <>
+                <TaskWorkspaceCalendar tasks={tasks} />
+                {olderSentinel}
+              </>
             ) : (
               <TaskWorkspaceList
                 tasks={tasks}
@@ -978,6 +1038,7 @@ export function TasksWorkspace() {
                     <Plus size={15} /> Thêm công việc
                   </Button>
                 }
+                footer={olderSentinel}
               />
             )}
           </div>

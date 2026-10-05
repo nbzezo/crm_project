@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   Check,
@@ -35,6 +35,7 @@ import { NUDGE_HORIZON_DAYS, selectNeedsNudge } from '../lib/followUp';
 import { invalidateCardViews } from '../lib/queryKeys';
 import { useUiStore } from '../stores/uiStore';
 import type { NudgeChannel, TaskRow } from '../types';
+import { useFollowUpTasks } from '../hooks/useFollowUpTasks';
 
 interface DraftResult {
   subject: string;
@@ -68,15 +69,7 @@ export default function FollowUpPage() {
   const openCard = useUiStore((s) => s.openCard);
   const [drafting, setDrafting] = useState<Group | null>(null);
 
-  const {
-    data: tasks = [],
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ['tasks', 'follow-up'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
-  });
+  const { data: tasks = [], isLoading, error, refetch } = useFollowUpTasks();
 
   const needsNudge = selectNeedsNudge(tasks);
 

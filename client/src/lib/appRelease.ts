@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.21.0',
+    date: '2026-10-05',
+    title: 'Công việc và Tài liệu tải dần khi cuộn',
+    changes: [
+      'Màn Công việc chỉ tải việc đang mở và việc xong trong 30 ngày gần nhất. Việc xong cũ hơn tự tải thêm từng đợt khi cuộn xuống cuối danh sách, hoặc bấm "Tải việc đã xong cũ hơn 30 ngày".',
+      'Danh sách dài được hiện dần từng 300 dòng khi cuộn, nên màn Công việc mở ngay cả khi có hàng chục nghìn việc thay vì làm treo trình duyệt.',
+      'Số đếm ở cột trái màn Công việc và huy hiệu "Cần theo dõi" trên menu được tính sẵn ở máy chủ: các trang không còn phải tải cả danh sách việc chỉ để đếm.',
+      'Thư viện Tài liệu hiện 200 tài liệu mới nhất, cuộn xuống để xem thêm. Mở tài liệu từ một liên kết vẫn tìm và tô sáng đúng tài liệu đó.',
+      'Ô chọn người phụ trách mở nhanh hơn khi danh bạ lớn: hiện 200 người đầu, gõ tên để tìm trong toàn bộ danh bạ.',
+    ],
+  },
+  {
     version: '1.20.1',
     date: '2026-10-05',
     title: 'Danh sách lớn mở nhanh hơn nhiều',

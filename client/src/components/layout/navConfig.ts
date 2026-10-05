@@ -20,10 +20,10 @@ import {
   Users,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import { selectNeedsNudge } from '../../lib/followUp';
 import { usePermissionCheck, type PermissionKey } from '../../lib/permissions';
 import { t } from '../../i18n/vi';
-import type { NotificationFeed, TaskRow } from '../../types';
+import type { NotificationFeed } from '../../types';
+import { useTaskCounts } from '../../hooks/useTaskCounts';
 
 export interface NavItem {
   to: string;
@@ -202,13 +202,9 @@ export function useNavBadges(): Record<string, number> {
     queryFn: () => api.get<NotificationFeed>('/api/notifications'),
     refetchInterval: 60_000,
   });
-  const { data: tasks } = useQuery({
-    queryKey: ['tasks', 'follow-up'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
-    staleTime: 60_000,
-  });
+  const { data: counts } = useTaskCounts({ staleTime: 60_000 });
   return {
     '/tasks': feed?.counts.task ?? 0,
-    '/follow-up': tasks ? selectNeedsNudge(tasks).length : 0,
+    '/follow-up': counts?.nudge ?? 0,
   };
 }

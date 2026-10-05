@@ -4,6 +4,12 @@ import { Popover, PopoverItem } from './Popover';
 import { focusRing } from './ui';
 import { normalizeSearchText } from '../../lib/text';
 
+/*
+ * So muc ve toi da khi mo danh sach. Danh ba nguoi phu trach co the len hang chuc
+ * nghin nguoi; ve het la treo trinh duyet moi lan mo. Tim kiem van chay tren TOAN BO.
+ */
+const MAX_VISIBLE = 200;
+
 export interface ComboboxOption {
   id: number;
   label: string;
@@ -195,7 +201,7 @@ export function Combobox({
               </span>
             </PopoverItem>
           )}
-          {filtered.map((o) => (
+          {filtered.slice(0, MAX_VISIBLE).map((o) => (
             <PopoverItem
               key={o.id}
               onClick={() => select(o.id)}
@@ -213,6 +219,11 @@ export function Combobox({
               </span>
             </PopoverItem>
           ))}
+          {filtered.length > MAX_VISIBLE && (
+            <p className="px-2 py-1.5 text-xs text-tr-muted">
+              Còn {filtered.length - MAX_VISIBLE} mục nữa — gõ thêm để thu hẹp.
+            </p>
+          )}
           {onQuickCreate && query.trim() && (
             <button
               type="button"

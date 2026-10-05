@@ -54,6 +54,9 @@ import publicShare from './routes/publicShare.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(here, '../../client/dist');
 
+/** Request lau hon muc nay bi ghi `[slow]` ra log. */
+const SLOW_REQUEST_MS = 1000;
+
 interface AppOptions {
   /** Bat lop dang nhap (session + requireAuth). Tat trong unit test khong can auth. */
   auth?: boolean;
@@ -67,6 +70,22 @@ export function createApp(options: AppOptions = {}): Express {
   // khac cua helmet (HSTS, X-Content-Type-Options, X-Frame-Options...) van bat.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: '5mb' }));
+
+  /* Ghi lai request cham. Node mot luong + SQLite dong bo: mot request 3 s la 3 s
+     MOI nguoi dung khac cung cho, nen can thay ngay trong `docker logs`. Chi ghi
+     duong dan, khong ghi query string (co the chua tu khoa tim kiem, ten khach). */
+  app.use((req, res, next) => {
+    const started = performance.now();
+    res.on('finish', () => {
+      const ms = performance.now() - started;
+      if (ms >= SLOW_REQUEST_MS) {
+        console.warn(
+          `[slow] ${req.method} ${req.baseUrl}${req.path} ${res.statusCode} ${Math.round(ms)}ms`
+        );
+      }
+    });
+    next();
+  });
 
   if (useAuth) {
     const secret = process.env.WORKFLOW_SESSION_SECRET;

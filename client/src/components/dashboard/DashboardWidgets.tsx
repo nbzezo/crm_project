@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import {
   Activity,
@@ -23,9 +22,8 @@ import {
 import { OPEN_STAGES, STAGE_COLORS, t } from '../../i18n/vi';
 import { formatDate, formatDateShort, formatVNDShort } from '../../lib/format';
 import { AssigneeChip } from '../tasks/AssigneePicker';
-import { api } from '../../api/client';
-import { selectNeedsNudge } from '../../lib/followUp';
 import type { Interaction, OrgKind, Reminder, Stage, TaskRow } from '../../types';
+import { useTaskCounts } from '../../hooks/useTaskCounts';
 
 interface AttentionDeal {
   id: number;
@@ -139,13 +137,9 @@ export function KpiSummary({
 }) {
   /* Chung query voi badge "Cần theo dõi" o sidebar/thanh tab (navConfig) nen
      React Query gop thanh mot request. */
-  const { data: openTasks } = useQuery({
-    queryKey: ['tasks', 'follow-up'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
-    staleTime: 60_000,
-  });
-  const followUp = openTasks ? selectNeedsNudge(openTasks) : [];
-  const followUpToday = followUp.filter((task) => daysFromToday(task.due_date) === 0).length;
+  const { data: taskCounts } = useTaskCounts({ staleTime: 60_000 });
+  const followUpCount = taskCounts?.nudge ?? 0;
+  const followUpToday = taskCounts?.nudge_today ?? 0;
   // Bucket qua han sap theo han tang dan (server), nen phan tu dau la viec tre lau nhat.
   const oldestOverdueDays = Math.abs(daysFromToday(data.tasks.overdue[0]?.due_date) ?? 0);
   const overdue = data.task_counts.overdue;
@@ -176,7 +170,7 @@ export function KpiSummary({
     {
       icon: BellRing,
       label: 'Cần theo dõi',
-      value: String(followUp.length),
+      value: String(followUpCount),
       hint: `${followUpToday} hôm nay`,
       tone: 'business',
       to: '/follow-up',

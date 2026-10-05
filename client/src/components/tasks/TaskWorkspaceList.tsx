@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, ChevronRight, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
@@ -10,6 +10,7 @@ import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { useUiStore } from '../../stores/uiStore';
 import type { Assignee, Priority, TaskRow } from '../../types';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import { EmptyState, InlineDate, focusRing } from '../common/ui';
 import { AssigneeSelect, useAssignees } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
@@ -260,18 +261,24 @@ function BulkBar({
   );
 }
 
+/** So dong ve them moi lan cuon toi cuoi danh sach. */
+const RENDER_STEP = 300;
+
 export function TaskWorkspaceList({
   tasks,
   columns,
   group,
   sort,
   emptyAction,
+  footer,
 }: {
   tasks: TaskRow[];
   columns: TaskColumnKey[];
   group: TaskGroup;
   sort: TaskSort;
   emptyAction?: React.ReactNode;
+  /** Hien duoi danh sach khi da ve het cac dong dang co (vd moc tai viec cu hon). */
+  footer?: React.ReactNode;
 }) {
   const isWide = useMediaQuery(MD_QUERY);
   const queryClient = useQueryClient();
@@ -281,10 +288,29 @@ export function TaskWorkspaceList({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [collapsedParents, setCollapsedParents] = useState<Set<number>>(new Set());
-  const groups = useMemo(
+  const allGroups = useMemo(
     () => nestTasks(tasks, group, sort, collapsedParents),
     [tasks, group, sort, collapsedParents]
   );
+  /* Ve dan (1.21.0): moi lan RENDER_STEP dong, cuon toi cuoi thi ve tiep. Ve mot
+     luc vai chuc nghin dong lam treo trinh duyet hang chuc giay. Tieu de nhom van
+     hien tong day du; chi phan dong ben trong bi cat. */
+  const [renderLimit, setRenderLimit] = useState(RENDER_STEP);
+  const { groups, hiddenRows, shownRows } = useMemo(() => {
+    let budget = renderLimit;
+    let hidden = 0;
+    let shown = 0;
+    const visible = allGroups.map((taskGroup) => {
+      if (collapsed.has(taskGroup.key)) return taskGroup;
+      const rows = taskGroup.rows.slice(0, Math.max(0, budget));
+      budget -= rows.length;
+      shown += rows.length;
+      hidden += taskGroup.rows.length - rows.length;
+      return { ...taskGroup, rows };
+    });
+    return { groups: visible, hiddenRows: hidden, shownRows: shown };
+  }, [allGroups, collapsed, renderLimit]);
+  const renderMore = useCallback(() => setRenderLimit((limit) => limit + RENDER_STEP), []);
   const toggleParent = (id: number) =>
     setCollapsedParents((current) => {
       const next = new Set(current);
@@ -724,6 +750,18 @@ export function TaskWorkspaceList({
           </table>
         )}
       </div>
+      {hiddenRows > 0 ? (
+        <LoadMoreSentinel
+          hasMore
+          loading={false}
+          progress={renderLimit}
+          onLoadMore={renderMore}
+          label={`Hiện thêm ${Math.min(hiddenRows, RENDER_STEP)} việc (còn ${hiddenRows})`}
+        />
+      ) : shownRows > 0 ? (
+        /* Moi nhom deu dang thu gon thi chua can tai them gi. */
+        footer
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 # Phương án: tính trước và lưu đệm cho báo cáo, danh sách nặng
 
 Nhánh: `claude/crm-stability-performance-eval-618dc9` (từ `main` @ cad9336, bản 1.20.0)
-Trạng thái: **đã chốt hướng, chưa triển khai** (quyết định ở mục 6). Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
+Trạng thái: **đã chốt hướng; đợt 0 (1.20.1) và đợt 1 (1.21.0) đã xong** (quyết định ở mục 6, kết quả đợt 1 ở mục 7). Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
 
 ---
 
@@ -149,7 +149,7 @@ trực tiếp.
 | Đợt | Nội dung | Migration | Kết quả đo được |
 |---|---|---|---|
 | **0** (1.20.1, xong) | Chỉ mục v60, gzip, chia lô `IN`, sửa `/boards` | v60 | bảng ở mục 1 |
-| **1** | Bộ đo cố định trong repo (`server/scripts/bench-large.mts`), log truy vấn chậm, phân trang Công việc / Lịch / Tài liệu | — | Công việc dưới 300 ms, dưới 1 MB |
+| **1** (1.21.0, xong) | Bộ đo cố định trong repo (`server/scripts/bench-large.mjs`), log request chậm, Công việc 30 ngày + tải dần, vẽ dần 300 dòng, số đếm và huy hiệu tính ở máy chủ, Tài liệu theo trang. Lịch vốn đã tải theo khoảng ngày nên không đổi | — | xem mục 7 |
 | **2** | Lớp A: `customer_stats`, `deal_stats`, `card_stats`, trigger, `stats_dirty`, test so khớp | v61 | Khách hàng / Cơ hội / Công việc dưới 150 ms |
 | **3** | Lớp C: đệm cho Tổng quan, Báo cáo, Trọng tâm | — | lần mở thứ hai dưới 20 ms |
 | **4** | Lớp B: `revenue_rollup` cho Tổng hợp / KPI / So sánh; phân trang `/revenues/lines` | v62 | Doanh thu dưới 300 ms |
@@ -189,3 +189,24 @@ trước khi đẩy `main`.
    chiếm luồng vài giây: cả 100 người cùng chờ. Vì vậy mục tiêu "không request nào chặn luồng
    chính quá 200 ms" là bắt buộc, không chỉ là mong muốn, và bộ đo phải có thêm phần giả lập
    100 người dùng đồng thời.
+
+## 7. Kết quả đợt 1 (1.21.0)
+
+Đo bằng `server/scripts/bench-large.mjs` ở mức 1×, mỗi request chạy riêng:
+
+| Request | 1.20.1 | 1.21.0 |
+|---|---|---|
+| Thanh bên màn Công việc (trước: tải mọi việc để đếm) | 5 s · 139 MB | 0,14 s · dưới 1 KB |
+| Huy hiệu "Cần theo dõi" trên mọi trang | tải mọi việc đang mở | 0,14 s · dưới 1 KB |
+| Tab Hoàn thành | 5 s · 139 MB | 0,16 s · 3,6 MB |
+| Một trang việc xong cũ hơn 30 ngày | — | 0,1 s · 0,23 MB |
+| Thư viện Tài liệu | 0,3 s · 12 MB, cộng 27 MB danh sách phụ | 0,05 s · 0,12 MB |
+
+Thử trên trình duyệt với 48.000 việc đang mở: trước đây màn Công việc treo trình duyệt. Nguyên nhân
+chính không phải dữ liệu mà là mỗi dòng dựng lại danh sách 20.000 người cho ô "người phụ trách".
+Giờ danh sách lựa chọn dựng một lần dùng chung, và danh sách việc vẽ dần từng 300 dòng.
+
+**Còn lại:** tab "Đang mở" của người xem toàn công ty vẫn trả về mọi việc đang mở (1,7 s · 55 MB với
+48.000 việc). Lớp A (bảng `card_stats`) và rút gọn cột trả về sẽ xử lý tiếp. Chế độ Kanban chưa vẽ
+dần. Mỗi ô chọn khách hàng vẫn tải `/api/customers` đầy đủ (4,4 MB ở mức 1×); nên có một API danh sách
+rút gọn chỉ gồm id và tên.
