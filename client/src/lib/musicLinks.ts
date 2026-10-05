@@ -7,7 +7,10 @@
  * - Spotify: bai hat, album, danh sach phat, podcast;
  * - Radio internet: duong dan thang toi luong am thanh (mp3, aac, m3u8 khong ho tro).
  *
- * Danh sach luu trong localStorage cua TUNG MAY, giong anh nen.
+ * Tu 1.20.0 link yeu thich luu tren may chu theo tai khoan (/api/music-links). May chu
+ * chi giu link goc + ten; dia chi nhung luon dung lai o day bang parseMusicLink, nen
+ * link nao khong nhan ra thi khong phat. Danh sach cu trong localStorage (1.14.1) chi
+ * con doc mot lan de chuyen len may chu.
  */
 
 export type MusicLinkKind = 'youtube' | 'spotify' | 'stream';
@@ -22,8 +25,8 @@ export interface MusicLink {
   url: string;
 }
 
-const LINKS_KEY = 'workflow.lock.music.links.v1';
-const MAX_LINKS = 20;
+/** Danh sach cu luu theo may (1.14.1–1.19.x), chi doc de chuyen len may chu. */
+const LEGACY_LINKS_KEY = 'workflow.lock.music.links.v1';
 
 const YOUTUBE_HOSTS = new Set([
   'youtube.com',
@@ -96,20 +99,38 @@ export function parseMusicLink(input: string, title?: string): Omit<MusicLink, '
   return null;
 }
 
-export function readMusicLinks(): MusicLink[] {
+/** Link yeu thich may chu tra ve. */
+export interface SavedMusicLink {
+  id: number;
+  title: string;
+  url: string;
+  created_at: string;
+}
+
+/** Dung lai link phat duoc tu ban luu; null khi link khong (con) duoc ho tro. */
+export function linkFromSaved(saved: SavedMusicLink): MusicLink | null {
+  const parsed = parseMusicLink(saved.url, saved.title);
+  return parsed ? { ...parsed, id: `saved-${saved.id}` } : null;
+}
+
+export function readLegacyMusicLinks(): Pick<MusicLink, 'title' | 'url'>[] {
   try {
-    const value = JSON.parse(localStorage.getItem(LINKS_KEY) ?? '[]') as MusicLink[];
-    return Array.isArray(value) ? value.filter((item) => item?.id && item.src && item.kind) : [];
+    const value = JSON.parse(localStorage.getItem(LEGACY_LINKS_KEY) ?? '[]') as MusicLink[];
+    return Array.isArray(value)
+      ? value
+          .filter((item) => typeof item?.url === 'string' && typeof item.title === 'string')
+          .map((item) => ({ title: item.title, url: item.url }))
+      : [];
   } catch {
     return [];
   }
 }
 
-export function writeMusicLinks(links: MusicLink[]): void {
+export function clearLegacyMusicLinks(): void {
   try {
-    localStorage.setItem(LINKS_KEY, JSON.stringify(links.slice(0, MAX_LINKS)));
+    localStorage.removeItem(LEGACY_LINKS_KEY);
   } catch {
-    // Khong luu duoc thi danh sach chi song trong phien nay.
+    // Khong xoa duoc thi lan sau chuyen lai; may chu gop link trung nen khong sinh dong thua.
   }
 }
 

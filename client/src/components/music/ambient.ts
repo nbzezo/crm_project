@@ -1,5 +1,5 @@
 /*
- * "Nhac study" tren man cho (1.14.0).
+ * "Nhac study" tren man cho (1.14.0), tu 1.20.0 nghe ca o man lam viec (musicStore).
  *
  * Moi am thanh deu SINH RA bang Web Audio ngay trong trinh duyet — khong tai tep
  * nhac nao, nen khong vuong ban quyen va khong ton bang thong. Bon kieu:

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from 'lucide-react';
 import { canChiYear, toLunar } from '../../lib/lunar';
-import { chime } from './ambient';
+import { chime } from '../music/ambient';
 
 /*
  * Bang Dem nguoc va Lich am/duong cua man cho (Nhac study o MusicPanel.tsx).

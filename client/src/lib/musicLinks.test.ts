@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { parseMusicLink } from './musicLinks';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  clearLegacyMusicLinks,
+  linkFromSaved,
+  parseMusicLink,
+  readLegacyMusicLinks,
+} from './musicLinks';
 
 describe('parseMusicLink', () => {
   it('nhan YouTube dang watch, youtu.be, live va playlist', () => {
@@ -42,5 +47,53 @@ describe('parseMusicLink', () => {
     expect(parseMusicLink('https://www.youtube.com/')).toBeNull();
     expect(parseMusicLink('javascript:alert(1)')).toBeNull();
     expect(parseMusicLink('https://youtube.com.evil.test/watch?v=jfKfPfyJRdk')).toBeNull();
+  });
+});
+
+describe('link yeu thich luu tren may chu', () => {
+  const saved = { id: 7, title: 'Lofi', created_at: '2026-10-05 08:00:00' };
+
+  it('dung lai dia chi nhung tu link goc, khong tin dia chi tu may chu', () => {
+    const link = linkFromSaved({ ...saved, url: 'https://youtu.be/jfKfPfyJRdk' });
+    expect(link).toMatchObject({ id: 'saved-7', kind: 'youtube', title: 'Lofi' });
+    expect(link?.src).toContain('youtube-nocookie.com/embed/jfKfPfyJRdk');
+  });
+
+  it('link khong con nhan ra thi bo qua thay vi nhung trang la', () => {
+    expect(linkFromSaved({ ...saved, url: 'https://example.com/bai-viet' })).toBeNull();
+  });
+});
+
+describe('danh sach cu trong localStorage', () => {
+  const KEY = 'workflow.lock.music.links.v1';
+  /* Test chay trong Node, khong co localStorage that. */
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('doc ten + link de chuyen len may chu, roi xoa', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify([
+        { id: 'a', kind: 'youtube', title: 'Lofi', src: 'x', url: 'https://youtu.be/jfKfPfyJRdk' },
+        { id: 'b', title: 42 },
+      ])
+    );
+    expect(readLegacyMusicLinks()).toEqual([
+      { title: 'Lofi', url: 'https://youtu.be/jfKfPfyJRdk' },
+    ]);
+    clearLegacyMusicLinks();
+    expect(readLegacyMusicLinks()).toEqual([]);
+  });
+
+  it('du lieu hong thi coi nhu rong', () => {
+    localStorage.setItem(KEY, '{khong phai json');
+    expect(readLegacyMusicLinks()).toEqual([]);
   });
 });

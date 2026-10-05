@@ -17,10 +17,9 @@ import { formatLunar } from '../../lib/lunar';
 import { t } from '../../i18n/vi';
 import { digitsOnly, LOCK_STATUS_KEY, lockApi } from './lockApi';
 import { headlineOfDay, quoteOfDay, SCENE_INFO, SceneBackdrop, useLockPhoto } from './scenes';
-import { AMBIENT_INFO, stopAmbient, type AmbientKind } from './ambient';
-import type { MusicLink } from '../../lib/musicLinks';
 import { CalendarPanel, CountdownPanel, formatClock, useCountdown } from './LockPanels';
-import { MusicPanel } from './MusicPanel';
+import { MusicPanel } from '../music/MusicPanel';
+import { useNowPlayingLabel } from '../music/MusicButton';
 
 /*
  * Man khoa / man cho (1.14.0).
@@ -70,8 +69,7 @@ function LockOverlay() {
   const now = useNow();
   const timer = useCountdown();
   const [panel, setPanel] = useState<Panel | null>(null);
-  const [music, setMusic] = useState<AmbientKind | null>(null);
-  const [musicLink, setMusicLink] = useState<MusicLink | null>(null);
+  const nowPlaying = useNowPlayingLabel();
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,8 +90,8 @@ function LockOverlay() {
     return () => {
       root?.removeAttribute('inert');
       document.removeEventListener('fullscreenchange', onFullscreen);
-      /* Mo khoa (hoac dang xuat) thi tat nhac va thoat toan man hinh. */
-      stopAmbient();
+      /* Mo khoa thi thoat toan man hinh. Nhac thi phat tiep (1.20.0): bo nhac dung chung
+         voi man lam viec, tat o nut Nhac tren thanh tren; dang xuat moi tat. */
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     };
   }, []);
@@ -351,7 +349,8 @@ function LockOverlay() {
           </div>
 
           <div className="relative md:mx-auto md:w-fit">
-            {/* Luon gan (an bang `hidden`), vi nhac tu link van phai chay khi dong bang. */}
+            {/* Luon gan (an bang `hidden`) de giu o nhap dang go do. Nhac khong phu thuoc
+                bang nay: trinh phat nam o MusicHost. */}
             <div
               hidden={!panel}
               className="ls-panel absolute bottom-full left-1/2 mb-3 max-h-[70vh] w-[min(22rem,calc(100vw-2.5rem))] -translate-x-1/2 overflow-y-auto p-4"
@@ -362,12 +361,7 @@ function LockOverlay() {
             >
               {panel === 'timer' && <CountdownPanel timer={timer} />}
               <div hidden={panel !== 'music'}>
-                <MusicPanel
-                  ambient={music}
-                  onAmbient={setMusic}
-                  link={musicLink}
-                  onLink={setMusicLink}
-                />
+                <MusicPanel variant="lock" />
               </div>
               {panel === 'calendar' && <CalendarPanel today={now} />}
             </div>
@@ -388,9 +382,9 @@ function LockOverlay() {
                 active={panel === 'music'}
                 onClick={() => setPanel(panel === 'music' ? null : 'music')}
                 icon={<Headphones size={17} aria-hidden="true" />}
-                showLabel={music !== null || musicLink !== null}
+                showLabel={nowPlaying !== null}
               >
-                {musicLink ? musicLink.title : music ? AMBIENT_INFO[music].label : 'Nhạc study'}
+                {nowPlaying ?? 'Nhạc study'}
               </DockButton>
               <DockButton
                 active={panel === 'calendar'}

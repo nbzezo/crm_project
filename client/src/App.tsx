@@ -6,6 +6,7 @@ import { Topbar } from './components/layout/Topbar';
 import { QuickCreateFab } from './components/layout/QuickCreateFab';
 import { AssistantLauncher } from './components/layout/AssistantLauncher';
 import { LockScreen } from './components/lock/LockScreen';
+import { MusicHost } from './components/music/MusicHost';
 import { DueReminderPopup } from './components/layout/DueReminderPopup';
 import { QuickAddTask } from './components/layout/QuickAddTask';
 import { useLockTriggers } from './components/lock/useLockTriggers';
@@ -128,6 +129,7 @@ export default function App() {
       <QuickAddTask />
       <DueReminderPopup />
       <LockScreen />
+      <MusicHost />
       <div className="contents print:hidden">
         <QuickCreateFab hidden={pageHandle?.hideQuickCreate} />
         <MobileTabBar />

@@ -579,3 +579,30 @@ test('v58: them bang ma khoa man hinh, xoa tai khoan thi xoa ma, quay lui duoc',
   );
   scratch.close();
 });
+
+test('v59: link nhac yeu thich, moi link mot lan, xoa tai khoan thi xoa link, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 58);
+  scratch
+    .prepare(`INSERT INTO users (username, password_hash, password_salt) VALUES ('an', 'h', 's')`)
+    .run();
+  migrate(scratch, 59);
+  const insert = scratch.prepare(
+    `INSERT INTO user_music_links (user_id, title, url) VALUES (1, 'Lofi', 'https://youtu.be/jfKfPfyJRdk')`
+  );
+  insert.run();
+  assert.throws(() => insert.run(), /UNIQUE/);
+  scratch.prepare(`DELETE FROM users WHERE id = 1`).run();
+  assert.equal(
+    (scratch.prepare(`SELECT COUNT(*) AS n FROM user_music_links`).get() as { n: number }).n,
+    0
+  );
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v59-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'user_music_links'`).get(),
+    undefined
+  );
+  scratch.close();
+});

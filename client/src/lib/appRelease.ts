@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-05';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.20.0',
+    date: '2026-10-05',
+    title: 'Nghe nhạc ngay trên màn làm việc, lưu link yêu thích',
+    changes: [
+      'Thanh trên có nút Nhạc (biểu tượng tai nghe), cạnh nút Ghi chú nhanh: dán link YouTube, Spotify hoặc radio để nghe trong lúc làm việc, hoặc chọn âm thanh tạo sẵn (Đàn lofi, Mưa, Sóng biển, Tập trung). Trên điện thoại, mở từ menu tài khoản → Nhạc.',
+      'Khi đang phát, nút hiện vạch sóng nhạc và tên bài, kèm nút ■ để dừng ngay không cần mở bảng.',
+      'Màn chờ và màn làm việc dùng chung một trình phát: bật nhạc ở màn chờ rồi mở khóa vẫn nghe tiếp, khóa màn hình giữa chừng cũng không ngắt. Đóng bảng Nhạc hay chuyển trang nhạc vẫn chạy; đăng xuất thì nhạc tắt.',
+      'Đang nghe bài hợp ý thì bấm "Lưu yêu thích". Danh sách Yêu thích lưu theo tài khoản nên đổi máy, đổi trình duyệt vẫn còn (tối đa 50 link). Bấm để phát lại, bấm thùng rác để bỏ.',
+      'Các link đã lưu trên máy này ở màn chờ trước đây được tự chuyển vào Yêu thích của tài khoản.',
+    ],
+  },
+  {
     version: '1.19.0',
     date: '2026-10-05',
     title: 'Lọc bảng doanh thu theo khách hàng và công nợ',

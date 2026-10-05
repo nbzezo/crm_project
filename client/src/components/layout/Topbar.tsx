@@ -5,6 +5,7 @@ import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
 import { AccountMenu } from './AccountMenu';
 import { AssistantButton } from './AssistantLauncher';
+import { MusicButton } from '../music/MusicButton';
 import { LockButton } from '../lock/LockButton';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
@@ -60,6 +61,7 @@ export function Topbar({ title }: { title: string }) {
       {/* Nut Giao dien da vao menu tai khoan o moi co man hinh (1.14.0): doi giao
           dien it khi, con thanh tren can cho cho nut Khoa man hinh. */}
       <AssistantButton />
+      <MusicButton />
       {canReadNotes && (
         <button
           type="button"

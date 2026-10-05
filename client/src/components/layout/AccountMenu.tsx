@@ -1,5 +1,13 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { ChevronDown, Lock, LogOut, MonitorPause, Palette, UserCog } from 'lucide-react';
+import {
+  ChevronDown,
+  Headphones,
+  Lock,
+  LogOut,
+  MonitorPause,
+  Palette,
+  UserCog,
+} from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Modal } from '../common/Modal';
 import { focusRing } from '../common/ui';
@@ -7,6 +15,7 @@ import { t } from '../../i18n/vi';
 import { useAuthStore } from '../../stores/authStore';
 import { ThemeOptionItems, useThemeLabel } from './ThemeToggle';
 import { useLockStore } from '../../stores/lockStore';
+import { useMusicStore } from '../../stores/musicStore';
 
 const AccountSettings = lazy(() =>
   import('../settings/AccountSettings').then((m) => ({ default: m.AccountSettings }))
@@ -43,6 +52,7 @@ export function AccountMenu() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
   const lock = useLockStore((s) => s.lock);
+  const openMusic = useMusicStore((s) => s.setPanelOpen);
   const [themeOpen, setThemeOpen] = useState(false);
   const themeLabel = useThemeLabel();
   /* Menu dong (chon xong, bam ra ngoai, Esc) thi thu danh sach Giao dien lai —
@@ -129,8 +139,17 @@ export function AccountMenu() {
         >
           Khóa màn hình &amp; màn chờ
         </PopoverItem>
-        {/* Man rong da co nut Khoa canh chuong; dien thoai khoa tu day. */}
+        {/* Man rong da co nut Khoa canh chuong va nut Nhac; dien thoai mo tu day. */}
         <div className="md:hidden">
+          <PopoverItem
+            icon={<Headphones size={15} />}
+            onClick={() => {
+              pop.close();
+              openMusic(true);
+            }}
+          >
+            Nhạc
+          </PopoverItem>
           <PopoverItem
             icon={<Lock size={15} />}
             onClick={() => {
