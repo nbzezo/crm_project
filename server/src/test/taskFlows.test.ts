@@ -123,8 +123,8 @@ const DOING_REVIEW = {
 
 /* ---------- Schema ---------- */
 
-test('v66 tao hai bang quy trinh va LATEST_VERSION = 66', () => {
-  assert.equal(LATEST_VERSION, 66);
+test('v66 tao hai bang quy trinh (LATEST_VERSION tu 66 tro len)', () => {
+  assert.ok(LATEST_VERSION >= 66);
   const tables = (
     db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]
   ).map((t) => t.name);
@@ -351,16 +351,22 @@ test('chuoi tu chuyen: mau tu ap cua trang thai moi, xong thi sang Hoan thanh', 
   assert.equal(card(created.id).is_done, 1);
 });
 
-test('luong viec khong co cot cho trang thai dich thi chuyen thang sang Hoan thanh', async () => {
+/* v67: trang thai la cua rieng cong viec — luong viec khong co cot cho trang thai
+   dich thi van chuyen dung trang thai, the nam yen o cot cu (truoc v67 thi nhay
+   sang Hoan thanh, dong nham viec co trang thai tu tao). */
+test('luong viec khong co cot cho trang thai dich: van chuyen dung trang thai', async () => {
   await setEnabled(true, DOING_REVIEW);
   const created = await newCard('Viec thieu cot');
   await json('PATCH', `/api/cards/${created.id}`, { status: 'doing' });
   const reviewList = listOf(created.id, 'review');
   db.prepare(`UPDATE lists SET status_mapping = NULL WHERE id = ?`).run(reviewList);
   try {
+    const before = card(created.id).list_id;
     const flow = await addFlow(created.id, 'doing', ['Lam']);
-    assert.equal((await tick(flow.steps[0].id)).data.advanced_to, 'done');
-    assert.equal(card(created.id).is_done, 1);
+    assert.equal((await tick(flow.steps[0].id)).data.advanced_to, 'review');
+    assert.equal(card(created.id).status, 'review');
+    assert.equal(card(created.id).is_done, 0);
+    assert.equal(card(created.id).list_id, before);
   } finally {
     db.prepare(`UPDATE lists SET status_mapping = 'review' WHERE id = ?`).run(reviewList);
   }

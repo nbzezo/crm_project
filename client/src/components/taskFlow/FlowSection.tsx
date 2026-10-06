@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Lock, Plus, Trash2 } from 'lucide-react';
-import { FLOW_STATUSES, type FlowStatus } from '@workflow/contracts';
+import type { FlowStatus } from '@workflow/contracts';
 import { Button, Input, Textarea, focusRing } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { t } from '../../i18n/vi';
+import { statusKeyOf, useTaskStatuses } from '../../lib/taskStatuses';
 import { useUiStore } from '../../stores/uiStore';
 import type { CardDetail, CardFlow } from '../../types';
 import {
@@ -14,10 +15,6 @@ import {
   useTaskFlowSettings,
   type FlowMutationResult,
 } from './taskFlowApi';
-
-function isFlowStatus(status: string): status is FlowStatus {
-  return (FLOW_STATUSES as readonly string[]).includes(status);
-}
 
 /**
  * Mục "Quy trình" trong hộp chi tiết công việc (v66).
@@ -31,14 +28,19 @@ export function FlowSection({ card }: { card: CardDetail }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
   const { settings } = useTaskFlowSettings();
+  const statuses = useTaskStatuses();
+  const statusKey = statusKeyOf(card);
   const flows = card.flows ?? [];
-  const current = flows.find((flow) => flow.status === card.status) ?? null;
+  const current = flows.find((flow) => flow.status === statusKey) ?? null;
   const others = flows.filter((flow) => flow !== current);
 
   const onDone = (result: FlowMutationResult) => {
     refreshAfterFlowChange(queryClient, card.id);
     if (result.advanced_to) {
-      pushToast(`Quy trình xong — đã chuyển sang “${t.cardStatus[result.advanced_to]}”`, 'success');
+      pushToast(
+        `Quy trình xong — đã chuyển sang “${statuses.label(result.advanced_to)}”`,
+        'success'
+      );
     }
   };
 
@@ -46,11 +48,11 @@ export function FlowSection({ card }: { card: CardDetail }) {
     <div className="space-y-3">
       {current ? (
         <FlowSteps flow={current} onDone={onDone} />
-      ) : isFlowStatus(card.status) ? (
+      ) : statuses.kind(statusKey) !== 'done' ? (
         <CreateFlow
           cardId={card.id}
-          status={card.status}
-          templateSteps={settings?.templates[card.status]?.steps ?? []}
+          status={statusKey}
+          templateSteps={settings?.templates[statusKey]?.steps ?? []}
           onDone={onDone}
         />
       ) : (
@@ -65,7 +67,7 @@ export function FlowSection({ card }: { card: CardDetail }) {
           <ul className="mt-2 space-y-1">
             {others.map((flow) => (
               <li key={flow.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-tr-text">{t.cardStatus[flow.status]}</span>
+                <span className="text-tr-text">{statuses.label(flow.status)}</span>
                 <span className="text-xs text-tr-muted">{flowSummary(flow)}</span>
               </li>
             ))}
@@ -91,6 +93,7 @@ function FlowSteps({
   flow: CardFlow;
   onDone: (result: FlowMutationResult) => void;
 }) {
+  const statuses = useTaskStatuses();
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -228,7 +231,7 @@ function FlowSteps({
       <ConfirmDialog
         open={confirmRemove}
         title="Bỏ quy trình"
-        message={`Xóa quy trình “${t.cardStatus[flow.status]}” cùng ${total} bước của nó? Công việc vẫn giữ nguyên trạng thái.`}
+        message={`Xóa quy trình “${statuses.label(flow.status)}” cùng ${total} bước của nó? Công việc vẫn giữ nguyên trạng thái.`}
         confirmLabel="Bỏ quy trình"
         onConfirm={() => removeFlow.mutate()}
         onCancel={() => setConfirmRemove(false)}
@@ -255,6 +258,7 @@ export function CreateFlow({
   /** Có thì hiện nút "Bỏ qua" (hộp hỏi); không có thì là nút trong hộp chi tiết. */
   onSkip?: () => void;
 }) {
+  const statuses = useTaskStatuses();
   const [custom, setCustom] = useState(onSkip !== undefined && templateSteps.length === 0);
   const [text, setText] = useState(templateSteps.join('\n'));
   const create = useMutation({
@@ -313,7 +317,7 @@ export function CreateFlow({
         ) : (
           !onSkip && (
             <span className="text-xs text-tr-muted">
-              Trạng thái “{t.cardStatus[status]}” chưa có mẫu — tự tạo các bước.
+              Trạng thái “{statuses.label(status)}” chưa có mẫu — tự tạo các bước.
             </span>
           )
         )}

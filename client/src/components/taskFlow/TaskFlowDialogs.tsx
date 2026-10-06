@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/ui';
 import { api } from '../../api/client';
-import { t } from '../../i18n/vi';
+import { useTaskStatuses } from '../../lib/taskStatuses';
 import { useTaskFlowStore } from '../../stores/taskFlowStore';
 import type { CardDetail } from '../../types';
 import { CreateFlow } from './FlowSection';
@@ -26,6 +26,7 @@ export function TaskFlowDialogs() {
 
 /** "Quy trình chưa xong — vẫn chuyển?" khi rời một trạng thái có bước còn dở. */
 function SkipFlowDialog() {
+  const statuses = useTaskStatuses();
   const skips = useTaskFlowStore((s) => s.skips);
   const answerSkip = useTaskFlowStore((s) => s.answerSkip);
   const [applyAll, setApplyAll] = useState(true);
@@ -51,8 +52,8 @@ function SkipFlowDialog() {
       }
     >
       <p className="text-sm text-tr-subtle">
-        Quy trình “{t.cardStatus[details.status]}” mới xong {details.done}/{details.total} bước. Còn
-        lại:
+        Quy trình “{statuses.label(details.status)}” mới xong {details.done}/{details.total} bước.
+        Còn lại:
       </p>
       <ol className="mt-2 list-inside list-decimal space-y-0.5 text-sm text-tr-text">
         {details.remaining.map((step, index) => (
@@ -81,6 +82,7 @@ function SkipFlowDialog() {
 /** "Thêm quy trình cho trạng thái này?" khi việc vừa vào một trạng thái đặt "Luôn hỏi". */
 function FlowPromptDialog() {
   const queryClient = useQueryClient();
+  const statuses = useTaskStatuses();
   const prompts = useTaskFlowStore((s) => s.prompts);
   const dropPrompt = useTaskFlowStore((s) => s.dropPrompt);
   const { settings, enabled } = useTaskFlowSettings();
@@ -92,7 +94,7 @@ function FlowPromptDialog() {
   });
   if (!current || !enabled || !settings) return null;
   const rest = prompts.length - 1;
-  const statusLabel = t.cardStatus[current.status];
+  const statusLabel = statuses.label(current.status);
 
   return (
     <Modal
@@ -111,13 +113,13 @@ function FlowPromptDialog() {
           `Công việc vừa chuyển sang “${statusLabel}”.`
         )}{' '}
         Quy trình là các bước làm lần lượt; xong bước cuối thì công việc tự chuyển sang “
-        {t.cardStatus[settings.templates[current.status].next_status]}”.
+        {statuses.label(settings.templates[current.status]?.next_status)}”.
       </p>
       <CreateFlow
         key={`${current.card_id}-${current.status}`}
         cardId={current.card_id}
         status={current.status}
-        templateSteps={settings.templates[current.status].steps}
+        templateSteps={settings.templates[current.status]?.steps ?? []}
         onDone={() => {
           refreshAfterFlowChange(queryClient, current.card_id);
           dropPrompt();

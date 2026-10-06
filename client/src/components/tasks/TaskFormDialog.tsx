@@ -13,17 +13,9 @@ import { AssigneePicker, useAssignees } from './AssigneePicker';
 import { ReminderField } from './ReminderField';
 import { CustomerForm } from '../crm/CustomerForm';
 import { DealForm } from '../crm/DealForm';
-import type {
-  Board,
-  BoardFull,
-  Card,
-  CardStatus,
-  Contact,
-  Customer,
-  Deal,
-  Priority,
-} from '../../types';
-import { FLOW_STATUSES, type FlowStatus } from '@workflow/contracts';
+import type { Board, BoardFull, Card, Contact, Customer, Deal, Priority } from '../../types';
+import type { FlowStatus } from '@workflow/contracts';
+import { useTaskStatuses } from '../../lib/taskStatuses';
 import { parseSteps, useTaskFlowSettings } from '../taskFlow/taskFlowApi';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
@@ -49,7 +41,7 @@ interface TaskContextResponse {
   };
   suggested_list_id: number | null;
   boards: { id: number; name: string; customer_id: number | null }[];
-  lists: { id: number; name: string; board_id: number; status_mapping: CardStatus | null }[];
+  lists: { id: number; name: string; board_id: number; status_mapping: string | null }[];
   contacts: { id: number; full_name: string; title: string | null }[];
   deals: { id: number; title: string; stage: string }[];
   contracts: { id: number; name: string; number: string | null; status: string }[];
@@ -240,11 +232,13 @@ export function TaskFormDialog() {
 
   /* Trạng thái ban đầu = trạng thái của cột sẽ nhận việc; máy chủ suy y như vậy. */
   const { settings: flowSettings, enabled: flowEnabled } = useTaskFlowSettings();
-  const initialStatus: CardStatus =
-    context?.lists.find((l) => l.id === shownListId)?.status_mapping ?? 'todo';
-  const flowStatus: FlowStatus | null = (FLOW_STATUSES as readonly string[]).includes(initialStatus)
-    ? (initialStatus as FlowStatus)
-    : null;
+  const statuses = useTaskStatuses();
+  const initialStatus: string =
+    context?.lists.find((l) => l.id === shownListId)?.status_mapping ??
+    statuses.active.find((s) => s.kind === 'todo')?.key ??
+    'todo';
+  const flowStatus: FlowStatus | null =
+    statuses.kind(initialStatus) !== 'done' ? initialStatus : null;
   const flowTemplate = flowStatus ? flowSettings?.templates[flowStatus] : undefined;
   /* Người dùng chưa sửa thì ô bước đi theo mẫu của trạng thái đang chọn — đổi cột
      sang trạng thái khác thì mẫu đổi theo. */
@@ -888,7 +882,7 @@ export function TaskFormDialog() {
         {flowEnabled && flowStatus && (
           <div className="sm:col-span-2">
             <Field
-              label={`Quy trình · ${t.cardStatus[flowStatus]}`}
+              label={`Quy trình · ${statuses.label(flowStatus)}`}
               hint={
                 flowAuto && !flowOn
                   ? `Mẫu ${flowTemplate?.steps.length} bước sẽ được áp tự động. Bật để sửa các bước.`
@@ -902,7 +896,7 @@ export function TaskFormDialog() {
                   onChange={(e) => setFlowOn(e.target.checked)}
                   className="h-4 w-4 rounded border-tr-border"
                 />
-                Thêm quy trình cho trạng thái “{t.cardStatus[flowStatus]}”
+                Thêm quy trình cho trạng thái “{statuses.label(flowStatus)}”
               </label>
               {flowOn && (
                 <Textarea

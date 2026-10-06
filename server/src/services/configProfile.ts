@@ -15,14 +15,13 @@ import { z } from 'zod';
 import {
   CARD_STATUSES,
   FLOW_ASK_MODES,
-  FLOW_STATUSES,
   PERMISSION_RESOURCES,
   PERMISSION_SCOPES,
   PICKLIST_KEYS,
   PERMISSION_ACTIONS,
-  type FlowStatus,
 } from '@workflow/contracts';
 import { getTaskFlowSettings, saveTaskFlowSettings } from '../lib/taskFlowSettings.ts';
+import { assertStatusInvariants, listTaskStatuses } from '../lib/taskStatuses.ts';
 import { HttpError } from '../lib/validate.ts';
 import {
   createPicklistItem,
@@ -122,16 +121,31 @@ const profileSchema = z.object({
         .optional(),
     })
     .optional(),
-  /* v66 — Quy trinh theo trang thai: cong tac va mau tung trang thai. */
+  /* v67 — trang thai cong viec cau hinh duoc. Nhap theo khoa, khong xoa. */
+  task_statuses: z
+    .array(
+      z.object({
+        key: z
+          .string()
+          .trim()
+          .regex(/^[a-z0-9_]{1,60}$/, 'Khoá trạng thái chỉ gồm a-z, 0-9, _'),
+        label: z.string().trim().min(1).max(60),
+        color: hex,
+        kind: z.enum(CARD_STATUSES),
+        is_active: z.boolean().optional(),
+      })
+    )
+    .optional(),
+  /* v66 — Quy trinh theo trang thai: cong tac va mau tung trang thai (v67: theo khoa). */
   task_flow: z
     .object({
       enabled: z.boolean().optional(),
       templates: z
-        .partialRecord(
-          z.enum(FLOW_STATUSES as [FlowStatus, ...FlowStatus[]]),
+        .record(
+          z.string().trim().min(1).max(60),
           z.object({
             steps: z.array(z.string().trim().min(1).max(500)).max(50),
-            next_status: z.enum(CARD_STATUSES),
+            next_status: z.string().trim().min(1).max(60),
             ask: z.enum(FLOW_ASK_MODES),
           })
         )
@@ -220,6 +234,13 @@ export function exportProfile(db: Database, name?: string): ConfigProfile {
       classification: { ...delivery.classification },
       board_templates: delivery.boardTemplates,
     },
+    task_statuses: listTaskStatuses(db, { includeInactive: true }).map((status) => ({
+      key: status.key,
+      label: status.label,
+      color: status.color,
+      kind: status.kind,
+      is_active: status.is_active === 1,
+    })),
     task_flow: { enabled: taskFlow.enabled, templates: taskFlow.templates },
     positions: positions.map((position) => ({
       name: position.name,
@@ -482,6 +503,7 @@ function applySettings(db: Database, profile: ConfigProfile, report: ImportRepor
     saveDeliverySettings(db, profile.delivery as Record<string, unknown>);
     report.updated.push('Triển khai');
   }
+  if (profile.task_statuses?.length) applyTaskStatuses(db, profile.task_statuses, report);
   if (profile.task_flow && Object.keys(profile.task_flow).length > 0) {
     for (const [status, template] of Object.entries(profile.task_flow.templates ?? {})) {
       if (template?.next_status === status) {
@@ -493,6 +515,61 @@ function applySettings(db: Database, profile: ConfigProfile, report: ImportRepor
     saveTaskFlowSettings(db, profile.task_flow);
     report.updated.push('Quy trình công việc');
   }
+}
+
+/**
+ * Trang thai cong viec (v67): khop theo khoa, tao/cap nhat, khong xoa. Doi y nghia
+ * hoac an mot trang thai dang co viec dung thi giu nguyen va bao — doi kieu do phai
+ * lam o Cai dat, noi chon duoc trang thai de chuyen viec sang.
+ */
+function applyTaskStatuses(
+  db: Database,
+  incoming: NonNullable<ConfigProfile['task_statuses']>,
+  report: ImportReport
+): void {
+  const current = new Map(
+    listTaskStatuses(db, { includeInactive: true, usage: true }).map((s) => [s.key, s])
+  );
+  incoming.forEach((entry, index) => {
+    const position = (index + 1) * 1024;
+    const existing = current.get(entry.key);
+    if (!existing) {
+      db.prepare(
+        `INSERT INTO task_statuses (key, label, color, kind, position, is_active)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).run(
+        entry.key,
+        entry.label,
+        entry.color ?? null,
+        entry.kind,
+        position,
+        entry.is_active === false ? 0 : 1
+      );
+      report.created.push(`Trạng thái công việc: ${entry.label}`);
+      return;
+    }
+    const used = (existing.usage ?? 0) > 0;
+    let kind = entry.kind;
+    if (kind !== existing.kind && used) {
+      report.warnings.push(
+        `Trạng thái "${existing.label}" đang có ${existing.usage} việc — giữ ý nghĩa cũ`
+      );
+      kind = existing.kind;
+    }
+    let active = entry.is_active === false ? 0 : 1;
+    if (!active && existing.is_active && used) {
+      report.warnings.push(
+        `Trạng thái "${existing.label}" đang có ${existing.usage} việc — không ẩn; hãy ẩn ở Cài đặt và chọn nơi chuyển`
+      );
+      active = 1;
+    }
+    db.prepare(
+      `UPDATE task_statuses SET label = ?, color = ?, kind = ?, position = ?, is_active = ?
+        WHERE key = ?`
+    ).run(entry.label, entry.color ?? existing.color, kind, position, active, entry.key);
+    report.updated.push(`Trạng thái công việc: ${entry.label}`);
+  });
+  assertStatusInvariants(db);
 }
 
 function applyPositions(db: Database, profile: ConfigProfile, report: ImportReport): void {

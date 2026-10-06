@@ -26,8 +26,8 @@ import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import { COARSE_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { CARD_STATUS_TEXT, CARD_STATUS_TONE } from '../tasks/CardStatusControl';
-import { CARD_STATUSES } from '@workflow/contracts';
-import type { Card, CardStatus, Label, List } from '../../types';
+import { useTaskStatuses } from '../../lib/taskStatuses';
+import type { Card, Label, List } from '../../types';
 
 export type SortBy = 'created_desc' | 'created_asc' | 'due' | 'title' | 'priority';
 
@@ -44,7 +44,7 @@ interface Props {
   onSortList: (listId: number, by: SortBy) => void;
   onCollapseList: (listId: number, collapsed: boolean) => void;
   /** Khai báo cột này nghĩa là trạng thái nào (v19); `null` = không mang nghĩa. */
-  onMapStatus: (listId: number, status: CardStatus | null) => void;
+  onMapStatus: (listId: number, status: string | null) => void;
   onMoveList: (listId: number, direction: -1 | 1) => void;
   canMoveLeft: boolean;
   canMoveRight: boolean;
@@ -67,6 +67,7 @@ export const ListColumn = memo(function ListColumn({
   canMoveLeft,
   canMoveRight,
 }: Props) {
+  const statuses = useTaskStatuses();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -190,9 +191,9 @@ export const ListColumn = memo(function ListColumn({
               </span>
               {list.status_mapping && (
                 <span
-                  className={`ml-1.5 rounded-full bg-tr-panel px-1.5 py-0.5 text-xs ${CARD_STATUS_TEXT[list.status_mapping]}`}
+                  className={`ml-1.5 rounded-full bg-tr-panel px-1.5 py-0.5 text-xs ${CARD_STATUS_TEXT[statuses.kind(list.status_mapping)]}`}
                 >
-                  {t.cardStatus[list.status_mapping]}
+                  {statuses.label(list.status_mapping)}
                 </span>
               )}
             </span>
@@ -215,9 +216,9 @@ export const ListColumn = memo(function ListColumn({
                   dùng chọn, và nền trong suốt làm tương phản tụt dưới ngưỡng AA. */}
               {list.status_mapping && (
                 <span
-                  className={`ml-1.5 inline-flex items-center rounded-full bg-tr-panel px-1.5 py-0.5 text-xs font-medium ${CARD_STATUS_TEXT[list.status_mapping]}`}
+                  className={`ml-1.5 inline-flex items-center rounded-full bg-tr-panel px-1.5 py-0.5 text-xs font-medium ${CARD_STATUS_TEXT[statuses.kind(list.status_mapping)]}`}
                 >
-                  {t.cardStatus[list.status_mapping]}
+                  {statuses.label(list.status_mapping)}
                 </span>
               )}
             </button>
@@ -444,20 +445,33 @@ export const ListColumn = memo(function ListColumn({
         <p className="mb-1.5 px-1 text-xs text-tr-muted">
           Kéo thẻ vào cột sẽ đặt trạng thái này, và đổi trạng thái sẽ kéo thẻ về đây.
         </p>
-        {CARD_STATUSES.map((status) => (
+        {statuses.active.map((status) => (
           <PopoverItem
-            key={status}
+            key={status.key}
             icon={
-              <span className={`h-3 w-3 rounded-full ${CARD_STATUS_TONE[status]}`} aria-hidden />
+              status.color ? (
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: status.color }}
+                  aria-hidden
+                />
+              ) : (
+                <span
+                  className={`h-3 w-3 rounded-full ${CARD_STATUS_TONE[status.kind]}`}
+                  aria-hidden
+                />
+              )
             }
             onClick={() => {
-              onMapStatus(list.id, status);
+              onMapStatus(list.id, status.key);
               setStatusMenu(false);
               menu.close();
             }}
           >
-            <span className={list.status_mapping === status ? 'font-semibold text-tr-text' : ''}>
-              {t.cardStatus[status]}
+            <span
+              className={list.status_mapping === status.key ? 'font-semibold text-tr-text' : ''}
+            >
+              {status.label}
             </span>
           </PopoverItem>
         ))}

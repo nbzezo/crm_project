@@ -112,7 +112,7 @@ export interface List {
    * bình thường để xếp thẻ mà không đụng đến vòng đời — đó là chỗ giữ được tự do
    * bố cục kiểu Trello trong khi vòng đời chỉ có một nguồn sự thật.
    */
-  status_mapping: CardStatus | null;
+  status_mapping: string | null;
   cards: Card[];
 }
 
@@ -156,6 +156,8 @@ export interface Card {
    * `is_done === 1` ⇔ `status === 'done'`. Máy chủ giữ bất biến này.
    */
   status: CardStatus;
+  /** Trạng thái cụ thể (v67, cấu hình được); `status` là ý nghĩa của nó. */
+  status_key?: string | null;
   blocked_reason?: string | null;
   blocked_since?: string | null;
   approver_contact_id?: number | null;
@@ -918,6 +920,8 @@ export interface TaskRow {
   assignee_org_name: string | null;
   assignee_org_kind: OrgKind | null;
   status: CardStatus;
+  /** Trạng thái cụ thể (v67, cấu hình được). */
+  status_key?: string | null;
   blocked_reason: string | null;
   blocked_since: string | null;
   recur_rule: string | null;
@@ -1124,7 +1128,8 @@ export interface DeliverySettingsData {
     phase_count: number;
     team_count: number;
   };
-  boardTemplates: Record<string, { name: string; status: CardStatus | null }[]>;
+  /** `status` là khoá trạng thái (v67, cấu hình được). */
+  boardTemplates: Record<string, { name: string; status: string | null }[]>;
 }
 
 /**

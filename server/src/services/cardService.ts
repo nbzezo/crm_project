@@ -1,4 +1,5 @@
-import type { CardStatus } from '@workflow/contracts';
+import type { CardStatus, TaskStatusKey } from '@workflow/contracts';
+import { firstStatusOfKind, getTaskStatus, kindOf } from '../lib/taskStatuses.ts';
 import type { CreateTaskInput } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import {
@@ -27,11 +28,22 @@ interface MoveCardInput {
   skip_flow?: boolean;
 }
 
-/** Trang thai ma mot cot khai bao no dai dien; null = cot khong mang nghia vong doi. */
-function listStatusMapping(listId: number): CardStatus | null {
+/**
+ * Khoa trang thai ma mot cot khai bao no dai dien; null = cot khong mang nghia vong
+ * doi. Tu v67 la khoa trang thai (co the la trang thai tu tao).
+ */
+export function listStatusMapping(listId: number): TaskStatusKey | null {
   const row = db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(listId) as
-    { status_mapping: CardStatus | null } | undefined;
+    { status_mapping: TaskStatusKey | null } | undefined;
   return row?.status_mapping ?? null;
+}
+
+/** Trang thai hieu luc (khoa) cua mot the. */
+export function cardStatusKey(cardId: number): TaskStatusKey {
+  const row = db
+    .prepare(`SELECT COALESCE(status_key, status) AS key FROM cards WHERE id = ?`)
+    .get(cardId) as { key: string } | undefined;
+  return row?.key ?? 'todo';
 }
 
 /**
@@ -40,7 +52,7 @@ function listStatusMapping(listId: number): CardStatus | null {
  * Bang co hai cot cung anh xa thi lay cot ben trai nhat. Khong cam trung vi se
  * lam thao tac "sao chep danh sach" that bai; chon on dinh la du.
  */
-function mappedListInBoard(listId: number, status: CardStatus): number | null {
+function mappedListInBoard(listId: number, status: TaskStatusKey): number | null {
   const row = db
     .prepare(
       `SELECT l.id FROM lists l
@@ -65,9 +77,13 @@ export function moveCard(
   options: { actorContactId?: number | null } = {}
 ) {
   const card = required(
-    db.prepare(`SELECT id, customer_id, status FROM cards WHERE id = ?`).get(id),
+    db
+      .prepare(
+        `SELECT id, customer_id, COALESCE(status_key, status) AS status FROM cards WHERE id = ?`
+      )
+      .get(id),
     'Khong tim thay the'
-  ) as { id: number; customer_id: number | null; status: CardStatus };
+  ) as { id: number; customer_id: number | null; status: TaskStatusKey };
   required(
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(input.list_id),
     'Khong tim thay danh sach'
@@ -118,7 +134,7 @@ export function moveCard(
 export function reloadCard(id: number) {
   return db
     .prepare(
-      `SELECT k.*, c.name AS customer_name, d.title AS deal_title,
+      `SELECT k.*, COALESCE(k.status_key, k.status) AS status_key, c.name AS customer_name, d.title AS deal_title,
               ct.full_name AS contact_name, ctr.name AS contract_name, q.code AS quotation_code,
               ac.full_name AS assignee_name, ac.title AS assignee_title,
               ac.phone AS assignee_phone, ac.email AS assignee_email, ac.zalo AS assignee_zalo,
@@ -159,7 +175,7 @@ export function reloadCard(id: number) {
 const LINKED_TASK_SELECT = `
   SELECT k.id, k.title, k.due_date, k.start_date, k.priority, k.is_done, k.parent_id,
          k.list_id, k.customer_id, k.contact_id, k.deal_id, k.contract_id, k.quotation_id,
-         k.status, k.blocked_reason,
+         k.status, COALESCE(k.status_key, k.status) AS status_key, k.blocked_reason,
          k.assignee_contact_id, k.assignee_org_id,
          ac.full_name AS assignee_name, ao.name AS assignee_org_name,
          ao.org_kind AS assignee_org_kind,
@@ -210,7 +226,7 @@ function commonTaskListId(ownerContactId: number | null): number | null {
     .prepare(
       `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
         WHERE b.id = ? AND b.is_archived = 0 AND b.owner_contact_id IS ?
-        ORDER BY (l.status_mapping = 'todo') DESC, l.position, l.id LIMIT 1`
+        ORDER BY (l.status_mapping IN (SELECT key FROM task_statuses WHERE kind = 'todo')) DESC, l.position, l.id LIMIT 1`
     )
     .get(boardId, ownerContactId) as { id: number } | undefined;
   return list?.id ?? null;
@@ -293,7 +309,7 @@ export function ensureCategorizedTaskList(
       .prepare(
         `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
           WHERE b.is_archived = 0 AND b.project_id IS NULL AND b.customer_id = ?
-          ORDER BY (l.status_mapping = 'todo') DESC, b.is_starred DESC, b.id, l.position, l.id LIMIT 1`
+          ORDER BY (l.status_mapping IN (SELECT key FROM task_statuses WHERE kind = 'todo')) DESC, b.is_starred DESC, b.id, l.position, l.id LIMIT 1`
       )
       .get(links.customer_id) as { id: number } | undefined;
     if (existing) return existing.id;
@@ -340,7 +356,7 @@ export function resolveDefaultList(
         `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
           WHERE b.is_archived = 0 AND b.project_id = ?
             AND (? IS NULL OR b.customer_id IS NULL OR b.customer_id = ?)
-          ORDER BY (l.status_mapping = 'todo') DESC, b.is_starred DESC, b.id, l.position, l.id
+          ORDER BY (l.status_mapping IN (SELECT key FROM task_statuses WHERE kind = 'todo')) DESC, b.is_starred DESC, b.id, l.position, l.id
           LIMIT 1`
       )
       .get(preferredProject, customerId, customerId) as { id: number } | undefined;
@@ -352,7 +368,7 @@ export function resolveDefaultList(
       .prepare(
         `SELECT l.id FROM lists l JOIN boards b ON b.id = l.board_id
           WHERE b.is_archived = 0 AND b.project_id IS NULL AND b.customer_id = ?
-          ORDER BY (l.status_mapping = 'todo') DESC, b.is_starred DESC, b.id, l.position, l.id
+          ORDER BY (l.status_mapping IN (SELECT key FROM task_statuses WHERE kind = 'todo')) DESC, b.is_starred DESC, b.id, l.position, l.id
           LIMIT 1`
       )
       .get(customerId) as { id: number } | undefined;
@@ -438,7 +454,10 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
   );
   /* Tao thang trong mot cot co anh xa thi vong doi phai dung ngay tu dong ghi
      dau tien. Truoc day chi MOVE/PATCH dong bo, con CREATE luon roi ve `todo`. */
-  const initialStatus = listStatusMapping(targetList) ?? 'todo';
+  /* v67: trang thai ban dau la KHOA; cot khong khai bao thi vao trang thai "Chua
+     bat dau" dau tien. `status` luu y nghia (kind) cua no. */
+  const initialStatus = listStatusMapping(targetList) ?? firstStatusOfKind(db, 'todo');
+  const initialKind = kindOf(db, initialStatus);
   assertListProjectCustomer(db, targetList, derived.customer_id, 'Công việc');
 
   const description = input.description ?? '';
@@ -447,11 +466,11 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
     const info = db
       .prepare(
         `INSERT INTO cards (list_id, parent_id, title, description, position, priority,
-                            status, is_done, completed_at, start_date, due_date,
+                            status, status_key, is_done, completed_at, start_date, due_date,
                             customer_id, contact_id, deal_id,
                             contract_id, quotation_id, assignee_contact_id, assignee_org_id,
                             baseline_due_date, search_text, creator_contact_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
                  CASE WHEN ? = 'done' THEN datetime('now','localtime') ELSE NULL END,
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
@@ -462,9 +481,10 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
         description,
         position,
         input.priority ?? 'medium',
+        initialKind,
         initialStatus,
-        initialStatus === 'done' ? 1 : 0,
-        initialStatus,
+        initialKind === 'done' ? 1 : 0,
+        initialKind,
         input.start_date ?? null,
         input.due_date ?? null,
         derived.customer_id ?? null,
@@ -666,7 +686,8 @@ function shiftDate(date: string, rule: RecurRule): string {
  */
 export function setCardStatus(
   id: number,
-  status: CardStatus,
+  /** Khoa trang thai (v67). Gia tri `kind` cu cung la khoa cua trang thai dung san. */
+  status: TaskStatusKey,
   options: {
     blockedReason?: string | null;
     moveToMappedList?: boolean;
@@ -677,8 +698,12 @@ export function setCardStatus(
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
     'Khong tim thay the'
   ) as Record<string, unknown>;
-  const previous = (card.status as CardStatus | null) ?? 'todo';
+  const previous = ((card.status_key ?? card.status) as TaskStatusKey | null) ?? 'todo';
+  const previousKind = ((card.status as CardStatus | null) ?? 'todo') as CardStatus;
   if (status === previous && options.blockedReason === undefined) return;
+  /* `status` (cot) luu Y NGHIA cua trang thai: moi luat ben duoi — is_done, bi
+     chan, viec lap lai — doc y nghia chu khong doc ten trang thai. */
+  const kind: CardStatus = getTaskStatus(db, status)?.kind ?? kindOf(db, status);
 
   db.transaction(() => {
     /*
@@ -702,11 +727,12 @@ export function setCardStatus(
       }
     }
 
-    const done = status === 'done';
-    const enteringBlocked = status === 'blocked';
+    const done = kind === 'done';
+    const enteringBlocked = kind === 'blocked';
     db.prepare(
       `UPDATE cards
           SET status = ?,
+              status_key = ?,
               is_done = ?,
               completed_at = CASE WHEN ? = 1 THEN COALESCE(completed_at, datetime('now','localtime'))
                                   ELSE NULL END,
@@ -716,6 +742,7 @@ export function setCardStatus(
               updated_at = datetime('now','localtime')
         WHERE id = ?`
     ).run(
+      kind,
       status,
       done ? 1 : 0,
       done ? 1 : 0,
@@ -727,7 +754,7 @@ export function setCardStatus(
 
     if (status !== previous) enterStatus(id, status, { actorContactId: options.actorContactId });
 
-    if (!done || previous === 'done') return;
+    if (!done || previousKind === 'done') return;
     const rule = parseRecurRule(card.recur_rule);
     if (!rule) return;
 
@@ -759,21 +786,31 @@ export function setCardStatus(
      * khong khai bao anh xa nao thi giu nguyen cho cu.
      */
     const originList = card.list_id as number;
-    const nextList = mappedListInBoard(originList, 'todo') ?? originList;
+    const startKey = firstStatusOfKind(db, 'todo');
+    const nextList = mappedListInBoard(originList, startKey) ?? originList;
     const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: nextList });
     const nextId = db
       .prepare(
         `INSERT INTO cards (list_id, parent_id, title, description, position, priority,
+                            status, status_key,
                             start_date, due_date, customer_id, contact_id, deal_id,
                             contract_id, quotation_id, assignee_contact_id, assignee_org_id,
                             approver_contact_id, recur_rule, recur_until, search_text)
          SELECT ?, parent_id, title, description, ?, priority,
+                'todo', ?,
                 ?, ?, customer_id, contact_id, deal_id,
                 contract_id, quotation_id, assignee_contact_id, assignee_org_id,
                 approver_contact_id, recur_rule, recur_until, search_text
            FROM cards WHERE id = ?`
       )
-      .run(nextList, position, nextStart, card.due_date ? nextDue : null, id).lastInsertRowid;
+      .run(
+        nextList,
+        position,
+        startKey,
+        nextStart,
+        card.due_date ? nextDue : null,
+        id
+      ).lastInsertRowid;
     // Ban ke tiep lam lai dung cac buoc da dinh, tu dau (v66).
     copyFlows(id, Number(nextId));
 

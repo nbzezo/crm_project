@@ -7,14 +7,14 @@
  */
 export const FLOW_PROGRESS_COLUMNS = `
   (SELECT COUNT(*) FROM card_flow_steps fs JOIN card_flows f ON f.id = fs.flow_id
-    WHERE f.card_id = k.id AND f.status = k.status) AS flow_total,
+    WHERE f.card_id = k.id AND f.status = COALESCE(k.status_key, k.status)) AS flow_total,
   (SELECT COUNT(*) FROM card_flow_steps fs JOIN card_flows f ON f.id = fs.flow_id
-    WHERE f.card_id = k.id AND f.status = k.status AND fs.done_at IS NOT NULL) AS flow_done`;
+    WHERE f.card_id = k.id AND f.status = COALESCE(k.status_key, k.status) AND fs.done_at IS NOT NULL) AS flow_done`;
 
 /** Buoc dang phai lam (buoc dau tien chua xong) cua quy trinh dang chay. */
 export const FLOW_NEXT_STEP_COLUMN = `
   (SELECT fs.content FROM card_flow_steps fs JOIN card_flows f ON f.id = fs.flow_id
-    WHERE f.card_id = k.id AND f.status = k.status AND fs.done_at IS NULL
+    WHERE f.card_id = k.id AND f.status = COALESCE(k.status_key, k.status) AND fs.done_at IS NULL
     ORDER BY fs.position, fs.id LIMIT 1) AS flow_next_step`;
 
 /** "Quy trình 2/4 · tiếp: Kiểm thử" — cho dong meta va ngu canh AI; null khi khong co. */

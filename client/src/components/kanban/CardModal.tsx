@@ -54,8 +54,8 @@ import { CustomerForm } from '../crm/CustomerForm';
 import { DealForm } from '../crm/DealForm';
 import { ProjectForm } from '../crm/ProjectForm';
 import { CrmLinkHint, readCrmHintHidden, writeCrmHintHidden, type CreateKind } from './CrmLinkHint';
-import { CARD_STATUS_TONE } from '../tasks/CardStatusControl';
-import { CARD_STATUSES } from '@workflow/contracts';
+import { CARD_STATUS_TONE, StatusDot } from '../tasks/CardStatusControl';
+import { statusKeyOf, useTaskStatuses } from '../../lib/taskStatuses';
 import { api } from '../../api/client';
 import { COVER_COLORS } from '../../lib/backgrounds';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
@@ -107,6 +107,7 @@ export function CardModal() {
     enabled: cardId !== null,
   });
   const { enabled: flowEnabled } = useTaskFlowSettings();
+  const statuses = useTaskStatuses();
 
   /* O tieu de la <textarea> tu gian theo noi dung (mockup 1d/2c): tieu de dai
      xuong dong thay vi bi cat ngang nhu <input>. Do lai khi doi chu va doi the. */
@@ -462,7 +463,8 @@ export function CardModal() {
                   onClick={statusPop.toggle}
                   className={`inline-flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${CARD_STATUS_TONE[card.status ?? 'todo']}`}
                 >
-                  {t.cardStatus[card.status ?? 'todo']}
+                  <StatusDot color={statuses.def(statusKeyOf(card))?.color} />
+                  {statuses.label(statusKeyOf(card))}
                 </button>
               </Field>
 
@@ -736,7 +738,7 @@ export function CardModal() {
                 <CardSection
                   id={SECTION_IDS.flow}
                   icon={<ListOrdered size={16} className="text-tr-subtle" />}
-                  title={`Quy trình · ${t.cardStatus[card.status] ?? ''}`}
+                  title={`Quy trình · ${statuses.label(statusKeyOf(card))}`}
                   hint="Các bước làm lần lượt; xong bước cuối thì công việc tự chuyển trạng thái."
                   count={card.flow_total ?? 0}
                 >
@@ -1427,7 +1429,14 @@ function StatusPopover({
   pop: Pop;
   onChange: (patch: Record<string, unknown>) => void;
 }) {
-  const status = card.status ?? 'todo';
+  const statuses = useTaskStatuses();
+  const status = statusKeyOf(card);
+  /* Gõ lý do chặn = việc bị chặn: giữ trạng thái hiện tại nếu nó đã mang ý nghĩa
+     "Bị chặn", nếu không thì vào trạng thái "Bị chặn" đầu tiên (v67). */
+  const blockedKey =
+    statuses.kind(status) === 'blocked'
+      ? status
+      : (statuses.active.find((s) => s.kind === 'blocked')?.key ?? 'blocked');
   const [reason, setReason] = useState(card.blocked_reason ?? '');
   const recur = parseRecur(card.recur_rule);
 
@@ -1442,24 +1451,31 @@ function StatusPopover({
     <Popover open={pop.open} anchor={pop.anchor} onClose={pop.close} title="Trạng thái" width={300}>
       <div className="space-y-3">
         <div className="space-y-0.5">
-          {CARD_STATUSES.map((value) => (
+          {statuses.active.map((item) => (
             <button
-              key={value}
+              key={item.key}
               type="button"
               onClick={() =>
                 onChange(
-                  value === 'blocked'
-                    ? { status: value, blocked_reason: reason.trim() || null }
-                    : { status: value }
+                  item.kind === 'blocked'
+                    ? { status: item.key, blocked_reason: reason.trim() || null }
+                    : { status: item.key }
                 )
               }
               className={`flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm transition hover:bg-tr-hover ${focusRing} ${
-                status === value ? 'font-semibold text-tr-text' : 'text-tr-subtle'
+                status === item.key ? 'font-semibold text-tr-text' : 'text-tr-subtle'
               }`}
             >
-              <span className={`h-2.5 w-2.5 rounded-full ${CARD_STATUS_TONE[value]}`} />
-              {t.cardStatus[value]}
-              {status === value && <Check size={13} className="ml-auto text-tr-primary" />}
+              {item.color ? (
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+              ) : (
+                <span className={`h-2.5 w-2.5 rounded-full ${CARD_STATUS_TONE[item.kind]}`} />
+              )}
+              {item.label}
+              {status === item.key && <Check size={13} className="ml-auto text-tr-primary" />}
             </button>
           ))}
         </div>
@@ -1473,7 +1489,7 @@ function StatusPopover({
             onChange={(e) => setReason(e.target.value)}
             onBlur={() => {
               if ((card.blocked_reason ?? '') === reason) return;
-              onChange({ status: 'blocked', blocked_reason: reason.trim() || null });
+              onChange({ status: blockedKey, blocked_reason: reason.trim() || null });
             }}
             placeholder="Chờ khách gửi dữ liệu đầu vào…"
             className={POPOVER_INPUT}

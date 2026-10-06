@@ -161,13 +161,34 @@ export const CARD_STATUSES = [
 export type CardStatus = (typeof CARD_STATUSES)[number];
 
 /**
- * Quy trinh theo trang thai (v66): danh sach buoc cua MOT cong viec trong MOT
- * trang thai, lam lan luot. 'done' khong co quy trinh — khong con gi de lam.
+ * Trang thai cong viec cau hinh duoc (v67).
+ *
+ * Danh sach PHANG do quan tri tu dat. `kind` la y nghia voi he thong — mot trong
+ * CARD_STATUSES — va la gia tri `cards.status` mang, nen moi bao cao/nhac viec doc
+ * `status` van dung. Sau trang thai dung san co khoa trung voi CARD_STATUSES.
  */
-export const FLOW_STATUSES = CARD_STATUSES.filter(
-  (status): status is Exclude<CardStatus, 'done'> => status !== 'done'
-);
-export type FlowStatus = Exclude<CardStatus, 'done'>;
+export interface TaskStatusDef {
+  key: string;
+  label: string;
+  /** '#rrggbb' hoac null = mau theo y nghia. */
+  color: string | null;
+  kind: CardStatus;
+  position: number;
+  is_active: number;
+  is_builtin: number;
+  /** So viec dang o trang thai nay (chi co khi doc kem `?usage=1`). */
+  usage?: number;
+}
+
+/** Khoa trang thai cu the cua mot cong viec (`TaskStatusDef.key`). */
+export type TaskStatusKey = string;
+
+/**
+ * Quy trinh theo trang thai (v66): danh sach buoc cua MOT cong viec trong MOT
+ * trang thai, lam lan luot. Trang thai mang y nghia "Hoan thanh" khong co quy
+ * trinh — khong con gi de lam. Tu v67 khoa la khoa trang thai bat ky.
+ */
+export type FlowStatus = TaskStatusKey;
 
 /** Khi cong viec vao mot trang thai: hoi nguoi dung, tu ap mau, hay khong lam gi. */
 export const FLOW_ASK_MODES = ['always', 'auto', 'never'] as const;
@@ -176,17 +197,22 @@ export type FlowAskMode = (typeof FLOW_ASK_MODES)[number];
 export interface FlowTemplate {
   steps: string[];
   /** Trang thai tu chuyen toi khi xong buoc cuoi. */
-  next_status: CardStatus;
+  next_status: TaskStatusKey;
   ask: FlowAskMode;
 }
 
 export interface TaskFlowSettings {
   enabled: boolean;
+  /** Theo khoa trang thai; moi trang thai chua mang y nghia Hoan thanh deu co mot muc. */
   templates: Record<FlowStatus, FlowTemplate>;
 }
 
-/** Mac dinh da duoc nguoi dung duyet (docs/PLAN-QUY-TRINH-TRANG-THAI.md, muc 9). */
-export const DEFAULT_FLOW_TEMPLATES: Record<FlowStatus, FlowTemplate> = {
+/**
+ * Mau cho trang thai chua ai cau hinh. Sau trang thai dung san lay theo mac dinh
+ * da duyet (docs/PLAN-QUY-TRINH-TRANG-THAI.md, muc 9); trang thai tu tao: khong
+ * hoi, xong thi sang trang thai Hoan thanh dau tien.
+ */
+export const DEFAULT_FLOW_TEMPLATES: Record<string, FlowTemplate> = {
   todo: { steps: [], next_status: 'doing', ask: 'never' },
   doing: { steps: [], next_status: 'review', ask: 'always' },
   waiting_customer: { steps: [], next_status: 'doing', ask: 'never' },

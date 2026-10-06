@@ -27,6 +27,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { api, qs } from '../../api/client';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
+import { useTaskStatuses } from '../../lib/taskStatuses';
 import { useAuthStore } from '../../stores/authStore';
 import {
   countActiveTaskFilters,
@@ -340,6 +341,7 @@ function WorkspaceSidebar({
 
 function ActivityFeed() {
   const openCard = useUiStore((state) => state.openCard);
+  const statuses = useTaskStatuses();
   const {
     data = [],
     isLoading,
@@ -359,13 +361,16 @@ function ActivityFeed() {
       return item.new_value === 'true' ? 'đã theo dõi' : 'đã bỏ theo dõi';
     /* Quy trinh (v66) ghi bang action 'updated' + field rieng: bang task_activity
        co CHECK tren `action`, mo rong no nghia la dung lai bang. */
-    const flowStatus = t.cardStatus[item.old_value ?? ''] ?? item.old_value;
+    const flowStatus = statuses.label(item.old_value);
     if (item.field === 'flow_step_done') return `đã xong bước “${item.new_value}” (${flowStatus})`;
     if (item.field === 'flow_step_undone') return `đã bỏ đánh dấu bước “${item.new_value}”`;
     if (item.field === 'flow_completed')
-      return `đã xong quy trình “${t.cardStatus[item.new_value ?? ''] ?? item.new_value}”`;
+      return `đã xong quy trình “${statuses.label(item.new_value)}”`;
     if (item.field === 'flow_skipped')
       return `đã bỏ qua quy trình “${flowStatus}” ở bước ${item.new_value}`;
+    // Trang thai cu the (v67) doi ma y nghia giu nguyen, vd Khao sat -> Trien khai.
+    if (item.field === 'status_key')
+      return `đã chuyển trạng thái “${flowStatus}” → “${statuses.label(item.new_value)}”`;
     return `đã cập nhật ${item.field ?? 'công việc'}`;
   };
   if (isLoading) return <SkeletonRows rows={8} cols={3} />;

@@ -2,6 +2,7 @@ import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 import { formatDateShort } from '../../lib/format';
 import { t } from '../../i18n/vi';
+import { statusKeyOf, useTaskStatuses } from '../../lib/taskStatuses';
 import type { TaskRow } from '../../types';
 import { focusRing } from '../common/ui';
 
@@ -30,6 +31,7 @@ export function TaskCardRow({
   childrenCollapsed?: boolean;
   onToggleChildren?: () => void;
 }) {
+  const statuses = useTaskStatuses();
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
@@ -110,7 +112,7 @@ export function TaskCardRow({
           {task.due_date && <span>{formatDateShort(task.due_date)}</span>}
           {task.customer_name && <span className="truncate">{task.customer_name}</span>}
           <span>{task.assignee_name ?? 'Chưa giao'}</span>
-          <span>{t.cardStatus[task.status ?? 'todo']}</span>
+          <span>{statuses.label(statusKeyOf(task))}</span>
           {(task.subtask_total ?? 0) > 0 && (
             <span>
               {task.subtask_done ?? 0}/{task.subtask_total} việc con

@@ -67,6 +67,8 @@ export const EXPORT_TABLES = [
   // v66 — quy trinh theo trang thai (cha truoc con)
   'card_flows',
   'card_flow_steps',
+  // v67 — trang thai cong viec cau hinh duoc
+  'task_statuses',
   'labels',
   // card_labels la VIEW tu v9 (chi cac lien ket loai 'card'); label_links moi la bang goc
   'card_labels',

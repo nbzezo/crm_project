@@ -38,6 +38,7 @@ import {
 } from './TaskPresentation';
 import { AssigneeSelect } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
+import { statusKeyOf } from '../../lib/taskStatuses';
 import { TaskCardRow } from './TaskCardRow';
 
 const columnHelper = createColumnHelper<TaskRow>();
@@ -275,7 +276,7 @@ export function TaskTable({
         header: 'Trạng thái',
         cell: (info) => (
           <CardStatusSelect
-            value={info.getValue()}
+            value={statusKeyOf(info.row.original)}
             taskTitle={info.row.original.title}
             onChange={(status) => mutate({ id: info.row.original.id, patch: { status } })}
           />

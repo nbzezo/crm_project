@@ -16,7 +16,7 @@ const router = Router();
 
 const TASK_SELECT = `
   SELECT k.id, k.title, k.description, k.priority, k.start_date, k.due_date, k.is_done,
-         k.status, k.blocked_reason, k.blocked_since, k.recur_rule,
+         k.status, COALESCE(k.status_key, k.status) AS status_key, k.blocked_reason, k.blocked_since, k.recur_rule,
          k.completed_at, k.position, k.list_id, k.parent_id, k.created_at, k.updated_at,
          k.creator_contact_id, creator.full_name AS creator_name,
          (SELECT COUNT(*) FROM task_watchers tw WHERE tw.card_id = k.id) AS watcher_count,

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { CARD_STATUSES, type CardStatus } from '@workflow/contracts';
+import { firstStatusOfKind, requireActiveStatus } from '../lib/taskStatuses.ts';
 import { db } from '../db/connection.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
 import { HttpError, parseBody, required } from '../lib/validate.ts';
@@ -283,12 +283,13 @@ router.post('/:key/complete', (req, res) => {
   const body = parseBody(
     z.object({
       done: z.boolean(),
-      restore_status: z.enum(CARD_STATUSES).optional(),
+      /* Khoa trang thai de hoan tac (v67: cau hinh duoc). */
+      restore_status: z.string().trim().min(1).max(60).optional(),
       skip_flow: z.boolean().optional(),
     }),
     req
   );
-  let previousStatus: CardStatus | undefined;
+  let previousStatus: string | undefined;
 
   if (parsed.prefix === 'reminder') {
     db.prepare(`UPDATE reminders SET is_done = ? WHERE id = ?`).run(body.done ? 1 : 0, parsed.id);
@@ -301,11 +302,17 @@ router.post('/:key/complete', (req, res) => {
     ).run(body.done ? 'done' : 'pending', body.done ? 1 : 0, parsed.id);
   } else if (parsed.prefix === 'task') {
     const card = required(
-      db.prepare(`SELECT status FROM cards WHERE id = ?`).get(parsed.id),
+      db
+        .prepare(`SELECT COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
+        .get(parsed.id),
       'Khong tim thay cong viec'
-    ) as { status: CardStatus };
+    ) as { status: string };
     previousStatus = card.status;
-    const next = body.done ? 'done' : (body.restore_status ?? 'todo');
+    const next = body.done
+      ? firstStatusOfKind(db, 'done')
+      : body.restore_status
+        ? requireActiveStatus(db, body.restore_status).key
+        : firstStatusOfKind(db, 'todo');
     const actor = actorContactId(req);
     guardLeaveStatus(parsed.id, card.status, next, { skip: body.skip_flow, actorContactId: actor });
     setCardStatus(parsed.id, next, { actorContactId: actor });

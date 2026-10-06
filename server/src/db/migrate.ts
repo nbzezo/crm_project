@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 66;
+export const LATEST_VERSION = 67;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -1330,5 +1330,28 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v66 (quy trinh theo trang thai cua cong viec)');
     current = 66;
+  }
+
+  if (current === 66 && targetVersion >= 67) {
+    /* Dung lai card_flows (bo CHECK nam trang thai) nen phai tat khoa ngoai —
+       card_flow_steps tro toi no. Cung khuon v64. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v67.sql'));
+        const check = /\s*CHECK\s*\(\s*status\s+IN\s*\([^)]*\)\s*\)/i;
+        rebuildTable(db, 'card_flows', (sql) => {
+          if (!check.test(sql)) throw new Error('v67: khong tim thay CHECK cua card_flows.status');
+          return sql.replace(check, '');
+        });
+        db.pragma('user_version = 67');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v67:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v67 (trang thai cong viec cau hinh duoc)');
+    current = 67;
   }
 }

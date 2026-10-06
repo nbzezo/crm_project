@@ -7,7 +7,7 @@
  * vi do la mot quyet dinh cua con nguoi chu khong phai mot phep tinh.
  */
 import type { Database } from 'better-sqlite3';
-import type { CardStatus } from '@workflow/contracts';
+import type { TaskStatusKey } from '@workflow/contracts';
 import { HttpError, required } from '../lib/validate.ts';
 
 /* ---------- Cau hinh ---------- */
@@ -21,7 +21,7 @@ interface ClassificationThresholds {
 
 interface BoardTemplateItem {
   name: string;
-  status: CardStatus | null;
+  status: TaskStatusKey | null;
 }
 
 type BoardTemplates = Record<string, BoardTemplateItem[]>;
@@ -70,7 +70,7 @@ export function getDeliverySettings(db: Database): DeliverySettings {
       .filter((item): item is Record<string, unknown> => item !== null && typeof item === 'object')
       .map((item) => ({
         name: String(item.name ?? '').trim(),
-        status: (item.status ?? null) as CardStatus | null,
+        status: (item.status ?? null) as TaskStatusKey | null,
       }))
       .filter((item) => item.name.length > 0);
     if (items.length > 0) boardTemplates[key] = items;
