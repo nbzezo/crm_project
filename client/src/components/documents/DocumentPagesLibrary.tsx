@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ArchiveRestore, FileText, FolderKanban, Target, Users } from 'lucide-react';
+import { ArchiveRestore, FileText, FolderKanban, Target, Trash2, Users } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { EmptyState, ErrorState, Select, Skeleton, SkeletonRows, focusRing } from '../common/ui';
 import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { MeetingNoteEditor } from '../crm/meetingNotes/MeetingNoteEditor';
 import { DocumentTemplatePicker } from '../crm/meetingNotes/DocumentTemplatePicker';
 import {
@@ -196,6 +197,19 @@ export function DocumentPagesLibrary({
       void invalidate();
       pushToast('Đã khôi phục trang tài liệu', 'success');
     },
+  });
+
+  /* Xoa vinh vien: may chu huy ca tep dinh kem (vd. ghi am) tren o dia. */
+  const [purgeTarget, setPurgeTarget] = useState<MeetingNoteListItem | null>(null);
+  const purge = useMutation({
+    mutationFn: (id: number) => api.del(`/api/meeting-notes/${id}/permanent`),
+    onSuccess: () => {
+      void invalidate();
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
+      pushToast('Đã xoá vĩnh viễn trang tài liệu', 'success');
+    },
+    onError: (err) =>
+      pushToast(err instanceof Error ? err.message : 'Không xoá được trang tài liệu'),
   });
 
   // Mo / dong mot trang la doi man: dua ve dau trang thay vi giu vi tri cuon cu.
@@ -499,6 +513,16 @@ export function DocumentPagesLibrary({
                             <ArchiveRestore size={14} aria-hidden="true" /> Khôi phục
                           </button>
                         )}
+                        {view === 'trash' && (
+                          <button
+                            type="button"
+                            onClick={() => setPurgeTarget(note)}
+                            disabled={purge.isPending}
+                            className={`inline-flex min-h-9 items-center gap-1 rounded-control px-2 text-xs font-medium text-tr-danger hover:bg-tr-hover ${focusRing}`}
+                          >
+                            <Trash2 size={14} aria-hidden="true" /> Xoá vĩnh viễn
+                          </button>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -517,6 +541,17 @@ export function DocumentPagesLibrary({
         </section>
       </div>
       {picker}
+      <ConfirmDialog
+        open={purgeTarget !== null}
+        title="Xoá vĩnh viễn trang tài liệu"
+        confirmLabel="Xoá vĩnh viễn"
+        message={`Xoá vĩnh viễn trang "${purgeTarget?.title || 'Trang không tiêu đề'}"? Nội dung và tệp đính kèm của trang sẽ bị xoá khỏi máy chủ, không khôi phục được.`}
+        onCancel={() => setPurgeTarget(null)}
+        onConfirm={() => {
+          if (purgeTarget) purge.mutate(purgeTarget.id);
+          setPurgeTarget(null);
+        }}
+      />
     </div>
   );
 }

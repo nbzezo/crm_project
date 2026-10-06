@@ -78,6 +78,7 @@ import {
   saveVoicePromptTemplates,
   type VoicePromptTemplate,
 } from '../services/ai/promptTemplates.ts';
+import { assertMeetingNoteInScope } from '../lib/meetingNoteScope.ts';
 
 const router = Router();
 
@@ -980,6 +981,8 @@ const meetingNoteSummarySchema = z.object({
 router.post('/assist/meeting-note/:id/summarize', async (req, res) => {
   try {
     const id = intParam(req.params.id);
+    // Chan TRUOC khi gui noi dung cho nha cung cap AI (xem lib/meetingNoteScope.ts).
+    assertMeetingNoteInScope(req, id, 'read');
     const note = getMeetingNote(db, id) as {
       title: string;
       purpose_key: string;
@@ -1054,6 +1057,7 @@ const INLINE_INSTRUCTION: Record<string, string> = {
 router.post('/assist/meeting-note/:id/inline', async (req, res) => {
   try {
     const id = intParam(req.params.id);
+    assertMeetingNoteInScope(req, id, 'update');
     const note = getMeetingNote(db, id) as { deal_id: number | null; project_id: number | null };
     const body = parseBody(meetingNoteInlineSchema, req);
 

@@ -3,6 +3,8 @@ import type { MeetingNoteInput } from '@workflow/contracts/schemas';
 import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { afterCursor, toPage, type PageCursor } from '../lib/paging.ts';
+import type { ScopeClause } from '../lib/scope.ts';
+import { permanentlyDeleteDocument } from './documentService.ts';
 import { HttpError, required } from '../lib/validate.ts';
 
 interface MeetingNoteRow {
@@ -101,20 +103,26 @@ function assertLinks(
  * Khong truyen `links` (hoac ca hai deu rong) thi liet ke TAT CA ghi chu hop —
  * dung boi trang "Ghi chu" o muc Phan tich & cong cu (xem NotesPage.tsx).
  */
-export function listMeetingNotes(db: Database, links: { deal_id?: number; project_id?: number }) {
+export function listMeetingNotes(
+  db: Database,
+  links: { deal_id?: number; project_id?: number },
+  scope: ScopeClause = { sql: '', params: [] }
+) {
   const rows = db
     .prepare(
-      `SELECT id FROM meeting_notes
-        WHERE deleted_at IS NULL
-          AND (? IS NULL OR deal_id = ?)
-          AND (? IS NULL OR project_id = ?)
-        ORDER BY updated_at DESC, id DESC`
+      `SELECT m.id FROM meeting_notes m
+        WHERE m.deleted_at IS NULL
+          AND (? IS NULL OR m.deal_id = ?)
+          AND (? IS NULL OR m.project_id = ?)
+          ${scope.sql ? `AND ${scope.sql}` : ''}
+        ORDER BY m.updated_at DESC, m.id DESC`
     )
     .all(
       links.deal_id ?? null,
       links.deal_id ?? null,
       links.project_id ?? null,
-      links.project_id ?? null
+      links.project_id ?? null,
+      ...scope.params
     ) as { id: number }[];
   return rows.map((row) => reload(db, row.id));
 }
@@ -226,6 +234,8 @@ export interface MeetingNoteLibraryFilters {
   linked?: MeetingNoteLinkFilter;
   customer_id?: number;
   trash?: boolean;
+  /** Pham vi du lieu cua nguoi xem — xem lib/meetingNoteScope.ts. */
+  scope?: ScopeClause;
 }
 
 /**
@@ -239,6 +249,10 @@ function libraryWhere(
 ): { where: string[]; params: unknown[] } {
   const where = [filters.trash ? 'm.deleted_at IS NOT NULL' : 'm.deleted_at IS NULL'];
   const params: unknown[] = [];
+  if (filters.scope?.sql) {
+    where.push(filters.scope.sql);
+    params.push(...filters.scope.params);
+  }
   const q = fold((filters.q ?? '').trim());
   if (q) {
     where.push(`m.search_text LIKE '%' || ? || '%'`);
@@ -363,4 +377,21 @@ export function restoreMeetingNote(db: Database, id: number) {
     .run(id);
   if (result.changes === 0) throw new HttpError(404, 'Khong tim thay trang trong thung rac');
   return getMeetingNote(db, id);
+}
+
+/**
+ * Xoa vinh vien mot trang DANG trong Thung rac. Tep dinh kem (vd. ghi am) xoa
+ * qua permanentlyDeleteDocument de tep tren o dia cung bi huy — neu de khoa
+ * ngoai ON DELETE CASCADE tu xoa thi dong `documents` mat ma tep van nam lai.
+ */
+export function permanentlyDeleteMeetingNote(db: Database, id: number): void {
+  required(
+    db.prepare(`SELECT id FROM meeting_notes WHERE id = ? AND deleted_at IS NOT NULL`).get(id),
+    'Chỉ trang trong thùng rác mới được xoá vĩnh viễn'
+  );
+  const files = db.prepare(`SELECT id FROM documents WHERE meeting_note_id = ?`).all(id) as {
+    id: number;
+  }[];
+  for (const file of files) permanentlyDeleteDocument(file.id);
+  db.prepare(`DELETE FROM meeting_notes WHERE id = ?`).run(id);
 }

@@ -368,6 +368,66 @@ test('ghi chu nhanh la du lieu ca nhan — cap tren cung khong thay', async () =
   );
 });
 
+test('trang tai lieu: thay trang cua minh va trang gan voi co hoi minh thay', async () => {
+  const dealOf = (label: string) =>
+    (
+      db.prepare('SELECT id FROM deals WHERE title = ?').get(`Cơ hội của ${label}`) as {
+        id: number;
+      }
+    ).id;
+  const insert = db.prepare(
+    `INSERT INTO meeting_notes (title, content_json, content_text, search_text, owner_contact_id, deal_id)
+     VALUES (?, '[]', '', ?, ?, ?)`
+  );
+  const page = (title: string, owner: Person, dealId: number | null) =>
+    Number(insert.run(title, title.toLowerCase(), owner.contactId, dealId).lastInsertRowid);
+  const n1Private = page('Trang riêng N1', n1, null);
+  page('Trang riêng N2', n2, null);
+  // N2 viet bien ban tren co hoi cua N1: thuoc ve co hoi, nen ai thay co hoi do deu thay.
+  const onN1Deal = page('Biên bản trên cơ hội N1', n2, dealOf('N1'));
+
+  const titles = async () =>
+    ((await call('GET', '/api/meeting-notes')).data as { title: string }[])
+      .map((n) => n.title)
+      .sort();
+
+  await signInAs(n1);
+  assert.deepEqual(await titles(), ['Biên bản trên cơ hội N1', 'Trang riêng N1']);
+
+  await signInAs(n2);
+  assert.deepEqual(await titles(), ['Biên bản trên cơ hội N1', 'Trang riêng N2']);
+  const facets = (await call('GET', '/api/meeting-notes/facets')).data as { total: number };
+  assert.equal(facets.total, 2, 'so dem tren tab cung theo pham vi');
+  const paged = (await call('GET', '/api/meeting-notes/page')).data as { items: unknown[] };
+  assert.equal(paged.items.length, 2);
+  // Mo/sua/xoa/tom tat AI/chia se trang rieng cua nguoi khac bang cach doan id: 404.
+  assert.equal((await call('GET', `/api/meeting-notes/${n1Private}`)).status, 404);
+  assert.equal(
+    (await call('PATCH', `/api/meeting-notes/${n1Private}`, { title: 'sua trom' })).status,
+    404
+  );
+  assert.equal((await call('DELETE', `/api/meeting-notes/${n1Private}`)).status, 404);
+  assert.equal(
+    (await call('POST', `/api/ai/assist/meeting-note/${n1Private}/summarize`)).status,
+    404
+  );
+  assert.equal(
+    (await call('GET', `/api/shares?entity_type=page&entity_id=${n1Private}`)).status,
+    404
+  );
+
+  await signInAs(head);
+  assert.deepEqual(
+    await titles(),
+    ['Biên bản trên cơ hội N1'],
+    'Truong phong thay co hoi cua N1 nen thay bien ban tren do, nhung trang rieng van la cua rieng'
+  );
+  assert.equal((await call('GET', `/api/meeting-notes/${onN1Deal}`)).status, 200);
+
+  await signInAs('admin');
+  assert.equal((await titles()).length, 3);
+});
+
 test('xuat toan bo CSDL van chi danh cho nguoi co quyen', async () => {
   await signInAs(head);
   assert.equal((await call('GET', '/api/export')).status, 403);

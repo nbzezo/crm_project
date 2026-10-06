@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.28.1',
+    date: '2026-10-06',
+    title: 'Trang tài liệu theo đúng phạm vi xem; xoá vĩnh viễn từ Thùng rác',
+    changes: [
+      'Trang tài liệu nay theo phạm vi dữ liệu như Cơ hội, Khách hàng: bạn chỉ thấy trang của mình, và trang gắn với Cơ hội / Dự án / Khách hàng mà bạn được xem. Trước đây ai mở được màn hình Tài liệu cũng đọc được mọi trang.',
+      'Biên bản họp gắn với một cơ hội vẫn hiện cho mọi người cùng làm cơ hội đó, kể cả khi đồng nghiệp viết; trang riêng (không gắn gì) chỉ người viết thấy. Sửa hoặc xoá trang gắn với một bản ghi cần quyền sửa bản ghi đó.',
+      'Tóm tắt AI, viết bằng AI và chia sẻ link một trang cũng kiểm tra phạm vi này trước khi chạy.',
+      'Thùng rác của tab Trang tài liệu có thêm nút Xoá vĩnh viễn: xoá hẳn trang cùng tệp đính kèm (ví dụ ghi âm) khỏi máy chủ, sau khi xác nhận.',
+    ],
+  },
+  {
     version: '1.28.0',
     date: '2026-10-06',
     title: 'Trang Tài liệu: tìm và lọc ở một chỗ',

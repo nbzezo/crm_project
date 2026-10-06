@@ -13,7 +13,7 @@ process.env.WORKFLOW_DATA_DIR = fixtureRoot;
 process.env.WORKFLOW_DB_PATH = ':memory:';
 
 const { createApp } = await import('../app.ts');
-const { db, closeDatabase } = await import('../db/connection.ts');
+const { db, closeDatabase, FILES_DIR } = await import('../db/connection.ts');
 
 let server: Server;
 let baseUrl = '';
@@ -154,4 +154,34 @@ test('dem tep theo tu khoa cho goi y cheo tab', async () => {
   assert.equal(count.data.count, 1);
   const none = await json('GET', '/api/documents/count?q=khong co');
   assert.equal(none.data.count, 0);
+});
+
+test('xoa vinh vien trang trong thung rac huy ca tep dinh kem tren o dia', async () => {
+  const created = await json('POST', '/api/meeting-notes', {
+    title: 'Trang có ghi âm',
+    content_text: '',
+  });
+  const id = created.data.id as number;
+  const stored = `ghi-am-${Date.now()}.webm`;
+  fs.mkdirSync(FILES_DIR, { recursive: true });
+  fs.writeFileSync(path.join(FILES_DIR, stored), 'audio');
+  const docId = Number(
+    db
+      .prepare(
+        `INSERT INTO documents (name, file_name, stored_name, size, meeting_note_id)
+         VALUES ('Ghi âm', 'ghi-am.webm', ?, 5, ?)`
+      )
+      .run(stored, id).lastInsertRowid
+  );
+
+  // Trang con dang dung: khong xoa vinh vien duoc.
+  assert.notEqual((await json('DELETE', `/api/meeting-notes/${id}/permanent`)).status, 200);
+
+  await json('DELETE', `/api/meeting-notes/${id}`);
+  assert.equal((await json('DELETE', `/api/meeting-notes/${id}/permanent`)).status, 200);
+
+  assert.equal(db.prepare('SELECT 1 FROM meeting_notes WHERE id = ?').get(id), undefined);
+  assert.equal(db.prepare('SELECT 1 FROM documents WHERE id = ?').get(docId), undefined);
+  assert.equal(fs.existsSync(path.join(FILES_DIR, stored)), false, 'tep ghi am phai bi huy');
+  assert.equal((await json('POST', `/api/meeting-notes/${id}/restore`)).status, 404);
 });

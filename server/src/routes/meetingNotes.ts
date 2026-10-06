@@ -1,15 +1,17 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { meetingNoteFieldsSchema, meetingNoteInputSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody } from '../lib/validate.ts';
 import { defaultOwner } from '../lib/scope.ts';
 import { decodeCursor, pageLimit } from '../lib/paging.ts';
+import { assertMeetingNoteInScope, meetingNoteScope } from '../lib/meetingNoteScope.ts';
 import {
   createMeetingNote,
   getMeetingNote,
   listMeetingNotePage,
   listMeetingNotes,
   meetingNoteFacets,
+  permanentlyDeleteMeetingNote,
   restoreMeetingNote,
   softDeleteMeetingNote,
   type MeetingNoteLibraryFilters,
@@ -26,10 +28,14 @@ function optionalIntQuery(value: unknown): number | undefined {
 
 router.get('/', (req, res) => {
   res.json(
-    listMeetingNotes(db, {
-      deal_id: optionalIntQuery(req.query.deal_id),
-      project_id: optionalIntQuery(req.query.project_id),
-    })
+    listMeetingNotes(
+      db,
+      {
+        deal_id: optionalIntQuery(req.query.deal_id),
+        project_id: optionalIntQuery(req.query.project_id),
+      },
+      meetingNoteScope(req, 'read')
+    )
   );
 });
 
@@ -37,7 +43,8 @@ const PURPOSES = new Set(['blank', 'meeting', 'plan', 'proposal', 'report', 'pro
 const LINKS = new Set(['deal', 'project', 'none']);
 
 /** Bo loc dung chung cho `/page` va `/facets` — gia tri la bi bo qua, khong bao loi. */
-function libraryFilters(query: Record<string, unknown>): MeetingNoteLibraryFilters {
+function libraryFilters(req: Request): MeetingNoteLibraryFilters {
+  const query = req.query as Record<string, unknown>;
   const purpose = String(query.purpose_key ?? '');
   const linked = String(query.linked ?? '');
   return {
@@ -46,6 +53,7 @@ function libraryFilters(query: Record<string, unknown>): MeetingNoteLibraryFilte
     linked: LINKS.has(linked) ? (linked as MeetingNoteLibraryFilters['linked']) : undefined,
     customer_id: optionalIntQuery(query.customer_id),
     trash: query.trash === '1',
+    scope: meetingNoteScope(req, 'read'),
   };
 }
 
@@ -58,7 +66,7 @@ router.get('/page', (req, res) => {
   res.json(
     listMeetingNotePage(
       db,
-      libraryFilters(req.query),
+      libraryFilters(req),
       req.query.sort === 'meeting' ? 'meeting' : 'updated',
       decodeCursor(req.query.cursor),
       pageLimit(req.query.limit)
@@ -66,25 +74,43 @@ router.get('/page', (req, res) => {
   );
 });
 
-router.get('/facets', (req, res) => res.json(meetingNoteFacets(db, libraryFilters(req.query))));
+router.get('/facets', (req, res) => res.json(meetingNoteFacets(db, libraryFilters(req))));
 
 router.post('/', (req, res) => {
   const body = parseBody(meetingNoteInputSchema, req);
   res.status(201).json(createMeetingNote(db, body, defaultOwner(req)));
 });
 
-router.get('/:id', (req, res) => res.json(getMeetingNote(db, intParam(req.params.id))));
-
-router.patch('/:id', (req, res) => {
-  const body = parseBody(meetingNoteFieldsSchema.partial(), req);
-  res.json(updateMeetingNote(db, intParam(req.params.id), body));
+router.get('/:id', (req, res) => {
+  const id = intParam(req.params.id);
+  assertMeetingNoteInScope(req, id, 'read');
+  res.json(getMeetingNote(db, id));
 });
 
-router.post('/:id/restore', (req, res) =>
-  res.json(restoreMeetingNote(db, intParam(req.params.id)))
-);
+router.patch('/:id', (req, res) => {
+  const id = intParam(req.params.id);
+  assertMeetingNoteInScope(req, id, 'update');
+  const body = parseBody(meetingNoteFieldsSchema.partial(), req);
+  res.json(updateMeetingNote(db, id, body));
+});
+
+/* Khoi phuc la hoan tac mot lan xoa — can quyen xoa, khong phai quyen tao. */
+router.post('/:id/restore', (req, res) => {
+  const id = intParam(req.params.id);
+  assertMeetingNoteInScope(req, id, 'delete', true);
+  res.json(restoreMeetingNote(db, id));
+});
+
+/** Chi xoa vinh vien duoc trang DANG trong Thung rac (xem permanentlyDeleteMeetingNote). */
+router.delete('/:id/permanent', (req, res) => {
+  const id = intParam(req.params.id);
+  assertMeetingNoteInScope(req, id, 'delete', true);
+  permanentlyDeleteMeetingNote(db, id);
+  res.json({ ok: true });
+});
 
 router.delete('/:id', (req, res) => {
+  assertMeetingNoteInScope(req, intParam(req.params.id), 'delete');
   softDeleteMeetingNote(db, intParam(req.params.id));
   res.json({ ok: true });
 });
