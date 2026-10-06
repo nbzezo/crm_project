@@ -18,6 +18,14 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.28.4',
+    date: '2026-10-06',
+    title: 'Cập nhật bộ kiểm thử giao diện tự động',
+    changes: [
+      'Không đổi gì trên giao diện: bộ kiểm thử tự động được cập nhật theo việc nút chọn giao diện đã vào menu tài khoản và mục Trợ lý AI đã rời thanh điều hướng (từ 1.14.0), để mỗi lần phát hành đều được kiểm tra đủ.',
+    ],
+  },
+  {
     version: '1.28.3',
     date: '2026-10-06',
     title: 'Sửa menu "/" trong soạn thảo bị cắt và không cuộn được',

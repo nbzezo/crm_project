@@ -89,8 +89,19 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
       await expect(sheet.getByRole('region', { name: group })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Cơ hội bán hàng' })).toBeVisible();
     await expect(sheet.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
-    await expect(sheet.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Ghi nhanh' })).toBeVisible();
+    /* 1.14.0 bo muc Trợ lý AI khoi dieu huong: tren dien thoai loi vao la tab
+       "Tạo" → "Trợ lý AI" (canh Ghi nhanh), mo khung chat nhanh. */
+    await expect(sheet.getByRole('link', { name: 'Trợ lý AI' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await page
+      .getByRole('navigation', { name: 'Điều hướng chính' })
+      .getByRole('button', { name: 'Tạo' })
+      .click();
+    await expect(
+      page.getByRole('dialog', { name: 'Tạo nhanh' }).getByRole('button', { name: 'Trợ lý AI' })
+    ).toBeVisible();
     return;
   }
 
@@ -105,7 +116,9 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
   await expect(container.getByRole('link', { name: 'Sức khỏe pipeline' })).toBeVisible();
   await expect(container.getByRole('link', { name: 'Báo cáo' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ghi nhanh', exact: true })).toBeVisible();
-  await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toBeVisible();
+  /* 1.14.0 bo muc Trợ lý AI khoi thanh ben: loi vao la nut ✨ tren thanh tren. */
+  await expect(container.getByRole('link', { name: 'Trợ lý AI' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Trợ lý AI', exact: true })).toBeVisible();
 
   if (testInfo.project.name === 'desktop-chromium') {
     await expect(container.getByRole('button', { name: 'Sắp xếp Công việc' })).toHaveCount(0);
@@ -117,16 +130,11 @@ test('menu duoc nhom theo luong cong viec va chi keo tha trong che do tuy chinh'
 });
 
 /**
- * Mo danh sach giao dien. Man rong: nut "Giao dien: …" tren thanh tren. Dien
- * thoai (1.13.0): nut do nam trong menu tai khoan, muc "Giao dien".
+ * Mo danh sach giao dien. Tu 1.14.0 tren MOI co man hinh no nam trong menu tai
+ * khoan, muc "Giao dien" — nut "Giao dien: …" tren thanh tren da nhuong cho cho
+ * nut Khoa man hinh.
  */
-async function openThemePicker(page: Page, mobile: boolean) {
-  if (!mobile) {
-    await page.getByRole('button', { name: /^Giao diện:/ }).click();
-    const picker = page.getByRole('dialog', { name: 'Giao diện' });
-    await expect(picker).toBeVisible();
-    return picker;
-  }
+async function openThemePicker(page: Page) {
   await page.getByRole('button', { name: 'Tài khoản và đăng xuất' }).click();
   const menu = page
     .getByRole('dialog')
@@ -136,8 +144,7 @@ async function openThemePicker(page: Page, mobile: boolean) {
   return menu;
 }
 
-test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }, testInfo) => {
-  const mobile = isMobile(testInfo);
+test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }) => {
   // Bo theme rut con bon: sang, toi, Ubuntu, Don sac. Quet axe tren tung theme vi
   // tuong phan la thu duy nhat khong the suy ra tu theme nay sang theme khac.
   const themes = [
@@ -148,16 +155,13 @@ test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }, testIn
   ] as const;
 
   for (const theme of themes) {
-    const picker = await openThemePicker(page, mobile);
+    const picker = await openThemePicker(page);
     /* `menuitemradio` chu khong con la `button`: chon giao dien la mot lua chon
        loai tru nhau nen cac muc gio khai bao dung vai tro do (xem ThemeToggle). */
     const option = picker.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) });
     await option.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.value);
-    if (!mobile) {
-      await expect(page.getByRole('button', { name: `Giao diện: ${theme.label}` })).toBeVisible();
-    }
-    const reopened = await openThemePicker(page, mobile);
+    const reopened = await openThemePicker(page);
     await expect(
       reopened.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) })
     ).toHaveAttribute('aria-checked', 'true');
@@ -177,9 +181,10 @@ test('chon va luu giao dien, quet a11y tren tung theme', async ({ page }, testIn
   const last = themes[themes.length - 1];
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', last.value);
-  if (!mobile) {
-    await expect(page.getByRole('button', { name: `Giao diện: ${last.label}` })).toBeVisible();
-  }
+  const afterReload = await openThemePicker(page);
+  await expect(
+    afterReload.getByRole('menuitemradio', { name: new RegExp(`^${last.label}`) })
+  ).toHaveAttribute('aria-checked', 'true');
 });
 
 test('theme Don sac tai font rieng, in hoa tieu de va khong bat che do toi', async ({ page }) => {
