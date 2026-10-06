@@ -711,7 +711,29 @@ router.get('/comparison', cacheResponse, (req, res) => {
       ...comparison,
     });
   }
-  res.json({ year, current_period: current, lines: rows });
+  /* Tong ca nam cho o "Co cau doanh thu theo nhom". Truoc day client tai CHI TIET tung
+     dong (hang chuc MB) chi de cong lai bon con so nay. `lines=none` bo phan chi tiet —
+     ket qua nho nen duoc luu dem (lib/responseCache.ts). */
+  const totals = {
+    projected_by_group: { new: 0, expansion: 0, base: 0 } as Record<RevenueGroup, number>,
+    projected_total_vnd: 0,
+    prev_total_vnd: 0,
+    prev_total_approx: false,
+  };
+  for (const row of rows) {
+    for (const [period, value] of Object.entries(row.projection)) {
+      totals.projected_by_group[row.groups[period] as RevenueGroup] += value.value;
+    }
+    totals.projected_total_vnd += row.projected_total_vnd;
+    totals.prev_total_vnd += row.prev_total_vnd;
+    if (row.prev_total_approx) totals.prev_total_approx = true;
+  }
+  res.json({
+    year,
+    current_period: current,
+    totals,
+    lines: req.query.lines === 'none' ? [] : rows,
+  });
 });
 
 /* ---------- KPI doanh thu theo AM ---------- */
@@ -752,11 +774,6 @@ function userNames(): Map<number, { name: string; active: boolean }> {
   );
 }
 
-/**
- * KPI cua nam: 12 thang (chi tieu, Moi, Mo rong, Mo rong tu Nen, Lost), bang theo
- * AM va chi tiet tung dong. AM la nguoi dung; 0 = "Chua gan AM". Loc theo AM thi
- * chi tieu cung chi lay cua AM do.
- */
 /** Loc phan chi tiet cua /kpi theo `entries` / `entries_period` (xem ghi chu trong /kpi). */
 function entryFilter(query: Record<string, unknown>): (entry: { period: string }) => boolean {
   if (query.entries === 'none') return () => false;
@@ -765,6 +782,11 @@ function entryFilter(query: Record<string, unknown>): (entry: { period: string }
   return () => true;
 }
 
+/**
+ * KPI cua nam: 12 thang (chi tieu, Moi, Mo rong, Mo rong tu Nen, Lost), bang theo
+ * AM va chi tiet tung dong. AM la nguoi dung; 0 = "Chua gan AM". Loc theo AM thi
+ * chi tieu cung chi lay cua AM do.
+ */
 router.get('/kpi', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const { sql, params } = buildFilters(req);

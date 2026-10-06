@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from './ui';
 
@@ -90,4 +90,14 @@ export function LoadMoreSentinel({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Ve dan mot danh sach dai tren may: tra ve so dong dang ve va ham ve them, dung kem
+ * `<LoadMoreSentinel progress={limit} onLoadMore={more} ... />` o cuoi danh sach.
+ */
+export function useRenderLimit(step = 200) {
+  const [limit, setLimit] = useState(step);
+  const more = useCallback(() => setLimit((current) => current + step), [step]);
+  return { limit, more, step };
 }

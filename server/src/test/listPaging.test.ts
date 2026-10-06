@@ -214,3 +214,57 @@ test('/customers?fields=basic: cung danh sach, khong kem so lieu tinh tu bang co
     assert.equal(customer.open_deal_count, undefined);
   }
 });
+
+test('/revenues/comparison: totals khop tong tung dong, lines=none bo phan chi tiet', async () => {
+  const customerId = Number(
+    db
+      .prepare(
+        `INSERT INTO customers (name, org_kind, search_text) VALUES ('Khach doanh thu', 'customer', 'khach doanh thu')`
+      )
+      .run().lastInsertRowid
+  );
+  const serviceId = Number(
+    db.prepare(`INSERT INTO services (name) VALUES ('Dich vu so sanh')`).run().lastInsertRowid
+  );
+  const year = new Date().getFullYear();
+  const insertCell = db.prepare(
+    `INSERT INTO service_revenues (line_id, period, amount_vnd, stage) VALUES (?, ?, ?, 'paid')`
+  );
+  for (let i = 0; i < 3; i++) {
+    const lineId = Number(
+      db
+        .prepare(
+          `INSERT INTO customer_services (customer_id, service_id, status) VALUES (?, ?, 'using')`
+        )
+        .run(customerId, serviceId).lastInsertRowid
+    );
+    for (let m = 1; m <= 12; m++) {
+      insertCell.run(lineId, `${year - 1}-${String(m).padStart(2, '0')}`, 1_000_000 * (i + 1));
+      if (m <= 3)
+        insertCell.run(lineId, `${year}-${String(m).padStart(2, '0')}`, 1_200_000 * (i + 1));
+    }
+  }
+  interface ComparisonLine {
+    projected_total_vnd: number;
+    prev_total_vnd: number;
+  }
+  interface Comparison {
+    totals: { projected_total_vnd: number; prev_total_vnd: number };
+    lines: ComparisonLine[];
+  }
+  const full = await get<Comparison>(`/api/revenues/comparison?year=${year}&group=all`);
+  assert.equal(full.status, 200);
+  assert.ok(full.data.lines.length >= 3);
+  assert.equal(
+    full.data.totals.projected_total_vnd,
+    full.data.lines.reduce((sum, line) => sum + line.projected_total_vnd, 0)
+  );
+  assert.equal(
+    full.data.totals.prev_total_vnd,
+    full.data.lines.reduce((sum, line) => sum + line.prev_total_vnd, 0)
+  );
+
+  const slim = await get<Comparison>(`/api/revenues/comparison?year=${year}&group=all&lines=none`);
+  assert.deepEqual(slim.data.lines, []);
+  assert.deepEqual(slim.data.totals, full.data.totals);
+});

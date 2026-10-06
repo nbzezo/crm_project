@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.23.0',
+    date: '2026-10-06',
+    title: 'Trang Doanh thu mở được khi có hàng chục nghìn dòng',
+    changes: [
+      'Bảng doanh thu hiện dần từng 200 dòng khi cuộn, thay vì vẽ cả nghìn dòng một lúc làm treo trình duyệt. Dòng Tổng cộng cuối bảng vẫn tính trên toàn bộ dữ liệu.',
+      'Ô "Cơ cấu doanh thu theo nhóm" chỉ tải số tổng đã tính sẵn thay vì chi tiết từng dòng, nên màn Tổng của Doanh thu tải nhẹ hơn hẳn.',
+      'Bảng so sánh với năm trước (màn Nền) và bảng chi tiết KPI theo tháng cũng hiện dần khi cuộn.',
+      'Chế độ Kanban của màn Công việc hiện 50 thẻ đầu mỗi cột, bấm "Hiện thêm" để xem tiếp.',
+    ],
+  },
+  {
     version: '1.22.0',
     date: '2026-10-06',
     title: 'Báo cáo mở tức thì, nút Làm mới số liệu',

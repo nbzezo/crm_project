@@ -599,6 +599,14 @@ export interface RevenueComparisonLine {
 export interface RevenueComparisonResponse {
   year: number;
   current_period: string;
+  /** Tong ca nam tinh san o may chu (1.23.0). */
+  totals?: {
+    projected_by_group: Record<RevenueGroup, number>;
+    projected_total_vnd: number;
+    prev_total_vnd: number;
+    prev_total_approx: boolean;
+  };
+  /** Rong khi goi voi `lines=none`. */
   lines: RevenueComparisonLine[];
 }
 

@@ -195,6 +195,9 @@ function DraggableTaskCard({
   );
 }
 
+/** So the ve them moi lan bam "Hiện thêm" trong mot cot. */
+const LANE_STEP = 50;
+
 function KanbanLane({
   lane,
   childrenOf,
@@ -205,6 +208,9 @@ function KanbanLane({
   onOpen: (id: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `lane-${lane.key}`, data: { lane } });
+  /* Ve dan tung cot (1.23.0): vai nghin the keo-tha trong mot cot lam treo trinh duyet. */
+  const [limit, setLimit] = useState(LANE_STEP);
+  const hidden = lane.tasks.length - limit;
   const statusTone = CARD_STATUSES.includes(lane.key as CardStatus)
     ? CARD_STATUS_TONE[lane.key as CardStatus]
     : 'bg-tr-hover text-tr-subtle';
@@ -222,7 +228,7 @@ function KanbanLane({
         <span className="text-xs tabular-nums text-tr-muted">{lane.tasks.length}</span>
       </header>
       <div className="mt-1 min-h-24 space-y-2">
-        {lane.tasks.map((task) => (
+        {lane.tasks.slice(0, limit).map((task) => (
           <DraggableTaskCard
             key={task.id}
             task={task}
@@ -232,6 +238,15 @@ function KanbanLane({
           />
         ))}
       </div>
+      {hidden > 0 && (
+        <Button
+          variant="ghost"
+          className="mt-2 w-full justify-center text-xs"
+          onClick={() => setLimit((current) => current + LANE_STEP)}
+        >
+          Hiện thêm {Math.min(hidden, LANE_STEP)} thẻ (còn {hidden})
+        </Button>
+      )}
       <Button variant="ghost" className="mt-2 w-full justify-start text-xs" disabled>
         <Plus size={14} /> Thêm vào nhóm
       </Button>

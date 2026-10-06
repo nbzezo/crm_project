@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
@@ -81,6 +81,7 @@ import type {
 } from '../types';
 import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
 import { DataFreshness } from '../components/common/DataFreshness';
+import { LoadMoreSentinel } from '../components/common/LoadMoreSentinel';
 
 /* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
    trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
@@ -168,6 +169,9 @@ const CHART_VIEW_OPTIONS = [
   { value: 'monthly' as const, label: 'Theo tháng' },
   { value: 'cumulative' as const, label: 'Lũy kế' },
 ];
+
+/** So dong bang doanh thu ve them moi lan cuon toi cuoi. */
+const REVENUE_RENDER_STEP = 200;
 
 export default function RevenuePage() {
   const queryClient = useQueryClient();
@@ -310,6 +314,37 @@ export default function RevenuePage() {
   }, [lines, totalSort]);
   const multiLineGroups = customerGroups.filter((g) => g.lines.length > 1);
 
+  /* Ve dan (1.23.0): moi dong la 12 o thang co the sua; ve mot luc vai nghin dong
+     (100 sale ~ 20.000 dong dich vu) lam treo trinh duyet. Dong tong cuoi bang van
+     tinh tren TOAN BO du lieu, chi phan dong hien thi bi cat. */
+  const [renderLimit, setRenderLimit] = useState(REVENUE_RENDER_STEP);
+  const renderMoreRows = useCallback(
+    () => setRenderLimit((limit) => limit + REVENUE_RENDER_STEP),
+    []
+  );
+  type TableRow =
+    | { kind: 'line'; line: RevenueLine; grouped: boolean }
+    | { kind: 'header'; group: RevenueCustomerGroup }
+    | { kind: 'add'; group: RevenueCustomerGroup };
+  const tableRows = useMemo<TableRow[]>(
+    () =>
+      groupByCustomer
+        ? customerGroups.flatMap((g): TableRow[] =>
+            g.lines.length === 1
+              ? [{ kind: 'line', line: g.lines[0], grouped: false }]
+              : collapsed.has(g.customer_id)
+                ? [{ kind: 'header', group: g }]
+                : [
+                    { kind: 'header', group: g },
+                    ...g.lines.map((line): TableRow => ({ kind: 'line', line, grouped: true })),
+                    { kind: 'add', group: g },
+                  ]
+          )
+        : lines.map((line): TableRow => ({ kind: 'line', line, grouped: false })),
+    [collapsed, customerGroups, groupByCustomer, lines]
+  );
+  const hiddenRevenueRows = Math.max(0, tableRows.length - renderLimit);
+
   const { data: summary, isFetching: summaryFetching } = useQuery({
     queryKey: ['revenues', 'summary', year, filters],
     enabled: view !== 'kpi',
@@ -320,11 +355,19 @@ export default function RevenuePage() {
   });
 
   /* So sánh năm trước: màn hình Nền (chỉ tháng Nền) và màn hình Tổng (mọi tháng). */
+  /* Man Tong chi can so tong ca nam (`lines=none`, nho, duoc luu dem); man Nen moi
+     can bang chi tiet tung dong. Khoa gom ca hai tham so — truoc day thieu `group`
+     nen doi man co the lay nham du lieu cua man kia. */
+  const comparisonParams =
+    view === 'base' ? { group: 'base' } : { group: 'all', lines: 'none' as const };
   const { data: comparison, isLoading: comparisonLoading } = useQuery({
-    queryKey: ['revenues', 'comparison', year, filters],
-    queryFn: () =>
+    queryKey: ['revenues', 'comparison', year, filters, comparisonParams],
+    queryFn: ({ queryKey }) =>
       api.get<RevenueComparisonResponse>(
-        `/api/revenues/comparison${qs({ year, ...filters, group: view === 'base' ? 'base' : 'all' })}`
+        freshUrl(
+          `/api/revenues/comparison${qs({ year, ...filters, ...comparisonParams })}`,
+          queryKey
+        )
       ),
     enabled: view === 'total' || view === 'base',
   });
@@ -1011,7 +1054,7 @@ export default function RevenuePage() {
                 </span>
               </div>
               <div className="divide-y divide-tr-border md:hidden">
-                {lines.map((line) => {
+                {lines.slice(0, renderLimit).map((line) => {
                   const paid = MONTHS.filter(
                     (month) => line.months[periodOf(year, month)]?.stage === 'paid'
                   ).length;
@@ -1140,19 +1183,15 @@ export default function RevenuePage() {
                     </tr>
                   </TableHead>
                   <tbody className="divide-y divide-tr-border">
-                    {groupByCustomer
-                      ? customerGroups.flatMap((g) =>
-                          g.lines.length === 1
-                            ? [renderLine(g.lines[0], false)]
-                            : collapsed.has(g.customer_id)
-                              ? [renderGroupHeader(g)]
-                              : [
-                                  renderGroupHeader(g),
-                                  ...g.lines.map((line) => renderLine(line, true)),
-                                  renderAddRow(g),
-                                ]
-                        )
-                      : lines.map((line) => renderLine(line, false))}
+                    {tableRows
+                      .slice(0, renderLimit)
+                      .map((row) =>
+                        row.kind === 'line'
+                          ? renderLine(row.line, row.grouped)
+                          : row.kind === 'header'
+                            ? renderGroupHeader(row.group)
+                            : renderAddRow(row.group)
+                      )}
                   </tbody>
                   <tfoot className="sticky bottom-0 z-20 bg-tr-surface text-sm font-semibold shadow-[0_-1px_0_var(--tr-border)]">
                     <tr>
@@ -1175,6 +1214,15 @@ export default function RevenuePage() {
                   </tfoot>
                 </table>
               </div>
+              {hiddenRevenueRows > 0 && (
+                <LoadMoreSentinel
+                  hasMore
+                  loading={false}
+                  progress={renderLimit}
+                  onLoadMore={renderMoreRows}
+                  label={`Hiện thêm ${Math.min(hiddenRevenueRows, REVENUE_RENDER_STEP)} dòng (còn ${hiddenRevenueRows})`}
+                />
+              )}
             </div>
           )}
         </>

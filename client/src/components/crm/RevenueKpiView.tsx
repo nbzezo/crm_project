@@ -32,6 +32,7 @@ import type {
 } from '../../types';
 import { computedAtOf, freshUrl, refreshFresh } from '../../lib/freshFetch';
 import { DataFreshness } from '../common/DataFreshness';
+import { LoadMoreSentinel, useRenderLimit } from '../common/LoadMoreSentinel';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const AXIS_PROPS = { tick: { fontSize: 11 }, tickLine: false };
@@ -469,6 +470,7 @@ function MonthDetails({
   const sorted = [...entries].sort(
     (a, b) => order.indexOf(a.status) - order.indexOf(b.status) || b.kpi_vnd - a.kpi_vnd
   );
+  const rows = useRenderLimit();
   return (
     <Panel
       title={`Chi tiết KPI ${formatPeriod(period)}`}
@@ -516,7 +518,7 @@ function MonthDetails({
               </tr>
             </TableHead>
             <tbody className="divide-y divide-tr-border">
-              {sorted.map((e) => (
+              {sorted.slice(0, rows.limit).map((e) => (
                 <tr key={`${e.line_id}-${e.period}`}>
                   <td className="px-3 py-1.5">
                     <Link
@@ -570,6 +572,15 @@ function MonthDetails({
               ))}
             </tbody>
           </table>
+          {sorted.length > rows.limit && (
+            <LoadMoreSentinel
+              hasMore
+              loading={false}
+              progress={rows.limit}
+              onLoadMore={rows.more}
+              label={`Hiện thêm ${Math.min(sorted.length - rows.limit, rows.step)} dòng (còn ${sorted.length - rows.limit})`}
+            />
+          )}
         </div>
       )}
     </Panel>

@@ -1,7 +1,7 @@
 # Phương án: tính trước và lưu đệm cho báo cáo, danh sách nặng
 
 Nhánh: `claude/crm-stability-performance-eval-618dc9` (từ `main` @ cad9336, bản 1.20.0)
-Trạng thái: **đợt 0 (1.20.1), đợt 1 (1.21.0) và đợt 3 (1.22.0) đã xong**; còn đợt 2 (lớp A), 4 (lớp B), 5 (worker). Quyết định ở mục 6, kết quả ở mục 7–8. Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
+Trạng thái: **đợt 0 (1.20.1), đợt 1 (1.21.0), đợt 3 (1.22.0) và bổ sung 1.23.0 đã xong**; còn đợt 2 (lớp A), 4 (lớp B), 5 (worker). Quyết định ở mục 6, kết quả ở mục 7–9. Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
 
 ---
 
@@ -233,3 +233,16 @@ công. Đổi quyền hoặc sơ đồ tổ chức thì bỏ toàn bộ đệm. 
 
 **Còn lại cho đợt 2 và 4:** lần mở đầu của Báo cáo, KPI và Doanh thu vẫn 2–4 s; danh sách Khách hàng
 1,7 s; chi tiết doanh thu (`/revenues/lines`) 3 s · 42 MB.
+
+## 9. Bổ sung 1.23.0 — vẽ dần phía trình duyệt
+
+Thử trên trình duyệt với 10.000 dòng dịch vụ: trang Doanh thu treo, vì bảng vẽ mọi dòng × 12 ô tháng
+(cả danh sách điện thoại, vốn chỉ ẩn bằng CSS) cùng lúc. Đã sửa bằng cách vẽ dần 200 dòng; cách này cũng
+áp cho bảng so sánh năm trước, bảng chi tiết KPI theo tháng và từng cột Kanban (50 thẻ mỗi cột).
+
+`/revenues/comparison` trả thêm `totals`; với `lines=none` thì bỏ phần chi tiết. Ô "Cơ cấu doanh thu
+theo nhóm" chuyển từ tải 24 MB sang dưới 1 KB, và phản hồi nhỏ nên được lưu đệm.
+
+**Còn lại:** lần mở đầu trang Doanh thu vẫn tốn khoảng 6 s thời gian máy chủ ở mức 1× (chi tiết dòng
+2 s, tổng hợp 1,5 s, so sánh 2,8 s; máy chủ chạy lần lượt từng request). Bảng tổng doanh thu tính trước
+(lớp B) là bước kế tiếp; danh sách Khách hàng cần lớp A.

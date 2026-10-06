@@ -47,17 +47,25 @@ export function RevenueGroupOverview({
   const total = summary?.totals.amount_vnd ?? 0;
 
   /* Dự kiến cả năm theo nhóm: cộng số dự kiến từng tháng vào nhóm của tháng đó. */
-  const projected: Record<RevenueGroup, number> = { new: 0, expansion: 0, base: 0 };
-  let projectedTotal = 0;
-  let prevTotal = 0;
-  let prevApprox = false;
-  for (const line of comparison?.lines ?? []) {
-    for (const [period, value] of Object.entries(line.projection)) {
-      projected[line.groups[period]] += value.value;
+  /* May chu da cong san (`totals`); phan cong tay chi con cho phan hoi kieu cu. */
+  const projected: Record<RevenueGroup, number> = {
+    new: 0,
+    expansion: 0,
+    base: 0,
+    ...comparison?.totals?.projected_by_group,
+  };
+  let projectedTotal = comparison?.totals?.projected_total_vnd ?? 0;
+  let prevTotal = comparison?.totals?.prev_total_vnd ?? 0;
+  let prevApprox = comparison?.totals?.prev_total_approx ?? false;
+  if (!comparison?.totals) {
+    for (const line of comparison?.lines ?? []) {
+      for (const [period, value] of Object.entries(line.projection)) {
+        projected[line.groups[period]] += value.value;
+      }
+      projectedTotal += line.projected_total_vnd;
+      prevTotal += line.prev_total_vnd;
+      if (line.prev_total_approx) prevApprox = true;
     }
-    projectedTotal += line.projected_total_vnd;
-    prevTotal += line.prev_total_vnd;
-    if (line.prev_total_approx) prevApprox = true;
   }
   const yearChange = projectedTotal - prevTotal;
 

@@ -19,6 +19,7 @@ import { REVENUE_GROUP_COLORS } from '../../i18n/vi';
 import { formatVND, formatVNDInput, formatVNDShort, parseVNDInput } from '../../lib/format';
 import { formatPeriod } from '../../lib/revenue';
 import type { RevenueComparisonLine, RevenueComparisonResponse } from '../../types';
+import { LoadMoreSentinel, useRenderLimit } from '../common/LoadMoreSentinel';
 
 type Mode = 'avg' | 'same' | 'year';
 
@@ -140,6 +141,8 @@ export function RevenueBaseComparison({
   });
 
   const views = lines.map((line) => viewOf(line, mode, current));
+  /* Ve dan: moi dong 12 thang; vai nghin dong ve mot luc lam treo trinh duyet. */
+  const rows = useRenderLimit();
   const sumValue = views.reduce((s, v) => s + v.value, 0);
   const sumReference = views.reduce((s, v) => s + (v.reference ?? 0), 0);
   const anyApprox = views.some((v) => v.approx);
@@ -373,7 +376,7 @@ export function RevenueBaseComparison({
               </tr>
             </TableHead>
             <tbody className="divide-y divide-tr-border">
-              {lines.map((line, i) => {
+              {lines.slice(0, rows.limit).map((line, i) => {
                 const view = views[i];
                 return (
                   <tr key={line.line_id} className="group hover:bg-tr-hover">
@@ -447,6 +450,15 @@ export function RevenueBaseComparison({
               })}
             </tbody>
           </table>
+          {lines.length > rows.limit && (
+            <LoadMoreSentinel
+              hasMore
+              loading={false}
+              progress={rows.limit}
+              onLoadMore={rows.more}
+              label={`Hiện thêm ${Math.min(lines.length - rows.limit, rows.step)} dòng (còn ${lines.length - rows.limit})`}
+            />
+          )}
         </div>
       )}
     </Panel>
