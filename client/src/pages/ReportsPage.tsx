@@ -18,14 +18,7 @@ import {
 import { api, qs } from '../api/client';
 import { EmptyState, ErrorState, Panel, Skeleton } from '../components/common/ui';
 import { ChartDataTable } from '../components/common/ChartDataTable';
-import {
-  CATEGORICAL_COLORS,
-  CHART_PRIMARY,
-  PRIORITY_COLORS,
-  PRIORITY_ORDER,
-  STAGE_ORDER,
-  t,
-} from '../i18n/vi';
+import { CATEGORICAL_COLORS, CHART_PRIMARY, PRIORITY_COLORS, PRIORITY_ORDER, t } from '../i18n/vi';
 import {
   formatDateShort,
   formatMonth,
@@ -42,7 +35,7 @@ import { ReportRangePicker } from '../components/common/ReportRangePicker';
 import { resolveRange, type RangeKey } from '../lib/reportRange';
 import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
 import { DataFreshness } from '../components/common/DataFreshness';
-import { pickLabel } from '../lib/crmConfig';
+import { pickLabel, stageCategory, stageKeys, stageLabel, stageMeta } from '../lib/crmConfig';
 
 interface ReportsData {
   from: string;
@@ -163,10 +156,15 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
     count: data.open_by_priority.find((row) => row.priority === priority)?.count ?? 0,
   })).filter((row) => row.count > 0);
 
-  const stageData = STAGE_ORDER.filter((s) => s !== 'lost').map((stage) => {
-    const row = data.pipeline_by_stage.find((r) => r.stage === stage);
-    return { name: t.stage[stage], sum_vnd: row?.sum_vnd ?? 0, count: row?.count ?? 0 };
-  });
+  const stageData = stageKeys({ all: true })
+    .filter((s) => stageCategory(s) !== 'lost')
+    .filter(
+      (s) => stageMeta(s)?.is_active === 1 || data.pipeline_by_stage.some((row) => row.stage === s)
+    )
+    .map((stage) => {
+      const row = data.pipeline_by_stage.find((r) => r.stage === stage);
+      return { name: stageLabel(stage), sum_vnd: row?.sum_vnd ?? 0, count: row?.count ?? 0 };
+    });
 
   const interactionData = data.interactions_by_type.map((row) => ({
     name: pickLabel('interaction_type', row.type),

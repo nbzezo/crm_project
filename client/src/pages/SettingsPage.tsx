@@ -17,6 +17,7 @@ import {
   Tag,
   Target,
   Users,
+  Workflow,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../api/client';
@@ -34,6 +35,7 @@ import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { PicklistSettings } from '../components/settings/PicklistSettings';
+import { PipelineSettings } from '../components/settings/PipelineSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
 import { DriveBackupSettings } from '../components/settings/DriveBackupSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
@@ -66,6 +68,7 @@ type SettingsTab =
   | 'positions'
   | 'labels'
   | 'picklists'
+  | 'pipeline'
   | 'scoring'
   | 'handover'
   | 'delivery'
@@ -125,6 +128,13 @@ const SETTINGS_TABS: {
     key: 'labels',
     label: t.settings.tabLabels,
     icon: Tag,
+    group: t.settings.groupProcess,
+    permission: 'settings.app:read',
+  },
+  {
+    key: 'pipeline',
+    label: t.settings.tabPipeline,
+    icon: Workflow,
     group: t.settings.groupProcess,
     permission: 'settings.app:read',
   },
@@ -408,6 +418,7 @@ export default function SettingsPage() {
             <ScoringSettings />
           </Panel>
         )}
+        {activeTab === 'pipeline' && <PipelineSettings />}
         {activeTab === 'picklists' && <PicklistSettings />}
         {activeTab === 'handover' && <HandoverSettings />}
         {activeTab === 'delivery' && <DeliverySettings />}

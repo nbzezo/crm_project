@@ -20,9 +20,9 @@ import {
 } from 'recharts';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
 import { ChartDataTable } from '../common/ChartDataTable';
-import { t } from '../../i18n/vi';
 import { formatVND } from '../../lib/format';
 import type { Quadrant, Stage } from '../../types';
+import { stageLabel } from '../../lib/crmConfig';
 
 export interface MatrixDeal {
   id: number;
@@ -147,7 +147,7 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
                       </span>
                     </p>
                     <p className="text-tr-muted">
-                      {t.stage[deal.stage]} · {formatVND(deal.value_vnd)}
+                      {stageLabel(deal.stage)} · {formatVND(deal.value_vnd)}
                     </p>
                     {vetoed && <p className="mt-1 text-tr-danger">Đang bị chặn khỏi forecast</p>}
                   </div>

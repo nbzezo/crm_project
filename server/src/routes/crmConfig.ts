@@ -1,5 +1,5 @@
 /**
- * Cau hinh nghiep vu CRM (v62): danh muc dong.
+ * Cau hinh nghiep vu CRM: danh muc dong (v62) va pipeline co hoi (v64, sua tu 1.26.0).
  *
  * GET / la diem doc DUY NHAT cua client: mot request luc mo ung dung, ai dang nhap
  * cung doc duoc (moi o chon deu can no). Ghi thi can quyen `settings.app`.
@@ -20,6 +20,16 @@ import {
   updatePicklistItem,
   usageCounts,
 } from '../lib/picklists.ts';
+import {
+  archiveStage,
+  createStage,
+  deleteStage,
+  getPipelines,
+  reorderStages,
+  restoreStage,
+  stageDealCounts,
+  updateStage,
+} from '../lib/pipeline.ts';
 
 const router = Router();
 const canEdit = requirePermission('settings.app', 'update');
@@ -44,7 +54,81 @@ const orderSchema = z.object({ ids: z.array(z.number().int().positive()).min(1) 
 const mergeSchema = z.object({ into_id: z.number().int().positive() });
 
 router.get('/', (_req, res) => {
-  res.json({ picklists: getAllPicklists(db) });
+  res.json({ picklists: getAllPicklists(db), pipelines: getPipelines(db) });
+});
+
+/* ---------- Pipeline (1.26.0) ---------- */
+
+const stageFields = {
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Màu phải có dạng #RRGGBB')
+    .nullable()
+    .optional(),
+  probability: z.number().int().min(0).max(100).optional(),
+  gate_bant_min: z.number().int().min(0).max(12).nullable().optional(),
+  require_economic_buyer: z.boolean().optional(),
+  track_poc: z.boolean().optional(),
+  max_days_in_stage: z.number().int().min(1).max(3650).nullable().optional(),
+};
+const stageCreateSchema = z.object({
+  label: z.string().trim().min(1).max(60),
+  after_stage_id: z.number().int().positive().nullable().optional(),
+  ...stageFields,
+});
+const stagePatchSchema = z.object({
+  label: z.string().trim().min(1).max(60).optional(),
+  ...stageFields,
+});
+const archiveSchema = z.object({
+  move_to_stage_id: z.number().int().positive().nullable().optional(),
+});
+
+router.get('/pipelines/stage-counts', canEdit, (_req, res) => {
+  res.json(stageDealCounts(db));
+});
+
+router.post('/pipelines/:pid/stages', canEdit, (req, res) => {
+  const body = parseBody(stageCreateSchema, req);
+  res.status(201).json(createStage(db, intParam(String(req.params.pid)), body));
+});
+
+router.put('/pipelines/:pid/stages/order', canEdit, (req, res) => {
+  const pid = intParam(String(req.params.pid));
+  reorderStages(db, pid, parseBody(orderSchema, req).ids);
+  res.json(getPipelines(db).find((pipeline) => pipeline.id === pid));
+});
+
+router.patch('/pipelines/:pid/stages/:sid', canEdit, (req, res) => {
+  const body = parseBody(stagePatchSchema, req);
+  res.json(
+    updateStage(db, intParam(String(req.params.pid)), intParam(String(req.params.sid)), body)
+  );
+});
+
+router.post('/pipelines/:pid/stages/:sid/archive', canEdit, (req, res) => {
+  const { move_to_stage_id } = parseBody(archiveSchema, req);
+  const audit = auditFromRequest(req);
+  const pid = intParam(String(req.params.pid));
+  const sid = intParam(String(req.params.sid));
+  const label = getPipelines(db)
+    .find((pipeline) => pipeline.id === pid)
+    ?.stages.find((stage) => stage.id === sid)?.label;
+  const note = `Cấu hình pipeline: ẩn giai đoạn "${label ?? ''}"`;
+  res.json(
+    archiveStage(db, pid, sid, move_to_stage_id ?? null, (dealId, from, to) =>
+      recordChanges(db, 'deal', dealId, { stage: from }, { stage: to }, { ...audit, note })
+    )
+  );
+});
+
+router.post('/pipelines/:pid/stages/:sid/restore', canEdit, (req, res) => {
+  res.json(restoreStage(db, intParam(String(req.params.pid)), intParam(String(req.params.sid))));
+});
+
+router.delete('/pipelines/:pid/stages/:sid', canEdit, (req, res) => {
+  deleteStage(db, intParam(String(req.params.pid)), intParam(String(req.params.sid)));
+  res.status(204).end();
 });
 
 router.get('/picklists/:list/usage', canEdit, (req, res) => {

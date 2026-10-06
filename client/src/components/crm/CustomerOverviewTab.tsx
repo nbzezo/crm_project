@@ -30,7 +30,7 @@ import { CareAssistant } from './CareAssistant';
 import { CustomerSuggestions } from './CustomerSuggestions';
 import { StakeholderMap } from './StakeholderMap';
 import { formatActionDate, getCustomerHealth, getNextCustomerAction } from './customerInsights';
-import { pickLabel } from '../../lib/crmConfig';
+import { isClosedStage, pickLabel, stageLabel } from '../../lib/crmConfig';
 
 type GoTab = 'contacts' | 'interactions' | 'contracts' | 'services' | 'quotations' | 'tasks';
 
@@ -273,7 +273,7 @@ function NextActionCard({
   onDeal: () => void;
 }) {
   const next = getNextCustomerAction(customer);
-  const openDeals = customer.deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost');
+  const openDeals = customer.deals.filter((d) => !isClosedStage(d.stage));
   return (
     <Panel
       title={
@@ -566,7 +566,7 @@ function timelineMeta(entry: TimelineEntry): string {
         .join(' · ');
     case 'deal_stage': {
       const [from, to] = entry.meta.split('→');
-      return `${t.stage[from as keyof typeof t.stage] ?? from ?? '—'} → ${t.stage[to as keyof typeof t.stage] ?? to}`;
+      return `${from ? stageLabel(from) : '—'} → ${stageLabel(to)}`;
     }
     case 'quotation':
       return t.quotationStatus[entry.meta as keyof typeof t.quotationStatus] ?? entry.meta;

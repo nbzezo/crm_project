@@ -15,11 +15,45 @@ import { create } from 'zustand';
 import type { PicklistItem, PicklistKey } from '@workflow/contracts';
 import { api } from '../api/client';
 import { foldText } from './format';
-import { PICKLISTS } from '@workflow/contracts';
-import { ACCOUNT_SIZES, ACCOUNT_SOURCES, DOC_TYPE_ORDER, LOST_REASON_ORDER, t } from '../i18n/vi';
+import { PICKLISTS, STAGES, STAGE_PROBABILITY } from '@workflow/contracts';
+import {
+  ACCOUNT_SIZES,
+  ACCOUNT_SOURCES,
+  DOC_TYPE_ORDER,
+  LOST_REASON_ORDER,
+  STAGE_COLORS,
+  STAGE_FALLBACK_COLOR,
+  t,
+} from '../i18n/vi';
+
+export type StageCategory = 'open' | 'won' | 'lost';
+
+export interface PipelineStage {
+  id: number;
+  pipeline_id: number;
+  key: string;
+  label: string;
+  category: StageCategory;
+  position: number;
+  color: string | null;
+  probability: number;
+  is_active: 0 | 1;
+  gate_bant_min: number | null;
+  require_economic_buyer: 0 | 1;
+  track_poc: 0 | 1;
+  max_days_in_stage: number | null;
+}
+
+export interface Pipeline {
+  id: number;
+  name: string;
+  is_default: 0 | 1;
+  stages: PipelineStage[];
+}
 
 export interface CrmConfig {
   picklists: Record<PicklistKey, PicklistItem[]>;
+  pipelines: Pipeline[];
 }
 
 export const CRM_CONFIG_QUERY_KEY = ['crm-config'] as const;
@@ -37,7 +71,30 @@ function seed(list: PicklistKey, keys: readonly string[], labels: Record<string,
   }));
 }
 
+/** Pipeline gốc (giống migration v64) — dùng trước khi nạp xong và trong test. */
+const DEFAULT_PIPELINE: Pipeline = {
+  id: 1,
+  name: 'Bán hàng',
+  is_default: 1,
+  stages: STAGES.map((key, index) => ({
+    id: -(index + 1),
+    pipeline_id: 1,
+    key,
+    label: t.stage[key] ?? key,
+    category: key === 'won' ? 'won' : key === 'lost' ? 'lost' : 'open',
+    position: index + 1,
+    color: STAGE_COLORS[key] ?? null,
+    probability: STAGE_PROBABILITY[key],
+    is_active: 1,
+    gate_bant_min: key === 'quoted' ? 7 : key === 'negotiating' ? 9 : null,
+    require_economic_buyer: key === 'negotiating' ? 1 : 0,
+    track_poc: key === 'poc' ? 1 : 0,
+    max_days_in_stage: null,
+  })),
+};
+
 export const DEFAULT_CRM_CONFIG: CrmConfig = {
+  pipelines: [DEFAULT_PIPELINE],
   picklists: {
     lost_reason: seed('lost_reason', LOST_REASON_ORDER, t.lostReason),
     interaction_type: seed(
@@ -70,6 +127,7 @@ export const useCrmConfigStore = create<CrmConfigState>((set) => ({
         ...DEFAULT_CRM_CONFIG,
         ...config,
         picklists: { ...DEFAULT_CRM_CONFIG.picklists, ...config.picklists },
+        pipelines: config.pipelines?.length ? config.pipelines : DEFAULT_CRM_CONFIG.pipelines,
       },
     }),
 }));
@@ -175,4 +233,98 @@ export function usePicklist() {
     }),
     [config]
   );
+}
+
+/* ---------- Giai đoạn cơ hội (1.26.0) ----------
+
+   Giao diện không gọi tên giai đoạn ('won', 'negotiating'…): hỏi loại (`category`)
+   và thuộc tính (`track_poc`, `gate_bant_min`…). Các hàm dưới đọc pipeline mặc định
+   — giao diện hiện chỉ có một. */
+
+function pipelineIn(config: CrmConfig): Pipeline {
+  return (
+    config.pipelines.find((pipeline) => pipeline.is_default === 1) ??
+    config.pipelines[0] ??
+    DEFAULT_PIPELINE
+  );
+}
+
+function stageIn(config: CrmConfig, key: string | null | undefined): PipelineStage | undefined {
+  if (!key) return undefined;
+  for (const pipeline of config.pipelines) {
+    const stage = pipeline.stages.find((entry) => entry.key === key);
+    if (stage) return stage;
+  }
+  return undefined;
+}
+
+const state = () => useCrmConfigStore.getState().config;
+
+export function defaultPipeline(): Pipeline {
+  return pipelineIn(state());
+}
+
+/** Thuộc tính đầy đủ của một giai đoạn (undefined nếu không có trong cấu hình). */
+export function stageMeta(key: string | null | undefined): PipelineStage | undefined {
+  return stageIn(state(), key);
+}
+
+export function stageLabel(key: string | null | undefined): string {
+  return stageIn(state(), key)?.label ?? key ?? '';
+}
+
+export function stageColor(key: string | null | undefined): string {
+  return stageIn(state(), key)?.color ?? STAGE_FALLBACK_COLOR;
+}
+
+export function stageProbability(key: string | null | undefined): number {
+  return stageIn(state(), key)?.probability ?? 0;
+}
+
+/** Giai đoạn chưa biết coi như đang mở — an toàn hơn là coi như đã chốt. */
+export function stageCategory(key: string | null | undefined): StageCategory {
+  return stageIn(state(), key)?.category ?? 'open';
+}
+
+export function isClosedStage(key: string | null | undefined): boolean {
+  return stageCategory(key) !== 'open';
+}
+
+/**
+ * Khoá giai đoạn theo thứ tự hiển thị. Mặc định chỉ giai đoạn đang dùng; truyền
+ * `include` để giữ thêm một giai đoạn đã ẩn mà bản ghi đang mang.
+ */
+export function stageKeys(options: { include?: string | null; all?: boolean } = {}): string[] {
+  return pipelineIn(state())
+    .stages.filter((stage) => options.all || stage.is_active === 1 || stage.key === options.include)
+    .map((stage) => stage.key);
+}
+
+export function openStageKeys(): string[] {
+  return pipelineIn(state())
+    .stages.filter((stage) => stage.category === 'open' && stage.is_active === 1)
+    .map((stage) => stage.key);
+}
+
+/** Giai đoạn mở đầu tiên — nơi cơ hội mới bắt đầu. */
+export function startStageKey(): string {
+  return openStageKeys()[0] ?? 'lead';
+}
+
+/** Khoá giai đoạn Thắng / Thua của pipeline mặc định. */
+export function closedStageKey(category: Exclude<StageCategory, 'open'>): string {
+  return pipelineIn(state()).stages.find((stage) => stage.category === category)?.key ?? category;
+}
+
+/**
+ * Giai đoạn "đầu phễu": hai giai đoạn mở đầu tiên. Ở đó chưa chấm điểm nào là
+ * bình thường (khách còn đang được tìm hiểu), không phải dấu hiệu bỏ quên.
+ */
+export function isEarlyStage(key: string | null | undefined): boolean {
+  return key != null && openStageKeys().slice(0, 2).includes(key);
+}
+
+/** Hook cho màn hình cần vẽ lại khi pipeline đổi (Cài đặt, Kanban). */
+export function usePipeline(): Pipeline {
+  return useCrmConfigStore((store) => pipelineIn(store.config));
 }

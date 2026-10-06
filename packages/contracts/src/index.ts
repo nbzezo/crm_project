@@ -31,10 +31,16 @@ export const STAGES = [
   'won',
   'lost',
 ] as const;
-export type Stage = (typeof STAGES)[number];
+/**
+ * Khoa giai doan co hoi. Tu 1.26.0 giai doan la du lieu cau hinh (`pipeline_stages`)
+ * nen day la chuoi tu do; `STAGES` / `STAGE_PROBABILITY` chi con la pipeline MAC
+ * DINH dung lam gia tri khoi tao (client truoc khi nap cau hinh, du lieu mau).
+ */
+export type Stage = string;
+export type DefaultStage = (typeof STAGES)[number];
 
 /** Xac suat mac dinh cua tung giai doan; dung chung cho API va optimistic UI. */
-export const STAGE_PROBABILITY: Record<Stage, number> = {
+export const STAGE_PROBABILITY: Record<DefaultStage, number> = {
   lead: 10,
   approaching: 20,
   discussing: 40,

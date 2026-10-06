@@ -7,7 +7,7 @@ import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
 import { formatDateShort, formatVND, isOverdue, todayStr } from '../../lib/format';
 import type { Deal, Label } from '../../types';
-import { pickLabel } from '../../lib/crmConfig';
+import { isClosedStage, pickLabel, stageCategory, stageMeta } from '../../lib/crmConfig';
 
 /**
  * Dưới ngưỡng này thì tuổi giai đoạn chưa nói lên điều gì.
@@ -74,7 +74,7 @@ export function DealCardBody({
   onClick: () => void;
   dragging?: boolean;
 }) {
-  const closed = deal.stage === 'won' || deal.stage === 'lost';
+  const closed = isClosedStage(deal.stage);
   const closeOverdue = isOverdue(deal.expected_close_date, closed);
   /* V1/V2 luôn chặn forecast nên viền đỏ ở mọi vị trí trong ma trận (F-02). */
   const vetoed = !closed && Boolean(deal.v1_no_event || deal.v2_no_economic);
@@ -162,7 +162,7 @@ export function DealCardBody({
 export type DealSignal = { kind: string; text: string; tone: string; others: string[] };
 
 export function pickDealSignal(deal: Deal): DealSignal | null {
-  const closed = deal.stage === 'won' || deal.stage === 'lost';
+  const closed = isClosedStage(deal.stage);
   const signals: DealSignal[] = [];
   if (!closed && (deal.v1_no_event || deal.v2_no_economic))
     signals.push({ kind: 'veto', text: 'Loại khỏi dự báo', tone: 'danger', others: [] });
@@ -195,14 +195,20 @@ export function pickDealSignal(deal: Deal): DealSignal | null {
       tone: 'warning',
       others: [],
     });
-  if (!closed && (deal.days_in_stage ?? 0) >= STAGE_AGE_DAYS)
+  /* Giai đoạn có đặt "số ngày tối đa" (Cài đặt → Quy trình bán hàng) thì vượt mức đó
+     là cảnh báo thật; không đặt thì giữ mốc nhắc nhẹ 21 ngày như trước. */
+  const maxDays = stageMeta(deal.stage)?.max_days_in_stage ?? null;
+  if (!closed && (deal.days_in_stage ?? 0) >= (maxDays ?? STAGE_AGE_DAYS))
     signals.push({
       kind: 'stage-age',
-      text: `Ở giai đoạn này ${deal.days_in_stage} ngày`,
-      tone: 'muted',
+      text:
+        maxDays === null
+          ? `Ở giai đoạn này ${deal.days_in_stage} ngày`
+          : `Ở giai đoạn này ${deal.days_in_stage} ngày (tối đa ${maxDays})`,
+      tone: maxDays === null ? 'muted' : 'warning',
       others: [],
     });
-  if (deal.stage === 'won' && !deal.handover_ready)
+  if (stageCategory(deal.stage) === 'won' && !deal.handover_ready)
     signals.push({ kind: 'handover', text: 'Chờ bàn giao', tone: 'warning', others: [] });
   if (deal.lost_reason)
     signals.push({

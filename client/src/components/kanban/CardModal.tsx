@@ -61,6 +61,7 @@ import { invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { reminderPresets } from '../../lib/reminderTimes';
 import { useUiStore } from '../../stores/uiStore';
 import type { Board, BoardFull, CardDetail, Customer, Deal, Priority, Project } from '../../types';
+import { stageLabel } from '../../lib/crmConfig';
 
 export function CardModal() {
   const cardId = useUiStore((s) => s.openCardId);
@@ -1350,7 +1351,10 @@ function CustomerPopover({
             <Combobox
               value={card.deal_id ?? ''}
               onChange={(v) => onChange({ deal_id: v === '' ? null : v })}
-              options={deals.map((d) => ({ id: d.id, label: `${d.title} (${t.stage[d.stage]})` }))}
+              options={deals.map((d) => ({
+                id: d.id,
+                label: `${d.title} (${stageLabel(d.stage)})`,
+              }))}
               placeholder={`— ${t.common.none} —`}
               searchPlaceholder="Tìm cơ hội…"
               emptyText="Không tìm thấy cơ hội."

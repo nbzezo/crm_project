@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { api } from '../../api/client';
-import { ACCOUNT_STATUS_COLORS, STAGE_COLORS, t } from '../../i18n/vi';
+import { ACCOUNT_STATUS_COLORS, t } from '../../i18n/vi';
 import { formatDate, formatDateTime, formatVND, formatVNDShort, isOverdue } from '../../lib/format';
 import type { Customer, CustomerFull } from '../../types';
 import { Drawer } from '../common/Drawer';
@@ -27,7 +27,7 @@ import {
   getCustomerHealth,
   getNextCustomerAction,
 } from './customerInsights';
-import { pickLabel } from '../../lib/crmConfig';
+import { isClosedStage, pickLabel, stageColor, stageLabel } from '../../lib/crmConfig';
 
 type Props = {
   customer: Customer | null;
@@ -167,7 +167,7 @@ export function CustomerDrawer({ customer, onClose, onEdit, onCreateDeal }: Prop
 function CustomerOverview({ customer }: { customer: CustomerFull }) {
   const health = getCustomerHealth(customer);
   const nextAction = getNextCustomerAction(customer);
-  const openDeals = customer.deals.filter((deal) => !['won', 'lost'].includes(deal.stage));
+  const openDeals = customer.deals.filter((deal) => !isClosedStage(deal.stage));
   const openTasks = customer.tasks.filter((task) => !task.is_done);
 
   return (
@@ -268,8 +268,8 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
                   <p className="truncate text-sm font-medium text-tr-text">{deal.title}</p>
                   <p className="text-xs text-tr-muted">{formatVND(deal.value_vnd)}</p>
                 </div>
-                <ColorBadge color={STAGE_COLORS[deal.stage]} small>
-                  {t.stage[deal.stage]}
+                <ColorBadge color={stageColor(deal.stage)} small>
+                  {stageLabel(deal.stage)}
                 </ColorBadge>
               </Link>
             ))}

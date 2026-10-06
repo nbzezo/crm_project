@@ -23,13 +23,14 @@ import {
   Skeleton,
   focusRing,
 } from '../components/common/ui';
-import { STAGE_ORDER, t } from '../i18n/vi';
+import { t } from '../i18n/vi';
 import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS, VETO_LABELS } from '../i18n/scoring';
 import { formatDate, formatPercent, formatVND, formatVNDShort } from '../lib/format';
-import type { Factor, Quadrant, Stage, VetoCode } from '../types';
+import type { Factor, Quadrant, VetoCode } from '../types';
 import { PageHeader } from '../components/common/PageShell';
 import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
 import { DataFreshness } from '../components/common/DataFreshness';
+import { openStageKeys, stageLabel } from '../lib/crmConfig';
 
 interface HealthData {
   stage_weighted_vnd: number;
@@ -172,9 +173,9 @@ export default function PipelineHealthPage() {
               className="min-h-8 w-auto py-1 text-xs leading-[1.4]"
             >
               <option value="">Mọi giai đoạn</option>
-              {STAGE_ORDER.filter((s) => s !== 'won' && s !== 'lost').map((s) => (
+              {openStageKeys().map((s) => (
                 <option key={s} value={s}>
-                  {t.stage[s as Stage]}
+                  {stageLabel(s)}
                 </option>
               ))}
             </Select>

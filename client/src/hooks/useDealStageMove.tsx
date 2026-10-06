@@ -31,7 +31,7 @@ import { FACTOR_LABELS, VETO_LABELS } from '../i18n/scoring';
 import { formatVND, todayStr } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type { Deal, Factor, Stage, VetoCode } from '../types';
-import { pickLabel, pickOptions } from '../lib/crmConfig';
+import { pickLabel, pickOptions, stageCategory, stageLabel } from '../lib/crmConfig';
 
 /** Phần chi tiết server gửi kèm lỗi 409 STAGE_GATE_BLOCKED. */
 interface GateDetails {
@@ -91,7 +91,7 @@ export function useDealStageMove(opts: {
     onSuccess: (deal, vars) => {
       opts.onMoveSuccess?.(deal, vars);
       opts.invalidate();
-      if (vars.stage === 'won') {
+      if (stageCategory(vars.stage) === 'won') {
         setWonDeal(deal);
         return;
       }
@@ -102,7 +102,7 @@ export function useDealStageMove(opts: {
          lui giai doan thi khong can chay lai cong BANT. */
       if (!vars.prevStage || vars.prevStage === vars.stage) return;
       const back = vars.prevStage;
-      pushToast(`Đã chuyển sang “${t.stage[vars.stage]}”`, 'success', {
+      pushToast(`Đã chuyển sang “${stageLabel(vars.stage)}”`, 'success', {
         label: 'Hoàn tác',
         run: () => {
           void api
@@ -211,7 +211,7 @@ function StageGateDialog({
     >
       <div className="space-y-3 text-sm">
         <p className="text-tr-text">
-          Giai đoạn <strong>{details ? t.stage[details.target] : ''}</strong> yêu cầu BANT ≥{' '}
+          Giai đoạn <strong>{details ? stageLabel(details.target) : ''}</strong> yêu cầu BANT ≥{' '}
           <strong>{details?.required}</strong>, cơ hội này đang{' '}
           <strong className="text-tr-danger">{details?.bant_total}</strong>.
         </p>

@@ -41,7 +41,7 @@ import {
   matchLabelFilter,
   type LabelFilterState,
 } from '../components/labels/LabelFilter';
-import { STAGE_COLORS, STAGE_ORDER, t } from '../i18n/vi';
+import { t } from '../i18n/vi';
 import { formatVND, formatVNDShort } from '../lib/format';
 import { invalidateCrmViews } from '../lib/queryKeys';
 import { applyOptimisticStage, cloneDeals, locateDeal, refreshDealTotals } from '../lib/dnd/deals';
@@ -49,6 +49,14 @@ import { buildDndAnnouncements } from '../lib/dnd/announcements';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useDealStageMove } from '../hooks/useDealStageMove';
 import type { Deal, DealsResponse, Label, Stage } from '../types';
+import {
+  closedStageKey,
+  isClosedStage,
+  stageCategory,
+  stageColor,
+  stageLabel,
+  usePipeline,
+} from '../lib/crmConfig';
 
 /* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
    trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
@@ -57,6 +65,7 @@ const DealForm = lazy(() =>
 );
 
 export default function PipelinePage() {
+  const pipeline = usePipeline();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
@@ -103,10 +112,10 @@ export default function PipelinePage() {
         resolve: (id) => {
           if (id.startsWith('stage-')) {
             const stage = id.slice('stage-'.length) as Stage;
-            return `cột ${t.stage[stage] ?? stage}`;
+            return `cột ${stageLabel(stage)}`;
           }
           if (!data) return null;
-          for (const stage of STAGE_ORDER) {
+          for (const stage of Object.keys(data.stages)) {
             const deal = data.stages[stage]?.find((d) => String(d.id) === id);
             if (deal) return `cơ hội ${deal.title}`;
           }
@@ -270,19 +279,28 @@ export default function PipelinePage() {
       </div>
     );
 
-  const openTotal = STAGE_ORDER.filter((s) => s !== 'won' && s !== 'lost').reduce(
-    (acc, s) => {
-      acc.sum += data.totals[s]?.sum_vnd ?? 0;
-      acc.weighted += data.totals[s]?.weighted_vnd ?? 0;
-      acc.count += data.totals[s]?.count ?? 0;
-      return acc;
-    },
-    { sum: 0, weighted: 0, count: 0 }
-  );
+  /* Cột Kanban: giai đoạn đang dùng, cộng giai đoạn đã ẩn mà vẫn còn cơ hội (không
+     để cơ hội nào biến mất khỏi màn hình). */
+  const columns = pipeline.stages
+    .filter((stage) => stage.is_active === 1 || (data.stages[stage.key]?.length ?? 0) > 0)
+    .map((stage) => stage.key);
+  const openTotal = columns
+    .filter((s) => !isClosedStage(s))
+    .reduce(
+      (acc, s) => {
+        acc.sum += data.totals[s]?.sum_vnd ?? 0;
+        acc.weighted += data.totals[s]?.weighted_vnd ?? 0;
+        acc.count += data.totals[s]?.count ?? 0;
+        return acc;
+      },
+      { sum: 0, weighted: 0, count: 0 }
+    );
 
   /* Mục §12 của đặc tả: "Won đang chờ bàn giao" là một chỉ số quản trị riêng,
      không phải một trạng thái ẩn bên trong cột Won. */
-  const pendingHandover = (data.stages.won ?? []).filter((deal) => !deal.handover_ready);
+  const pendingHandover = (data.stages[closedStageKey('won')] ?? []).filter(
+    (deal) => !deal.handover_ready
+  );
   const visibleDeals = (stage: Stage) =>
     (data.stages[stage] ?? []).filter(
       (deal) =>
@@ -290,7 +308,7 @@ export default function PipelinePage() {
           labelsOf(labelMap, deal.id).map((label) => label.id),
           labelFilter
         ) &&
-        (!pendingHandoverOnly || (deal.stage === 'won' && !deal.handover_ready))
+        (!pendingHandoverOnly || (stageCategory(deal.stage) === 'won' && !deal.handover_ready))
     );
 
   return (
@@ -337,9 +355,9 @@ export default function PipelinePage() {
             className="w-auto"
           >
             <option value="all">Tất cả giai đoạn</option>
-            {STAGE_ORDER.map((stage) => (
+            {columns.map((stage) => (
               <option key={stage} value={stage}>
-                {t.stage[stage]}
+                {stageLabel(stage)}
               </option>
             ))}
           </Select>
@@ -384,7 +402,7 @@ export default function PipelinePage() {
           }}
         >
           <div className="tr-scroll flex snap-x snap-mandatory flex-1 items-start gap-3 overflow-x-auto p-4">
-            {STAGE_ORDER.map((stage) => (
+            {columns.map((stage) => (
               <StageColumn
                 key={stage}
                 stage={stage}
@@ -409,7 +427,7 @@ export default function PipelinePage() {
         </DndContext>
       ) : (
         <PipelineList
-          deals={(stageFilter === 'all' ? STAGE_ORDER : [stageFilter]).flatMap(visibleDeals)}
+          deals={(stageFilter === 'all' ? columns : [stageFilter]).flatMap(visibleDeals)}
           onOpen={(deal) => navigate(`/deals/${deal.id}`)}
         />
       )}
@@ -466,8 +484,8 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
                       {deal.customer_name}
                     </span>
                   </span>
-                  <ColorBadge color={STAGE_COLORS[deal.stage]} small>
-                    {t.stage[deal.stage]}
+                  <ColorBadge color={stageColor(deal.stage)} small>
+                    {stageLabel(deal.stage)}
                   </ColorBadge>
                 </span>
                 <span className="mt-2 flex items-end justify-between gap-3 text-xs">
@@ -523,8 +541,8 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
                     {deal.customer_name}
                   </td>
                   <td className="px-3 py-2">
-                    <ColorBadge color={STAGE_COLORS[deal.stage]} small>
-                      {t.stage[deal.stage]}
+                    <ColorBadge color={stageColor(deal.stage)} small>
+                      {stageLabel(deal.stage)}
                     </ColorBadge>
                   </td>
                   <td className="px-3 py-2 text-right font-medium whitespace-nowrap text-tr-text">
@@ -608,7 +626,7 @@ function StageColumn({
   onOpen: (deal: Deal) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: `stage-${stage}`, data: { type: 'stage', stage } });
-  const closed = stage === 'won' || stage === 'lost';
+  const closed = isClosedStage(stage);
   const [expanded, setExpanded] = useState(() => {
     try {
       return localStorage.getItem(`workflow-pipeline-closed-expanded-v1:${stage}`) === '1';
@@ -633,11 +651,13 @@ function StageColumn({
           }
         }}
         className="flex h-full min-h-[12rem] w-14 shrink-0 flex-col items-center justify-between rounded-panel border-t-4 bg-tr-list py-3 text-tr-text hover:bg-tr-hover"
-        style={{ borderTopColor: STAGE_COLORS[stage] }}
-        aria-label={`Mở cột ${t.stage[stage]}`}
+        style={{ borderTopColor: stageColor(stage) }}
+        aria-label={`Mở cột ${stageLabel(stage)}`}
         title={`Trọng số ${formatVNDShort(Math.round(weighted))}`}
       >
-        <span className="text-xs font-semibold [writing-mode:vertical-rl]">{t.stage[stage]}</span>
+        <span className="text-xs font-semibold [writing-mode:vertical-rl]">
+          {stageLabel(stage)}
+        </span>
         <span className="text-xs text-tr-muted">{deals.length}</span>
         <span className="text-xs text-tr-muted">{formatVNDShort(total)}</span>
       </button>
@@ -650,12 +670,9 @@ function StageColumn({
       className="flex max-h-full w-[min(272px,calc(100vw-2rem))] shrink-0 snap-start flex-col rounded-panel bg-tr-list"
     >
       <header className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: STAGE_COLORS[stage] }}
-        />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stageColor(stage) }} />
         <span className="tr-list-title flex-1 text-sm font-semibold text-tr-text">
-          {t.stage[stage]}
+          {stageLabel(stage)}
         </span>
         <span className="text-xs text-tr-muted">{deals.length}</span>
       </header>

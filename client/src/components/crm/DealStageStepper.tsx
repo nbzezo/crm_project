@@ -14,13 +14,18 @@ import { useDealStageMove } from '../../hooks/useDealStageMove';
 import { CircleSlash, Ellipsis } from 'lucide-react';
 import { focusRing, IconButton } from '../common/ui';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
-import { STAGE_COLORS, STAGE_ORDER, t } from '../../i18n/vi';
+import { t } from '../../i18n/vi';
 import { contrastInk } from '../../lib/format';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import type { Deal, Stage } from '../../types';
-import { pickLabel } from '../../lib/crmConfig';
-
-const LINEAR_STAGES = STAGE_ORDER.filter((s) => s !== 'lost');
+import {
+  closedStageKey,
+  pickLabel,
+  stageCategory,
+  stageColor,
+  stageKeys,
+  stageLabel,
+} from '../../lib/crmConfig';
 
 export function DealStageStepper({ deal }: { deal: Deal }) {
   const activeStepRef = useRef<HTMLButtonElement>(null);
@@ -38,8 +43,12 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
   });
 
   const lostMenu = usePopover();
-  const isLost = deal.stage === 'lost';
-  const currentIndex = LINEAR_STAGES.indexOf(deal.stage as (typeof LINEAR_STAGES)[number]);
+  const isLost = stageCategory(deal.stage) === 'lost';
+  /* Dải bước: mọi giai đoạn đang dùng trừ Thất bại (đi qua menu riêng). */
+  const LINEAR_STAGES = stageKeys({ include: deal.stage }).filter(
+    (key) => stageCategory(key) !== 'lost'
+  );
+  const currentIndex = LINEAR_STAGES.indexOf(deal.stage);
 
   const go = (stage: Stage) =>
     move({ dealId: deal.id, stage, beforeId: null, afterId: null, prevStage: deal.stage });
@@ -67,7 +76,7 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
               data-active={active ? 'true' : undefined}
               data-passed={passed ? 'true' : undefined}
               onClick={() => go(stage)}
-              title={active ? undefined : `Chuyển sang: ${t.stage[stage]}`}
+              title={active ? undefined : `Chuyển sang: ${stageLabel(stage)}`}
               className={`min-h-11 shrink-0 snap-center rounded-compact px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition disabled:cursor-default fine:min-h-0 ${focusRing} ${
                 active
                   ? ''
@@ -78,13 +87,13 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
               style={
                 active
                   ? {
-                      backgroundColor: STAGE_COLORS[stage],
-                      color: contrastInk(STAGE_COLORS[stage]),
+                      backgroundColor: stageColor(stage),
+                      color: contrastInk(stageColor(stage)),
                     }
                   : undefined
               }
             >
-              {t.stage[stage]}
+              {stageLabel(stage)}
             </button>
           );
         })}
@@ -122,7 +131,7 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
               icon={<CircleSlash size={15} aria-hidden="true" />}
               onClick={() => {
                 lostMenu.close();
-                go('lost');
+                go(closedStageKey('lost'));
               }}
             >
               Đánh dấu thua cuộc

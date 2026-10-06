@@ -7,10 +7,9 @@
  */
 import { History } from 'lucide-react';
 import { Panel } from '../common/ui';
-import { t } from '../../i18n/vi';
 import { formatDate, formatDateTime, formatVND } from '../../lib/format';
-import type { ChangeLogEntry, Stage } from '../../types';
-import { pickLabel } from '../../lib/crmConfig';
+import type { ChangeLogEntry } from '../../types';
+import { pickLabel, stageLabel } from '../../lib/crmConfig';
 
 const FIELD_LABELS: Record<string, string> = {
   stage: 'Giai đoạn',
@@ -39,7 +38,7 @@ const FIELD_LABELS: Record<string, string> = {
  */
 function formatValue(field: string, raw: string | null): string {
   if (raw === null || raw === '') return '—';
-  if (field === 'stage') return t.stage[raw as Stage] ?? raw;
+  if (field === 'stage') return stageLabel(raw);
   if (field === 'handover_ready') return raw === '1' ? 'Đã đủ' : 'Chưa đủ';
   if (field === 'lost_reason') return pickLabel('lost_reason', raw);
   if (field.endsWith('_vnd')) return formatVND(Number(raw));

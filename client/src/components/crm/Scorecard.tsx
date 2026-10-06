@@ -45,6 +45,7 @@ import type {
   ScoreHistoryEntry,
   ScoreItem,
 } from '../../types';
+import { isEarlyStage } from '../../lib/crmConfig';
 
 const EVIDENCE_MIN = 20;
 
@@ -155,8 +156,7 @@ function ScoreSummary({
   /* Chi bat tong canh bao DO khi deal da di qua giai doan dau ma van thieu.
      O 'lead'/'approaching' ma chua cham diem nao thi day la trang thai BINH
      THUONG cua mot co hoi moi, khong phai loi. */
-  const softTone =
-    card.scored_count === 0 && (card.stage === 'lead' || card.stage === 'approaching');
+  const softTone = card.scored_count === 0 && isEarlyStage(card.stage);
 
   return (
     <Panel>

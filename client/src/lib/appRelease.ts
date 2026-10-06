@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.26.0',
+    date: '2026-10-06',
+    title: 'Tự cấu hình quy trình bán hàng',
+    changes: [
+      'Cài đặt → Quy trình bán hàng (mới): thêm giai đoạn (chọn vị trí chèn), đổi tên, đổi màu, sắp xếp lại các giai đoạn của pipeline. Kanban, thanh giai đoạn ở trang cơ hội, Tổng quan và Báo cáo tự theo cấu hình mới.',
+      'Mỗi giai đoạn tự đặt xác suất gợi ý, cổng điểm BANT tối thiểu, có bắt buộc đã gặp người duyệt ngân sách hay không, có theo dõi PoC hay không, và số ngày tối đa được nằm ở giai đoạn đó (vượt quá thì thẻ cơ hội báo cảnh báo).',
+      'Ẩn một giai đoạn còn cơ hội thì phải chọn giai đoạn nhận các cơ hội đó; mỗi lần chuyển được ghi vào nhật ký thay đổi của cơ hội. Giai đoạn đã từng dùng chỉ ẩn được, dùng lại được bất cứ lúc nào; giai đoạn chưa từng dùng thì xoá hẳn được.',
+      'Thành công và Thất bại là giai đoạn hệ thống: luôn đứng cuối, đổi tên và màu được, không ẩn hay xoá được, xác suất cố định 100% / 0%. Chuyển sang Thất bại vẫn không bao giờ bị cổng điểm chặn.',
+      'Cổng giai đoạn chuyển từ Cài đặt → Chấm điểm cơ hội sang Cài đặt → Quy trình bán hàng, đặt ngay trên từng giai đoạn.',
+    ],
+  },
+  {
     version: '1.25.1',
     date: '2026-10-06',
     title: 'Chuẩn bị cho quy trình bán hàng tự cấu hình',

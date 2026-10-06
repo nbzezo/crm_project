@@ -915,6 +915,7 @@ export const t = {
     pageSubtitle: 'Cấu hình nhãn, chấm điểm cơ hội, trợ lý AI và dữ liệu hệ thống',
     tabLabels: 'Nhãn',
     tabPicklists: 'Danh mục',
+    tabPipeline: 'Quy trình bán hàng',
     tabScoring: 'Chấm điểm cơ hội',
     tabHandover: 'Bàn giao',
     tabDelivery: 'Triển khai',
@@ -1170,6 +1171,9 @@ export const STAGE_COLORS: Record<Stage, string> = {
   won: '#0ca30c',
   lost: '#d03b3b',
 };
+
+/** Màu giai đoạn chưa đặt màu (giai đoạn tự thêm ở Cài đặt → Quy trình bán hàng). */
+export const STAGE_FALLBACK_COLOR = '#8590a2';
 
 /** Mau bieu do mot chuoi so lieu (truc mang danh tinh, khong phai mau). */
 export const CHART_PRIMARY = '#2a78d6';

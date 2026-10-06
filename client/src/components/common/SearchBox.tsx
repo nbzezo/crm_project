@@ -9,7 +9,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from './useDialog';
 import { focusRing } from './ui';
 import type { Priority, Stage } from '../../types';
-import { pickLabel } from '../../lib/crmConfig';
+import { pickLabel, stageLabel } from '../../lib/crmConfig';
 
 interface SearchResults {
   cards: {
@@ -309,7 +309,7 @@ export function SearchBox() {
                         close();
                       }}
                       primary={d.title}
-                      secondary={`${d.customer_name} · ${t.stage[d.stage]} · ${formatVND(d.value_vnd)}`}
+                      secondary={`${d.customer_name} · ${stageLabel(d.stage)} · ${formatVND(d.value_vnd)}`}
                     />
                   ))}
                 </Group>

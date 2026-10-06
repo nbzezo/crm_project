@@ -212,3 +212,170 @@ test('v64: quay lui chep cong diem ve app_settings, keo co hoi o giai doan tu th
   assert.deepEqual(scratch.pragma('foreign_key_check'), []);
   scratch.close();
 });
+
+/* ---------- 1.26.0: cau hinh pipeline tren giao dien ---------- */
+
+interface StageRow {
+  id: number;
+  key: string;
+  label: string;
+  category: string;
+  is_active: number;
+  probability: number;
+}
+
+async function stages(): Promise<StageRow[]> {
+  const config = await json('GET', '/api/crm-config');
+  return (config.data.pipelines as { stages: StageRow[] }[])[0].stages;
+}
+
+test('them giai doan sau Gui bao gia: khoa tu sinh, dung vi tri, keo tha va cong hoat dong', async () => {
+  const quoted = (await stages()).find((stage) => stage.key === 'quoted')!;
+  const created = await json('POST', '/api/crm-config/pipelines/1/stages', {
+    label: 'Rà soát pháp lý',
+    after_stage_id: quoted.id,
+    probability: 70,
+    gate_bant_min: 8,
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.data));
+  assert.equal(created.data.key, 'ra_soat_phap_ly');
+  assert.equal(created.data.gate_bant_min, 8);
+
+  const keys = (await stages()).map((stage) => stage.key);
+  assert.deepEqual(keys.slice(4, 7), ['quoted', 'ra_soat_phap_ly', 'negotiating']);
+  assert.deepEqual(keys.slice(-2), ['won', 'lost']);
+
+  // Co hoi tao thang vao giai doan moi; deals/ tra cot cho no
+  const id = await newDeal('Pháp lý', { stage: 'ra_soat_phap_ly' });
+  assert.equal(category(id), 'open');
+  const board = await json('GET', '/api/deals');
+  assert.ok(Array.isArray((board.data.stages as Record<string, unknown>).ra_soat_phap_ly));
+
+  // Cong cua giai doan moi chan nhu giai doan goc
+  const other = await newDeal('Bị chặn pháp lý');
+  const blocked = await json('PATCH', `/api/deals/${other}/move`, { stage: 'ra_soat_phap_ly' });
+  assert.equal(blocked.status, 409);
+  assert.equal(blocked.data.required, 8);
+});
+
+test('giai doan he thong: xac suat co dinh, khong an, khong xoa; Thua khong co cong', async () => {
+  const all = await stages();
+  const won = all.find((stage) => stage.category === 'won')!;
+  const lost = all.find((stage) => stage.category === 'lost')!;
+  assert.equal(
+    (await json('PATCH', `/api/crm-config/pipelines/1/stages/${won.id}`, { probability: 90 }))
+      .status,
+    422
+  );
+  assert.equal(
+    (await json('POST', `/api/crm-config/pipelines/1/stages/${won.id}/archive`, {})).status,
+    422
+  );
+  assert.equal((await json('DELETE', `/api/crm-config/pipelines/1/stages/${lost.id}`)).status, 422);
+  assert.equal(
+    (await json('PATCH', `/api/crm-config/pipelines/1/stages/${lost.id}`, { gate_bant_min: 3 }))
+      .status,
+    422
+  );
+  // Doi ten thi duoc
+  const renamed = await json('PATCH', `/api/crm-config/pipelines/1/stages/${won.id}`, {
+    label: 'Đã ký',
+  });
+  assert.equal(renamed.data.label, 'Đã ký');
+  await json('PATCH', `/api/crm-config/pipelines/1/stages/${won.id}`, { label: 'Thành công' });
+});
+
+test('sap xep chi nhan cac giai doan mo; Thang/Thua luon o cuoi', async () => {
+  const open = (await stages()).filter((stage) => stage.category === 'open');
+  const reversed = open.map((stage) => stage.id).reverse();
+  const ok = await json('PUT', '/api/crm-config/pipelines/1/stages/order', { ids: reversed });
+  assert.equal(ok.status, 200);
+  const after = await stages();
+  assert.deepEqual(
+    after.slice(0, open.length).map((stage) => stage.id),
+    reversed
+  );
+  assert.deepEqual(
+    after.slice(-2).map((stage) => stage.category),
+    ['won', 'lost']
+  );
+  const withWon = await json('PUT', '/api/crm-config/pipelines/1/stages/order', {
+    ids: [...reversed, after.at(-2)!.id],
+  });
+  assert.equal(withWon.status, 422);
+  await json('PUT', '/api/crm-config/pipelines/1/stages/order', {
+    ids: open.map((stage) => stage.id),
+  });
+});
+
+test('an giai doan con co hoi: bat buoc chon dich, chuyen het, ghi nhat ky, an khoi tao moi', async () => {
+  const all = await stages();
+  const poc = all.find((stage) => stage.key === 'poc')!;
+  const discussing = all.find((stage) => stage.key === 'discussing')!;
+  const id = await newDeal('Đang PoC', { stage: 'poc' });
+
+  const missing = await json('POST', `/api/crm-config/pipelines/1/stages/${poc.id}/archive`, {});
+  assert.equal(missing.status, 422);
+  assert.equal(missing.data.code, 'STAGE_HAS_DEALS');
+
+  const archived = await json('POST', `/api/crm-config/pipelines/1/stages/${poc.id}/archive`, {
+    move_to_stage_id: discussing.id,
+  });
+  assert.equal(archived.status, 200, JSON.stringify(archived.data));
+  assert.ok(Number(archived.data.moved) >= 1);
+  assert.equal(
+    (db.prepare(`SELECT stage FROM deals WHERE id = ?`).get(id) as { stage: string }).stage,
+    'discussing'
+  );
+  const log = db
+    .prepare(
+      `SELECT old_value, new_value, note FROM entity_change_log
+        WHERE entity_type = 'deal' AND entity_id = ? AND field = 'stage' ORDER BY id DESC LIMIT 1`
+    )
+    .get(id) as { old_value: string; new_value: string; note: string };
+  assert.equal(log.old_value, 'poc');
+  assert.equal(log.new_value, 'discussing');
+  assert.match(log.note, /ẩn giai đoạn/);
+
+  // Giai doan an: khong tao moi vao duoc; co hoi cu dang o do (neu co) van sua duoc
+  const customer = await json('POST', '/api/customers', { name: 'KH Ẩn giai đoạn' });
+  const rejected = await json('POST', '/api/deals', {
+    customer_id: Number(customer.data.id),
+    title: 'Vào PoC',
+    stage: 'poc',
+  });
+  assert.equal(rejected.status, 422);
+  assert.equal(rejected.data.code, 'STAGE_INACTIVE');
+
+  // Da tung dung thi khong xoa han duoc, chi dung lai
+  assert.equal((await json('DELETE', `/api/crm-config/pipelines/1/stages/${poc.id}`)).status, 409);
+  const restored = await json('POST', `/api/crm-config/pipelines/1/stages/${poc.id}/restore`);
+  assert.equal(restored.data.is_active, 1);
+});
+
+test('giai doan chua tung dung thi xoa han duoc; khong bao gio xoa het giai doan mo', async () => {
+  const created = await json('POST', '/api/crm-config/pipelines/1/stages', { label: 'Nháp' });
+  assert.equal(created.status, 201);
+  assert.equal(
+    (await json('DELETE', `/api/crm-config/pipelines/1/stages/${created.data.id}`)).status,
+    204
+  );
+  assert.ok(!(await stages()).some((stage) => stage.id === created.data.id));
+});
+
+test('phu quyet V2 theo co "phai gap nguoi duyet ngan sach" thay vi ten Dam phan', async () => {
+  const all = await stages();
+  const discussing = all.find((stage) => stage.key === 'discussing')!;
+  await json('PATCH', `/api/crm-config/pipelines/1/stages/${discussing.id}`, {
+    gate_bant_min: 0,
+    require_economic_buyer: true,
+  });
+  const id = await newDeal('Chưa gặp người duyệt');
+  const blocked = await json('PATCH', `/api/deals/${id}/move`, { stage: 'discussing' });
+  assert.equal(blocked.status, 409);
+  assert.ok((blocked.data.blocked_by as string[]).includes('veto:V2_NO_ECONOMIC_BUYER'));
+  await json('PATCH', `/api/crm-config/pipelines/1/stages/${discussing.id}`, {
+    gate_bant_min: null,
+    require_economic_buyer: false,
+  });
+});

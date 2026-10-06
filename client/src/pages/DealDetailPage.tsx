@@ -48,7 +48,7 @@ import type {
   Project,
   Scorecard as ScorecardData,
 } from '../types';
-import { pickLabel } from '../lib/crmConfig';
+import { isEarlyStage, pickLabel, stageCategory } from '../lib/crmConfig';
 
 type Tab = 'info' | 'score' | 'committee' | 'notes' | 'handover';
 
@@ -136,7 +136,7 @@ export default function DealDetailPage() {
     { key: 'handover', label: 'Bàn giao' },
   ];
 
-  const pendingHandover = deal.stage === 'won' && !deal.handover_ready;
+  const pendingHandover = stageCategory(deal.stage) === 'won' && !deal.handover_ready;
 
   return (
     <div className="p-4 md:p-6">
@@ -167,10 +167,9 @@ export default function DealDetailPage() {
             {/* Deal vua tao, chua cham diem nao, con o giai doan dau thi chua phai
                 luc gan nhan do — xem ghi chu `softTone` trong Scorecard.tsx. */}
             {card?.veto.some((v) => v.blocking) &&
-              !(
-                card.scored_count === 0 &&
-                (card.stage === 'lead' || card.stage === 'approaching')
-              ) && <ColorBadge color={VETO_BADGE_COLOR}>Ngoài forecast</ColorBadge>}
+              !(card.scored_count === 0 && isEarlyStage(card.stage)) && (
+                <ColorBadge color={VETO_BADGE_COLOR}>Ngoài forecast</ColorBadge>
+              )}
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">
                 <RefreshCw size={12} /> Gia hạn

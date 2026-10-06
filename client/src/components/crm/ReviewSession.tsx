@@ -19,7 +19,7 @@ import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS, VETO_LABELS } from '../../i18n/scoring';
 import { formatVND } from '../../lib/format';
 import type { Quadrant, VetoCode } from '../../types';
-import { pickLabel, pickOptions } from '../../lib/crmConfig';
+import { closedStageKey, pickLabel, pickOptions } from '../../lib/crmConfig';
 
 interface ReviewDeal {
   id: number;
@@ -55,7 +55,7 @@ export function ReviewSession() {
   const disqualify = useMutation({
     mutationFn: (deal: ReviewDeal) =>
       api.patch(`/api/deals/${deal.id}/move`, {
-        stage: 'lost',
+        stage: closedStageKey('lost'),
         lost_reason: lostReason || 'other',
       }),
     onSuccess: (_result, deal) => {

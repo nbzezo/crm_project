@@ -42,6 +42,7 @@ import { ChangeLogPanel } from '../components/crm/ChangeLogPanel';
 import { ClassificationPanel } from '../components/crm/ClassificationPanel';
 import { RiskRegister } from '../components/crm/RiskRegister';
 import type { MilestoneState, ProjectDetail } from '../types';
+import { stageCategory, stageLabel } from '../lib/crmConfig';
 
 type Tab =
   'overview' | 'tasks' | 'phases' | 'risks' | 'people' | 'commercial' | 'documents' | 'notes';
@@ -789,12 +790,12 @@ function Commercial({ project }: { project: ProjectDetail }) {
                       <span className="text-tr-muted"> · {deal.customer_name}</span>
                     )}
                   </span>
-                  {deal.stage === 'won' && !deal.handover_ready && (
+                  {stageCategory(deal.stage) === 'won' && !deal.handover_ready && (
                     <span className="shrink-0 rounded-full bg-tr-warning/15 px-1.5 py-0.5 text-xs font-semibold text-tr-warning">
                       Chờ bàn giao
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-tr-muted">{t.stage[deal.stage]}</span>
+                  <span className="shrink-0 text-xs text-tr-muted">{stageLabel(deal.stage)}</span>
                   <span className="shrink-0 tabular-nums text-tr-subtle">
                     {formatVNDShort(deal.won_value_vnd ?? deal.value_vnd)}
                   </span>

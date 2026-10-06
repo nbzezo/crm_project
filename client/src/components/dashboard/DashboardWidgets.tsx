@@ -19,12 +19,12 @@ import {
   getDeadlinePresentation,
   type DeadlineTone,
 } from '../tasks/TaskPresentation';
-import { OPEN_STAGES, STAGE_COLORS, t } from '../../i18n/vi';
+import { t } from '../../i18n/vi';
 import { formatDate, formatDateShort, formatVNDShort } from '../../lib/format';
 import { AssigneeChip } from '../tasks/AssigneePicker';
 import type { Interaction, OrgKind, Reminder, Stage, TaskRow } from '../../types';
 import { useTaskCounts } from '../../hooks/useTaskCounts';
-import { pickLabel } from '../../lib/crmConfig';
+import { openStageKeys, pickLabel, stageColor, stageLabel } from '../../lib/crmConfig';
 
 interface AttentionDeal {
   id: number;
@@ -767,6 +767,7 @@ function ReminderItem({
 }
 
 export function PipelineWidget({ data }: { data: DashboardData }) {
+  const OPEN_STAGES = openStageKeys();
   const maxStage = Math.max(
     1,
     ...OPEN_STAGES.map((stage) => data.pipeline_totals[stage]?.sum_vnd ?? 0)
@@ -797,10 +798,10 @@ export function PipelineWidget({ data }: { data: DashboardData }) {
                 <Link
                   to="/pipeline"
                   className={`group grid min-w-0 grid-cols-[7.25rem_minmax(0,1fr)] items-center gap-x-3 rounded-control py-1 transition hover:bg-tr-hover sm:grid-cols-[8rem_minmax(0,1fr)_6.75rem] ${focusRing}`}
-                  aria-label={`${t.stage[stage]}: ${item.count} cơ hội, ${formatVNDShort(item.sum_vnd)}`}
+                  aria-label={`${stageLabel(stage)}: ${item.count} cơ hội, ${formatVNDShort(item.sum_vnd)}`}
                 >
                   <span className="truncate text-xs font-medium text-tr-subtle">
-                    {t.stage[stage]}
+                    {stageLabel(stage)}
                   </span>
                   <span
                     className="h-2.5 min-w-0 overflow-hidden rounded-full bg-tr-hover-strong"
@@ -808,7 +809,7 @@ export function PipelineWidget({ data }: { data: DashboardData }) {
                   >
                     <span
                       className="block h-full rounded-full transition-[width] duration-300"
-                      style={{ width: `${width}%`, backgroundColor: STAGE_COLORS[stage] }}
+                      style={{ width: `${width}%`, backgroundColor: stageColor(stage) }}
                     />
                   </span>
                   <span className="col-start-2 mt-0.5 truncate text-right text-xs text-tr-muted tabular-nums sm:col-start-auto sm:mt-0 sm:text-xs">
@@ -959,8 +960,8 @@ function AttentionGroup({
                     {deal.customer_name} · {formatVNDShort(deal.value_vnd)}
                   </span>
                 </span>
-                <ColorBadge color={STAGE_COLORS[deal.stage]} small>
-                  {t.stage[deal.stage]}
+                <ColorBadge color={stageColor(deal.stage)} small>
+                  {stageLabel(deal.stage)}
                 </ColorBadge>
               </span>
               <span className="mt-1.5 flex min-w-0 items-center gap-1 overflow-hidden">

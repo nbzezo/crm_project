@@ -14,7 +14,7 @@ import {
   Select,
   Textarea,
 } from '../common/ui';
-import { NEXT_ACTIONS, STAGE_ORDER, STAGE_PROBABILITY, t } from '../../i18n/vi';
+import { NEXT_ACTIONS, t } from '../../i18n/vi';
 import { AssigneePicker } from '../tasks/AssigneePicker';
 import { CustomerCombobox } from './CustomerCombobox';
 import { formatVND } from '../../lib/format';
@@ -23,7 +23,17 @@ import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useCustomerOptions, useProjectOptions } from '../../lib/useCrmOptions';
 import type { Contact, Deal, Stage } from '../../types';
 import { PicklistField } from '../common/PicklistField';
-import { pickLabel, pickOptions } from '../../lib/crmConfig';
+import {
+  isClosedStage,
+  pickLabel,
+  pickOptions,
+  stageCategory,
+  stageKeys,
+  stageLabel,
+  stageMeta,
+  stageProbability,
+  startStageKey,
+} from '../../lib/crmConfig';
 
 interface Props {
   open: boolean;
@@ -60,7 +70,7 @@ export function DealForm({
   const [contactId, setContactId] = useState('');
   const [title, setTitle] = useState('');
   const [product, setProduct] = useState('');
-  const [stage, setStage] = useState<Stage>('lead');
+  const [stage, setStage] = useState<Stage>(startStageKey);
   const [probability, setProbability] = useState(10);
   const [value, setValue] = useState(0);
   const [expected, setExpected] = useState<string | null>(null);
@@ -105,9 +115,9 @@ export function DealForm({
     setContactId(String(deal?.contact_id ?? ''));
     setTitle(deal?.title ?? defaults?.title ?? '');
     setProduct(deal?.product ?? defaults?.product ?? '');
-    const s = deal?.stage ?? defaultStage ?? 'lead';
+    const s = deal?.stage ?? defaultStage ?? startStageKey();
     setStage(s);
-    setProbability(deal?.probability ?? STAGE_PROBABILITY[s]);
+    setProbability(deal?.probability ?? stageProbability(s));
     setValue(deal?.value_vnd ?? defaults?.value_vnd ?? 0);
     setExpected(deal?.expected_close_date ?? null);
     setSource(deal?.source ?? '');
@@ -137,7 +147,7 @@ export function DealForm({
   /** BR-04/BR-05: đổi giai đoạn thì xác suất chạy theo gợi ý, người dùng vẫn sửa được. */
   const changeStage = (next: Stage) => {
     setStage(next);
-    setProbability(STAGE_PROBABILITY[next]);
+    setProbability(stageProbability(next));
   };
 
   const save = useMutation({
@@ -156,8 +166,8 @@ export function DealForm({
         competitor: competitor || null,
         next_action: nextAction || null,
         next_action_date: nextActionDate,
-        lost_reason: stage === 'lost' ? lostReason || null : null,
-        lost_note: stage === 'lost' ? lostNote || null : null,
+        lost_reason: stageCategory(stage) === 'lost' ? lostReason || null : null,
+        lost_note: stageCategory(stage) === 'lost' ? lostNote || null : null,
         notes,
         project_id: projectId === '' ? null : Number(projectId),
         owner_contact_id: ownerContactId,
@@ -194,7 +204,7 @@ export function DealForm({
 
   const titleMissing = !title.trim();
   const customerMissing = !customerId;
-  const lostReasonMissing = stage === 'lost' && !lostReason;
+  const lostReasonMissing = stageCategory(stage) === 'lost' && !lostReason;
   /* S08: tạm dừng phải kèm lý do và ngày xem xét lại — máy chủ cũng từ chối nếu
      thiếu, nhưng chặn ngay ở đây thì người dùng không phải gửi rồi mới biết. */
   /* Danh sach o dang thieu, kem id de bang tom tat nhay thang toi tung o.
@@ -305,14 +315,14 @@ export function DealForm({
 
         <Field label={t.deal.stage}>
           <Select value={stage} onChange={(e) => changeStage(e.target.value as Stage)}>
-            {STAGE_ORDER.map((s) => (
+            {stageKeys({ include: deal?.stage }).map((s) => (
               <option key={s} value={s}>
-                {t.stage[s]}
+                {stageLabel(s)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Xác suất (%)" hint={`Gợi ý theo giai đoạn: ${STAGE_PROBABILITY[stage]}%`}>
+        <Field label="Xác suất (%)" hint={`Gợi ý theo giai đoạn: ${stageProbability(stage)}%`}>
           <Input
             type="number"
             min={0}
@@ -371,8 +381,8 @@ export function DealForm({
           <Input value={competitor} onChange={(e) => setCompetitor(e.target.value)} />
         </Field>
 
-        {/* Hồ sơ PoC — chỉ hiện đúng ở giai đoạn đang thử nghiệm (đặc tả S03). */}
-        {deal && stage === 'poc' && (
+        {/* Hồ sơ PoC — chỉ hiện ở giai đoạn bật "Theo dõi PoC" (đặc tả S03). */}
+        {deal && stageMeta(stage)?.track_poc === 1 && (
           <div className="sm:col-span-2 grid grid-cols-1 gap-3 rounded-control border border-tr-border bg-tr-hover/40 p-3 sm:grid-cols-2">
             <p className="sm:col-span-2 text-xs text-tr-muted">
               Điều kiện để một cơ hội ở giai đoạn PoC: có <b>phạm vi</b>, <b>thời gian</b> và{' '}
@@ -418,7 +428,7 @@ export function DealForm({
         )}
 
         {/* Tạm dừng — một cờ chồng lên giai đoạn hiện tại, không thay thế nó. */}
-        {deal && stage !== 'won' && stage !== 'lost' && (
+        {deal && !isClosedStage(stage) && (
           <div className="sm:col-span-2 grid grid-cols-1 gap-3 border-t border-tr-border pt-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="flex items-center gap-2 text-sm text-tr-text">
@@ -431,8 +441,8 @@ export function DealForm({
                 Tạm dừng cơ hội này
               </label>
               <p className="mt-1 text-xs text-tr-muted">
-                Cơ hội vẫn ở giai đoạn <b>{t.stage[stage]}</b> và không bị đóng — chỉ được đánh dấu
-                là đang dừng. Chuyển giai đoạn sẽ tự bỏ đánh dấu này.
+                Cơ hội vẫn ở giai đoạn <b>{stageLabel(stage)}</b> và không bị đóng — chỉ được đánh
+                dấu là đang dừng. Chuyển giai đoạn sẽ tự bỏ đánh dấu này.
               </p>
             </div>
             {onHold && (
@@ -493,7 +503,7 @@ export function DealForm({
             />
           </Field>
 
-          {stage === 'won' && (
+          {stageCategory(stage) === 'won' && (
             <Field
               label="Bàn giao"
               hint={
@@ -516,7 +526,7 @@ export function DealForm({
           )}
         </div>
 
-        {stage === 'lost' && (
+        {stageCategory(stage) === 'lost' && (
           <>
             <Field
               label={t.deal.lostReason}

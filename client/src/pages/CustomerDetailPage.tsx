@@ -43,13 +43,13 @@ import {
   ACCOUNT_STATUS_COLORS,
   CONTRACT_STATUS_COLORS,
   QUOTATION_STATUS_COLORS,
-  STAGE_COLORS,
   t,
 } from '../i18n/vi';
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import { ShareButton } from '../components/share/ShareButton';
 import type { Contract, CustomerFull, Deal, Quotation } from '../types';
+import { stageColor, stageLabel } from '../lib/crmConfig';
 
 type Tab =
   | 'info'
@@ -295,7 +295,7 @@ export default function CustomerDetailPage() {
                 key={deal.id}
                 title={deal.title}
                 badge={
-                  <ColorBadge color={STAGE_COLORS[deal.stage]}>{t.stage[deal.stage]}</ColorBadge>
+                  <ColorBadge color={stageColor(deal.stage)}>{stageLabel(deal.stage)}</ColorBadge>
                 }
                 facts={[
                   ['Giá trị', formatVND(deal.value_vnd)],
@@ -318,7 +318,7 @@ export default function CustomerDetailPage() {
               <tr key={d.id} className="hover:bg-tr-hover">
                 <td className="px-4 py-2.5 font-medium text-tr-text">{d.title}</td>
                 <td className="px-4 py-2.5">
-                  <ColorBadge color={STAGE_COLORS[d.stage]}>{t.stage[d.stage]}</ColorBadge>
+                  <ColorBadge color={stageColor(d.stage)}>{stageLabel(d.stage)}</ColorBadge>
                 </td>
                 <td className="px-4 py-2.5 text-tr-subtle tabular-nums">{d.probability}%</td>
                 <td className="px-4 py-2.5 text-right font-medium tabular-nums">

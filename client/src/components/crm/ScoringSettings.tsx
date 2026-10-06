@@ -11,10 +11,8 @@ import { api } from '../../api/client';
 import { Button, Field, FormError, Input, Select, Skeleton } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { formatVNDInput, parseVNDInput } from '../../lib/format';
-import type { ScoringSettings as Settings, Stage } from '../../types';
-
-/** Chỉ các giai đoạn tiến lên mới đặt cổng được; Thất bại không bao giờ bị chặn. */
-const GATED_STAGES: Stage[] = ['approaching', 'discussing', 'quoted', 'negotiating'];
+import { Link } from 'react-router';
+import type { ScoringSettings as Settings } from '../../types';
 
 export function ScoringSettings() {
   const queryClient = useQueryClient();
@@ -32,7 +30,6 @@ export function ScoringSettings() {
   const save = useMutation({
     mutationFn: (next: Settings) =>
       api.put('/api/settings/scoring', {
-        stage_gate: next.stageGate,
         stale_days: next.staleDays,
         v3_mode: next.v3Mode,
         challenge_threshold_vnd: next.challengeThresholdVnd,
@@ -48,36 +45,16 @@ export function ScoringSettings() {
 
   if (!draft) return <Skeleton className="h-48 rounded-panel" />;
 
-  const setGate = (stage: Stage, value: string) => {
-    const next = { ...draft.stageGate };
-    if (value === '') delete next[stage];
-    else next[stage] = Number(value);
-    setDraft({ ...draft, stageGate: next });
-  };
-
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="mb-1 text-sm font-semibold text-tr-text">Cổng giai đoạn</h3>
-        <p className="mb-2 text-xs text-tr-muted">
-          Điểm BANT tối thiểu để chuyển cơ hội vào từng giai đoạn. Để trống là không chặn. Kéo sang{' '}
-          <strong>Thất bại</strong> không bao giờ bị chặn — nếu chặn thì không đóng được deal xấu.
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {GATED_STAGES.map((stage) => (
-            <Field key={stage} label={t.stage[stage]}>
-              <Input
-                type="number"
-                min={0}
-                max={12}
-                value={draft.stageGate[stage] ?? ''}
-                placeholder="không chặn"
-                onChange={(e) => setGate(stage, e.target.value)}
-              />
-            </Field>
-          ))}
-        </div>
-      </div>
+      <p className="text-xs text-tr-muted">
+        Cổng giai đoạn (điểm BANT tối thiểu để vào từng giai đoạn) nay đặt cùng chỗ với các giai
+        đoạn, ở{' '}
+        <Link to="/settings?tab=pipeline" className="text-tr-primary underline">
+          Cài đặt → Quy trình bán hàng
+        </Link>
+        .
+      </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field

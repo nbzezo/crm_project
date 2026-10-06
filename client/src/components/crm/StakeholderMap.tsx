@@ -3,6 +3,7 @@ import { t } from '../../i18n/vi';
 import type { Contact, Deal } from '../../types';
 import { Button, Panel } from '../common/ui';
 import { RELATIONSHIP_BADGE_CLASS } from './ContactList';
+import { isClosedStage } from '../../lib/crmConfig';
 
 /** Thứ tự vai trò trong quyết định mua — người có quyền chốt lên trước. */
 const ROLE_ORDER = [
@@ -23,7 +24,7 @@ const ROLE_ORDER = [
  */
 export function stakeholderWarnings(contacts: Contact[], deals: Pick<Deal, 'stage'>[]): string[] {
   const active = contacts.filter((c) => c.is_active !== 0);
-  const openDeals = deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost').length;
+  const openDeals = deals.filter((d) => !isClosedStage(d.stage)).length;
   if (active.length === 0) return ['Chưa có người liên hệ nào.'];
   const warnings: string[] = [];
   const deciders = active.filter((c) => c.buying_role === 'decision_maker');
