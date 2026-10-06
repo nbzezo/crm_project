@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.30.0',
+    date: '2026-10-06',
+    title: 'Trạng thái công việc tự cấu hình',
+    changes: [
+      'Cài đặt → Quy trình công việc có thêm phần Trạng thái công việc: thêm, đổi tên, đổi màu, sắp thứ tự và ẩn trạng thái. Sáu trạng thái cũ vẫn giữ nguyên, chỉ không xóa được.',
+      'Mỗi trạng thái chọn một ý nghĩa (Chưa bắt đầu, Đang thực hiện, Chờ bên ngoài, Bị chặn, Chờ duyệt, Hoàn thành) để báo cáo, nhắc việc và nút hoàn thành vẫn tính đúng.',
+      'Ẩn một trạng thái đang có việc: chọn trạng thái để chuyển các việc đó sang; cột kanban đang gắn trạng thái đó cũng đổi theo. Trạng thái đang có việc thì không đổi được ý nghĩa.',
+      'Ô trạng thái, bộ lọc, kanban và nhóm theo trạng thái ở tab Công việc, cột kanban của luồng việc và mẫu cột ở Triển khai đều dùng danh sách mới.',
+      'Quy trình gắn được với trạng thái tự tạo. Xong bước cuối, công việc chuyển đúng sang trạng thái đã chọn kể cả khi luồng việc không có cột cho nó (trước đây chuyển thẳng sang Hoàn thành).',
+    ],
+  },
+  {
     version: '1.29.2',
     date: '2026-10-06',
     title: 'Công cụ nội bộ: giao việc cho Codex',

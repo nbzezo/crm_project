@@ -19,6 +19,7 @@ import { STATUS_KIND_LABELS, TASK_STATUSES_KEY } from '../../lib/taskStatuses';
 import { useUiStore } from '../../stores/uiStore';
 import { TASK_FLOW_SETTINGS_KEY } from '../taskFlow/taskFlowApi';
 import { CARD_STATUS_TONE } from '../tasks/CardStatusControl';
+import { STATUS_COLOR_PLACEHOLDER } from '../../theme/palettes';
 
 const MANAGE_KEY = [...TASK_STATUSES_KEY, 'manage'] as const;
 
@@ -106,7 +107,7 @@ export function TaskStatusSettings() {
             >
               <input
                 type="color"
-                value={status.color ?? '#94a3b8'}
+                value={status.color ?? STATUS_COLOR_PLACEHOLDER}
                 disabled={!canEdit}
                 onChange={(e) =>
                   update.mutate({ key: status.key, patch: { color: e.target.value } })

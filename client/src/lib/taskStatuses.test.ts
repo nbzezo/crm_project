@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TaskStatusDef } from '@workflow/contracts';
+import { LABEL_PALETTE } from '../theme/palettes';
 import { buildStatusIndex, statusKeyOf } from './taskStatuses';
 
 const list: TaskStatusDef[] = [
@@ -15,7 +16,7 @@ const list: TaskStatusDef[] = [
   {
     key: 'khao_sat',
     label: 'Khảo sát',
-    color: '#22aa66',
+    color: LABEL_PALETTE[0],
     kind: 'doing',
     position: 2,
     is_active: 1,

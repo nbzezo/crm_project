@@ -61,3 +61,6 @@ Phải quay CSDL **trước** khi chạy mã cũ: mã 1.29.1 không biết cột
 - Giao diện: Cài đặt → Quy trình công việc có thêm phần **Trạng thái công việc**; mọi ô
   chọn/chip trạng thái, cột kanban, nhóm theo trạng thái đọc danh sách động.
 - Xuất dữ liệu (`EXPORT_TABLES`), hồ sơ cấu hình, ngữ cảnh AI (tên trạng thái).
+- Đổi luật của 1.29: xong bước cuối thì chuyển đúng sang trạng thái đích kể cả khi luồng
+  việc không có cột cho nó (thẻ nằm yên ở cột cũ). Trước đây nhảy thẳng sang Hoàn thành —
+  với trạng thái tự tạo (thường không có cột) điều đó đóng nhầm việc.
