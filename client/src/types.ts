@@ -721,6 +721,33 @@ export interface MeetingNote {
   project_name: string | null;
 }
 
+/** Mot dong cua thu vien "Trang tài liệu" (GET /api/meeting-notes/page) — khong kem noi dung. */
+export interface MeetingNoteListItem {
+  id: number;
+  title: string;
+  purpose_key: MeetingNote['purpose_key'];
+  meeting_at: string | null;
+  customer_id: number | null;
+  deal_id: number | null;
+  project_id: number | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  /** 200 ky tu dau cua noi dung. */
+  excerpt: string;
+  customer_name: string | null;
+  deal_title: string | null;
+  project_name: string | null;
+  owner_name: string | null;
+  attendee_count: number;
+}
+
+export interface MeetingNoteFacets {
+  total: number;
+  by_purpose: Partial<Record<MeetingNote['purpose_key'], number>>;
+  by_link: { deal: number; project: number; none: number };
+}
+
 export type QuickNoteRelationType = 'customer' | 'contact' | 'deal' | 'project';
 type QuickNoteReminderStatus = 'pending' | 'triggered' | 'completed' | 'cancelled';
 type QuickNoteConvertTarget = 'task' | 'crm_note';

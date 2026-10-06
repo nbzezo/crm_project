@@ -21,6 +21,7 @@ export function Tabs<T extends string>({
   panelClassName = '',
   orientation = 'horizontal',
   mobileListMode,
+  actions,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -41,6 +42,8 @@ export function Tabs<T extends string>({
   orientation?: 'horizontal' | 'vertical';
   /** Settings: tren dien thoai chi hien danh sach hoac panel dang chon. */
   mobileListMode?: 'list' | 'panel';
+  /** Nut thao tac chinh dat cuoi hang tab (chi huong ngang), vd. "Tạo trang". */
+  actions?: ReactNode;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const panelId = `${idPrefix}-panel`;
@@ -146,7 +149,16 @@ export function Tabs<T extends string>({
   if (!vertical) {
     return (
       <>
-        {list}
+        {actions ? (
+          <div className="flex items-end gap-3 border-b border-tr-border">
+            {/* Vach day cua hang thuoc khung ngoai; dai tab ben trong bo vach rieng
+                de khong ve hai lan. */}
+            <div className="min-w-0 flex-1 [&>.tr-tabs]:border-b-0">{list}</div>
+            <div className="shrink-0 pb-1.5">{actions}</div>
+          </div>
+        ) : (
+          list
+        )}
         {panel}
       </>
     );

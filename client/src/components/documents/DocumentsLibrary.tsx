@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import {
@@ -7,9 +7,8 @@ import {
   FilePenLine,
   FileText,
   ListPlus,
-  Plus,
   LockKeyhole,
-  Search,
+  MoreHorizontal,
   Trash2,
 } from 'lucide-react';
 import { api, qs } from '../../api/client';
@@ -20,7 +19,6 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  Input,
   Select,
   SkeletonRows,
   TableHead,
@@ -36,6 +34,8 @@ import { formatDate, formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
 import { ShareButton } from '../share/ShareButton';
 import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
+import { Popover, usePopover } from '../common/Popover';
+import { DocumentsToolbar } from './DocumentsToolbar';
 import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../../types';
 import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
@@ -47,20 +47,113 @@ const confidentialityLabel: Record<CrmDocument['confidentiality'], string> = {
   confidential: 'Mật',
 };
 
+/** Nhan duoi tep (PDF, DOCX…) — de nhan ra loai tep truoc khi doc ten. */
+function fileExt(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  return dot > 0 ? fileName.slice(dot + 1, dot + 5).toUpperCase() : '';
+}
+
+/**
+ * Menu "⋯" cua mot tep: gom cac thao tac it dung (sua thong tin, tao cong viec,
+ * xoa) de hang chi con hai nut hay dung — truoc day sau nut xep canh nhau.
+ */
+function DocumentRowMenu({
+  document,
+  onEdit,
+  onTrash,
+}: {
+  document: CrmDocument;
+  onEdit: () => void;
+  onTrash: () => void;
+}) {
+  const menu = usePopover();
+  const openTaskComposer = useUiStore((state) => state.openTaskComposer);
+  const item = (icon: ReactNode, label: string, onClick: () => void, danger = false) => (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={() => {
+        menu.close();
+        onClick();
+      }}
+      className={`flex min-h-11 w-full items-center gap-2 rounded-control px-3 text-left text-sm hover:bg-tr-hover ${
+        danger ? 'text-tr-danger' : 'text-tr-text'
+      } ${focusRing}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+  return (
+    <>
+      <button
+        type="button"
+        onClick={menu.toggle}
+        aria-label={`Thao tác khác với ${document.name}`}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
+      >
+        <MoreHorizontal size={16} aria-hidden="true" />
+      </button>
+      <Popover
+        open={menu.open}
+        onClose={menu.close}
+        anchor={menu.anchor}
+        title="Thao tác"
+        width={240}
+      >
+        <div role="menu" className="space-y-1">
+          {item(<FilePenLine size={15} aria-hidden="true" />, 'Sửa thông tin', onEdit)}
+          {/* Cong viec ke thua dung chuoi lien ket cua tai lieu. */}
+          {item(<ListPlus size={15} aria-hidden="true" />, 'Tạo công việc', () =>
+            openTaskComposer({
+              context: {
+                customer_id: document.customer_id ?? undefined,
+                contact_id: document.contact_id ?? undefined,
+                deal_id: document.deal_id ?? undefined,
+                contract_id: document.contract_id ?? undefined,
+                quotation_id: document.quotation_id ?? undefined,
+              },
+              draftTitle: `Xử lý tài liệu: ${document.name}`,
+            })
+          )}
+          {item(<Trash2 size={15} aria-hidden="true" />, 'Chuyển vào thùng rác', onTrash, true)}
+        </div>
+      </Popover>
+    </>
+  );
+}
+
+const iconLink = `inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`;
+
 /**
  * Kho tep tai len (truoc day la trang /documents). Nay nhung vao tab "Tệp tải
  * lên" cua DocumentsHubPage — xem pages/DocumentsHubPage.tsx. Khong tu dung
- * PageShell/PageHeader: khung trang do hub cap.
+ * PageShell/PageHeader: khung trang do hub cap. Tu khoa, nut Tai len va goi y
+ * cheo tab cung do hub cap (1.28.0) de dung chung voi tab Trang tai lieu.
  */
-export function DocumentsLibrary() {
+export function DocumentsLibrary({
+  term,
+  onTermChange,
+  query,
+  crossHint,
+  uploadOpen,
+  onUploadOpenChange: setUploadOpen,
+}: {
+  term: string;
+  onTermChange: (value: string) => void;
+  /** Tu khoa da debounce — dung de goi API. */
+  query: string;
+  crossHint: ReactNode;
+  uploadOpen: boolean;
+  onUploadOpenChange: (open: boolean) => void;
+}) {
   const isWide = useMediaQuery(LG_QUERY);
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
-  const openTaskComposer = useUiStore((state) => state.openTaskComposer);
   const [searchParams] = useSearchParams();
   const focusId = Number(searchParams.get('focus')) || null;
-  const [term, setTerm] = useState('');
-  const [debounced, setDebounced] = useState('');
   const [docType, setDocType] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [view, setView] = useState<'active' | 'trash'>('active');
@@ -68,7 +161,6 @@ export function DocumentsLibrary() {
   const [bulkType, setBulkType] = useState('');
   const [bulkCustomer, setBulkCustomer] = useState('');
   const [editing, setEditing] = useState<CrmDocument | null>(null);
-  const [uploadOpen, setUploadOpen] = useState(false);
 
   /* Keo tep vao BAT KY dau tren trang cung mo ngan tai len. Sau khi khoi upload
      roi khoi than trang, nguoi dung quen thao tac keo-tha cu se khong con dich
@@ -81,13 +173,8 @@ export function DocumentsLibrary() {
     };
     window.addEventListener('dragenter', onDragEnter);
     return () => window.removeEventListener('dragenter', onDragEnter);
-  }, [view]);
+  }, [view, setUploadOpen]);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => setDebounced(term), 250);
-    return () => window.clearTimeout(id);
-  }, [term]);
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers', 'select'],
@@ -129,7 +216,7 @@ export function DocumentsLibrary() {
   /* Theo trang (1.21.0): moi nhat truoc, tai dan khi cuon. Truoc day tai ca thu
      vien mot luc — vai chuc nghin tai lieu la hang chuc MB. */
   const filterParams = {
-    q: debounced,
+    q: query,
     doc_type: docType,
     customer_id: customerId,
     trash: view === 'trash' ? 1 : undefined,
@@ -171,7 +258,7 @@ export function DocumentsLibrary() {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  useEffect(() => setSelected([]), [view, docType, customerId, debounced]);
+  useEffect(() => setSelected([]), [view, docType, customerId, query]);
 
   const invalidateDocuments = () => queryClient.invalidateQueries({ queryKey: ['documents'] });
 
@@ -237,11 +324,77 @@ export function DocumentsLibrary() {
   const allSelected =
     documents.length > 0 && documents.every((document) => selected.includes(document.id));
   const toggleAll = () => setSelected(allSelected ? [] : documents.map((document) => document.id));
-  const hasFilters = Boolean(term || docType || customerId);
+  const hasFilters = Boolean(query || docType || customerId);
   const zipHref = `/api/documents/download.zip?ids=${selected.join(',')}`;
 
+  const rowCheckbox = (document: CrmDocument, className = '') => (
+    <input
+      type="checkbox"
+      checked={selected.includes(document.id)}
+      onChange={() =>
+        setSelected((current) =>
+          current.includes(document.id)
+            ? current.filter((id) => id !== document.id)
+            : [...current, document.id]
+        )
+      }
+      aria-label={`Chọn ${document.name}`}
+      className={className}
+    />
+  );
+
+  /* Thao tac tren mot tep — dung chung cho hang bang va the dien thoai. */
+  const rowActions = (document: CrmDocument) =>
+    view === 'active' ? (
+      <>
+        <a
+          href={`/api/documents/${document.id}/download`}
+          aria-label={`Tải xuống ${document.name}`}
+          className={iconLink}
+        >
+          <Download size={15} aria-hidden="true" />
+        </a>
+        <ShareButton entityType="document" entityId={document.id} label={document.name} />
+        <DocumentRowMenu
+          document={document}
+          onEdit={() => setEditing(document)}
+          onTrash={() => setPendingAction({ type: 'trash', ids: [document.id] })}
+        />
+      </>
+    ) : (
+      <>
+        <button
+          type="button"
+          onClick={() => restore.mutate([document.id])}
+          aria-label={`Khôi phục ${document.name}`}
+          className={iconLink}
+        >
+          <ArchiveRestore size={15} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setPendingAction({ type: 'permanent', ids: [document.id] })}
+          aria-label={`Xóa vĩnh viễn ${document.name}`}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
+        >
+          <Trash2 size={15} aria-hidden="true" />
+        </button>
+      </>
+    );
+
+  const extBadge = (document: CrmDocument) => {
+    const ext = fileExt(document.file_name);
+    return ext ? (
+      <span className="shrink-0 rounded-compact bg-tr-surface px-1.5 py-0.5 text-[10px] font-bold text-tr-subtle">
+        {ext}
+      </span>
+    ) : (
+      <FileText size={15} className="shrink-0 text-tr-muted" aria-hidden="true" />
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/*
        * Khoi tai len nam trong Drawer chu khong con dat thang tren trang.
        *
@@ -249,18 +402,8 @@ export function DocumentsLibrary() {
        * danh sach tai lieu xuong tan y~610 — chi con ba dong lot man hinh
        * 1526x866, va tren dien thoai phai cuon hon mot man ruoi moi thay tep dau
        * tien. Nhung phan lon luot vao trang Tai lieu la de TIM mot tep, khong
-       * phai de tai len.
+       * phai de tai len. Nut mo ngan nam o hang tab cua hub (1.28.0).
        */}
-      {/* Nut tai len truoc day nam o PageHeader cua trang rieng; trong hub, tieu de
-          trang dung chung cho hai tab nen nut chuyen xuong mot hang thao tac rieng. */}
-      {view === 'active' && (
-        <div className="flex justify-end">
-          <Button variant="primary" onClick={() => setUploadOpen(true)}>
-            <Plus size={15} aria-hidden="true" /> Tải tài liệu
-          </Button>
-        </div>
-      )}
-
       <Drawer
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
@@ -278,25 +421,18 @@ export function DocumentsLibrary() {
       </Drawer>
 
       <section aria-label="Kho tài liệu" className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2 rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm">
-          <div className="relative w-full sm:w-72">
-            <Search
-              size={15}
-              aria-hidden="true"
-              className="absolute top-1/2 left-2.5 -translate-y-1/2 text-tr-muted"
-            />
-            <Input
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              placeholder="Tìm tên, mô tả, thẻ, chủ sở hữu…"
-              aria-label="Tìm tài liệu"
-              className="pl-8"
-            />
-          </div>
+        <DocumentsToolbar
+          term={term}
+          onTermChange={onTermChange}
+          placeholder="Tìm tên, mô tả, thẻ, chủ sở hữu…"
+          view={view}
+          onViewChange={setView}
+        >
           <Select
             value={docType}
             onChange={(event) => setDocType(event.target.value)}
             aria-label="Lọc loại tài liệu"
+            fullWidth={false}
             className="w-[calc(50%-0.25rem)] sm:w-48"
           >
             <option value="">Mọi loại tài liệu</option>
@@ -310,6 +446,7 @@ export function DocumentsLibrary() {
             value={customerId}
             onChange={(event) => setCustomerId(event.target.value)}
             aria-label="Lọc khách hàng"
+            fullWidth={false}
             className="w-[calc(50%-0.25rem)] sm:w-60"
           >
             <option value="">Mọi khách hàng</option>
@@ -319,29 +456,26 @@ export function DocumentsLibrary() {
               </option>
             ))}
           </Select>
-          <div
-            className="ml-auto flex rounded-full border border-tr-border bg-tr-surface p-1"
-            role="group"
-            aria-label="Vị trí tài liệu"
-          >
-            <button
-              type="button"
-              aria-pressed={view === 'active'}
-              onClick={() => setView('active')}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${focusRing} ${view === 'active' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-subtle hover:bg-tr-hover'}`}
-            >
-              Đang dùng
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === 'trash'}
-              onClick={() => setView('trash')}
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${focusRing} ${view === 'trash' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-subtle hover:bg-tr-hover'}`}
-            >
-              <Trash2 size={12} /> Thùng rác
-            </button>
+        </DocumentsToolbar>
+
+        {(hasFilters || crossHint) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  onTermChange('');
+                  setDocType('');
+                  setCustomerId('');
+                }}
+                className={`text-tr-subtle underline hover:text-tr-text ${focusRing}`}
+              >
+                Xoá lọc
+              </button>
+            )}
+            {crossHint && <span className="sm:ml-auto">{crossHint}</span>}
           </div>
-        </div>
+        )}
 
         {selected.length > 0 && (
           <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-panel border border-tr-primary/30 bg-tr-panel p-2.5 shadow-lg">
@@ -427,38 +561,25 @@ export function DocumentsLibrary() {
                 ? 'Tài liệu đã xóa mềm sẽ xuất hiện ở đây để bạn khôi phục.'
                 : hasFilters
                   ? 'Thử xóa bớt bộ lọc hoặc dùng từ khóa khác.'
-                  : 'Kéo tệp vào khu vực tải lên phía trên để bắt đầu.'
+                  : 'Bấm "Tải tệp lên" hoặc kéo tệp vào bất kỳ đâu trên trang để bắt đầu.'
             }
           />
         ) : !isWide ? (
           <>
-            {/* Duoi lg: bang 8 cot rong 1100px la ban rong nhat trong app — tren
-              dien thoai gan nhu chi con thao tac cuon ngang. Doi sang the, giu
-              ten tep, loai, khach hang va dung luong; cac cot con lai xem duoc
-              khi mo tai lieu. */}
+            {/* Duoi lg: the thay cho bang. Giu ten tep, loai, khach hang, dung
+              luong va cac thao tac hay dung (tai xuong, chia se, menu) — truoc day
+              phai mo ngan sua thong tin moi tai duoc tep. */}
             <ul className="space-y-2" aria-label="Danh sách tài liệu">
               {documents.map((document) => (
                 <li
                   key={document.id}
                   id={`document-card-${document.id}`}
-                  className={`rounded-panel border border-tr-border bg-tr-panel p-3 shadow-sm ${
+                  className={`rounded-panel border border-tr-border bg-tr-card p-3 shadow-sm ${
                     focusId === document.id ? 'ring-2 ring-tr-primary' : ''
                   }`}
                 >
                   <div className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(document.id)}
-                      onChange={() =>
-                        setSelected((current) =>
-                          current.includes(document.id)
-                            ? current.filter((id) => id !== document.id)
-                            : [...current, document.id]
-                        )
-                      }
-                      aria-label={`Chọn ${document.name}`}
-                      className="mt-1 h-4 w-4 shrink-0"
-                    />
+                    {rowCheckbox(document, 'mt-1 h-4 w-4 shrink-0')}
                     <button
                       type="button"
                       onClick={() => view === 'active' && setEditing(document)}
@@ -468,11 +589,7 @@ export function DocumentsLibrary() {
                         view === 'active' ? focusRing : ''
                       }`}
                     >
-                      <FileText
-                        size={15}
-                        className="mt-0.5 shrink-0 text-tr-muted"
-                        aria-hidden="true"
-                      />
+                      <span className="mt-0.5">{extBadge(document)}</span>
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-tr-text">
                           {document.name}
@@ -483,12 +600,15 @@ export function DocumentsLibrary() {
                       </span>
                     </button>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tr-muted">
-                    {document.doc_type && <span>{document.doc_type}</span>}
-                    {document.customer_name && (
-                      <span className="truncate text-tr-subtle">{document.customer_name}</span>
-                    )}
-                    <span className="ml-auto tabular-nums">{formatBytes(document.size)}</span>
+                  <div className="mt-2 flex items-center gap-x-3 gap-y-1 text-xs text-tr-muted">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                      {document.doc_type && <span>{pickLabel('doc_type', document.doc_type)}</span>}
+                      {document.customer_name && (
+                        <span className="truncate text-tr-subtle">{document.customer_name}</span>
+                      )}
+                      <span className="tabular-nums">{formatBytes(document.size)}</span>
+                    </div>
+                    <div className="-my-1 flex shrink-0 items-center">{rowActions(document)}</div>
                   </div>
                 </li>
               ))}
@@ -496,7 +616,9 @@ export function DocumentsLibrary() {
           </>
         ) : (
           <div className="tr-scroll overflow-x-auto rounded-panel border border-tr-border bg-tr-panel shadow-sm">
-            <table className="min-w-[1100px] w-full text-sm">
+            {/* 6 cot (1.28.0): Hieu luc va Chu so huu thanh dong phu cua cot Cap
+                nhat — bang 8 cot rong 1100px bat cuon ngang tren laptop 13 inch. */}
+            <table className="w-full min-w-[880px] text-sm">
               <TableHead>
                 <tr>
                   <th scope="col" className="w-10 px-3 py-2.5">
@@ -508,27 +630,23 @@ export function DocumentsLibrary() {
                     />
                   </th>
                   <th scope="col" className="px-3 py-2.5">
-                    Tài liệu
+                    Tệp
                   </th>
                   <th scope="col" className="px-3 py-2.5">
-                    Loại / bảo mật
+                    Loại · bảo mật
                   </th>
                   <th scope="col" className="px-3 py-2.5">
-                    Khách hàng
+                    Gắn với
                   </th>
                   <th scope="col" className="px-3 py-2.5">
-                    Liên kết
-                  </th>
-                  <th scope="col" className="px-3 py-2.5">
-                    Hiệu lực
-                  </th>
-                  <th scope="col" className="px-3 py-2.5">
-                    Chủ sở hữu
+                    Cập nhật
                   </th>
                   <th scope="col" className="px-3 py-2.5 text-right">
                     Dung lượng
                   </th>
-                  <th scope="col" className="px-3 py-2.5"></th>
+                  <th scope="col" className="px-3 py-2.5">
+                    <span className="sr-only">Thao tác</span>
+                  </th>
                 </tr>
               </TableHead>
               <tbody className="divide-y divide-tr-border">
@@ -539,26 +657,17 @@ export function DocumentsLibrary() {
                     .map((tag) => tag.trim())
                     .filter(Boolean)
                     .slice(0, 3);
+                  const linkLabel =
+                    document.deal_title ??
+                    document.contract_name ??
+                    (document.quotation_code ? `Báo giá ${document.quotation_code}` : null);
                   return (
                     <tr
                       id={`document-${document.id}`}
                       key={document.id}
-                      className={`transition hover:bg-tr-hover ${checked ? 'bg-tr-selected' : ''} ${focusId === document.id ? 'ring-2 ring-inset ring-tr-primary' : ''}`}
+                      className={`transition hover:bg-tr-hover ${checked ? 'bg-tr-selected' : ''} ${focusId === document.id ? 'ring-2 ring-tr-primary ring-inset' : ''}`}
                     >
-                      <td className="px-3 py-3">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            setSelected((current) =>
-                              current.includes(document.id)
-                                ? current.filter((id) => id !== document.id)
-                                : [...current, document.id]
-                            )
-                          }
-                          aria-label={`Chọn ${document.name}`}
-                        />
-                      </td>
+                      <td className="px-3 py-3">{rowCheckbox(document)}</td>
                       <td className="max-w-80 px-3 py-3">
                         <button
                           type="button"
@@ -566,7 +675,7 @@ export function DocumentsLibrary() {
                           disabled={view === 'trash'}
                           className={`flex max-w-full items-center gap-2 text-left font-medium text-tr-text disabled:cursor-default ${view === 'active' ? `hover:text-tr-primary ${focusRing}` : ''}`}
                         >
-                          <FileText size={15} className="shrink-0 text-tr-muted" />
+                          {extBadge(document)}
                           <span className="truncate">{document.name}</span>
                         </button>
                         <div className="mt-0.5 truncate text-xs text-tr-muted">
@@ -595,11 +704,11 @@ export function DocumentsLibrary() {
                         <div
                           className={`mt-1 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${document.confidentiality === 'confidential' ? 'bg-tr-danger/10 text-tr-danger' : 'bg-tr-hover text-tr-muted'}`}
                         >
-                          <LockKeyhole size={10} />{' '}
+                          <LockKeyhole size={10} aria-hidden="true" />{' '}
                           {confidentialityLabel[document.confidentiality ?? 'internal']}
                         </div>
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="max-w-56 px-3 py-3">
                         {document.customer_id ? (
                           <Link
                             to={`/customers/${document.customer_id}`}
@@ -610,118 +719,30 @@ export function DocumentsLibrary() {
                         ) : (
                           <span className="text-tr-muted">—</span>
                         )}
-                      </td>
-                      <td className="max-w-52 px-3 py-3 text-xs text-tr-subtle">
-                        <div className="truncate">
-                          {document.deal_title ??
-                            document.contract_name ??
-                            (document.quotation_code ? `Báo giá ${document.quotation_code}` : '—')}
-                        </div>
+                        {linkLabel && (
+                          <div className="mt-0.5 truncate text-xs text-tr-subtle">{linkLabel}</div>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-xs text-tr-subtle">
-                        <div>
-                          {document.effective_date ? formatDate(document.effective_date) : '—'}
+                        <div className="tabular-nums">
+                          {formatDateTime(document.created_at.replace(' ', 'T').slice(0, 16))}
                         </div>
-                        {document.expires_at && (
+                        {document.owner && (
+                          <div className="mt-0.5 text-tr-muted">{document.owner}</div>
+                        )}
+                        {(document.effective_date || document.expires_at) && (
                           <div className="mt-0.5 text-tr-muted">
-                            đến {formatDate(document.expires_at)}
+                            Hiệu lực{' '}
+                            {document.effective_date ? formatDate(document.effective_date) : '…'}
+                            {document.expires_at ? ` → ${formatDate(document.expires_at)}` : ''}
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-tr-subtle">{document.owner || '—'}</td>
                       <td className="px-3 py-3 text-right text-tr-subtle tabular-nums">
-                        <div>{formatBytes(document.size)}</div>
-                        <div className="mt-0.5 text-xs text-tr-muted">
-                          {formatDateTime(document.created_at.replace(' ', 'T').slice(0, 16))}
-                        </div>
+                        {formatBytes(document.size)}
                       </td>
                       <td className="px-3 py-3">
-                        <div className="flex justify-end gap-1">
-                          {view === 'active' ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setEditing(document)}
-                                aria-label={`Sửa ${document.name}`}
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
-                              >
-                                <FilePenLine size={15} />
-                              </button>
-                              {/* Cong viec ke thua dung chuoi lien ket cua tai lieu. */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openTaskComposer({
-                                    context: {
-                                      customer_id: document.customer_id ?? undefined,
-                                      contact_id: document.contact_id ?? undefined,
-                                      deal_id: document.deal_id ?? undefined,
-                                      contract_id: document.contract_id ?? undefined,
-                                      quotation_id: document.quotation_id ?? undefined,
-                                    },
-                                    draftTitle: `Xử lý tài liệu: ${document.name}`,
-                                  })
-                                }
-                                aria-label={`Tạo công việc từ ${document.name}`}
-                                title="Tạo công việc"
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
-                              >
-                                <ListPlus size={15} />
-                              </button>
-                              <ShareButton
-                                entityType="document"
-                                entityId={document.id}
-                                label={document.name}
-                              />
-                              <a
-                                href={`/api/documents/${document.id}/download`}
-                                aria-label={`Tải xuống ${document.name}`}
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
-                              >
-                                <Download size={15} />
-                              </a>
-                              {/* Tach khoi cum: nut Xoa truoc day dung sat nut Tai xuong,
-                                  cung kieu dang, cach nhau 4px — hai hanh dong mot
-                                  benh mot lanh ma trong nhu nhau. Vach ngan + le
-                                  trai lam no thanh mot cum rieng. */}
-                              <span
-                                aria-hidden="true"
-                                className="mx-1 h-5 w-px self-center bg-tr-border"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPendingAction({ type: 'trash', ids: [document.id] })
-                                }
-                                aria-label={`Chuyển ${document.name} vào thùng rác`}
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => restore.mutate([document.id])}
-                                aria-label={`Khôi phục ${document.name}`}
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-primary ${focusRing}`}
-                              >
-                                <ArchiveRestore size={15} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPendingAction({ type: 'permanent', ids: [document.id] })
-                                }
-                                aria-label={`Xóa vĩnh viễn ${document.name}`}
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-control text-tr-muted hover:bg-tr-hover hover:text-tr-danger ${focusRing}`}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        <div className="flex justify-end gap-1">{rowActions(document)}</div>
                       </td>
                     </tr>
                   );
@@ -739,7 +760,6 @@ export function DocumentsLibrary() {
           />
         )}
       </section>
-
       <DocumentMetadataDrawer
         document={editing}
         options={options}

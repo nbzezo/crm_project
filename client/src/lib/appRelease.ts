@@ -18,6 +18,19 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.28.0',
+    date: '2026-10-06',
+    title: 'Trang Tài liệu: tìm và lọc ở một chỗ',
+    changes: [
+      'Hai tab Trang tài liệu và Tệp tải lên dùng chung một thanh công cụ: ô tìm, bộ lọc, Đang dùng / Thùng rác. Từ khoá được giữ khi đổi tab, và mỗi tab báo số kết quả ở tab kia (ví dụ "Có 3 tệp tải lên khớp…") để bấm sang ngay.',
+      'Tab Trang tài liệu: tìm theo tiêu đề và nội dung (gõ không dấu vẫn ra), lọc theo mẫu, theo nơi gắn (Cơ hội, Dự án, Trang riêng) và khách hàng, kèm số lượng; sắp xếp theo ngày sửa hoặc ngày họp; danh sách nhóm theo Hôm nay / 7 ngày qua / Cũ hơn và tải dần khi cuộn.',
+      'Trang tài liệu đã xoá nằm trong Thùng rác và khôi phục được; xoá trong trình soạn có nút Hoàn tác.',
+      'Mở một trang tài liệu nay ghi lên địa chỉ: nút Back của trình duyệt quay về danh sách, F5 hay gửi link vẫn mở đúng trang.',
+      'Tab Tệp tải lên: bảng gọn còn 6 cột nên laptop không phải cuộn ngang, có nhãn loại tệp (PDF, DOCX…); sửa thông tin, tạo công việc, xoá gom vào menu "⋯". Trên điện thoại, mỗi thẻ có nút tải xuống, chia sẻ và menu.',
+      'Nút Tạo trang / Tải tệp lên luôn ở cuối hàng tab; số trang và số tệp hiện ngay trên tab.',
+    ],
+  },
+  {
     version: '1.27.0',
     date: '2026-10-06',
     title: 'Hồ sơ cấu hình: mang cấu hình giữa các bản cài',

@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, FolderKanban, Plus, Target, Users } from 'lucide-react';
-import { Link } from 'react-router';
+import { FileText, Plus, Users } from 'lucide-react';
 import { api, qs } from '../../../api/client';
 import { Button, EmptyState, Skeleton } from '../../common/ui';
 import { formatDateTime } from '../../../lib/format';
@@ -14,70 +13,25 @@ import {
   type DocumentPurpose,
 } from './documentTemplates';
 
-/**
- * `{}` (khong khoa nao) nghia la liet ke TAT CA ghi chu — dung boi tab "Trang
- * tài liệu" cua trang Tai lieu (xem DocumentsHubPage.tsx), khac voi tab "Ghi chú
- * họp" trong mot Co hoi/Du an cu the (luon truyen dung mot khoa).
- */
+/** Co hoi hoac Du an ma danh sach thuoc ve — luon truyen dung mot khoa. */
 type Links = Partial<{ deal_id: number; project_id: number }>;
 
-/** Cơ hội/Dự án mà ghi chú thuộc về — chỉ hiện khi liệt kê TẤT CẢ ghi chú. */
-function NoteContextBadge({ note }: { note: MeetingNote }) {
-  if (note.deal_id && note.deal_title) {
-    return (
-      <Link
-        to={`/deals/${note.deal_id}`}
-        onClick={(e) => e.stopPropagation()}
-        className="inline-flex items-center gap-1 text-tr-primary hover:underline"
-      >
-        <Target size={11} aria-hidden="true" /> {note.deal_title}
-      </Link>
-    );
-  }
-  if (note.project_id && note.project_name) {
-    return (
-      <Link
-        to={`/projects/${note.project_id}`}
-        onClick={(e) => e.stopPropagation()}
-        className="inline-flex items-center gap-1 text-tr-primary hover:underline"
-      >
-        <FolderKanban size={11} aria-hidden="true" /> {note.project_name}
-      </Link>
-    );
-  }
-  if (note.customer_name) return <span>{note.customer_name}</span>;
-  return <span className="italic">Trang riêng</span>;
-}
-
 /**
- * Danh sach ghi chu hop + nut tao moi.
- *
- * Dung o hai noi: tab "Ghi chú họp" cua trang Co hoi/Du an (truyen `links` cu
- * the, giong cach DocumentPanel nhan `links`) VA trang "Ghi chu" o muc Phan
- * tich & cong cu — liet ke TAT CA ghi chu (truyen `links={{}}`, `showContext`).
+ * Danh sach ghi chu hop + nut tao moi cua MOT Co hoi/Du an (tab "Ghi chú họp").
+ * Trang Tai lieu liet ke TAT CA trang bang DocumentPagesLibrary (tim, loc, phan
+ * trang) — xem components/documents/DocumentPagesLibrary.tsx.
  */
 export function MeetingNotesPanel({
   links,
   customerId,
-  showContext = false,
-  initialSelectedId = null,
 }: {
   links: Links;
   customerId: number | null;
-  /** Hien Co hoi/Du an cua tung ghi chu — chi can khi liet ke TAT CA ghi chu. */
-  showContext?: boolean;
-  /** Mo san mot ghi chu cu the (vd. vua tao tu nut hanh dong noi) — xem QuickCreateFab.tsx. */
-  initialSelectedId?: number | null;
 }) {
   const queryClient = useQueryClient();
-  const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId);
-  const [newlyCreatedId, setNewlyCreatedId] = useState<number | null>(initialSelectedId);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [newlyCreatedId, setNewlyCreatedId] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  useEffect(() => {
-    if (initialSelectedId === null) return;
-    setSelectedId(initialSelectedId);
-    setNewlyCreatedId(initialSelectedId);
-  }, [initialSelectedId]);
   const queryKey = ['meeting-notes', links] as const;
 
   const { data: notes, isLoading } = useQuery({
@@ -160,11 +114,6 @@ export function MeetingNotesPanel({
                     {note.attendees.length > 0 && (
                       <span className="ml-2 inline-flex items-center gap-1">
                         <Users size={11} aria-hidden="true" /> {note.attendees.length}
-                      </span>
-                    )}
-                    {showContext && (
-                      <span className="ml-2">
-                        <NoteContextBadge note={note} />
                       </span>
                     )}
                   </div>

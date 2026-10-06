@@ -53,9 +53,11 @@ export const t = {
     tabsLabel: 'Loại tài liệu',
     tabPages: 'Trang tài liệu',
     tabFiles: 'Tệp tải lên',
-    pagesDescription: 'Soạn và lưu các trang tài liệu cho công việc, Cơ hội và Dự án.',
-    filesDescription:
-      'Quản lý hồ sơ khách hàng, liên kết bán hàng và vòng đời tài liệu tại một nơi.',
+    description:
+      'Trang soạn trong app và tệp tải lên của khách hàng, Cơ hội, Dự án — tìm ở một chỗ.',
+    crossToFiles: (count: number, query: string) => `Có ${count} tệp tải lên khớp “${query}” · Xem`,
+    crossToPages: (count: number, query: string) =>
+      `Có ${count} trang tài liệu khớp “${query}” · Xem`,
   },
   common: {
     add: 'Thêm',

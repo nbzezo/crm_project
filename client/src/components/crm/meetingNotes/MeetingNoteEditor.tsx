@@ -460,7 +460,7 @@ export function MeetingNoteEditor({
 
       <ConfirmDialog
         open={confirmDelete}
-        message="Xoá trang tài liệu này? Bạn có thể tạo lại nhưng không khôi phục được nội dung."
+        message="Chuyển trang tài liệu này vào thùng rác? Bạn có thể khôi phục ở Tài liệu → Trang tài liệu → Thùng rác."
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
           remove.mutate();

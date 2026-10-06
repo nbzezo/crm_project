@@ -1,7 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import type { MeetingNoteInput } from '@workflow/contracts/schemas';
 import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
-import { buildSearchText } from '../lib/viSearch.ts';
+import { buildSearchText, fold } from '../lib/viSearch.ts';
+import { afterCursor, toPage, type PageCursor } from '../lib/paging.ts';
 import { HttpError, required } from '../lib/validate.ts';
 
 interface MeetingNoteRow {
@@ -210,4 +211,156 @@ export function saveAiSummary(
     `UPDATE meeting_notes SET ai_summary_json = ?, ai_summary_at = datetime('now','localtime')
       WHERE id = ?`
   ).run(JSON.stringify(summary), id);
+}
+
+/* ------------------------------------------------------------------ */
+/* Thu vien "Trang tài liệu" (tab cua trang Tai lieu) — 1.28.0         */
+/* ------------------------------------------------------------------ */
+
+export type MeetingNoteLinkFilter = 'deal' | 'project' | 'none';
+export type MeetingNoteSort = 'updated' | 'meeting';
+
+export interface MeetingNoteLibraryFilters {
+  q?: string;
+  purpose_key?: string;
+  linked?: MeetingNoteLinkFilter;
+  customer_id?: number;
+  trash?: boolean;
+}
+
+/**
+ * Dieu kien loc cua thu vien trang. `skip` bo mot chieu loc — dung khi dem
+ * facet: so dem theo mau phai tinh khi CHUA loc mau, neu khong moi mau khac
+ * deu ra 0 ngay khi chon mot mau.
+ */
+function libraryWhere(
+  filters: MeetingNoteLibraryFilters,
+  skip: 'purpose' | 'linked' | null = null
+): { where: string[]; params: unknown[] } {
+  const where = [filters.trash ? 'm.deleted_at IS NOT NULL' : 'm.deleted_at IS NULL'];
+  const params: unknown[] = [];
+  const q = fold((filters.q ?? '').trim());
+  if (q) {
+    where.push(`m.search_text LIKE '%' || ? || '%'`);
+    params.push(q);
+  }
+  if (filters.customer_id) {
+    where.push('m.customer_id = ?');
+    params.push(filters.customer_id);
+  }
+  if (filters.purpose_key && skip !== 'purpose') {
+    where.push('m.purpose_key = ?');
+    params.push(filters.purpose_key);
+  }
+  if (filters.linked && skip !== 'linked') where.push(LINK_SQL[filters.linked]);
+  return { where, params };
+}
+
+/** "Gan voi": Co hoi uu tien hon Du an, giong NoteContextBadge o giao dien. */
+const LINK_SQL: Record<MeetingNoteLinkFilter, string> = {
+  deal: 'm.deal_id IS NOT NULL',
+  project: 'm.deal_id IS NULL AND m.project_id IS NOT NULL',
+  none: 'm.deal_id IS NULL AND m.project_id IS NULL',
+};
+
+/** Khoa sap xep — khong bao gio NULL (yeu cau cua afterCursor). */
+function sortKey(filters: MeetingNoteLibraryFilters, sort: MeetingNoteSort): string {
+  if (filters.trash) return 'm.deleted_at';
+  return sort === 'meeting' ? 'COALESCE(m.meeting_at, m.created_at)' : 'm.updated_at';
+}
+
+/**
+ * Mot trang danh sach, moi nhat truoc. Chi tra phan can de hien dong (trich
+ * 200 ky tu, so nguoi tham du) — khong tra content_json: ban cu `GET /` gui
+ * nguyen noi dung moi trang, vai tram trang la vai MB chi de ve mot danh sach.
+ */
+export function listMeetingNotePage(
+  db: Database,
+  filters: MeetingNoteLibraryFilters,
+  sort: MeetingNoteSort,
+  cursor: PageCursor | null,
+  limit: number
+) {
+  const { where, params } = libraryWhere(filters);
+  const key = sortKey(filters, sort);
+  const after = afterCursor(cursor, key, 'm.id');
+  if (after.sql) {
+    where.push(after.sql);
+    params.push(...after.params);
+  }
+  const rows = db
+    .prepare(
+      `SELECT m.id, m.title, m.purpose_key, m.meeting_at, m.customer_id, m.deal_id, m.project_id,
+              m.created_at, m.updated_at, m.deleted_at,
+              substr(m.content_text, 1, 200) AS excerpt,
+              c.name AS customer_name, d.title AS deal_title, p.name AS project_name,
+              o.full_name AS owner_name,
+              (SELECT COUNT(*) FROM meeting_note_attendees a WHERE a.meeting_note_id = m.id)
+                AS attendee_count,
+              ${key} AS sort_key
+         FROM meeting_notes m
+         LEFT JOIN customers c ON c.id = m.customer_id
+         LEFT JOIN deals d ON d.id = m.deal_id
+         LEFT JOIN projects p ON p.id = m.project_id
+         LEFT JOIN contacts o ON o.id = m.owner_contact_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY ${key} DESC, m.id DESC
+        LIMIT ?`
+    )
+    .all(...params, limit + 1) as Record<string, unknown>[];
+  const page = toPage(
+    rows,
+    limit,
+    (row) => String(row.sort_key),
+    (row) => Number(row.id)
+  );
+  return {
+    ...page,
+    items: page.items.map(({ sort_key: _sortKey, ...row }) => row),
+  };
+}
+
+/** So dem cho cot loc nhanh: tong, theo mau, theo noi gan. */
+export function meetingNoteFacets(db: Database, filters: MeetingNoteLibraryFilters) {
+  const byPurpose = libraryWhere(filters, 'purpose');
+  const purposeRows = db
+    .prepare(
+      `SELECT m.purpose_key AS key, COUNT(*) AS n FROM meeting_notes m
+        WHERE ${byPurpose.where.join(' AND ')} GROUP BY m.purpose_key`
+    )
+    .all(...byPurpose.params) as { key: string; n: number }[];
+
+  const byLink = libraryWhere(filters, 'linked');
+  const link = db
+    .prepare(
+      `SELECT SUM(CASE WHEN ${LINK_SQL.deal} THEN 1 ELSE 0 END) AS deal,
+              SUM(CASE WHEN ${LINK_SQL.project} THEN 1 ELSE 0 END) AS project,
+              SUM(CASE WHEN ${LINK_SQL.none} THEN 1 ELSE 0 END) AS none
+         FROM meeting_notes m WHERE ${byLink.where.join(' AND ')}`
+    )
+    .get(...byLink.params) as Record<MeetingNoteLinkFilter, number | null>;
+
+  const all = libraryWhere(filters);
+  const total = (
+    db
+      .prepare(`SELECT COUNT(*) AS n FROM meeting_notes m WHERE ${all.where.join(' AND ')}`)
+      .get(...all.params) as { n: number }
+  ).n;
+
+  return {
+    total,
+    by_purpose: Object.fromEntries(purposeRows.map((row) => [row.key, row.n])),
+    by_link: { deal: link.deal ?? 0, project: link.project ?? 0, none: link.none ?? 0 },
+  };
+}
+
+export function restoreMeetingNote(db: Database, id: number) {
+  const result = db
+    .prepare(
+      `UPDATE meeting_notes SET deleted_at = NULL, updated_at = datetime('now','localtime')
+        WHERE id = ? AND deleted_at IS NOT NULL`
+    )
+    .run(id);
+  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay trang trong thung rac');
+  return getMeetingNote(db, id);
 }

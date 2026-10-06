@@ -197,6 +197,15 @@ router.get('/page', (req, res) => {
   );
 });
 
+/** Chi so dem — cho nhan so tren tab va goi y cheo tab cua trang Tai lieu. */
+router.get('/count', (req, res) => {
+  const { where, params } = documentWhere(req);
+  const row = db
+    .prepare(`SELECT COUNT(*) AS n FROM documents dc WHERE ${where.join(' AND ')}`)
+    .get(...params) as { n: number };
+  res.json({ count: row.n });
+});
+
 router.get('/download.zip', (req, res) => {
   const ids = String(req.query.ids ?? '')
     .split(',')

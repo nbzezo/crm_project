@@ -1381,8 +1381,38 @@ test('đổi tab Tài liệu bằng bàn phím', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(page).toHaveURL(/tab=files/);
   await expect(page.getByRole('tab', { name: 'Tệp tải lên' })).toBeFocused();
-  await expect(page.getByRole('button', { name: /Tải tài liệu/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Tải tệp lên/ })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+});
+
+/* 1.28.0: tu khoa dung chung hai tab va nam tren URL; mo mot trang ghi `?open=`
+   nen Back cua trinh duyet quay ve danh sach thay vi roi khoi trang Tai lieu. */
+test('Tài liệu: từ khoá giữ qua tab, mở trang ghi lên URL và Back về danh sách', async ({
+  page,
+  request,
+}, testInfo) => {
+  const marker = `Tìm chéo ${testInfo.project.name} ${Date.now()}`;
+  const created = await request.post('/api/meeting-notes', {
+    data: { title: marker, purpose_key: 'meeting', content_text: 'nội dung thử' },
+  });
+  expect(created.ok()).toBeTruthy();
+  const note = (await created.json()) as { id: number };
+
+  await page.goto('/documents?tab=pages');
+  await page.getByRole('textbox', { name: /Tìm tiêu đề, nội dung trang/ }).fill(marker);
+  await expect(page).toHaveURL(/[?&]q=/);
+  const row = page.getByRole('button', { name: marker, exact: true });
+  await expect(row).toBeVisible();
+
+  await row.click();
+  await expect(page).toHaveURL(new RegExp(`open=${note.id}`));
+  await expect(page.getByRole('textbox', { name: 'Tiêu đề trang' })).toHaveValue(marker);
+  await page.goBack();
+  await expect(page.getByRole('button', { name: marker, exact: true })).toBeVisible();
+
+  await page.getByRole('tab', { name: /Tệp tải lên/ }).click();
+  await expect(page).toHaveURL(/tab=files/);
+  await expect(page.getByRole('textbox', { name: /Tìm tên, mô tả/ })).toHaveValue(marker);
 });
 
 test.describe('mobile layout', () => {
