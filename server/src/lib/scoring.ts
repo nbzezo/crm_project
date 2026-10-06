@@ -14,6 +14,7 @@
  * Moi ham deu nhan `db` lam tham so de test duoc voi CSDL trong bo nho.
  */
 import type { Database } from 'better-sqlite3';
+import { allStages, invalidatePipeline, isClosedStage, stageOf } from './pipeline.ts';
 import { HttpError } from './validate.ts';
 import {
   BANT_FACTORS,
@@ -24,7 +25,6 @@ import {
   SCORE_FACTORS,
   SCORING_DEFAULTS,
   axisOf,
-  isClosed,
   type Factor,
   type Quadrant,
   type Stage,
@@ -110,12 +110,11 @@ export function getScoringSettings(db: Database): ScoringSettings {
     return Number.isFinite(n) ? n : fallback;
   };
 
-  let stageGate = SCORING_DEFAULTS.stageGate;
-  try {
-    const raw = map.get('scoring.stage_gate');
-    if (raw) stageGate = JSON.parse(raw) as Partial<Record<Stage, number>>;
-  } catch {
-    /* cau hinh hong thi dung mac dinh */
+  /* Tu v64 cong diem la thuoc tinh cua tung giai doan (`pipeline_stages.gate_bant_min`),
+     khong con o app_settings. Giu nguyen dang tra ve cu cho man Cham diem. */
+  const stageGate: Partial<Record<Stage, number>> = {};
+  for (const stage of allStages(db)) {
+    if (stage.gate_bant_min !== null) stageGate[stage.key as Stage] = stage.gate_bant_min;
   }
 
   return {
@@ -136,11 +135,22 @@ export function saveScoringSettings(db: Database, patch: Record<string, unknown>
      VALUES (?, ?, datetime('now','localtime'))
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   );
+  const setGate = db.prepare(
+    `UPDATE pipeline_stages SET gate_bant_min = ?, updated_at = datetime('now','localtime')
+      WHERE key = ?`
+  );
   db.transaction(() => {
     for (const [key, value] of Object.entries(patch)) {
+      if (key === 'stage_gate') {
+        /* Ban do day du: giai doan khong co trong ban do la khong co cong. */
+        const gate = value as Record<string, number | null>;
+        for (const stage of allStages(db)) setGate.run(gate[stage.key] ?? null, stage.key);
+        continue;
+      }
       upsert.run(`scoring.${key}`, typeof value === 'string' ? value : JSON.stringify(value));
     }
   })();
+  invalidatePipeline(db);
 }
 
 /* ---------- Doc du lieu nen ---------- */
@@ -453,7 +463,7 @@ export function getScorecard(db: Database, dealId: number): Scorecard {
   return {
     deal_id: dealId,
     stage: deal.stage,
-    locked: isClosed(deal.stage),
+    locked: isClosedStage(db, deal.stage),
     items,
     bant_total: view.bant_total,
     p4_total: view.p4_total,
@@ -522,7 +532,7 @@ export function writeScore(
 ): Scorecard {
   const deal = getDeal(db, dealId);
   // BR-SCR-10: diem cua deal da chot chi doc
-  if (isClosed(deal.stage))
+  if (isClosedStage(db, deal.stage))
     throw new HttpError(409, 'Co hoi da chot nen diem chi doc', { code: 'SCORE_LOCKED' });
 
   const evidence = (input.evidence ?? '').trim();
@@ -664,13 +674,13 @@ interface GateResult {
   blocked_by: string[];
 }
 
-export function checkStageGate(db: Database, dealId: number, target: Stage): GateResult {
-  const settings = getScoringSettings(db);
-  const required = settings.stageGate[target] ?? null;
+export function checkStageGate(db: Database, dealId: number, targetKey: string): GateResult {
+  const target = stageOf(db, targetKey);
+  const required = target.gate_bant_min;
   const view = readScorecardView(db, dealId);
 
   // C17: keo sang That bai KHONG BAO GIO bi chan — neu khong se khong dong duoc deal xau
-  if (target === 'lost' || required === null)
+  if (target.category === 'lost' || required === null)
     return { ok: true, required, bant_total: view.bant_total, blocked_by: [] };
 
   const blocked: string[] = [];
@@ -687,9 +697,11 @@ export function checkStageGate(db: Database, dealId: number, target: Stage): Gat
     }
   }
   // Vao Dam phan ma chua tiep can nguoi co quyen chi tien thi khong phai dam phan
-  if (target === 'negotiating' && view.v2_no_economic) blocked.push('veto:V2_NO_ECONOMIC_BUYER');
+  // Giai doan doi da tiep can nguoi chi tien (mac dinh: Dam phan) — phu quyet V2
+  const economicVeto = target.require_economic_buyer === 1 && view.v2_no_economic;
+  if (economicVeto) blocked.push('veto:V2_NO_ECONOMIC_BUYER');
 
-  const ok = view.bant_total >= required && !(target === 'negotiating' && view.v2_no_economic);
+  const ok = view.bant_total >= required && !economicVeto;
   return { ok, required, bant_total: view.bant_total, blocked_by: blocked };
 }
 

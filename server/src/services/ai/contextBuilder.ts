@@ -192,7 +192,7 @@ export function buildTodayContext(db: Database, scope: AiScope = null) {
       `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
               c.name AS customer_name
          FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage NOT IN ('won','lost') AND d.next_action_date < date('now','localtime')${deals.sql}
+        WHERE d.stage_category = 'open' AND d.next_action_date < date('now','localtime')${deals.sql}
         ORDER BY d.value_vnd DESC`,
       deals.params,
       20
@@ -201,7 +201,7 @@ export function buildTodayContext(db: Database, scope: AiScope = null) {
       db,
       `SELECT d.id, d.title, d.stage, d.value_vnd, c.name AS customer_name
          FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage NOT IN ('won','lost') AND TRIM(COALESCE(d.next_action,'')) = ''${deals.sql}
+        WHERE d.stage_category = 'open' AND TRIM(COALESCE(d.next_action,'')) = ''${deals.sql}
         ORDER BY d.value_vnd DESC`,
       deals.params,
       20
@@ -234,9 +234,9 @@ export function buildCustomerContext(db: Database, customerId: number) {
         `SELECT c.id, c.name, c.short_name, c.industry, c.size, c.source, c.status,
                 c.phone, c.email, c.address, c.notes,
                 (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d
-                  WHERE d.customer_id = c.id AND d.stage = 'won') AS total_won_vnd,
+                  WHERE d.customer_id = c.id AND d.stage_category = 'won') AS total_won_vnd,
                 (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d
-                  WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')) AS open_pipeline_vnd,
+                  WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_pipeline_vnd,
                 (SELECT COUNT(*) FROM contracts k
                   WHERE k.customer_id = c.id AND k.status = 'active') AS active_contract_count
            FROM customers c WHERE c.id = ?`

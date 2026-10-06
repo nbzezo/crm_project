@@ -31,10 +31,6 @@ export {
 };
 export type { Stage };
 
-export function isClosed(stage: Stage): boolean {
-  return stage === 'won' || stage === 'lost';
-}
-
 /* ---------- Dich vu su dung & doanh thu khach hang hien huu (v7) ---------- */
 
 /**

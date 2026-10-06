@@ -9,7 +9,8 @@ import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
-import { CONTRACT_STATUSES, STAGE_PROBABILITY } from '../lib/crm.ts';
+import { CONTRACT_STATUSES } from '../lib/crm.ts';
+import { startStage } from '../lib/pipeline.ts';
 import {
   assertCrmCustomer,
   assertEntityLinks,
@@ -224,7 +225,7 @@ router.post('/extract', contractUpload.single('file'), async (req, res) => {
     if (customerId) {
       const deals = db
         .prepare(
-          `SELECT id, value_vnd FROM deals WHERE customer_id = ? AND stage NOT IN ('won','lost')
+          `SELECT id, value_vnd FROM deals WHERE customer_id = ? AND stage_category = 'open'
             ORDER BY updated_at DESC`
         )
         .all(customerId) as { id: number; value_vnd: number }[];
@@ -512,21 +513,23 @@ router.post('/:id/renew', (req, res) => {
       > | null)
     : null;
 
+  const start = startStage(db);
   const dealId = db.transaction(() => {
-    const position = nextPosition({ table: 'deals', scopeCol: 'stage', scopeVal: 'lead' });
+    const position = nextPosition({ table: 'deals', scopeCol: 'stage', scopeVal: start.key });
     const title = `Gia hạn: ${contract.name}`;
     const info = db
       .prepare(
         `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
                             position, expected_close_date, source, is_renewal, notes, search_text)
-         VALUES (?, ?, ?, ?, 'lead', ?, ?, ?, ?, ?, 1, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
       )
       .run(
         contract.customer_id,
         source?.contact_id ?? null,
         title,
         source?.product ?? null,
-        STAGE_PROBABILITY.lead,
+        start.key,
+        start.probability,
         contract.value_vnd,
         position,
         contract.end_date,

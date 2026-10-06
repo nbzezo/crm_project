@@ -188,7 +188,7 @@ export function listOverdueHandovers(db: Database, slaDays: number): OverdueHand
                 WHERE h.deal_id = d.id AND h.is_required = 1 AND h.is_done = 0) AS pending_required
          FROM deals d
          JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage = 'won'
+        WHERE d.stage_category = 'won'
           AND d.handover_ready = 0
           AND d.closed_at IS NOT NULL
           AND julianday('now','localtime') - julianday(d.closed_at) >= ?

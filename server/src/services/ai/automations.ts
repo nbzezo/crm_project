@@ -48,7 +48,7 @@ function scan(db: Database, automation: AutomationRow): NotificationInput[] {
                 MAX(i.occurred_at) AS last_interaction
            FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
            LEFT JOIN interactions i ON i.deal_id = d.id
-          WHERE d.stage NOT IN ('won','lost') AND d.value_vnd >= ?
+          WHERE d.stage_category = 'open' AND d.value_vnd >= ?
           GROUP BY d.id
          HAVING COALESCE(MAX(i.occurred_at), d.created_at) < datetime('now','localtime', ?)
           ORDER BY d.value_vnd DESC LIMIT 50`
@@ -74,7 +74,7 @@ function scan(db: Database, automation: AutomationRow): NotificationInput[] {
       .prepare(
         `SELECT d.id, d.title, d.next_action, d.next_action_date, d.value_vnd, c.name AS customer_name
            FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-          WHERE d.stage NOT IN ('won','lost') AND d.next_action_date < date('now','localtime')
+          WHERE d.stage_category = 'open' AND d.next_action_date < date('now','localtime')
           ORDER BY d.next_action_date, d.value_vnd DESC LIMIT 50`
       )
       .all() as {
@@ -150,7 +150,7 @@ function scan(db: Database, automation: AutomationRow): NotificationInput[] {
           AND due_date < date('now','localtime')) AS overdue_tasks,
         (SELECT COUNT(*) FROM cards WHERE is_done = 0 AND is_archived = 0
           AND date(due_date) = date('now','localtime')) AS today_tasks,
-        (SELECT COUNT(*) FROM deals WHERE stage NOT IN ('won','lost')
+        (SELECT COUNT(*) FROM deals WHERE stage_category = 'open'
           AND next_action_date < date('now','localtime')) AS overdue_actions`
     )
     .get() as { overdue_tasks: number; today_tasks: number; overdue_actions: number };

@@ -583,7 +583,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
   /* ---------- Co hoi: hanh dong tiep theo, chot, PoC, xem lai tam dung, su kien ---------- */
   const dealScope = own(scope, scope.deals, 'd.owner_contact_id');
   const DEAL_FROM = `FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-                    WHERE d.stage NOT IN ('won','lost')${dealScope}`;
+                    WHERE d.stage_category = 'open'${dealScope}`;
 
   const nextActions = db
     .prepare(
@@ -688,7 +688,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
               d.customer_id, c.name AS customer_name
          FROM deal_events e JOIN deals d ON d.id = e.deal_id
          JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage NOT IN ('won','lost') AND e.event_date BETWEEN ? AND ?${dealScope}
+        WHERE d.stage_category = 'open' AND e.event_date BETWEEN ? AND ?${dealScope}
         LIMIT 100`
     )
     .all(from, to) as Row[];
@@ -1051,11 +1051,11 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
          SELECT c.id, c.name, c.care_tier, ${cadenceSql('c')} AS cadence,
                 (SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.customer_id = c.id) AS last_contact,
                 (SELECT COALESCE(SUM(d.value_vnd),0) FROM deals d
-                  WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost')) AS open_vnd
+                  WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_vnd
            FROM customers c
           WHERE c.org_kind = 'customer'
             AND (c.care_tier IN ('vip','key')
-                 OR EXISTS (SELECT 1 FROM deals d WHERE d.customer_id = c.id AND d.stage NOT IN ('won','lost'))
+                 OR EXISTS (SELECT 1 FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'open')
                  OR EXISTS (SELECT 1 FROM contracts k WHERE k.customer_id = c.id AND k.status = 'active'))
             ${own(scope, scope.customers, 'c.owner_contact_id')})
         WHERE last_contact IS NULL OR last_contact < date(?, '-' || cadence || ' days')
@@ -1353,11 +1353,11 @@ function retroStats(db: Database, scope: FocusScope, from: string, to: string): 
   ).n;
   const deals = db
     .prepare(
-      `SELECT COALESCE(SUM(CASE WHEN d.stage = 'won' THEN 1 ELSE 0 END), 0) AS won,
-              COALESCE(SUM(CASE WHEN d.stage = 'won' THEN COALESCE(d.won_value_vnd, d.value_vnd) ELSE 0 END), 0) AS won_vnd,
-              COALESCE(SUM(CASE WHEN d.stage = 'lost' THEN 1 ELSE 0 END), 0) AS lost
+      `SELECT COALESCE(SUM(CASE WHEN d.stage_category = 'won' THEN 1 ELSE 0 END), 0) AS won,
+              COALESCE(SUM(CASE WHEN d.stage_category = 'won' THEN COALESCE(d.won_value_vnd, d.value_vnd) ELSE 0 END), 0) AS won_vnd,
+              COALESCE(SUM(CASE WHEN d.stage_category = 'lost' THEN 1 ELSE 0 END), 0) AS lost
          FROM deals d
-        WHERE d.stage IN ('won','lost') AND substr(d.closed_at,1,10) BETWEEN ? AND ?
+        WHERE d.stage_category <> 'open' AND substr(d.closed_at,1,10) BETWEEN ? AND ?
           ${own(scope, scope.deals, 'd.owner_contact_id')}`
     )
     .get(from, to) as { won: number; won_vnd: number; lost: number };

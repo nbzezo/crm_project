@@ -173,7 +173,7 @@ export function churnRiskOf(db: Database, customerId: number, care: CareStatus):
         WHERE k.customer_id = ? AND k.status = 'active' AND k.end_date IS NOT NULL
           AND k.end_date BETWEEN ? AND ?
           AND NOT EXISTS (SELECT 1 FROM deals d WHERE d.customer_id = k.customer_id
-                           AND d.is_renewal = 1 AND d.stage NOT IN ('won','lost'))`
+                           AND d.is_renewal = 1 AND d.stage_category = 'open')`
     )
     .get(customerId, today, addDaysStr(today, 60)) as { n: number };
   if (expiring.n > 0) {
@@ -216,7 +216,7 @@ export function churnRiskOf(db: Database, customerId: number, care: CareStatus):
 
   const lost = db
     .prepare(
-      `SELECT COUNT(*) AS n FROM deals WHERE customer_id = ? AND stage = 'lost'
+      `SELECT COUNT(*) AS n FROM deals WHERE customer_id = ? AND stage_category = 'lost'
           AND substr(COALESCE(closed_at, updated_at),1,10) >= ?`
     )
     .get(customerId, addDaysStr(today, -90)) as { n: number };
@@ -283,7 +283,7 @@ function candidatesFor(db: Database, customerId: number): Candidate[] {
         WHERE k.customer_id = ? AND k.status IN ('active','expired') AND k.end_date IS NOT NULL
           AND k.end_date BETWEEN ? AND ?
           AND NOT EXISTS (SELECT 1 FROM deals d WHERE d.customer_id = k.customer_id
-                           AND d.is_renewal = 1 AND d.stage NOT IN ('won','lost')
+                           AND d.is_renewal = 1 AND d.stage_category = 'open'
                            AND substr(d.created_at,1,10) >= date(k.end_date, '-180 days'))`
     )
     .all(customerId, addDaysStr(today, -30), addDaysStr(today, RENEWAL_WINDOW_DAYS)) as {
@@ -407,7 +407,7 @@ function candidatesFor(db: Database, customerId: number): Candidate[] {
          LEFT JOIN deals d ON d.id = q.deal_id
         WHERE q.customer_id = ? AND q.status IN ('sent','reviewing','revision')
           AND q.valid_until IS NOT NULL AND q.valid_until < ?
-          AND (d.id IS NULL OR d.stage NOT IN ('won','lost'))
+          AND (d.id IS NULL OR d.stage_category = 'open')
           AND q.version = (SELECT MAX(q2.version) FROM quotations q2
                             WHERE q2.customer_id = q.customer_id
                               AND COALESCE(q2.code,'') = COALESCE(q.code,'')
@@ -438,7 +438,7 @@ function candidatesFor(db: Database, customerId: number): Candidate[] {
   const lost = db
     .prepare(
       `SELECT id, title, value_vnd, lost_reason, substr(COALESCE(closed_at, updated_at),1,10) AS lost_on
-         FROM deals WHERE customer_id = ? AND stage = 'lost'
+         FROM deals WHERE customer_id = ? AND stage_category = 'lost'
           AND substr(COALESCE(closed_at, updated_at),1,10) <= ?
           AND substr(COALESCE(closed_at, updated_at),1,10) >= ?
         ORDER BY value_vnd DESC LIMIT 2`
@@ -469,7 +469,7 @@ function candidatesFor(db: Database, customerId: number): Candidate[] {
   const won = db
     .prepare(
       `SELECT id, title, value_vnd, substr(COALESCE(closed_at, updated_at),1,10) AS won_on
-         FROM deals WHERE customer_id = ? AND stage = 'won'
+         FROM deals WHERE customer_id = ? AND stage_category = 'won'
           AND substr(COALESCE(closed_at, updated_at),1,10) >= ?
         ORDER BY won_on DESC LIMIT 3`
     )
@@ -649,7 +649,7 @@ export function revenueSummary(db: Database, customerId: number) {
     .prepare(
       `SELECT substr(COALESCE(closed_at, updated_at),1,4) AS year,
               COALESCE(SUM(COALESCE(won_value_vnd, value_vnd)),0) AS won_vnd, COUNT(*) AS deals
-         FROM deals WHERE customer_id = ? AND stage = 'won' GROUP BY year ORDER BY year DESC LIMIT 5`
+         FROM deals WHERE customer_id = ? AND stage_category = 'won' GROUP BY year ORDER BY year DESC LIMIT 5`
     )
     .all(customerId) as { year: string; won_vnd: number; deals: number }[];
   const byService = db

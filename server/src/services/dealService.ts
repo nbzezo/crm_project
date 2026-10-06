@@ -1,5 +1,5 @@
 import { db } from '../db/connection.ts';
-import { isClosed } from '../lib/crm.ts';
+import { isClosedStage } from '../lib/pipeline.ts';
 import { checkStageGate, snapshotScores } from '../lib/scoring.ts';
 import { HttpError, required } from '../lib/validate.ts';
 import { assertProjectCustomerLink } from '../lib/entityRelations.ts';
@@ -47,7 +47,7 @@ export function evaluateStageGate(
   query: Record<string, unknown>
 ): string | null {
   if (target === currentStage) return null;
-  const result = checkStageGate(db, id, target as never);
+  const result = checkStageGate(db, id, target);
   if (result.ok) return null;
 
   if (String(query.override ?? '') !== '1') {
@@ -83,11 +83,11 @@ export function applyDealScoreTransition(
     ).run(id, overrideHistory);
   }
 
-  if (isClosed(target as never) && !isClosed(currentStage as never)) {
+  if (isClosedStage(db, target) && !isClosedStage(db, currentStage)) {
     snapshotScores(db, id);
     return;
   }
-  if (!isClosed(target as never) && isClosed(currentStage as never)) {
+  if (!isClosedStage(db, target) && isClosedStage(db, currentStage)) {
     db.prepare(`UPDATE deals SET score_snapshot = NULL WHERE id = ?`).run(id);
     db.prepare(
       `INSERT INTO deal_score_history (deal_id, factor, old_score, new_score, reason)

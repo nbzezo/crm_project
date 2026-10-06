@@ -133,6 +133,9 @@ export const EXPORT_TABLES = [
   'customer_suggestions',
   // v62 — danh muc dong (ly do thua, loai tuong tac, loai tai lieu...)
   'picklist_items',
+  // v64 — pipeline va giai doan co hoi
+  'pipelines',
+  'pipeline_stages',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
@@ -366,7 +369,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
   deals: {
     label: 'co-hoi',
     sql: `SELECT d.title AS "Tên cơ hội", c.name AS "Doanh nghiệp", d.product AS "Sản phẩm",
-                 d.stage AS "Giai đoạn", d.probability AS "Xác suất %", d.value_vnd AS "Giá trị",
+                 COALESCE(ps.label, d.stage) AS "Giai đoạn", d.probability AS "Xác suất %", d.value_vnd AS "Giá trị",
                  d.won_value_vnd AS "Giá trị chốt", d.expected_close_date AS "Dự kiến chốt",
                  d.next_action AS "Hành động tiếp theo", d.next_action_date AS "Ngày hành động",
                  d.source AS "Nguồn", d.competitor AS "Đối thủ",
@@ -378,6 +381,7 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
             FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             JOIN deal_scorecard s ON s.deal_id = d.id
             LEFT JOIN picklist_items lr ON lr.list_key = 'lost_reason' AND lr.item_key = d.lost_reason
+            LEFT JOIN pipeline_stages ps ON ps.key = d.stage
            ORDER BY d.updated_at DESC`,
   },
   /* Xuat chi tiet cham diem: moi dong mot yeu to, kem bang chung — de ra soat

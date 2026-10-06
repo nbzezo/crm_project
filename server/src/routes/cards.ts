@@ -136,7 +136,7 @@ router.get('/context', (req, res) => {
       `SELECT id, full_name, title FROM contacts WHERE customer_id = ? ORDER BY is_primary DESC, full_name`
     ),
     deals: scoped(
-      `SELECT id, title, stage FROM deals WHERE customer_id = ? ORDER BY stage = 'won', stage = 'lost', id DESC`
+      `SELECT id, title, stage FROM deals WHERE customer_id = ? ORDER BY stage_category = 'won', stage_category = 'lost', id DESC`
     ),
     contracts: scoped(
       `SELECT id, name, number, status FROM contracts WHERE customer_id = ? ORDER BY id DESC`

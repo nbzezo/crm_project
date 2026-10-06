@@ -5,7 +5,7 @@ import { assertInScope, defaultOwner, scopeWhereOrUnowned } from '../lib/scope.t
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
-import { STAGES, STAGE_PROBABILITY, isClosed } from '../lib/crm.ts';
+import { allStages, assertStage, startStage, stageOf } from '../lib/pipeline.ts';
 import { assertPicklistValue } from '../lib/picklists.ts';
 import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
 import {
@@ -36,7 +36,8 @@ import { decorateProject, PROJECT_SELECT } from '../services/projectService.ts';
 
 const router = Router();
 
-const stageEnum = z.enum(STAGES);
+/* Giai doan la du lieu cau hinh (v64): kiem bang assertStage sau khi parse. */
+const stageEnum = z.string().trim().min(1).max(60);
 const dateOnly = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -141,11 +142,15 @@ router.get('/', (req, res) => {
 
   const byStage: Record<string, unknown[]> = {};
   const totals: Record<string, { count: number; sum_vnd: number; weighted_vnd: number }> = {};
-  for (const stage of STAGES) {
-    byStage[stage] = [];
-    totals[stage] = { count: 0, sum_vnd: 0, weighted_vnd: 0 };
+  for (const { key } of allStages(db)) {
+    byStage[key] = [];
+    totals[key] = { count: 0, sum_vnd: 0, weighted_vnd: 0 };
   }
   for (const row of rows) {
+    /* Giai doan da xoa khoi cau hinh khong the con co hoi (khoa ngoai), nhung van
+       phong ho: mot dong khong co cot thi tao cot thay vi nem loi. */
+    byStage[row.stage] ??= [];
+    totals[row.stage] ??= { count: 0, sum_vnd: 0, weighted_vnd: 0 };
     byStage[row.stage].push(row);
     totals[row.stage].count += 1;
     totals[row.stage].sum_vnd += row.value_vnd;
@@ -173,12 +178,13 @@ router.post('/', (req, res) => {
   assertEntityLinks(db, body);
   assertCrmCustomer(db, body.customer_id);
   assertProjectLink(0, body.project_id, body.customer_id);
-  const stage = body.stage ?? 'lead';
-  if (stage === 'lost' && !body.lost_reason)
+  const target = body.stage ? assertStage(db, body.stage) : startStage(db);
+  const stage = target.key;
+  if (target.category === 'lost' && !body.lost_reason)
     throw new HttpError(400, 'Phai chon ly do khi chuyen sang Thua'); // BR-03
 
   const position = nextPosition({ table: 'deals', scopeCol: 'stage', scopeVal: stage });
-  const probability = body.probability ?? STAGE_PROBABILITY[stage];
+  const probability = body.probability ?? target.probability;
   const info = db
     .prepare(
       `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
@@ -186,7 +192,7 @@ router.post('/', (req, res) => {
                           next_action, next_action_date, lost_reason, lost_note, is_renewal, notes,
                           project_id, handover_ready, search_text, owner_contact_id, closed_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               ${isClosed(stage) ? `datetime('now','localtime')` : 'NULL'})`
+               ${target.category !== 'open' ? `datetime('now','localtime')` : 'NULL'})`
     )
     .run(
       body.customer_id,
@@ -279,18 +285,17 @@ function applyStageRules(
   stage: string,
   body: { probability?: number; lost_reason?: string | null; lost_note?: string | null }
 ) {
+  const target = stageOf(db, stage);
   fields.push('stage = ?');
   values.push(stage);
   fields.push('probability = ?');
+  /* Da dong (thang/thua) thi xac suat co dinh theo giai doan; dang mo thi nguoi
+     dung duoc ghi de bang tay. */
   values.push(
-    stage === 'won'
-      ? 100
-      : stage === 'lost'
-        ? 0
-        : (body.probability ?? STAGE_PROBABILITY[stage as never])
+    target.category === 'open' ? (body.probability ?? target.probability) : target.probability
   );
   fields.push(
-    isClosed(stage as never) ? `closed_at = datetime('now','localtime')` : `closed_at = NULL`
+    target.category !== 'open' ? `closed_at = datetime('now','localtime')` : `closed_at = NULL`
   );
   /* R-08: moc dem tuoi giai doan. Chi ham nay duoc ghi cot do — no la NOI DUY
      NHAT trong ma nguon lam co hoi doi giai doan, nen dat o day thi khong co
@@ -298,7 +303,7 @@ function applyStageRules(
   fields.push(`stage_entered_at = datetime('now','localtime')`);
   /* Chuyen giai doan la mot dong thai co y — co hoi khong con "tam dung" nua. */
   fields.push('on_hold = 0', 'on_hold_reason = NULL', 'on_hold_review_date = NULL');
-  if (stage === 'lost') {
+  if (target.category === 'lost') {
     fields.push('lost_reason = ?', 'lost_note = ?');
     values.push(body.lost_reason ?? null, body.lost_note ?? null);
   } else {
@@ -363,7 +368,8 @@ router.patch('/:id', (req, res) => {
       current.source as string | null
     );
   const nextStage = body.stage ?? (current.stage as string);
-  if (nextStage === 'lost' && !(body.lost_reason ?? current.lost_reason))
+  const nextTarget = assertStage(db, nextStage, current.stage as string);
+  if (nextTarget.category === 'lost' && !(body.lost_reason ?? current.lost_reason))
     throw new HttpError(400, 'Phai chon lý do khi chuyển cơ hội sang Thua');
 
   const fields: string[] = [];
@@ -498,8 +504,9 @@ router.patch('/:id/move', (req, res) => {
   ) as Record<string, unknown>;
 
   assertPicklistValue(db, 'lost_reason', body.lost_reason, current.lost_reason as string | null);
+  const moveTarget = assertStage(db, body.stage, current.stage as string);
   // BR-03: khong cho chuyen sang Thua neu chua co ly do
-  if (body.stage === 'lost' && !(body.lost_reason ?? current.lost_reason))
+  if (moveTarget.category === 'lost' && !(body.lost_reason ?? current.lost_reason))
     throw new HttpError(409, 'NEED_LOST_REASON');
 
   // F-04: kiem tra truoc khi mo giao dich de khong ghi nua chung

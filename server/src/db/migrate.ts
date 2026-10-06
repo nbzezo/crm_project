@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 63;
+export const LATEST_VERSION = 64;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -563,6 +563,65 @@ function seedLabelPicklists(db: Database): void {
       insert.run(spec.list, key, entry.label, index + 1, entry.system ? 1 : 0);
     });
   }
+}
+
+/**
+ * v64: chep cong diem BANT dang luu o `app_settings.scoring.stage_gate` sang cot
+ * `pipeline_stages.gate_bant_min`. Chua tung luu thi dung mac dinh cua ban truoc
+ * (Gui bao gia >= 7, Dam phan >= 9) — dung gia tri ung dung dang ap dung.
+ */
+function copyStageGate(db: Database): void {
+  let gate: Record<string, number> = { quoted: 7, negotiating: 9 };
+  const row = db
+    .prepare(`SELECT value FROM app_settings WHERE key = 'scoring.stage_gate'`)
+    .get() as { value: string } | undefined;
+  if (row) {
+    try {
+      gate = JSON.parse(row.value) as Record<string, number>;
+    } catch {
+      /* cau hinh hong: ung dung cung dang dung mac dinh */
+    }
+  }
+  const update = db.prepare(`UPDATE pipeline_stages SET gate_bant_min = ? WHERE key = ?`);
+  for (const [key, value] of Object.entries(gate)) {
+    if (Number.isInteger(value) && value >= 0 && value <= 12) update.run(value, key);
+  }
+}
+
+/**
+ * v64: `deals.stage` tro toi `pipeline_stages(key)` thay cho CHECK liet ke cung, va
+ * them cot `stage_category` giu bang trigger.
+ *
+ * Trigger chu khong phai ghi tay o tung route: co it nhat ba duong tao/doi giai
+ * doan (routes/deals.ts, routes/contracts.ts, de xuat AI) va mot cot phi chuan hoa
+ * chi dang tin khi KHONG duong ghi nao co the quen no.
+ */
+function rebuildDealsForPipeline(db: Database): void {
+  const checkPattern = /CHECK\s*\(\s*stage\s+IN\s*\([^)]*\)\s*\)/i;
+  rebuildTable(db, 'deals', (sql) => {
+    if (!checkPattern.test(sql)) throw new Error('v64: khong tim thay CHECK cua deals.stage');
+    const withFk = sql.replace(checkPattern, 'REFERENCES pipeline_stages(key)');
+    /* Them cot vao cuoi dinh nghia: bo dau ')' cuoi cung cua CREATE TABLE. */
+    const end = withFk.lastIndexOf(')');
+    return (
+      withFk.slice(0, end) +
+      `, stage_category TEXT NOT NULL DEFAULT 'open' CHECK (stage_category IN ('open','won','lost'))` +
+      withFk.slice(end)
+    );
+  });
+  db.exec(`
+    UPDATE deals SET stage_category =
+      (SELECT category FROM pipeline_stages WHERE key = deals.stage);
+    CREATE INDEX idx_deals_stage_category ON deals(stage_category, stage_entered_at);
+    CREATE TRIGGER trg_deals_stage_category_ins AFTER INSERT ON deals BEGIN
+      UPDATE deals SET stage_category =
+        (SELECT category FROM pipeline_stages WHERE key = NEW.stage) WHERE id = NEW.id;
+    END;
+    CREATE TRIGGER trg_deals_stage_category_upd AFTER UPDATE OF stage ON deals BEGIN
+      UPDATE deals SET stage_category =
+        (SELECT category FROM pipeline_stages WHERE key = NEW.stage) WHERE id = NEW.id;
+    END;
+  `);
 }
 
 /** v62: go CHECK liet ke cung cua `interactions.type` — gia tri gio nam o picklist_items. */
@@ -1234,5 +1293,24 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v63 (nganh, quy mo, nguon thanh danh muc)');
     current = 63;
+  }
+
+  if (current === 63 && targetVersion >= 64) {
+    /* Dung lai bang deals nen phai tat khoa ngoai — hon muoi bang tro toi no. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v64.sql'));
+        copyStageGate(db);
+        rebuildDealsForPipeline(db);
+        db.pragma('user_version = 64');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v64:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v64 (giai doan co hoi thanh cau hinh)');
+    current = 64;
   }
 }

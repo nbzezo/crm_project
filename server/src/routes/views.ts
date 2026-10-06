@@ -4,7 +4,8 @@ import { db } from '../db/connection.ts';
 import { accessOf, actorContactId, requirePermission } from '../middleware/currentUser.ts';
 import { scopeFragment, scopeFragmentOrUnowned, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { fold } from '../lib/viSearch.ts';
-import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
+import { QUADRANTS, STALE_DAYS } from '../lib/crm.ts';
+import { allStages, finalOpenStageKeys } from '../lib/pipeline.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
@@ -52,7 +53,7 @@ const DEAL_ATTENTION_SELECT = `
               julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.deal_id = d.id),
                                  substr(d.created_at,1,10))) AS INTEGER) AS days_idle
     FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-   WHERE d.stage NOT IN ('won','lost')`;
+   WHERE d.stage_category = 'open'`;
 
 function attachLabels(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   if (rows.length === 0) return rows;
@@ -495,7 +496,7 @@ router.get('/calendar', (req, res) => {
             `SELECT d.id, d.title, d.expected_close_date, d.value_vnd, c.name AS customer_name
              FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             WHERE d.expected_close_date IS NOT NULL AND d.expected_close_date BETWEEN ? AND ?
-              AND d.stage NOT IN ('won','lost')${dealScope(req)}`
+              AND d.stage_category = 'open'${dealScope(req)}`
           )
           .all(from, to)
       : []
@@ -508,7 +509,7 @@ router.get('/calendar', (req, res) => {
             `SELECT d.id, d.next_action, d.next_action_date, c.name AS customer_name
              FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             WHERE d.next_action_date IS NOT NULL AND d.next_action_date BETWEEN ? AND ?
-              AND d.stage NOT IN ('won','lost')${dealScope(req)}`
+              AND d.stage_category = 'open'${dealScope(req)}`
           )
           .all(from, to)
       : []
@@ -692,14 +693,14 @@ router.get('/dashboard', cacheResponse, (req, res) => {
       `SELECT COUNT(*) AS open_count,
               COALESCE(SUM(value_vnd), 0) AS pipeline_vnd,
               COALESCE(SUM(value_vnd * probability / 100), 0) AS weighted_vnd
-         FROM deals WHERE stage NOT IN ('won','lost')${dealScope(req, '')}`
+         FROM deals WHERE stage_category = 'open'${dealScope(req, '')}`
     )
     .get() as { open_count: number; pipeline_vnd: number; weighted_vnd: number };
 
   const closingThisMonth = db
     .prepare(
       `SELECT COUNT(*) AS count, COALESCE(SUM(value_vnd), 0) AS sum_vnd FROM deals
-        WHERE stage NOT IN ('won','lost') AND expected_close_date IS NOT NULL
+        WHERE stage_category = 'open' AND expected_close_date IS NOT NULL
           AND strftime('%Y-%m', expected_close_date) = strftime('%Y-%m', date('now','localtime'))
           ${dealScope(req, '')}`
     )
@@ -714,7 +715,8 @@ router.get('/dashboard', cacheResponse, (req, res) => {
     .all() as { stage: string; count: number; sum_vnd: number; weighted_vnd: number }[];
   const pipeline_totals: Record<string, { count: number; sum_vnd: number; weighted_vnd: number }> =
     {};
-  for (const stage of STAGES) pipeline_totals[stage] = { count: 0, sum_vnd: 0, weighted_vnd: 0 };
+  for (const { key } of allStages(db))
+    pipeline_totals[key] = { count: 0, sum_vnd: 0, weighted_vnd: 0 };
   for (const row of stageRows)
     pipeline_totals[row.stage] = {
       count: row.count,
@@ -735,26 +737,28 @@ router.get('/dashboard', cacheResponse, (req, res) => {
       .prepare(
         `${ATTENTION} AND d.expected_close_date IS NOT NULL
            AND d.expected_close_date < date('now','localtime')
-          ORDER BY d.expected_close_date LIMIT 10`
+          ORDER BY d.expected_close_date, d.id LIMIT 10`
       )
       .all(),
     no_next_action: db
       .prepare(
         `${ATTENTION} AND (d.next_action IS NULL OR d.next_action = '')
-          ORDER BY d.value_vnd DESC LIMIT 10`
+          ORDER BY d.value_vnd DESC, d.id LIMIT 10`
       )
       .all(),
     stale: db
-      .prepare(`SELECT * FROM (${ATTENTION}) WHERE days_idle >= ? ORDER BY days_idle DESC LIMIT 10`)
+      .prepare(
+        `SELECT * FROM (${ATTENTION}) WHERE days_idle >= ? ORDER BY days_idle DESC, id LIMIT 10`
+      )
       .all(STALE_DAYS),
     next_action_overdue: db
       .prepare(
         `${ATTENTION} AND d.next_action_date IS NOT NULL
            AND d.next_action_date < date('now','localtime')
-          ORDER BY d.next_action_date LIMIT 10`
+          ORDER BY d.next_action_date, d.id LIMIT 10`
       )
       .all(),
-    top_value: db.prepare(`${ATTENTION} ORDER BY d.value_vnd DESC LIMIT 5`).all(),
+    top_value: db.prepare(`${ATTENTION} ORDER BY d.value_vnd DESC, d.id LIMIT 5`).all(),
 
     /* F-07 — bon nhom canh bao cua module cham diem.
        Tinh dong ngay tai day, KHONG dung hang doi thong bao rieng: neu luu tinh,
@@ -763,7 +767,7 @@ router.get('/dashboard', cacheResponse, (req, res) => {
       .prepare(
         `${ATTENTION} AND d.score_updated_at IS NOT NULL
            AND julianday(date('now','localtime')) - julianday(date(d.score_updated_at)) > ?
-          ORDER BY d.score_updated_at LIMIT 10`
+          ORDER BY d.score_updated_at, d.id LIMIT 10`
       )
       .all(scoringSettings.staleDays),
     score_veto: db
@@ -771,7 +775,7 @@ router.get('/dashboard', cacheResponse, (req, res) => {
         `SELECT * FROM (${ATTENTION}) x
            JOIN deal_scorecard s ON s.deal_id = x.id
           WHERE s.v1_no_event = 1 OR s.v2_no_economic = 1
-          ORDER BY x.value_vnd DESC LIMIT 10`
+          ORDER BY x.value_vnd DESC, x.id LIMIT 10`
       )
       .all(),
     score_reshape: db
@@ -779,7 +783,7 @@ router.get('/dashboard', cacheResponse, (req, res) => {
         `SELECT * FROM (${ATTENTION}) x
            JOIN deal_scorecard s ON s.deal_id = x.id
           WHERE s.quadrant = 'reshape'
-          ORDER BY x.value_vnd DESC LIMIT 10`
+          ORDER BY x.value_vnd DESC, x.id LIMIT 10`
       )
       .all(),
     // Su kien bat buoc den gan ma deal chua toi giai doan cuoi
@@ -790,17 +794,18 @@ router.get('/dashboard', cacheResponse, (req, res) => {
            JOIN deal_events e ON e.deal_id = x.id
           WHERE e.confirmed = 1 AND e.event_date IS NOT NULL
             AND e.event_date <= date('now','localtime','+14 days')
-            AND x.stage NOT IN ('negotiating')
-          ORDER BY e.event_date LIMIT 10`
+            AND x.stage NOT IN (SELECT value FROM json_each(?))
+          ORDER BY e.event_date, x.id LIMIT 10`
       )
-      .all(),
+      /* "Giai doan cuoi" = giai doan mo cuoi cung cua tung pipeline (mac dinh: Dam phan). */
+      .all(JSON.stringify(finalOpenStageKeys(db))),
     // F-19: giai doan noi mot dang, diem noi mot neo
     stage_score_gap: db
       .prepare(
         `SELECT * FROM (${ATTENTION}) x
            JOIN deal_scorecard s ON s.deal_id = x.id
           WHERE x.probability >= 60 AND s.bant_total <= 6
-          ORDER BY x.value_vnd DESC LIMIT 10`
+          ORDER BY x.value_vnd DESC, x.id LIMIT 10`
       )
       .all(),
   };
@@ -956,7 +961,7 @@ router.get('/matrix', (req, res) => {
          FROM deals d
          JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
          JOIN deal_scorecard s ON s.deal_id = d.id
-        WHERE d.stage NOT IN ('won','lost')${dealScope(req)}
+        WHERE d.stage_category = 'open'${dealScope(req)}
           AND (? IS NULL OR d.stage = ?)
           AND (? IS NULL OR c.industry = ?)
           AND d.value_vnd >= ?
@@ -996,7 +1001,7 @@ router.get('/pipeline-health', cacheResponse, (req, res) => {
          FROM deals d
          JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
          JOIN deal_scorecard s ON s.deal_id = d.id
-        WHERE d.stage NOT IN ('won','lost')${dealScope(req)}`
+        WHERE d.stage_category = 'open'${dealScope(req)}`
     )
     .all() as {
     id: number;
@@ -1059,7 +1064,7 @@ router.get('/pipeline-health', cacheResponse, (req, res) => {
          FROM deal_score_history h
          JOIN deals d ON d.id = h.deal_id
          JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.stage NOT IN ('won','lost')
+        WHERE d.stage_category = 'open'
           AND h.old_score IS NOT NULL AND h.new_score < h.old_score
           AND date(h.changed_at) >= date('now','localtime','-30 days')
         ORDER BY h.changed_at DESC LIMIT 20`
@@ -1122,7 +1127,7 @@ router.get('/reports', cacheResponse, (req, res) => {
       `SELECT strftime('%Y-%m', closed_at) AS month, COUNT(*) AS count,
               COALESCE(SUM(COALESCE(won_value_vnd, value_vnd)), 0) AS sum_vnd
          FROM deals
-        WHERE stage = 'won' AND closed_at IS NOT NULL AND substr(closed_at, 1, 10) BETWEEN ? AND ?
+        WHERE stage_category = 'won' AND closed_at IS NOT NULL AND substr(closed_at, 1, 10) BETWEEN ? AND ?
           ${dealScope(req, '')}
         GROUP BY month ORDER BY month`
     )
@@ -1141,7 +1146,7 @@ router.get('/reports', cacheResponse, (req, res) => {
       `SELECT COALESCE(lost_reason, 'other') AS reason, COUNT(*) AS count,
               COALESCE(SUM(value_vnd), 0) AS sum_vnd
          FROM deals
-        WHERE stage = 'lost' AND closed_at IS NOT NULL AND substr(closed_at, 1, 10) BETWEEN ? AND ?
+        WHERE stage_category = 'lost' AND closed_at IS NOT NULL AND substr(closed_at, 1, 10) BETWEEN ? AND ?
           ${dealScope(req, '')}
         GROUP BY reason ORDER BY count DESC`
     )
@@ -1149,9 +1154,9 @@ router.get('/reports', cacheResponse, (req, res) => {
 
   const winRow = db
     .prepare(
-      `SELECT SUM(CASE WHEN stage = 'won' THEN 1 ELSE 0 END) AS won,
-              SUM(CASE WHEN stage = 'lost' THEN 1 ELSE 0 END) AS lost,
-              COALESCE(SUM(CASE WHEN stage = 'won' THEN COALESCE(won_value_vnd, value_vnd) ELSE 0 END), 0) AS won_vnd
+      `SELECT SUM(CASE WHEN stage_category = 'won' THEN 1 ELSE 0 END) AS won,
+              SUM(CASE WHEN stage_category = 'lost' THEN 1 ELSE 0 END) AS lost,
+              COALESCE(SUM(CASE WHEN stage_category = 'won' THEN COALESCE(won_value_vnd, value_vnd) ELSE 0 END), 0) AS won_vnd
          FROM deals WHERE closed_at IS NOT NULL AND substr(closed_at, 1, 10) BETWEEN ? AND ?
           ${dealScope(req, '')}`
     )
@@ -1166,13 +1171,13 @@ router.get('/reports', cacheResponse, (req, res) => {
    */
   const closedWithScores = db
     .prepare(
-      `SELECT id, stage, lost_reason, score_snapshot, COALESCE(won_value_vnd, value_vnd) AS value_vnd
+      `SELECT id, stage_category, lost_reason, score_snapshot, COALESCE(won_value_vnd, value_vnd) AS value_vnd
          FROM deals
         WHERE closed_at IS NOT NULL AND score_snapshot IS NOT NULL
           AND substr(closed_at, 1, 10) BETWEEN ? AND ?${dealScope(req, '')}`
     )
     .all(from, to) as {
-    stage: string;
+    stage_category: string;
     lost_reason: string | null;
     score_snapshot: string;
   }[];
@@ -1193,9 +1198,9 @@ router.get('/reports', cacheResponse, (req, res) => {
       continue;
     }
     if (byQuadrant[snapshot.quadrant])
-      byQuadrant[snapshot.quadrant][row.stage === 'won' ? 'won' : 'lost'] += 1;
+      byQuadrant[snapshot.quadrant][row.stage_category === 'won' ? 'won' : 'lost'] += 1;
 
-    if (row.stage === 'lost' && snapshot.scores) {
+    if (row.stage_category === 'lost' && snapshot.scores) {
       const entries = Object.entries(snapshot.scores);
       if (entries.length > 0) {
         const lowest = entries.reduce((a, b) => (b[1].score < a[1].score ? b : a));
@@ -1210,7 +1215,7 @@ router.get('/reports', cacheResponse, (req, res) => {
     .prepare(
       `SELECT c.id, c.name, COALESCE(SUM(COALESCE(d.won_value_vnd, d.value_vnd)), 0) AS won_vnd,
               COUNT(d.id) AS won_count
-         FROM customers c JOIN deals d ON d.customer_id = c.id AND d.stage = 'won'
+         FROM customers c JOIN deals d ON d.customer_id = c.id AND d.stage_category = 'won'
         WHERE d.closed_at IS NOT NULL AND substr(d.closed_at, 1, 10) BETWEEN ? AND ?
         GROUP BY c.id ORDER BY won_vnd DESC LIMIT 5`
     )
@@ -1226,9 +1231,9 @@ router.get('/reports', cacheResponse, (req, res) => {
            WHERE k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0${taskScope(req)}
              AND k.due_date BETWEEN date('now','localtime') AND date('now','localtime','+7 days')) AS due_week_count,
          (SELECT COALESCE(SUM(value_vnd), 0) FROM deals
-           WHERE stage NOT IN ('won','lost')${dealScope(req, '')}) AS open_pipeline_vnd,
+           WHERE stage_category = 'open'${dealScope(req, '')}) AS open_pipeline_vnd,
          (SELECT COALESCE(SUM(value_vnd * probability / 100), 0) FROM deals
-           WHERE stage NOT IN ('won','lost')${dealScope(req, '')}) AS weighted_pipeline_vnd`
+           WHERE stage_category = 'open'${dealScope(req, '')}) AS weighted_pipeline_vnd`
     )
     .get();
 

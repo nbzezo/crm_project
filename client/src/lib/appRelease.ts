@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.25.1',
+    date: '2026-10-06',
+    title: 'Chuẩn bị cho quy trình bán hàng tự cấu hình',
+    changes: [
+      'Giai đoạn cơ hội (Tiềm năng → Thành công/Thất bại) nay được lưu như dữ liệu cấu hình thay vì viết cứng trong chương trình, cùng tên, màu, xác suất và cổng điểm như cũ. Đây là bước chuẩn bị để bản sau cho phép tự thêm, đổi tên, sắp xếp giai đoạn.',
+      'Không có gì thay đổi về cách dùng: số liệu Tổng quan, Báo cáo, Sức khỏe pipeline, Khách hàng đã được đối chiếu và giữ nguyên.',
+      'Các danh sách "cần chú ý" trên Tổng quan (quá ngày chốt, giá trị lớn, sự kiện sắp tới…) nay có thứ tự cố định khi hai cơ hội bằng nhau, không còn đổi chỗ giữa các lần mở.',
+      'Bản xuất CSV cơ hội hiện tên giai đoạn thay vì mã.',
+    ],
+  },
+  {
     version: '1.25.0',
     date: '2026-10-06',
     title: 'Ngành nghề, quy mô, nguồn thành danh mục chọn',
