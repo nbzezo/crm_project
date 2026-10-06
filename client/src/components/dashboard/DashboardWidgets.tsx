@@ -136,7 +136,7 @@ export function KpiSummary({
   data: DashboardData;
   onOpenTasks: (bucket: 'today' | 'overdue') => void;
 }) {
-  /* Chung query voi badge "Cần theo dõi" o sidebar/thanh tab (navConfig) nen
+  /* Chung query voi badge "Nhắc người khác" o sidebar/thanh tab (navConfig) nen
      React Query gop thanh mot request. */
   const { data: taskCounts } = useTaskCounts({ staleTime: 60_000 });
   const followUpCount = taskCounts?.nudge ?? 0;
@@ -147,7 +147,7 @@ export function KpiSummary({
 
   /*
    * Bon o bang nhau, thu tu co dinh theo nhip mot ngay lam viec (mockup 2a):
-   * viec hom nay -> qua han -> can theo doi -> pipeline. O qua han tu doi sang
+   * viec hom nay -> qua han -> nhac nguoi khac -> pipeline. O qua han tu doi sang
    * tone canh bao khi co viec tre, nen van noi bat ma khong phai doi cho.
    * "Hợp đồng sắp hết hạn" van co widget rieng ben duoi.
    */
@@ -170,7 +170,7 @@ export function KpiSummary({
     },
     {
       icon: BellRing,
-      label: 'Cần theo dõi',
+      label: t.nav.followUp,
       value: String(followUpCount),
       hint: `${followUpToday} hôm nay`,
       tone: 'business',

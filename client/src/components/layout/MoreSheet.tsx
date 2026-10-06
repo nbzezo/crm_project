@@ -7,6 +7,7 @@ import { backgroundStyle } from '../../lib/backgrounds';
 import { usePermissionCheck } from '../../lib/permissions';
 import { useUiStore } from '../../stores/uiStore';
 import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
+import { useTaskCounts } from '../../hooks/useTaskCounts';
 import type { Board } from '../../types';
 import { BottomSheet } from '../common/BottomSheet';
 import {
@@ -37,6 +38,7 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const { data: counts } = useTaskCounts({ staleTime: 60_000 });
   const { data: boards = [] } = useQuery({
     queryKey: ['boards', false],
     queryFn: () => api.get<Board[]>('/api/boards'),
@@ -67,8 +69,9 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
       </NavLink>
     );
   };
-  /* Cong viec va Can theo doi da co san o thanh tab duoi — khong lap lai o day. */
-  const inTabBar = new Set(['/tasks', '/follow-up']);
+  /* Chỉ ẩn mục đã có ở thanh tab dưới; Nhắc chỉ có ở đó khi có việc cần nhắc. */
+  const inTabBar = new Set(['/tasks']);
+  if ((counts?.nudge ?? 0) > 0) inTabBar.add('/follow-up');
   const starred = boards.filter((board) => board.is_starred).slice(0, 5);
 
   return (

@@ -34,6 +34,7 @@ import { formatDateShort } from '../lib/format';
 import { NUDGE_HORIZON_DAYS, selectNeedsNudge } from '../lib/followUp';
 import { invalidateCardViews } from '../lib/queryKeys';
 import { useUiStore } from '../stores/uiStore';
+import { useMyContactId } from '../stores/authStore';
 import type { NudgeChannel, TaskRow } from '../types';
 import { useFollowUpTasks } from '../hooks/useFollowUpTasks';
 
@@ -58,7 +59,7 @@ interface Group {
 }
 
 /**
- * Màn “Theo dõi tiến độ”: gom mọi việc đang cần một cú hích theo người phụ trách.
+ * Màn “Nhắc người khác”: gom việc của người khác/chưa giao đang cần một cú hích.
  *
  * Ứng dụng không có kênh gửi ra ngoài (không SMTP, không Zalo API) nên trang này
  * KHÔNG gửi gì cả — nó soạn sẵn nội dung, mở `zalo.me`/`mailto:` hoặc copy vào
@@ -67,11 +68,12 @@ interface Group {
  */
 export default function FollowUpPage() {
   const openCard = useUiStore((s) => s.openCard);
+  const meContactId = useMyContactId();
   const [drafting, setDrafting] = useState<Group | null>(null);
 
   const { data: tasks = [], isLoading, error, refetch } = useFollowUpTasks();
 
-  const needsNudge = selectNeedsNudge(tasks);
+  const needsNudge = selectNeedsNudge(tasks, meContactId);
 
   const groups = groupByAssignee(needsNudge);
 
@@ -86,7 +88,7 @@ export default function FollowUpPage() {
           tu gui tin, chi soan san noi dung de copy) da chuyen xuong empty state
           — dung luc nguoi dung can biet, thay vi chan dau moi lan vao trang. */}
       <PageHeader
-        description={`Việc quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn — gom theo người phụ trách.`}
+        description={`Việc của người khác hoặc chưa giao quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn — gom theo người phụ trách.`}
       />
 
       {isLoading ? (
@@ -98,7 +100,7 @@ export default function FollowUpPage() {
       ) : groups.length === 0 ? (
         <EmptyState
           message="Không có việc nào cần nhắc."
-          hint={`Mọi việc đang mở đều còn hơn ${NUDGE_HORIZON_DAYS} ngày và không có việc nào bị chặn. Khi có việc cần nhắc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
+          hint={`Không có việc của người khác/chưa giao nào quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày hoặc bị chặn. Khi có việc cần nhắc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">

@@ -679,7 +679,7 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
   const overdueCard = (await overdue.json()) as { id: number };
 
   await page.goto('/follow-up');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cần theo dõi');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Nhắc người khác');
   await expect(page.getByText(overdueTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(`trễ 2 ngày`).first()).toBeVisible();
 

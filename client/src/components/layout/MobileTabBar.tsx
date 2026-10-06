@@ -37,13 +37,12 @@ export function MobileTabBar() {
       ? { to: '/tasks', label: 'Công việc', icon: ListChecks, badge: feed?.counts.task ?? 0 }
       : null,
     { action: () => setQuickCreateOpen(true), label: 'Tạo', icon: Plus },
-    allowed('tasks:read')
+    allowed('tasks:read') && counts?.nudge && counts.nudge > 0
       ? {
           to: '/follow-up',
-          label: 'Theo dõi',
+          label: 'Nhắc',
           icon: BellRing,
           badge: counts?.nudge ?? 0,
-          tone: 'danger' as const,
         }
       : null,
     { action: () => setMoreOpen(true), label: 'Thêm', icon: LayoutGrid },

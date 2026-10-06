@@ -35,9 +35,9 @@ export const t = {
     tasks: 'Công việc',
     /* MOT ten cho moi man hinh, dung chung cho sidebar, tieu de trang va
        document.title (xem ROUTE_TITLES trong main.tsx). Truoc day moi cho mot
-       ten: bam "Cần theo dõi" o sidebar thi trang mo ra ten "Theo dõi tiến độ",
+       ten: bam "Nhắc người khác" o sidebar thi trang mo ra ten cung ten voi man hinh,
        va noi bo goi hai ten khac nhau cho cung mot man. */
-    followUp: 'Cần theo dõi',
+    followUp: 'Nhắc người khác',
     orgDirectory: 'Tổ chức & nhân sự',
     myContacts: 'Danh bạ cá nhân',
     ai: 'Trợ lý AI',

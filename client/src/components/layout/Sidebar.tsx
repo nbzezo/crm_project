@@ -379,7 +379,7 @@ function SidebarNav({
                             item={item}
                             onNavigate={onNavigate}
                             badge={badges[item.to]}
-                            badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+                            badgeTone="primary"
                           />
                         ))}
                       </div>
@@ -393,7 +393,7 @@ function SidebarNav({
                         item={item}
                         onNavigate={onNavigate}
                         badge={badges[item.to]}
-                        badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+                        badgeTone="primary"
                       />
                     ))}
                   </div>
@@ -484,7 +484,7 @@ function CollapsedNav({ order }: { order: NavOrder }) {
                 key={item.to}
                 item={item}
                 badge={badges[item.to]}
-                badgeTone={item.to === '/follow-up' ? 'danger' : 'primary'}
+                badgeTone="primary"
               />
             ))}
           </div>
