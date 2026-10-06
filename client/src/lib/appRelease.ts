@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.29.0',
+    date: '2026-10-06',
+    title: 'Quy trình theo trạng thái của công việc',
+    changes: [
+      'Mỗi trạng thái của một công việc (Đang làm, Chờ duyệt…) có thể có một quy trình: các bước làm lần lượt, bước trước xong mới mở bước sau. Xong bước cuối thì công việc tự chuyển sang trạng thái kế tiếp.',
+      'Khi công việc vào một trạng thái, hệ thống hỏi có thêm quy trình không: Dùng mẫu, Tự tạo hoặc Bỏ qua. Form tạo việc cũng có mục Quy trình.',
+      'Đổi trạng thái hoặc kéo thẻ khi quy trình chưa xong sẽ hiện các bước còn dở để bạn xác nhận bỏ qua; thao tác hàng loạt chỉ hỏi một lần.',
+      'Cài đặt → Quy trình công việc: bật/tắt tính năng (mặc định tắt), mẫu bước cho từng trạng thái, cách hỏi và trạng thái tự chuyển tới.',
+      'Thẻ kanban và cột Tiến độ hiện số bước đã xong; nhật ký ghi lại từng bước; báo cáo Hiệu suất đánh dấu việc hoàn thành có bỏ qua quy trình; Trợ lý AI và màn Trọng tâm biết việc đang ở bước nào.',
+    ],
+  },
+  {
     version: '1.28.4',
     date: '2026-10-06',
     title: 'Cập nhật bộ kiểm thử giao diện tự động',
