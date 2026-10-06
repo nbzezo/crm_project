@@ -206,10 +206,29 @@ router.delete('/tasks/saved-views/:id', (req, res) => {
 /** Cung moc voi NUDGE_HORIZON_DAYS o client (lib/followUp.ts). */
 const NUDGE_HORIZON_DAYS = 3;
 
-/** Viec "Can theo doi" — cung luat voi `selectNeedsNudge` o client. */
-const NUDGE_SQL = `(k.parent_id IS NULL AND (k.status IN ('blocked','waiting_customer')
+/**
+ * Viec "Nhắc người khác" — cung luat voi `selectNeedsNudge` o client.
+ *
+ * Bo viec cua chinh nguoi dang xem: tu v38 viec khong chon nguoi phu trach duoc
+ * giao cho nguoi tao, nen truoc day phan lon danh sach la viec cua minh va man
+ * hinh de nghi "soan loi nhac" gui cho chinh minh. Viec CHUA GIAO van giu: khong
+ * co ai de nhac la rui ro can thay.
+ *
+ * "Chờ khách" khong con tu dong vao danh sach: nguoi can nhac la khach, khong
+ * phai nguoi phu trach. Co han trong NUDGE_HORIZON_DAYS ngay thi van vao theo han.
+ *
+ * `me` la so nguyen tu phien dang nhap (actorContactId), nhung vao SQL bang so
+ * de dung chung trong ca WHERE lan SELECT ma khong phai xep lai thu tu tham so.
+ */
+function nudgeSql(me: number | null): string {
+  const notMine =
+    me === null
+      ? ''
+      : `(k.assignee_contact_id IS NULL OR k.assignee_contact_id <> ${Math.trunc(me)}) AND `;
+  return `(k.parent_id IS NULL AND ${notMine}(k.status = 'blocked'
   OR (k.due_date IS NOT NULL
       AND substr(k.due_date, 1, 10) <= date('now','localtime','+${NUDGE_HORIZON_DAYS} days'))))`;
+}
 
 /** Pham vi co ban cua danh sach viec: bang/viec chua luu tru + luat pham vi CONG VIEC. */
 function baseTaskWhere(req: Request): { where: string[]; params: unknown[] } {
@@ -310,7 +329,7 @@ function taskFilterWhere(req: Request): { where: string[]; params: unknown[] } {
      NUDGE_HORIZON_DAYS ngay, hoac dang cho. Viec con di theo viec cha. Truoc day
      client tai TOAN BO viec dang mo roi tu loc — voi vai chuc nghin viec la vai
      chuc MB cho mot con so tren huy hieu. */
-  if (req.query.nudge === '1') where.push(NUDGE_SQL);
+  if (req.query.nudge === '1') where.push(nudgeSql(actorContactId(req)));
   return { where, params };
 }
 
@@ -410,8 +429,8 @@ router.get('/tasks/counts', cacheResponse, (req, res) => {
               COALESCE(SUM(k.is_done = 0 AND k.assignee_contact_id = ?), 0) AS assigned,
               COALESCE(SUM(k.is_done = 0 AND k.creator_contact_id = ?), 0) AS created,
               COALESCE(SUM(k.is_done = 1), 0) AS completed,
-              COALESCE(SUM(k.is_done = 0 AND ${NUDGE_SQL}), 0) AS nudge,
-              COALESCE(SUM(k.is_done = 0 AND ${NUDGE_SQL}
+              COALESCE(SUM(k.is_done = 0 AND ${nudgeSql(actorContactId(req))}), 0) AS nudge,
+              COALESCE(SUM(k.is_done = 0 AND ${nudgeSql(actorContactId(req))}
                            AND substr(k.due_date, 1, 10) = date('now','localtime')), 0) AS nudge_today
          FROM cards k
          JOIN lists l ON l.id = k.list_id

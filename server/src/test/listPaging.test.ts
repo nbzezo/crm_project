@@ -132,27 +132,56 @@ test('/tasks/older: con tro hong tra 400, so ngay ngoai 1..365 tra 400', async (
   assert.equal((await get('/api/views/tasks?recent_days=999')).status, 400);
 });
 
-test('nudge=1: qua han / sap den han trong 3 ngay / dang cho, bo viec con va viec xa', async () => {
+test('nudge=1: qua han / sap den han trong 3 ngay / bi chan cua nguoi khac, bo viec cua minh, viec con, viec xa, cho khach chua co han', async () => {
   const today = new Date();
   const iso = (offset: number) => {
     const d = new Date(today);
     d.setDate(d.getDate() + offset);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
+  /* Tat xac thuc thi "toi" la contact is_me (xem middleware/currentUser.ts). */
+  const company = Number(
+    db.prepare(`INSERT INTO customers (name) VALUES ('Cong ty nhac viec')`).run().lastInsertRowid
+  );
+  const addContact = (name: string, isMe: 0 | 1) =>
+    Number(
+      db
+        .prepare(
+          `INSERT INTO contacts (customer_id, full_name, is_me, is_active) VALUES (?, ?, ?, 1)`
+        )
+        .run(company, name, isMe).lastInsertRowid
+    );
+  const me = addContact('Toi', 1);
+  const other = addContact('Nguoi nhan nhac', 0);
+  const assign = (id: number, contactId: number) =>
+    db.prepare(`UPDATE cards SET assignee_contact_id = ? WHERE id = ?`).run(contactId, id);
+
   const overdue = addTask('Znudge qua han', { due: iso(-2) });
   const soon = addTask('Znudge sap den', { due: iso(2) });
   const blocked = addTask('Znudge bi chan', { status: 'blocked' });
+  const unassigned = addTask('Znudge chua giao', { due: iso(-1) });
   const far = addTask('Znudge con xa', { due: iso(20) });
   const child = addTask('Znudge viec con', { due: iso(-1) });
+  const mine = addTask('Znudge cua minh', { due: iso(-3) });
+  const mineBlocked = addTask('Znudge cua minh bi chan', { status: 'blocked' });
+  const waitingNoDue = addTask('Znudge cho khach', { status: 'waiting_customer' });
+  const waitingDue = addTask('Znudge cho khach co han', {
+    status: 'waiting_customer',
+    due: iso(1),
+  });
+  for (const id of [overdue, soon, blocked, far, child, waitingNoDue, waitingDue])
+    assign(id, other);
+  assign(mine, me);
+  assign(mineBlocked, me);
   db.prepare(`UPDATE cards SET parent_id = ? WHERE id = ?`).run(overdue, child);
 
   const { data } = await get<TaskRow[]>(`/api/views/tasks?done=0&nudge=1&q=znudge`);
   const ids = data.map((row) => row.id).sort((a, b) => a - b);
   assert.deepEqual(
     ids,
-    [overdue, soon, blocked].sort((a, b) => a - b)
+    [overdue, soon, blocked, unassigned, waitingDue].sort((a, b) => a - b)
   );
-  assert.ok(!ids.includes(far) && !ids.includes(child));
+  for (const id of [far, child, mine, mineBlocked, waitingNoDue]) assert.ok(!ids.includes(id));
 
   /* Huy hieu dem bang cung luat: so dem khop voi danh sach. */
   const { data: all } = await get<TaskRow[]>(`/api/views/tasks?done=0&nudge=1`);
