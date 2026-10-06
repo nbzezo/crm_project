@@ -153,7 +153,7 @@ trực tiếp.
 | **2** | Lớp A: `customer_stats`, `deal_stats`, `card_stats`, trigger, `stats_dirty`, test so khớp | v61 | Khách hàng / Cơ hội / Công việc dưới 150 ms |
 | **3** (1.22.0, xong — làm trước đợt 2) | Lớp C: đệm 5 phút theo người dùng cho Tổng quan, Báo cáo, Sức khỏe pipeline, Doanh thu tổng hợp / KPI / so sánh và số đếm việc; nút Làm mới. Kèm: chỉ mục v61 cho danh sách Bảng, `customers?fields=basic` cho ô chọn, KPI chỉ tải chi tiết một tháng | v61 | xem mục 8 |
 | **4** | Lớp B: `revenue_rollup` cho Tổng hợp / KPI / So sánh; phân trang `/revenues/lines` | v62 | Doanh thu dưới 300 ms |
-| **5** | Worker cho xuất dữ liệu và dựng lại ban đêm; nén bản sao lưu Telegram và tự xoá bản cũ | — | xuất dữ liệu không quá 200 MB RAM, sao lưu dưới 50 MB |
+| **5** (một phần, 1.23.1) | Xong: nén bản sao lưu Telegram + báo lỗi rõ khi vượt 50 MB, chỉ giữ 10 bản sao lưu, xuất dữ liệu ghi dần từ kết nối chỉ-đọc riêng (không cần worker). Còn: dựng lại `*_stats` ban đêm (đi cùng lớp A) | — | xuất dữ liệu không dựng chuỗi trong RAM |
 
 Mỗi đợt là một bản phát hành riêng, có rollback riêng, và phải chạy lại bộ đo ở quy mô 1× và 2×
 trước khi đẩy `main`.

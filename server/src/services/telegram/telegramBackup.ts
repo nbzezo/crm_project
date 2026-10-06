@@ -1,5 +1,6 @@
+import fs from 'node:fs';
 import type { Database } from 'better-sqlite3';
-import { createBackupFile } from '../../lib/backup.ts';
+import { createBackupFile, gzipFile } from '../../lib/backup.ts';
 import { HttpError } from '../../lib/validate.ts';
 import {
   getTelegramConfig,
@@ -7,19 +8,44 @@ import {
   setTelegramLastError,
 } from './telegramService.ts';
 
+/** Bot API chi nhan tep toi 50 MB; chua le mot chut cho phan dau multipart. */
+const TELEGRAM_MAX_UPLOAD_BYTES = 49 * 1024 * 1024;
+
 export async function sendBackupToTelegram(db: Database): Promise<{ name: string; size: number }> {
   const config = getTelegramConfig(db);
   if (!config.has_token || !config.chat_id) {
     throw new HttpError(400, 'Chưa cấu hình Bot Token hoặc Chat ID cho Telegram');
   }
   const file = await createBackupFile(db);
-  await sendTelegramDocument(db, file.path, `📦 Bản sao lưu CSDL WorkFlow — ${file.name}`);
+  /* Nen truoc khi gui (SQLite nen duoc 3-5 lan), va xoa ca ban chup lan ban nen sau
+     khi gui — giong sao luu Drive. Truoc day gui nguyen tep .db: qua 50 MB la Telegram
+     tu choi, va moi lan gui de lai mot ban day du trong thu muc backups. */
+  let compressed: string | null = null;
+  let sentSize = 0;
+  try {
+    compressed = await gzipFile(file.path);
+    sentSize = fs.statSync(compressed).size;
+    if (sentSize > TELEGRAM_MAX_UPLOAD_BYTES) {
+      throw new HttpError(
+        413,
+        `Bản sao lưu nén còn ${(sentSize / 1024 / 1024).toFixed(1)} MB, vượt giới hạn 50 MB của bot Telegram. Hãy dùng sao lưu Google Drive (Cài đặt → Sao lưu).`
+      );
+    }
+    await sendTelegramDocument(
+      db,
+      compressed,
+      `📦 Bản sao lưu CSDL WorkFlow — ${file.name}.gz (giải nén rồi đổi tên thành app.db)`
+    );
+  } finally {
+    fs.rmSync(file.path, { force: true });
+    if (compressed) fs.rmSync(compressed, { force: true });
+  }
   db.prepare(
     `UPDATE telegram_settings
         SET last_backup_sent_at = datetime('now','localtime'), updated_at = datetime('now','localtime')
       WHERE id = 1`
   ).run();
-  return { name: file.name, size: file.size };
+  return { name: `${file.name}.gz`, size: sentSize };
 }
 
 /** Kiem tra va gui sao luu dinh ky neu da den han; luon doi lich ke ca khi loi

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import Database from 'better-sqlite3';
 import { BACKUP_DIR, db } from '../db/connection.ts';
 import { createBackupFile } from '../lib/backup.ts';
 import { HttpError } from '../lib/validate.ts';
@@ -259,15 +260,88 @@ router.get(
   '/export',
   requirePermission('data.export', 'export'),
   requireFullExportScope,
-  (_req, res) => {
-    const dump: Record<string, unknown[]> = {};
-    for (const table of EXPORT_TABLES) dump[table] = db.prepare(`SELECT * FROM ${table}`).all();
+  async (_req, res, next) => {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=workflow-export-${date}.json`);
-    res.send(JSON.stringify({ exported_at: new Date().toISOString(), data: dump }, null, 2));
+    try {
+      await streamExport(res);
+    } catch (err) {
+      /* Da gui mot phan thi khong doi duoc ma loi nua — cat ket noi de tep tai ve
+         hong ro rang thay vi trong nhu day du. */
+      if (res.headersSent) res.destroy(err instanceof Error ? err : undefined);
+      else next(err);
+    }
   }
 );
+
+/**
+ * Ghi ban xuat theo luong (1.24.0): `{ exported_at, data: { bang: [dong, ...] } }`,
+ * moi dong mot dong JSON.
+ *
+ * Truoc day dung ca CSDL thanh MOT chuoi trong RAM (328 MB chuoi, 1,7 GB RAM voi 120.000
+ * viec) — them du lieu la cham gioi han do dai chuoi cua Node hoac het RAM container.
+ *
+ * Doc tu mot ket noi CHI DOC rieng, trong mot giao dich: ban xuat la anh chup nhat
+ * quan cua mot thoi diem (che do WAL cho doc song song), va ket noi chinh van phuc vu
+ * nguoi dung khac trong luc cho mang day du lieu di. CSDL trong bo nho (test) khong mo
+ * duoc ket noi thu hai nen doc thang tren ket noi chinh.
+ */
+async function streamExport(res: Response): Promise<void> {
+  const file = db.name;
+  const source =
+    file && file !== ':memory:' && fs.existsSync(file)
+      ? new Database(file, { readonly: true, fileMustExist: true })
+      : null;
+  const write = async (chunk: string) => {
+    if (res.destroyed) throw new Error('Nguoi dung da huy tai ban xuat');
+    if (!res.write(chunk)) {
+      await new Promise<void>((resolve, reject) => {
+        const onDrain = () => {
+          res.off('close', onClose);
+          resolve();
+        };
+        const onClose = () => {
+          res.off('drain', onDrain);
+          reject(new Error('Nguoi dung da huy tai ban xuat'));
+        };
+        res.once('drain', onDrain);
+        res.once('close', onClose);
+      });
+    }
+  };
+  try {
+    source?.exec('BEGIN');
+    await write(`{"exported_at":${JSON.stringify(new Date().toISOString())},"data":{`);
+    let firstTable = true;
+    for (const table of EXPORT_TABLES) {
+      await write(`${firstTable ? '' : ','}\n${JSON.stringify(table)}:[`);
+      firstTable = false;
+      const statement = (source ?? db).prepare(`SELECT * FROM ${table}`);
+      /* Ket noi rieng: duyet tung dong. Ket noi chinh (test): lay het — trong luc
+         duyet, ket noi bi giu ban, khong duoc nhuong cho request khac. */
+      const rows = source ? statement.iterate() : statement.all();
+      let first = true;
+      let buffer = '';
+      for (const row of rows) {
+        buffer += `${first ? '' : ','}\n${JSON.stringify(row)}`;
+        first = false;
+        if (buffer.length > 64 * 1024) {
+          await write(buffer);
+          buffer = '';
+        }
+      }
+      await write(`${buffer}]`);
+    }
+    await write('}}\n');
+    res.end();
+  } finally {
+    if (source) {
+      if (source.inTransaction) source.exec('COMMIT');
+      source.close();
+    }
+  }
+}
 
 /* ---------- NFR-06: xuat CSV cho Account / Contact / Opportunity / Task ---------- */
 

@@ -277,6 +277,10 @@ function DataSettings() {
         {backups.length > 0 && (
           <div className="mt-4">
             <h3 className="mb-2 text-xs font-semibold text-tr-subtle">{t.settings.backupList}</h3>
+            <p className="mb-2 text-xs text-tr-muted">
+              Máy chủ chỉ giữ 10 bản mới nhất; bản cũ hơn tự xoá để không đầy ổ đĩa. Tải về những
+              bản cần lưu lâu dài.
+            </p>
             <ul className="divide-y divide-tr-border rounded-lg border border-tr-border">
               {backups.map((file) => (
                 <li key={file.name} className="flex items-center gap-3 px-3 py-2 text-sm">

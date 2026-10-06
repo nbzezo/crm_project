@@ -1,10 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import zlib from 'node:zlib';
-import { pipeline } from 'node:stream/promises';
 import type { Database } from 'better-sqlite3';
 import { FILES_DIR } from '../../db/connection.ts';
-import { createBackupFile } from '../../lib/backup.ts';
+import { createBackupFile, gzipFile } from '../../lib/backup.ts';
 import { HttpError } from '../../lib/validate.ts';
 import { decryptSecret, encryptSecret } from '../ai/secretStore.ts';
 import {
@@ -376,11 +374,7 @@ async function backupDatabase(
   const snapshot = await createBackupFile(db);
   const compressed = `${snapshot.path}.gz`;
   try {
-    await pipeline(
-      fs.createReadStream(snapshot.path),
-      zlib.createGzip(),
-      fs.createWriteStream(compressed)
-    );
+    await gzipFile(snapshot.path);
     const name = `${snapshot.name}.gz`;
     await uploadFile(token, {
       filePath: compressed,

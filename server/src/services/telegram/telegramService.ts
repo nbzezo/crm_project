@@ -190,7 +190,8 @@ export async function sendTelegramDocument(
   const form = new FormData();
   form.append('chat_id', config.chat_id);
   if (caption) form.append('caption', caption);
-  form.append('document', new Blob([fs.readFileSync(filePath)]), path.basename(filePath));
+  /* openAsBlob doc tep theo luong khi gui — khong nap ca ban sao luu vao RAM. */
+  form.append('document', await fs.openAsBlob(filePath), path.basename(filePath));
 
   let response: Response;
   try {

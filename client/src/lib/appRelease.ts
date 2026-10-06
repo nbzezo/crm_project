@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.23.1',
+    date: '2026-10-06',
+    title: 'Sao lưu không làm đầy ổ đĩa, gửi Telegram được dữ liệu lớn',
+    changes: [
+      'Bản sao lưu gửi qua Telegram được nén gzip (nhỏ hơn 3–5 lần). Tệp nhận được có đuôi .db.gz: giải nén rồi đổi tên thành app.db để khôi phục.',
+      'Nếu bản nén vẫn vượt giới hạn 50 MB của Telegram, Cài đặt báo lỗi rõ ràng kèm gợi ý dùng sao lưu Google Drive, thay vì lỗi khó hiểu.',
+      'Máy chủ chỉ giữ 10 bản sao lưu mới nhất, bản cũ hơn tự xoá. Trước đây mỗi lần sao lưu (kể cả lần gửi Telegram) để lại một bản đầy đủ, ổ đĩa đầy dần.',
+      'Xuất toàn bộ dữ liệu (JSON) được ghi dần thay vì dựng cả tệp trong bộ nhớ: máy chủ không còn nguy cơ hết RAM khi dữ liệu lớn, và người khác vẫn dùng bình thường trong lúc xuất.',
+    ],
+  },
+  {
     version: '1.23.0',
     date: '2026-10-06',
     title: 'Trang Doanh thu mở được khi có hàng chục nghìn dòng',

@@ -191,7 +191,9 @@ export function TelegramSettings() {
               <DatabaseBackup size={15} className="text-tr-primary" /> Sao lưu CSDL định kỳ
             </p>
             <p className="mb-3 text-xs text-tr-subtle">
-              Tự động tạo bản sao lưu CSDL và gửi vào nhóm/chat Telegram ở trên theo chu kỳ đã chọn.
+              Tự động tạo bản sao lưu CSDL, nén gzip và gửi vào nhóm/chat Telegram ở trên theo chu
+              kỳ đã chọn. Telegram chỉ nhận tệp tới 50 MB; dữ liệu lớn hơn thì dùng sao lưu Google
+              Drive.
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex items-center gap-2 text-sm text-tr-subtle">

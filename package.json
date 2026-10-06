@@ -1,6 +1,6 @@
 {
   "name": "workflow",
-  "version": "1.23.0",
+  "version": "1.23.1",
   "private": true,
   "type": "module",
   "description": "WorkFlow — Quan ly cong viec ca nhan + CRM khach hang B2B",
