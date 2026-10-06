@@ -9,8 +9,8 @@ import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { contrastInk } from '../../lib/format';
 import { useUiStore, type BoardFilters } from '../../stores/uiStore';
 import { useAssignees } from '../tasks/AssigneePicker';
-import { CARD_STATUSES } from '@workflow/contracts';
-import type { CardStatus, Customer, Label, Priority } from '../../types';
+import { useTaskStatuses } from '../../lib/taskStatuses';
+import type { Customer, Label, Priority } from '../../types';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 
 /** `<select>` chỉ trả chuỗi — đưa về đúng kiểu ba nhánh của bộ lọc. */
@@ -32,6 +32,7 @@ export function BoardFilter({
   labels: Label[];
   matchCount: number;
 }) {
+  const statuses = useTaskStatuses();
   const isSheet = useMediaQuery('(max-width: 767px) and (pointer: coarse)');
   const filters = useUiStore((s) => s.boardFilters);
   const setFilters = useUiStore((s) => s.setBoardFilters);
@@ -168,13 +169,13 @@ export function BoardFilter({
         <Section title="Vòng đời công việc">
           <select
             value={filters.cardStatus}
-            onChange={(e) => setFilters({ cardStatus: e.target.value as CardStatus | '' })}
+            onChange={(e) => setFilters({ cardStatus: e.target.value })}
             className={`w-full rounded border border-tr-border px-2.5 py-1.5 text-sm outline-none focus:border-tr-primary ${selectOptionContrast}`}
           >
             <option value="">Mọi vòng đời</option>
-            {CARD_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {t.cardStatus[status]}
+            {statuses.active.map((status) => (
+              <option key={status.key} value={status.key}>
+                {status.label}
               </option>
             ))}
           </select>

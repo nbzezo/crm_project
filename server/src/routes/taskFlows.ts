@@ -7,13 +7,8 @@
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import {
-  CARD_STATUSES,
-  FLOW_ASK_MODES,
-  FLOW_STATUSES,
-  type CardStatus,
-  type FlowStatus,
-} from '@workflow/contracts';
+import { FLOW_ASK_MODES, type TaskStatusKey } from '@workflow/contracts';
+import { getTaskStatus, kindOf } from '../lib/taskStatuses.ts';
 import { db } from '../db/connection.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
@@ -34,7 +29,8 @@ import { saveTaskFlowSettings } from '../lib/taskFlowSettings.ts';
 const router = Router();
 
 const stepText = z.string().trim().min(1, 'Bước không được để trống').max(500);
-const flowStatus = z.enum(FLOW_STATUSES as [FlowStatus, ...FlowStatus[]]);
+/* v67: khoa trang thai cau hinh duoc — kiem ton tai sau khi parse (isFlowStatus). */
+const flowStatus = z.string().trim().min(1).max(60);
 
 /* ---------- Cau hinh ---------- */
 
@@ -44,7 +40,7 @@ router.get('/settings', (_req, res) => {
 
 const templateSchema = z.object({
   steps: z.array(stepText).max(50),
-  next_status: z.enum(CARD_STATUSES),
+  next_status: z.string().trim().min(1).max(60),
   ask: z.enum(FLOW_ASK_MODES),
 });
 
@@ -52,14 +48,18 @@ router.put('/settings', requirePermission('settings.app', 'update'), (req, res) 
   const body = parseBody(
     z.object({
       enabled: z.boolean().optional(),
-      /* partialRecord: zod v4 bat record khoa enum phai du moi khoa, con day cho
-         sua tung trang thai. */
-      templates: z.partialRecord(flowStatus, templateSchema).optional(),
+      templates: z.record(flowStatus, templateSchema).optional(),
     }),
     req
   );
   if (body.templates) {
     for (const [status, template] of Object.entries(body.templates)) {
+      if (!isFlowStatus(status) || !getTaskStatus(db, template.next_status)) {
+        throw new HttpError(422, 'Mẫu tham chiếu trạng thái không tồn tại', {
+          code: 'STATUS_UNKNOWN',
+          status,
+        });
+      }
       if (template.next_status === status) {
         throw new HttpError(422, 'Trạng thái tự chuyển tới phải khác trạng thái hiện tại', {
           code: 'FLOW_NEXT_SAME',
@@ -83,7 +83,7 @@ function assertEnabled(): void {
 interface FlowRow {
   id: number;
   card_id: number;
-  status: FlowStatus;
+  status: TaskStatusKey;
   completed_at: string | null;
 }
 
@@ -124,7 +124,7 @@ function refreshCompletion(flowId: number): void {
 function respond(
   flowId: number | null,
   cardId: number,
-  advanced: { from: CardStatus; to: CardStatus } | null = null
+  advanced: { from: TaskStatusKey; to: TaskStatusKey } | null = null
 ) {
   return {
     flow: flowId === null ? null : getFlow(flowId),
@@ -150,8 +150,11 @@ router.post('/cards/:cardId', (req, res) => {
     req
   );
   required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy công việc');
+  if (!isFlowStatus(body.status)) {
+    throw new HttpError(422, 'Trạng thái này không có quy trình', { code: 'STATUS_UNKNOWN' });
+  }
   const fromTemplate = body.steps === undefined;
-  const steps = body.steps ?? getTaskFlowSettings().templates[body.status].steps;
+  const steps = body.steps ?? getTaskFlowSettings().templates[body.status]?.steps ?? [];
   if (steps.length === 0) {
     throw new HttpError(400, 'Mẫu của trạng thái này chưa có bước nào', {
       code: 'FLOW_TEMPLATE_EMPTY',
@@ -208,7 +211,7 @@ router.patch('/steps/:stepId', (req, res) => {
   );
   const actor = actorContactId(req);
 
-  const advancedTo = db.transaction((): CardStatus | null => {
+  const advancedTo = db.transaction((): TaskStatusKey | null => {
     if (body.content !== undefined) {
       db.prepare(`UPDATE card_flow_steps SET content = ? WHERE id = ?`).run(body.content, step.id);
     }
@@ -281,16 +284,16 @@ router.patch('/steps/:stepId', (req, res) => {
     });
     /* Chi tu chuyen khi day la quy trinh cua trang thai HIEN TAI: xong mot quy
        trinh chuan bi truoc cho trang thai khac khong duoc keo cong viec di dau. */
-    const card = db.prepare(`SELECT status FROM cards WHERE id = ?`).get(flow.card_id) as {
-      status: CardStatus;
-    };
+    const card = db
+      .prepare(`SELECT COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
+      .get(flow.card_id) as { status: TaskStatusKey };
     if (card.status !== flow.status || !isFlowStatus(card.status)) return null;
-    const next = nextStatusAfter(flow.card_id, flow.status);
+    const next = nextStatusAfter(flow.status);
     setCardStatus(flow.card_id, next, { actorContactId: actor });
     logTaskActivity({
       cardId: flow.card_id,
       actorContactId: actor,
-      action: next === 'done' ? 'completed' : 'updated',
+      action: kindOf(db, next) === 'done' ? 'completed' : 'updated',
       field: 'status',
       oldValue: flow.status,
       newValue: next,

@@ -29,6 +29,7 @@ import {
 } from './TaskPresentation';
 import { AssigneeSelect } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
+import { statusKeyOf } from '../../lib/taskStatuses';
 import { TaskCardRow } from './TaskCardRow';
 
 interface TaskColumns {
@@ -338,7 +339,7 @@ export function TaskTree({
         )}
 
         <CardStatusSelect
-          value={task.status}
+          value={statusKeyOf(task)}
           taskTitle={task.title}
           onChange={(status) => update.mutate({ id: task.id, patch: { status } })}
         />

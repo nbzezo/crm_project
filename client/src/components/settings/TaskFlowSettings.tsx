@@ -1,5 +1,6 @@
 /**
- * Cài đặt Quy trình theo trạng thái của công việc (v66).
+ * Cài đặt Quy trình theo trạng thái của công việc (v66), kèm danh sách trạng thái
+ * cấu hình được (v67) ở trên cùng.
  *
  * Công tắc bật/tắt lưu ngay (đó là một quyết định, không phải bản nháp). Mẫu của
  * từng trạng thái thì sửa trên bản nháp rồi lưu một lần — cùng lý do với
@@ -9,8 +10,6 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import {
-  CARD_STATUSES,
-  FLOW_STATUSES,
   type FlowAskMode,
   type FlowStatus,
   type FlowTemplate,
@@ -18,10 +17,11 @@ import {
 } from '@workflow/contracts';
 import { api } from '../../api/client';
 import { Button, Field, FormError, Input, Panel, Select, Skeleton, focusRing } from '../common/ui';
-import { t } from '../../i18n/vi';
 import { usePermission } from '../../lib/permissions';
+import { useTaskStatuses } from '../../lib/taskStatuses';
 import { useUiStore } from '../../stores/uiStore';
 import { TASK_FLOW_SETTINGS_KEY, useTaskFlowSettings } from '../taskFlow/taskFlowApi';
+import { TaskStatusSettings } from './TaskStatusSettings';
 
 const ASK_LABELS: Record<FlowAskMode, string> = {
   always: 'Luôn hỏi',
@@ -40,6 +40,9 @@ export function TaskFlowSettings() {
   const pushToast = useUiStore((s) => s.pushToast);
   const canEdit = usePermission('settings.app', 'update');
   const { settings } = useTaskFlowSettings();
+  const statuses = useTaskStatuses();
+  /* v67: mọi trạng thái đang dùng, trừ ý nghĩa Hoàn thành, có một mẫu. */
+  const flowStatuses = statuses.active.filter((status) => status.kind !== 'done');
 
   const [draft, setDraft] = useState<Record<FlowStatus, FlowTemplate> | null>(null);
   const [active, setActive] = useState<FlowStatus>('doing');
@@ -66,15 +69,25 @@ export function TaskFlowSettings() {
 
   if (!settings || !draft || !loaded) return <Skeleton className="h-64 rounded-panel" />;
 
-  const template = draft[active];
+  /* Trạng thái đang chọn có thể vừa bị ẩn, hoặc vừa tạo mà mẫu chưa tải lại. */
+  const activeKey = draft[active]
+    ? active
+    : (flowStatuses.find((status) => draft[status.key])?.key ?? active);
+  const template: FlowTemplate = draft[activeKey] ?? {
+    steps: [],
+    next_status: 'done',
+    ask: 'never',
+  };
   const patch = (next: Partial<FlowTemplate>) =>
-    setDraft({ ...draft, [active]: { ...template, ...next } });
+    setDraft({ ...draft, [activeKey]: { ...template, ...next } });
   const setSteps = (steps: string[]) => patch({ steps });
   const dirty = JSON.stringify(draft) !== JSON.stringify(loaded.templates);
-  const hasBlank = FLOW_STATUSES.some((status) => draft[status].steps.some((step) => !step.trim()));
+  const hasBlank = Object.values(draft).some((item) => item.steps.some((step) => !step.trim()));
 
   return (
     <div className="space-y-4">
+      <TaskStatusSettings />
+
       <Panel title="Quy trình cho công việc">
         <FormError error={save.error} />
         <label className="flex items-start gap-3">
@@ -99,24 +112,26 @@ export function TaskFlowSettings() {
         </label>
       </Panel>
 
-      <Panel title="Mẫu theo trạng thái">
+      <Panel title="Mẫu quy trình theo trạng thái">
         <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Trạng thái">
-          {FLOW_STATUSES.map((status) => (
+          {flowStatuses.map((status) => (
             <button
-              key={status}
+              key={status.key}
               type="button"
               role="tab"
-              aria-selected={status === active}
-              onClick={() => setActive(status)}
+              aria-selected={status.key === activeKey}
+              onClick={() => setActive(status.key)}
               className={`rounded-control border px-3 py-1.5 text-sm ${focusRing} ${
-                status === active
+                status.key === activeKey
                   ? 'border-tr-primary bg-tr-primary/10 font-medium text-tr-primary'
                   : 'border-tr-border text-tr-subtle hover:bg-tr-hover'
               }`}
             >
-              {t.cardStatus[status]}
-              {draft[status].steps.length > 0 && (
-                <span className="ml-1.5 text-xs text-tr-muted">{draft[status].steps.length}</span>
+              {status.label}
+              {(draft[status.key]?.steps.length ?? 0) > 0 && (
+                <span className="ml-1.5 text-xs text-tr-muted">
+                  {draft[status.key]?.steps.length}
+                </span>
               )}
             </button>
           ))}
@@ -138,26 +153,26 @@ export function TaskFlowSettings() {
           </Field>
           <Field
             label="Xong bước cuối thì chuyển sang"
-            hint="Luồng việc không có cột cho trạng thái này thì chuyển thẳng sang Hoàn thành."
+            hint="Thẻ trên kanban sang cột gắn trạng thái đó, nếu luồng việc có cột như vậy."
           >
             <Select
               value={template.next_status}
               disabled={!canEdit}
-              onChange={(e) =>
-                patch({ next_status: e.target.value as FlowTemplate['next_status'] })
-              }
+              onChange={(e) => patch({ next_status: e.target.value })}
             >
-              {CARD_STATUSES.filter((status) => status !== active).map((status) => (
-                <option key={status} value={status}>
-                  {t.cardStatus[status]}
-                </option>
-              ))}
+              {statuses.active
+                .filter((status) => status.key !== activeKey)
+                .map((status) => (
+                  <option key={status.key} value={status.key}>
+                    {status.label}
+                  </option>
+                ))}
             </Select>
           </Field>
         </div>
 
         <p className="mb-2 mt-4 text-sm font-medium text-tr-text">
-          Các bước mẫu của “{t.cardStatus[active]}”
+          Các bước mẫu của “{statuses.label(activeKey)}”
         </p>
         {template.steps.length === 0 && (
           <p className="mb-2 text-xs text-tr-muted">

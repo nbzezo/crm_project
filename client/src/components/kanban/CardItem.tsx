@@ -131,7 +131,11 @@ export function CardBody({ card, labels, dragging }: Props) {
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-tr-muted">
           {/* Đặt trước hạn: "bị chặn" quan trọng hơn "trễ 2 ngày" — một việc bị
               chặn thì hạn không còn nói lên điều gì về người phụ trách. */}
-          <CardStatusChip status={card.status} blockedReason={card.blocked_reason} />
+          <CardStatusChip
+            status={card.status}
+            statusKey={card.status_key}
+            blockedReason={card.blocked_reason}
+          />
           {(card.priority === 'urgent' || card.priority === 'high') && (
             <span
               className="inline-flex items-center rounded-compact px-1 py-0.5 text-xs font-semibold"
@@ -169,7 +173,7 @@ export function CardBody({ card, labels, dragging }: Props) {
               className={`inline-flex items-center gap-1 rounded-compact px-1 py-0.5 ${
                 card.flow_done === card.flow_total ? 'tr-badge-done' : ''
               }`}
-              title={`Quy trình “${t.cardStatus[card.status]}”: bước ${card.flow_done}/${card.flow_total}`}
+              title={`Quy trình: bước ${card.flow_done}/${card.flow_total}`}
             >
               <ListOrdered size={12} aria-hidden="true" />
               {card.flow_done}/{card.flow_total}

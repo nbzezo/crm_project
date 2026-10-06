@@ -144,7 +144,11 @@ export default function FollowUpPage() {
                       <span className="min-w-0 flex-1 truncate text-sm text-tr-text">
                         {task.title}
                       </span>
-                      <CardStatusChip status={task.status} blockedReason={task.blocked_reason} />
+                      <CardStatusChip
+                        status={task.status}
+                        statusKey={task.status_key}
+                        blockedReason={task.blocked_reason}
+                      />
                       <DueBadge dueDate={task.due_date} />
                       <NudgeCount count={task.nudge_count} lastAt={task.last_nudged_at} />
                     </button>

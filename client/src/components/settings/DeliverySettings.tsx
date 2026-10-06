@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api/client';
-import { CARD_STATUSES } from '@workflow/contracts';
+import { useTaskStatuses } from '../../lib/taskStatuses';
 import {
   Button,
   Field,
@@ -22,9 +22,8 @@ import {
   Skeleton,
   focusRing,
 } from '../common/ui';
-import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
-import type { CardStatus, DeliverySettingsData } from '../../types';
+import type { DeliverySettingsData } from '../../types';
 
 type Templates = DeliverySettingsData['boardTemplates'];
 type Thresholds = DeliverySettingsData['classification'];
@@ -38,6 +37,7 @@ const KEY_LABELS: Record<string, string> = {
 };
 
 export function DeliverySettings() {
+  const statuses = useTaskStatuses();
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
 
@@ -189,7 +189,7 @@ export function DeliverySettings() {
                   const next = [...items];
                   next[index] = {
                     ...item,
-                    status: event.target.value === '' ? null : (event.target.value as CardStatus),
+                    status: event.target.value === '' ? null : event.target.value,
                   };
                   patchItems(next);
                 }}
@@ -197,9 +197,9 @@ export function DeliverySettings() {
                 className="max-w-44 shrink-0"
               >
                 <option value="">— không mang nghĩa —</option>
-                {CARD_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {t.cardStatus[status]}
+                {statuses.active.map((status) => (
+                  <option key={status.key} value={status.key}>
+                    {status.label}
                   </option>
                 ))}
               </Select>

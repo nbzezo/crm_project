@@ -26,6 +26,7 @@ import { CardBody } from './CardItem';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Button, focusRing } from '../common/ui';
 import { api, isUserCancelled } from '../../api/client';
+import { statusKeyOf } from '../../lib/taskStatuses';
 import { t } from '../../i18n/vi';
 import { addDays, todayStr } from '../../lib/format';
 import { useUiStore, type BoardFilters } from '../../stores/uiStore';
@@ -34,7 +35,7 @@ import { foldText } from '../../lib/format';
 import { undoableDelete } from '../../lib/undo';
 import { cloneBoard, locateCard } from '../../lib/dnd/board';
 import { useAssignees } from '../tasks/AssigneePicker';
-import type { BoardFull, Card, CardStatus } from '../../types';
+import type { BoardFull, Card } from '../../types';
 
 /**
  * Ap dung bo loc cua thanh "Bộ lọc" len mot the.
@@ -58,7 +59,7 @@ export function matchesFilters(card: Card, f: BoardFilters, meContactId?: number
   if (f.status === 'open' && card.is_done) return false;
   if (f.status === 'done' && !card.is_done) return false;
   if (f.customerId !== '' && card.customer_id !== f.customerId) return false;
-  if (f.cardStatus !== '' && (card.status ?? 'todo') !== f.cardStatus) return false;
+  if (f.cardStatus !== '' && statusKeyOf(card) !== f.cardStatus) return false;
   if (f.assignee !== '') {
     const assigned = card.assignee_contact_id ?? null;
     if (f.assignee === 'none' && assigned !== null) return false;
@@ -378,7 +379,7 @@ export function BoardView({
   /* Gán nghĩa cho cột kéo theo trạng thái của mọi thẻ đang nằm trong đó (server
      làm), nên phải nạp lại cả bảng chứ không chỉ danh sách cột. */
   const handleMapStatus = useCallback(
-    (listId: number, status: CardStatus | null) =>
+    (listId: number, status: string | null) =>
       patchList.mutate({ listId, patch: { status_mapping: status } }),
     [patchList]
   );

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
-import { CARD_STATUSES } from '@workflow/contracts';
+import { kindOf, requireActiveStatus } from '../lib/taskStatuses.ts';
 import { setCardStatus } from '../services/cardService.ts';
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import { copyFlows } from '../services/taskFlowService.ts';
@@ -17,7 +17,8 @@ const router = Router();
  * khach") — keo the vao do khong dung den `cards.status`. Do la thu giu duoc tu
  * do bo cuc kieu Trello ma van co mot nguon su that duy nhat cho vong doi.
  */
-const statusMapping = z.enum(CARD_STATUSES).nullable().optional();
+/* v67: khoa trang thai cau hinh duoc; kiem ton tai khi ghi (requireActiveStatus). */
+const statusMapping = z.string().trim().min(1).max(60).nullable().optional();
 
 router.post('/', (req, res) => {
   const body = parseBody(
@@ -32,6 +33,7 @@ router.post('/', (req, res) => {
     db.prepare(`SELECT id FROM boards WHERE id = ?`).get(body.board_id),
     'Khong tim thay bang'
   );
+  if (body.status_mapping) requireActiveStatus(db, body.status_mapping);
   const position = nextPosition({ table: 'lists', scopeCol: 'board_id', scopeVal: body.board_id });
   const info = db
     .prepare(`INSERT INTO lists (board_id, name, position, status_mapping) VALUES (?, ?, ?, ?)`)
@@ -63,6 +65,7 @@ router.patch('/:id', (req, res) => {
    * Bo qua the DA XONG khi anh xa khac 'done': keo mot viec da dong ve 'doing'
    * chi vi no nam trong cot dang duoc gan nhan la mo lai viec da hoan thanh.
    */
+  if (body.status_mapping) requireActiveStatus(db, body.status_mapping);
   if (body.status_mapping !== undefined) {
     db.prepare(`UPDATE lists SET status_mapping = ? WHERE id = ?`).run(body.status_mapping, id);
     if (body.status_mapping) {
@@ -71,7 +74,7 @@ router.patch('/:id', (req, res) => {
           `SELECT id FROM cards
             WHERE list_id = ? AND is_archived = 0 AND (is_done = 0 OR ? = 'done')`
         )
-        .all(id, body.status_mapping) as { id: number }[];
+        .all(id, kindOf(db, body.status_mapping)) as { id: number }[];
       /* Khong chan quy trinh dang do (v66): day la quan tri cau hinh lai cot,
          khong phai nguoi dung doi trang thai tung viec. */
       for (const card of cards) {

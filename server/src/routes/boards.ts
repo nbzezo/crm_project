@@ -154,7 +154,7 @@ router.get('/:id/full', (req, res) => {
     .prepare(
       `SELECT k.id, k.list_id, k.title, k.description, k.position, k.start_date, k.due_date,
               k.priority, k.customer_id, k.deal_id, k.is_done, k.cover_color, k.created_at,
-              k.status, k.blocked_reason,
+              k.status, COALESCE(k.status_key, k.status) AS status_key, k.blocked_reason,
               k.assignee_contact_id, k.assignee_org_id, ac.full_name AS assignee_name,
               ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
               c.name AS customer_name,

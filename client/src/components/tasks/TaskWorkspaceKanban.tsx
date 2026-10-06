@@ -14,8 +14,8 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { CARD_STATUSES, type CardStatus } from '@workflow/contracts';
 import { CalendarDays, GripVertical, ListOrdered, Plus, UserRound } from 'lucide-react';
+import { statusKeyOf, useTaskStatuses, type StatusIndex } from '../../lib/taskStatuses';
 import { api } from '../../api/client';
 import { t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
@@ -32,15 +32,22 @@ interface Lane {
   label: string;
   tasks: TaskRow[];
   patch?: Record<string, unknown>;
+  /** Tông màu tiêu đề cột — chỉ có khi cột là một trạng thái. */
+  tone?: string;
 }
 
-function lanesFor(tasks: TaskRow[], group: TaskGroup): Lane[] {
+function lanesFor(tasks: TaskRow[], group: TaskGroup, statuses: StatusIndex): Lane[] {
   if (group === 'status' || group === 'none' || group === 'due') {
-    return CARD_STATUSES.map((status) => ({
-      key: status,
-      label: t.cardStatus[status],
-      tasks: tasks.filter((task) => task.status === status),
-      patch: { status },
+    /* Mỗi trạng thái đang dùng một cột (v67: danh sách cấu hình được). Trạng thái
+       đã ẩn mà vẫn còn việc thì thêm cột cuối, để không việc nào biến mất. */
+    const used = new Set(tasks.map(statusKeyOf));
+    const lanes = statuses.all.filter((status) => status.is_active || used.has(status.key));
+    return lanes.map((status) => ({
+      key: status.key,
+      label: status.label,
+      tasks: tasks.filter((task) => statusKeyOf(task) === status.key),
+      patch: { status: status.key },
+      tone: CARD_STATUS_TONE[status.kind],
     }));
   }
   if (group === 'priority') {
@@ -75,6 +82,11 @@ function lanesFor(tasks: TaskRow[], group: TaskGroup): Lane[] {
     map.set(key, current);
   }
   return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+}
+
+/** Tên trạng thái của việc con (v67: danh sách cấu hình được). */
+function ChildStatus({ task }: { task: TaskRow }) {
+  return <>{useTaskStatuses().label(statusKeyOf(task))}</>;
 }
 
 function TaskCardContent({
@@ -160,7 +172,7 @@ function TaskCardContent({
                 <span
                   className={`shrink-0 rounded-full px-1.5 py-0.5 ${CARD_STATUS_TONE[child.status ?? 'todo']}`}
                 >
-                  {t.cardStatus[child.status ?? 'todo']}
+                  <ChildStatus task={child} />
                 </span>
               </button>
             </li>
@@ -219,9 +231,7 @@ function KanbanLane({
   /* Ve dan tung cot (1.23.0): vai nghin the keo-tha trong mot cot lam treo trinh duyet. */
   const [limit, setLimit] = useState(LANE_STEP);
   const hidden = lane.tasks.length - limit;
-  const statusTone = CARD_STATUSES.includes(lane.key as CardStatus)
-    ? CARD_STATUS_TONE[lane.key as CardStatus]
-    : 'bg-tr-hover text-tr-subtle';
+  const statusTone = lane.tone ?? 'bg-tr-hover text-tr-subtle';
   return (
     <section
       ref={setNodeRef}
@@ -268,7 +278,8 @@ export function TaskWorkspaceKanban({ tasks, group }: { tasks: TaskRow[]; group:
   const [active, setActive] = useState<TaskRow | null>(null);
   // Việc con nằm trong thẻ của việc cha, nên cột chỉ chứa việc cấp trên cùng.
   const { roots, childrenOf } = useMemo(() => splitByParent(tasks), [tasks]);
-  const lanes = useMemo(() => lanesFor(roots, group), [roots, group]);
+  const statuses = useTaskStatuses();
+  const lanes = useMemo(() => lanesFor(roots, group, statuses), [roots, group, statuses]);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),

@@ -62,6 +62,7 @@ trang. Tài liệu này là nguồn quyết định duy nhất cho câu hỏi "g
 |---|---|---|
 | board | **Bảng – Luồng việc** (thanh bên, tiêu đề trang); **Luồng việc** ở chỗ hẹp | Một mảng công việc, chia thành các cột. Dự án chỉ có một luồng thì luồng đó là ngầm, không bắt người dùng chọn |
 | list | **Cột** | Một cột của luồng việc, gắn với một trạng thái (`lists.status_mapping`) |
+| task_status (1.30.0) | **Trạng thái** (công việc) | Danh sách phẳng do quản trị cấu hình. Mỗi trạng thái có một **ý nghĩa** (Chưa bắt đầu, Đang thực hiện, Chờ bên ngoài, Bị chặn, Chờ duyệt, Hoàn thành) — thứ báo cáo và nhắc việc đọc. Không gọi ý nghĩa là "nhóm": nó là thuộc tính, không chứa trạng thái khác |
 | card_flow (1.29.0) | **Quy trình**; đơn vị là **bước** | Danh sách bước làm lần lượt của **một công việc** trong **một trạng thái**. Nằm bên trong công việc, không thay cột. Mẫu theo trạng thái ở Cài đặt → Quy trình công việc |
 | phase (dự án) | **Giai đoạn** | Luồng việc **có mốc bàn giao**. Không phải thực thể riêng (`boards.milestone_date`) |
 | dạng xem `board` | **Kanban** (trong luồng việc), **Cây việc** (tab Công việc của dự án) | |

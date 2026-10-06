@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Card, CardStatus, Priority } from '../types';
+import type { Card, Priority } from '../types';
 
 export interface TaskFilters {
   q: string;
@@ -56,7 +56,8 @@ export interface BoardFilters {
   due: '' | 'overdue' | 'today' | 'week' | 'none';
   status: 'all' | 'open' | 'done';
   /** Vòng đời (v16) — trục riêng, độc lập với `status` ở trên. '' = mọi trạng thái. */
-  cardStatus: CardStatus | '';
+  /** Khoá trạng thái (v67, cấu hình được). */
+  cardStatus: string;
   customerId: number | '';
   /** '' = mọi người, 'mine' = việc của tôi, 'none' = chưa giao, số = một người cụ thể. */
   assignee: number | '' | 'mine' | 'none';

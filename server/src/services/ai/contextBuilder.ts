@@ -103,7 +103,9 @@ export function buildSearchContext(db: Database, query: string, scopes: AiScopes
     tasks: db
       .prepare(
         `SELECT k.id, k.title, k.priority, k.due_date, k.is_done, k.status, c.name AS customer_name,
-                d.title AS deal_title, ${FLOW_PROGRESS_COLUMNS}, ${FLOW_NEXT_STEP_COLUMN}
+                d.title AS deal_title, ${FLOW_PROGRESS_COLUMNS}, ${FLOW_NEXT_STEP_COLUMN},
+              (SELECT ts.label FROM task_statuses ts
+                WHERE ts.key = COALESCE(k.status_key, k.status)) AS status_label
            FROM cards k
            LEFT JOIN customers c ON c.id = k.customer_id
            LEFT JOIN deals d ON d.id = k.deal_id
@@ -170,7 +172,9 @@ export function buildTodayContext(db: Database, scope: AiScope = null) {
     overdue_tasks: rows(
       db,
       `SELECT k.id, k.title, k.priority, k.due_date, k.status, c.name AS customer_name,
-              d.title AS deal_title, ${FLOW_PROGRESS_COLUMNS}, ${FLOW_NEXT_STEP_COLUMN}
+              d.title AS deal_title, ${FLOW_PROGRESS_COLUMNS}, ${FLOW_NEXT_STEP_COLUMN},
+              (SELECT ts.label FROM task_statuses ts
+                WHERE ts.key = COALESCE(k.status_key, k.status)) AS status_label
          FROM cards k
          LEFT JOIN customers c ON c.id = k.customer_id
          LEFT JOIN deals d ON d.id = k.deal_id
@@ -182,7 +186,9 @@ export function buildTodayContext(db: Database, scope: AiScope = null) {
     tasks_today: rows(
       db,
       `SELECT k.id, k.title, k.priority, k.due_date, k.status, c.name AS customer_name,
-              d.title AS deal_title, ${FLOW_PROGRESS_COLUMNS}, ${FLOW_NEXT_STEP_COLUMN}
+              d.title AS deal_title, ${FLOW_PROGRESS_COLUMNS}, ${FLOW_NEXT_STEP_COLUMN},
+              (SELECT ts.label FROM task_statuses ts
+                WHERE ts.key = COALESCE(k.status_key, k.status)) AS status_label
          FROM cards k
          LEFT JOIN customers c ON c.id = k.customer_id
          LEFT JOIN deals d ON d.id = k.deal_id

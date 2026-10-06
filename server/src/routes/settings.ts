@@ -8,7 +8,7 @@
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import { CARD_STATUSES } from '@workflow/contracts';
+import { getTaskStatus } from '../lib/taskStatuses.ts';
 import { db } from '../db/connection.ts';
 import { HttpError, parseBody } from '../lib/validate.ts';
 import { getHandoverSettings, saveHandoverSettings } from '../services/handoverService.ts';
@@ -74,7 +74,8 @@ const deliverySchema = z.object({
           z.object({
             name: z.string().trim().min(1).max(120),
             /* null = cot khong mang nghia vong doi, dung nhu `lists.status_mapping`. */
-            status: z.enum(CARD_STATUSES).nullable(),
+            /* v67: khoa trang thai cau hinh duoc; kiem ton tai ben duoi. */
+            status: z.string().trim().min(1).max(60).nullable(),
           })
         )
         .min(1)
@@ -96,6 +97,15 @@ router.put('/delivery', (req, res) => {
    * hai se lam nut "Dung bo mau nay" khong lam gi ma khong noi tai sao.
    */
   if (body.board_templates) {
+    for (const items of Object.values(body.board_templates)) {
+      for (const item of items) {
+        if (item.status && !getTaskStatus(db, item.status)) {
+          throw new HttpError(422, `Trạng thái "${item.status}" không tồn tại`, {
+            code: 'STATUS_UNKNOWN',
+          });
+        }
+      }
+    }
     for (const key of ['large', 'small']) {
       const items = body.board_templates[key];
       if (!items || items.length === 0) {

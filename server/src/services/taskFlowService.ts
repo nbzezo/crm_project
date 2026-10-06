@@ -12,15 +12,15 @@
  * Hai chieu import se tao vong lap luc nap module.
  */
 import {
-  FLOW_STATUSES,
   type CardFlow,
   type CardFlowStep,
-  type CardStatus,
   type FlowStatus,
   type TaskFlowSettings,
+  type TaskStatusKey,
 } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
 import { STEP } from '../lib/position.ts';
+import { firstStatusOfKind, getTaskStatus } from '../lib/taskStatuses.ts';
 import {
   getTaskFlowSettings as readSettings,
   isTaskFlowEnabled as readEnabled,
@@ -28,8 +28,14 @@ import {
 import { HttpError } from '../lib/validate.ts';
 import { logTaskActivity } from './taskActivity.ts';
 
+/**
+ * Trang thai co the mang quy trinh (v67: khoa cau hinh duoc): ton tai va khong mang
+ * y nghia Hoan thanh. Trang thai da an van tinh — quy trinh dang do cua no van phai
+ * duoc chan va xem lai duoc.
+ */
 export function isFlowStatus(status: string): status is FlowStatus {
-  return (FLOW_STATUSES as readonly string[]).includes(status);
+  const def = getTaskStatus(db, status);
+  return def !== undefined && def.kind !== 'done';
 }
 
 export function getTaskFlowSettings(): TaskFlowSettings {
@@ -70,13 +76,13 @@ export function getFlow(flowId: number): CardFlow | null {
 
 /** Moi quy trinh cua mot cong viec, theo thu tu vong doi. */
 export function listCardFlows(cardId: number): CardFlow[] {
-  const flows = db.prepare(`SELECT * FROM card_flows WHERE card_id = ?`).all(cardId) as Omit<
-    CardFlow,
-    'steps'
-  >[];
-  return flows
-    .sort((a, b) => FLOW_STATUSES.indexOf(a.status) - FLOW_STATUSES.indexOf(b.status))
-    .map((flow) => ({ ...flow, steps: stepsOf(flow.id) }));
+  const flows = db
+    .prepare(
+      `SELECT f.* FROM card_flows f LEFT JOIN task_statuses s ON s.key = f.status
+        WHERE f.card_id = ? ORDER BY s.position, f.id`
+    )
+    .all(cardId) as Omit<CardFlow, 'steps'>[];
+  return flows.map((flow) => ({ ...flow, steps: stepsOf(flow.id) }));
 }
 
 export { FLOW_PROGRESS_COLUMNS } from '../lib/taskFlowSql.ts';
@@ -125,7 +131,7 @@ export function createFlow(
  */
 export function enterStatus(
   cardId: number,
-  status: CardStatus,
+  status: TaskStatusKey,
   options: { actorContactId?: number | null; explicitSteps?: string[] } = {}
 ): void {
   if (!isFlowStatus(status) || !isTaskFlowEnabled()) return;
@@ -143,7 +149,7 @@ export function enterStatus(
     return;
   }
   const template = getTaskFlowSettings().templates[status];
-  if (template.ask === 'auto' && template.steps.length > 0) {
+  if (template?.ask === 'auto' && template.steps.length > 0) {
     createFlow(cardId, status, template.steps, {
       fromTemplate: true,
       actorContactId: options.actorContactId,
@@ -160,14 +166,15 @@ export function enterStatus(
  */
 export function flowPromptFor(
   cardId: number,
-  previous: CardStatus
+  previous: TaskStatusKey
 ): { card_id: number; status: FlowStatus } | null {
   if (!isTaskFlowEnabled()) return null;
-  const row = db.prepare(`SELECT status FROM cards WHERE id = ?`).get(cardId) as
-    { status: CardStatus } | undefined;
+  const row = db
+    .prepare(`SELECT COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
+    .get(cardId) as { status: TaskStatusKey } | undefined;
   if (!row || row.status === previous || !isFlowStatus(row.status)) return null;
   if (flowOf(cardId, row.status)) return null;
-  return getTaskFlowSettings().templates[row.status].ask === 'always'
+  return getTaskFlowSettings().templates[row.status]?.ask === 'always'
     ? { card_id: cardId, status: row.status }
     : null;
 }
@@ -181,8 +188,8 @@ export function flowPromptFor(
  */
 export function guardLeaveStatus(
   cardId: number,
-  from: CardStatus,
-  to: CardStatus,
+  from: TaskStatusKey,
+  to: TaskStatusKey,
   options: { skip?: boolean; actorContactId?: number | null } = {}
 ): void {
   if (from === to || !isFlowStatus(from) || !isTaskFlowEnabled()) return;
@@ -219,25 +226,17 @@ export function guardLeaveStatus(
 /**
  * Trang thai tu chuyen toi khi xong buoc cuoi.
  *
- * Lay theo mau; neu luong viec CO khai bao trang thai tren cot nhung khong cot nao
- * mang trang thai dich thi chuyen thang sang 'done', vi chuyen sang mot trang thai
- * khong co cot se de the nam yen o cot cu va nguoi dung khong thay gi doi. Luong
- * viec khong khai bao trang thai nao thi cu theo mau.
+ * Lay theo mau cua trang thai vua xong.
  */
-export function nextStatusAfter(cardId: number, status: FlowStatus): CardStatus {
-  const target = getTaskFlowSettings().templates[status].next_status;
-  if (target === 'done') return target;
-  const board = db
-    .prepare(
-      `SELECT SUM(l.status_mapping IS NOT NULL) AS mapped,
-              SUM(l.status_mapping = ?) AS target
-         FROM lists l
-        WHERE l.board_id = (SELECT cur.board_id FROM cards k JOIN lists cur ON cur.id = k.list_id
-                             WHERE k.id = ?)`
-    )
-    .get(target, cardId) as { mapped: number | null; target: number | null };
-  if ((board.mapped ?? 0) > 0 && (board.target ?? 0) === 0) return 'done';
-  return target;
+export function nextStatusAfter(status: FlowStatus): TaskStatusKey {
+  const doneKey = firstStatusOfKind(db, 'done');
+  const target = getTaskFlowSettings().templates[status]?.next_status ?? doneKey;
+  /* v67: trang thai la cua rieng cong viec, khong phu thuoc cot. Truoc day luong
+     viec khong co cot cho trang thai dich thi nhay thang sang Hoan thanh — voi
+     trang thai tu tao (thuong khong co cot) dieu do se dong viec nham. Gio chi roi
+     ve Hoan thanh khi trang thai dich khong con dung. */
+  const def = getTaskStatus(db, target);
+  return def?.is_active ? target : doneKey;
 }
 
 /**

@@ -14,6 +14,7 @@ import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import { EmptyState, InlineDate, focusRing } from '../common/ui';
 import { AssigneeSelect, useAssignees } from './AssigneePicker';
 import { CardStatusSelect } from './CardStatusControl';
+import { statusKeyOf, useTaskStatuses, type StatusIndex } from '../../lib/taskStatuses';
 import { TaskCardRow } from './TaskCardRow';
 import { PrioritySelect, SmartDeadline } from './TaskPresentation';
 import type { TaskColumnKey, TaskGroup, TaskSort } from './TaskWorkspaceTypes';
@@ -63,10 +64,25 @@ function sortTasks(tasks: TaskRow[], sort: TaskSort): TaskRow[] {
 export function groupWorkspaceTasks(
   tasks: TaskRow[],
   group: TaskGroup,
-  sort: TaskSort
+  sort: TaskSort,
+  statuses?: StatusIndex
 ): TaskGroupRows[] {
   const sorted = sortTasks(tasks, sort);
   if (group === 'none') return [{ key: 'all', label: 'Tất cả công việc', tasks: sorted }];
+
+  /* Nhóm theo trạng thái: theo THỨ TỰ cấu hình của danh sách trạng thái (v67), không
+     theo vần — "Tiếp nhận" phải đứng trước "Triển khai" dù vần ngược lại. */
+  if (group === 'status' && statuses) {
+    const order = new Map(statuses.all.map((status, index) => [status.key, index]));
+    const map = new Map<string, TaskRow[]>();
+    for (const task of sorted) {
+      const key = statusKeyOf(task);
+      map.set(key, [...(map.get(key) ?? []), task]);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => (order.get(a) ?? 999) - (order.get(b) ?? 999))
+      .map(([key, groupTasks]) => ({ key, label: statuses.label(key), tasks: groupTasks }));
+  }
 
   if (group === 'due') {
     const map = new Map<string, TaskGroupRows & { order: number }>();
@@ -104,7 +120,8 @@ function nestTasks(
   tasks: TaskRow[],
   group: TaskGroup,
   sort: TaskSort,
-  collapsedParents: Set<number>
+  collapsedParents: Set<number>,
+  statuses?: StatusIndex
 ): Array<TaskGroupRows & { rows: TaskRowNode[]; total: number }> {
   const sorted = sortTasks(tasks, sort);
   const ids = new Set(sorted.map((task) => task.id));
@@ -117,7 +134,7 @@ function nestTasks(
       roots.push(task);
     }
   }
-  return groupWorkspaceTasks(roots, group, sort).map((taskGroup) => {
+  return groupWorkspaceTasks(roots, group, sort, statuses).map((taskGroup) => {
     const rows: TaskRowNode[] = [];
     const walk = (task: TaskRow, depth: number) => {
       const children = childrenOf.get(task.id) ?? [];
@@ -294,9 +311,10 @@ export function TaskWorkspaceList({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [collapsedParents, setCollapsedParents] = useState<Set<number>>(new Set());
+  const statuses = useTaskStatuses();
   const allGroups = useMemo(
-    () => nestTasks(tasks, group, sort, collapsedParents),
-    [tasks, group, sort, collapsedParents]
+    () => nestTasks(tasks, group, sort, collapsedParents, statuses),
+    [tasks, group, sort, collapsedParents, statuses]
   );
   /* Ve dan (1.21.0): moi lan RENDER_STEP dong, cuon toi cuoi thi ve tiep. Ve mot
      luc vai chuc nghin dong lam treo trinh duyet hang chuc giay. Tieu de nhom van
@@ -700,7 +718,7 @@ export function TaskWorkspaceList({
                         {has('status') && (
                           <td className="border-b border-tr-border px-2">
                             <CardStatusSelect
-                              value={task.status}
+                              value={statusKeyOf(task)}
                               taskTitle={task.title}
                               onChange={(status) =>
                                 patchTask.mutate({ id: task.id, patch: { status } })

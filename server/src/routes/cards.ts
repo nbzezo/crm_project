@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { CARD_STATUSES, type CardStatus } from '@workflow/contracts';
+import type { CardStatus, TaskStatusKey } from '@workflow/contracts';
+import { firstStatusOfKind, kindOf, requireActiveStatus } from '../lib/taskStatuses.ts';
 import { createTaskInputSchema, TASK_LINK_KEYS } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
@@ -51,6 +52,8 @@ type CardRow = {
   description: string;
   is_done: number;
   status: CardStatus;
+  /** Trang thai hieu luc (v67): COALESCE(status_key, status). */
+  status_key: TaskStatusKey;
 };
 
 router.post('/', (req, res) => {
@@ -324,7 +327,8 @@ router.patch('/:id', (req, res) => {
          the sang mot danh sach thuoc bang cua du an dich. */
       project_id: z.number().int().positive().nullable().optional(),
       /* Vong doi v16 — di qua setCardStatus, khong ghi thang xuong cot. */
-      status: z.enum(CARD_STATUSES).optional(),
+      /* v67: khoa trang thai cau hinh duoc; kiem ton tai ngay sau khi parse. */
+      status: z.string().trim().min(1).max(60).optional(),
       blocked_reason: z.string().max(500).nullable().optional(),
       recur_rule: z.string().max(200).nullable().optional(),
       recur_until: dateOnly.optional(),
@@ -344,9 +348,12 @@ router.patch('/:id', (req, res) => {
     req
   );
   const card = required(
-    db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
+    db
+      .prepare(`SELECT *, COALESCE(status_key, status) AS status_key FROM cards WHERE id = ?`)
+      .get(id),
     'Khong tim thay the'
   ) as CardRow;
+  if (body.status !== undefined) requireActiveStatus(db, body.status);
   const currentLinks = card as CardRow & Record<string, number | null>;
 
   /*
@@ -382,7 +389,7 @@ router.patch('/:id', (req, res) => {
     if (categoryChanged) {
       const matchingStatus = db
         .prepare(`SELECT id FROM lists WHERE board_id = ? AND status_mapping = ? LIMIT 1`)
-        .get(destination.board_id, card.status) as { id: number } | undefined;
+        .get(destination.board_id, card.status_key) as { id: number } | undefined;
       targetListId = matchingStatus?.id ?? suggested;
       autoCategorized = targetListId !== card.list_id;
     }
@@ -421,7 +428,7 @@ router.patch('/:id', (req, res) => {
             ORDER BY (l.status_mapping = ?) DESC, b.is_starred DESC, b.id, l.position, l.id
             LIMIT 1`
         )
-        .get(body.project_id, card.status) as { id: number } | undefined;
+        .get(body.project_id, card.status_key) as { id: number } | undefined;
       if (!destination) {
         const firstListId = ensureCategorizedTaskList(
           derived,
@@ -433,7 +440,7 @@ router.patch('/:id', (req, res) => {
             `SELECT l.id FROM lists l WHERE l.board_id = (SELECT board_id FROM lists WHERE id = ?)
                AND l.status_mapping = ? LIMIT 1`
           )
-          .get(firstListId, card.status) as { id: number } | undefined;
+          .get(firstListId, card.status_key) as { id: number } | undefined;
         targetListId = matching?.id ?? firstListId;
       } else {
         targetListId = destination.id;
@@ -454,20 +461,18 @@ router.patch('/:id', (req, res) => {
     (body.list_id !== undefined || body.project_id !== undefined) &&
     !autoCategorized &&
     targetListId !== card.list_id;
-  const nextStatus: CardStatus | null =
+  const nextStatus: TaskStatusKey | null =
     body.status ??
     (body.is_done !== undefined && body.is_done !== Boolean(card.is_done)
-      ? body.is_done
-        ? 'done'
-        : 'todo'
+      ? firstStatusOfKind(db, body.is_done ? 'done' : 'todo')
       : listMoved
         ? ((
             db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(targetListId) as
-              { status_mapping: CardStatus | null } | undefined
+              { status_mapping: TaskStatusKey | null } | undefined
           )?.status_mapping ?? null)
         : null);
   if (nextStatus) {
-    guardLeaveStatus(id, card.status, nextStatus, {
+    guardLeaveStatus(id, card.status_key, nextStatus, {
       skip: body.skip_flow,
       actorContactId: actorContactId(req),
     });
@@ -606,9 +611,11 @@ router.patch('/:id', (req, res) => {
   } else if (body.is_done !== undefined && body.is_done !== Boolean(card.is_done)) {
     /* Chi doi khi gia tri THUC SU khac: `is_done: false` gui len mot the dang
        'doing' khong duoc lam no tut ve 'todo'. */
-    setCardStatus(id, body.is_done ? 'done' : 'todo', { actorContactId: actor });
+    setCardStatus(id, firstStatusOfKind(db, body.is_done ? 'done' : 'todo'), {
+      actorContactId: actor,
+    });
   } else if (body.blocked_reason !== undefined && card.status === 'blocked') {
-    setCardStatus(id, 'blocked', { blockedReason: body.blocked_reason });
+    setCardStatus(id, card.status_key, { blockedReason: body.blocked_reason });
   } else if (listMoved) {
     /*
      * Doi danh sach ma khong noi ro trang thai: cot dich quyet dinh (v19).
@@ -617,7 +624,7 @@ router.patch('/:id', (req, res) => {
      * cung ly do voi moveCard.
      */
     const mapped = db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(targetListId) as
-      { status_mapping: CardStatus | null } | undefined;
+      { status_mapping: TaskStatusKey | null } | undefined;
     if (mapped?.status_mapping) {
       setCardStatus(id, mapped.status_mapping, { moveToMappedList: false, actorContactId: actor });
     }
@@ -636,11 +643,15 @@ router.patch('/:id', (req, res) => {
     'customer_id',
     'assignee_contact_id',
     'status',
+    /* v67: doi giua hai trang thai cung y nghia (Khao sat -> Trien khai) chi lo
+       ra o khoa — ghi rieng, tru khi y nghia cung doi (da ghi o 'status'). */
+    'status_key',
     'is_done',
     'list_id',
   ] as const;
   for (const field of trackedFields) {
     if (field === 'is_done' && before.status !== updated.status) continue;
+    if (field === 'status_key' && before.status !== updated.status) continue;
     if (String(before[field] ?? '') === String(updated[field] ?? '')) continue;
     const action =
       field === 'list_id'
@@ -660,7 +671,7 @@ router.patch('/:id', (req, res) => {
     });
   }
 
-  res.json({ ...updated, flow_prompt: flowPromptFor(id, card.status) });
+  res.json({ ...updated, flow_prompt: flowPromptFor(id, card.status_key) });
 });
 
 router.patch('/:id/move', (req, res) => {
@@ -675,11 +686,13 @@ router.patch('/:id/move', (req, res) => {
     req
   );
   const before = required(
-    db.prepare(`SELECT list_id, status FROM cards WHERE id = ?`).get(id),
+    db
+      .prepare(`SELECT list_id, COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
+      .get(id),
     'Khong tim thay the'
   ) as {
     list_id: number;
-    status: CardStatus;
+    status: TaskStatusKey;
   };
   const result = moveCard(id, body, { actorContactId: actorContactId(req) });
   if (before.list_id !== body.list_id) {
@@ -782,7 +795,8 @@ router.post('/:id/copy', (req, res) => {
     db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(destinationListId),
     'Khong tim thay danh sach'
   ) as { status_mapping: string | null };
-  const initialStatus = destination.status_mapping ?? 'todo';
+  const initialStatus = destination.status_mapping ?? firstStatusOfKind(db, 'todo');
+  const initialKind = kindOf(db, initialStatus);
 
   const newId = db.transaction(() => {
     const listId = destinationListId;
@@ -791,10 +805,10 @@ router.post('/:id/copy', (req, res) => {
     const info = db
       .prepare(
         `INSERT INTO cards (list_id, title, description, position, start_date, due_date, priority,
-                            status, is_done, completed_at,
+                            status, status_key, is_done, completed_at,
                             customer_id, contact_id, deal_id, contract_id, quotation_id,
                             cover_color, search_text, creator_contact_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  CASE WHEN ? = 'done' THEN datetime('now','localtime') ELSE NULL END,
                  ?, ?, ?, ?, ?, ?, ?, ?)`
       )
@@ -806,9 +820,10 @@ router.post('/:id/copy', (req, res) => {
         source.start_date,
         source.due_date,
         source.priority,
+        initialKind,
         initialStatus,
-        initialStatus === 'done' ? 1 : 0,
-        initialStatus,
+        initialKind === 'done' ? 1 : 0,
+        initialKind,
         source.customer_id,
         source.contact_id,
         source.deal_id,
