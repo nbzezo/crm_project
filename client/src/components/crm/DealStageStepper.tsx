@@ -54,14 +54,16 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
     move({ dealId: deal.id, stage, beforeId: null, afterId: null, prevStage: deal.stage });
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    /* Duoi md khong wrap: dai buoc cuon ngang trong phan con lai, nut "…" nam ngay ben
+       phai thay vi rot xuong mot hang rieng. */
+    <div className="flex items-center gap-2 md:flex-wrap">
       {/* `tr-stage-stepper`: moc de theme Don sac ve cac buoc dang vien thuoc danh so.
           Truoc day CSS bam thang vao chuoi aria-label — doi nhan cho de doc la
           mat hieu ung, im lang. Lop nay la hop dong tuong minh giua hai ben. */}
       <div
         role="group"
         aria-label="Giai đoạn cơ hội"
-        className="tr-stage-stepper tr-scroll flex snap-x snap-mandatory items-center gap-1 overflow-x-auto md:flex-wrap md:overflow-visible"
+        className="tr-stage-stepper tr-scroll flex min-w-0 snap-x snap-mandatory items-center gap-1 overflow-x-auto max-md:flex-1 md:flex-wrap md:overflow-visible"
       >
         {LINEAR_STAGES.map((stage, index) => {
           const active = stage === deal.stage;

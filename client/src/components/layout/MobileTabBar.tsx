@@ -75,7 +75,7 @@ export function MobileTabBar() {
             `relative flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${isActive ? 'font-semibold text-tr-primary' : 'text-tr-muted'}`
           }
         >
-          <span className="relative">
+          <span className="relative flex h-8 items-center">
             <Icon size={20} aria-hidden="true" />
             <Badge count={tab.badge ?? 0} tone={tab.tone} />
           </span>
@@ -89,13 +89,15 @@ export function MobileTabBar() {
         key={tab.label}
         type="button"
         onClick={tab.action}
-        className={`relative flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 text-xs ${isCreate ? 'w-1/5 shrink-0 text-tr-primary' : 'flex-1 text-tr-muted'}`}
+        className={`relative flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 text-xs text-tr-muted ${isCreate ? 'w-1/5 shrink-0' : 'flex-1'}`}
       >
+        {/* Moi o bieu tuong cao h-8 nhu nhau de nhan "Tao" thang hang voi nhan cac tab khac;
+            truoc day khoi nut Tao cao h-10 day nhan xuong sat mep man hinh. */}
         <span
           className={
             isCreate
-              ? 'flex h-10 w-12 items-center justify-center rounded-panel bg-tr-primary text-tr-on-primary'
-              : ''
+              ? 'flex h-8 w-12 items-center justify-center rounded-panel bg-tr-primary text-tr-on-primary'
+              : 'flex h-8 items-center'
           }
         >
           <Icon size={20} aria-hidden="true" />

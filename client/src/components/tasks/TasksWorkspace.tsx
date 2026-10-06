@@ -728,7 +728,10 @@ export function TasksWorkspace() {
                 aria-expanded={adding}
                 onClick={() => setAdding((value) => !value)}
               >
-                <Plus size={16} /> Thêm công việc
+                {/* Duoi sm chi con bieu tuong: chu "Them cong viec" day nut xuong hang rieng,
+                    ton them mot hang tren man vot vat trong khi da co nut Tao o thanh duoi. */}
+                <Plus size={16} aria-hidden="true" />
+                <span className="max-sm:sr-only">Thêm công việc</span>
               </Button>
             </div>
             {scope !== 'activity' && (
@@ -768,7 +771,7 @@ export function TasksWorkspace() {
           {scope !== 'activity' && (
             <div className="border-b border-tr-border bg-tr-surface/70 px-3 py-2 lg:px-5">
               <div className="flex flex-wrap items-center gap-2">
-                <label className="relative basis-full flex-1 lg:min-w-56 lg:max-w-80">
+                <label className="relative min-w-0 flex-1 lg:min-w-56 lg:max-w-80">
                   <span className="sr-only">Tìm công việc</span>
                   <Search
                     size={15}
@@ -786,9 +789,9 @@ export function TasksWorkspace() {
                   type="button"
                   onClick={filterPopover.toggle}
                   aria-expanded={filterPopover.open}
-                  className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-control border px-3 text-sm font-medium lg:min-h-9 lg:flex-none lg:text-xs ${focusRing} ${filterCount ? 'border-tr-primary/30 bg-tr-primary/10 text-tr-primary' : 'border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'}`}
+                  className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-control border px-3 text-sm font-medium lg:min-h-9 lg:text-xs ${focusRing} ${filterCount ? 'border-tr-primary/30 bg-tr-primary/10 text-tr-primary' : 'border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'}`}
                 >
-                  <Filter size={14} /> <span className="lg:hidden">Lọc & sắp xếp</span>
+                  <Filter size={14} /> <span className="lg:hidden">Lọc</span>
                   <span className="hidden lg:inline">Bộ lọc nâng cao</span>{' '}
                   {filterCount > 0 && (
                     <span className="rounded-full bg-tr-primary px-1.5 text-tr-on-primary">

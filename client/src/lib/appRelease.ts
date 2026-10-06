@@ -14,9 +14,22 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-06';
+export const APP_UPDATED_AT = '2026-10-07';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.31.3',
+    date: '2026-10-07',
+    title: 'Rà soát giao diện điện thoại: đủ menu sau đăng nhập, các màn danh sách gọn hơn',
+    changes: [
+      'Ngay sau khi đăng nhập, menu và thanh điều hướng dưới cùng hiện đủ các mục theo quyền (trước đây thiếu "Công việc", "Nhắc"… cho tới khi tải lại trang).',
+      'Công việc trên điện thoại: nút thêm việc thu thành biểu tượng cùng hàng với chọn phạm vi, ô tìm kiếm và nút "Lọc" chung một hàng, nên thấy được nhiều việc hơn ngay màn đầu.',
+      'Khách hàng trên điện thoại: bỏ lưới ô số liệu chiếm trọn màn đầu, số đếm chuyển vào các nút lọc nhanh (Tất cả 3, Tiềm năng 1…); Nhãn và Sắp xếp chung một hàng.',
+      'Cơ hội bán hàng (dạng danh sách) trên điện thoại cuộn cả trang thay vì kẹt trong khung nhỏ; số liệu một hàng, bộ lọc và nút chuyển kiểu xem một hàng.',
+      'Chi tiết cơ hội: nút "…" nằm ngay cạnh dải giai đoạn thay vì rớt xuống hàng riêng; các dòng tiêu chí chấm điểm dễ chạm hơn.',
+      'Thanh dưới: nhãn "Tạo" thẳng hàng với các nhãn khác và không còn tô màu như tab đang chọn.',
+    ],
+  },
   {
     version: '1.31.2',
     date: '2026-10-06',

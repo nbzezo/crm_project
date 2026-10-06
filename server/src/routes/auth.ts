@@ -108,7 +108,7 @@ router.post('/login', async (req, res, next) => {
     clearRateLimit(`ip:${ip}`, `login:${login}`);
     await startSession(req, user.id, user.username);
     touchLastLogin(user.id);
-    res.json(getPublicUser(user.id));
+    res.json(sessionUser(user.id));
   } catch (err) {
     next(err);
   }
@@ -127,11 +127,22 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', (req, res) => {
   const userId = req.session?.userId;
   if (!userId) throw new HttpError(401, 'Chua dang nhap');
-  const user = getPublicUser(userId);
+  const me = sessionUser(userId);
   /* Phien con song nhung tai khoan da bi xoa hoac khoa giua chung: coi nhu chua
      dang nhap, de client dua ve man dang nhap thay vi hien mot vo rong. */
-  if (!user || !user.is_active) throw new HttpError(401, 'Chua dang nhap');
-  res.json({
+  if (!me || !me.is_active) throw new HttpError(401, 'Chua dang nhap');
+  res.json(me);
+});
+
+/**
+ * Ho so day du cho client: dung chung cho /me, /login va dat lai mat khau. Truoc day
+ * /login chi tra getPublicUser (thieu permissions) nen ngay sau dang nhap menu va thanh
+ * duoi tren dien thoai mat cac muc can quyen cho toi khi tai lai trang.
+ */
+function sessionUser(userId: number) {
+  const user = getPublicUser(userId);
+  if (!user) return null;
+  return {
     ...user,
     permissions: loadPermissions(userId),
     permissions_version: permissionsVersion(),
@@ -156,8 +167,8 @@ router.get('/me', (req, res) => {
           WHERE u.id = ?`
         )
         .get(userId) ?? null,
-  });
-});
+  };
+}
 
 router.post('/logout', async (req, res, next) => {
   try {
@@ -278,7 +289,7 @@ router.post('/reset-password', async (req, res, next) => {
        tiep la khong giai quyet duoc gi. */
     deleteUserSessions(user.id);
     await startSession(req, user.id, user.username);
-    res.json(getPublicUser(user.id));
+    res.json(sessionUser(user.id));
   } catch (err) {
     next(err);
   }

@@ -296,7 +296,7 @@ function ScoreSummary({
                     <button
                       type="button"
                       onClick={() => onSetNextAction(text)}
-                      className={`shrink-0 rounded px-1.5 py-0.5 text-xs text-tr-primary hover:bg-tr-hover ${focusRing}`}
+                      className={`inline-flex min-h-11 shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-tr-primary hover:bg-tr-hover fine:min-h-0 ${focusRing}`}
                     >
                       Đặt làm Next Action
                     </button>
@@ -509,7 +509,7 @@ function FactorRow({
         <button
           type="button"
           onClick={onToggle}
-          className={`min-w-0 flex-1 text-left text-sm font-medium text-tr-text ${focusRing}`}
+          className={`min-h-11 min-w-0 flex-1 text-left text-sm font-medium text-tr-text fine:min-h-0 ${focusRing}`}
           aria-expanded={expanded}
         >
           {FACTOR_LABELS[item.factor]}

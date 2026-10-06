@@ -422,7 +422,7 @@ export const t = {
     crashBody:
       'Không hiển thị được nội dung. Bạn có thể tải lại trang, hoặc quay về Tổng quan rồi thử lại.',
     notFoundTitle: 'Không tìm thấy trang',
-    notFoundBody: 'Đường dẫn này không tồn tại hoặc đã được đổi. Hãy chọn một mục ở thanh bên.',
+    notFoundBody: 'Đường dẫn này không tồn tại hoặc đã được đổi. Hãy chọn một mục trong menu.',
     reload: 'Tải lại trang',
     home: 'Về Tổng quan',
     details: 'Chi tiết kỹ thuật',

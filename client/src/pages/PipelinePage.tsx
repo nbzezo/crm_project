@@ -312,7 +312,13 @@ export default function PipelinePage() {
     );
 
   return (
-    <PageShell width="wide" spacing="sm" className="flex h-full flex-col pb-4">
+    /* Dang danh sach tren dien thoai: ca trang cuon tu nhien. Khoa h-full thi phan dau
+       (~370px) dung yen va danh sach chi cuon trong khung con ~300px. */
+    <PageShell
+      width="wide"
+      spacing="sm"
+      className={`flex flex-col pb-4 ${view === 'board' ? 'h-full' : 'md:h-full'}`}
+    >
       <PageHeader
         title={t.nav.pipeline}
         description="Theo dõi cơ hội bán hàng theo từng giai đoạn."
@@ -322,69 +328,75 @@ export default function PipelinePage() {
           </Button>
         }
       />
-      <div className="flex flex-wrap items-center gap-4 px-4 pt-4">
-        <Metric label="Cơ hội đang mở" value={String(openTotal.count)} />
-        {/* Dang RUT GON, khong phai day du: chan moi cot Kanban ngay ben duoi cung
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-4">
+        <div className="flex flex-wrap items-center gap-4 max-md:w-full">
+          <Metric label="Cơ hội đang mở" value={String(openTotal.count)} />
+          {/* Dang RUT GON, khong phai day du: chan moi cot Kanban ngay ben duoi cung
             la dang rut gon, de hai kieu canh nhau trong mot khung nhin thi cung
             mot so tien doc ra hai ve khac han. Con so chinh xac nam o `title`. */}
-        <Metric
-          label="Tổng pipeline"
-          value={formatVNDShort(openTotal.sum)}
-          title={formatVND(openTotal.sum)}
-        />
-        <Metric
-          label="Pipeline có trọng số"
-          value={formatVNDShort(Math.round(openTotal.weighted))}
-          title={formatVND(Math.round(openTotal.weighted))}
-        />
-        {(pendingHandover.length > 0 || pendingHandoverOnly) && (
-          <FilterMetric
-            label="Chờ bàn giao"
-            value={String(pendingHandover.length)}
-            active={pendingHandoverOnly}
-            tone={pendingHandover.length > 0 ? 'warning' : 'muted'}
-            onClick={() => setPendingHandoverOnly((on) => !on)}
+          <Metric
+            label="Tổng pipeline"
+            value={formatVNDShort(openTotal.sum)}
+            title={formatVND(openTotal.sum)}
           />
-        )}
-        <LabelFilter scope="deal" value={labelFilter} onChange={setLabelFilter} />
-        {view === 'list' && (
-          <Select
-            aria-label="Lọc theo giai đoạn"
-            value={stageFilter}
-            onChange={(event) => setStageFilter(event.target.value as Stage | 'all')}
-            className="w-auto"
-          >
-            <option value="all">Tất cả giai đoạn</option>
-            {columns.map((stage) => (
-              <option key={stage} value={stage}>
-                {stageLabel(stage)}
-              </option>
-            ))}
-          </Select>
-        )}
-        <div className="inline-flex rounded-control border border-tr-border bg-tr-panel p-0.5">
-          <button
-            type="button"
-            onClick={() => changeView('board')}
-            aria-label="Xem dạng pipeline"
-            aria-pressed={view === 'board'}
-            className={`flex h-11 items-center gap-1 rounded-control px-2 text-xs fine:h-8 ${focusRing} ${
-              view === 'board' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
-            }`}
-          >
-            <LayoutGrid size={14} aria-hidden="true" /> Pipeline
-          </button>
-          <button
-            type="button"
-            onClick={() => changeView('list')}
-            aria-label="Xem dạng danh sách"
-            aria-pressed={view === 'list'}
-            className={`flex h-11 items-center gap-1 rounded-control px-2 text-xs fine:h-8 ${focusRing} ${
-              view === 'list' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
-            }`}
-          >
-            <ListIcon size={14} aria-hidden="true" /> Danh sách
-          </button>
+          <Metric
+            label="Pipeline có trọng số"
+            value={formatVNDShort(Math.round(openTotal.weighted))}
+            title={formatVND(Math.round(openTotal.weighted))}
+          />
+          {(pendingHandover.length > 0 || pendingHandoverOnly) && (
+            <FilterMetric
+              label="Chờ bàn giao"
+              value={String(pendingHandover.length)}
+              active={pendingHandoverOnly}
+              tone={pendingHandover.length > 0 ? 'warning' : 'muted'}
+              onClick={() => setPendingHandoverOnly((on) => !on)}
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-2 max-md:w-full md:contents">
+          <LabelFilter scope="deal" value={labelFilter} onChange={setLabelFilter} />
+          {view === 'list' && (
+            <Select
+              aria-label="Lọc theo giai đoạn"
+              value={stageFilter}
+              onChange={(event) => setStageFilter(event.target.value as Stage | 'all')}
+              className="min-w-0 max-md:flex-1 md:w-auto"
+            >
+              <option value="all">Giai đoạn</option>
+              {columns.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stageLabel(stage)}
+                </option>
+              ))}
+            </Select>
+          )}
+          <div className="inline-flex shrink-0 rounded-control border border-tr-border bg-tr-panel p-0.5 max-md:ml-auto">
+            <button
+              type="button"
+              onClick={() => changeView('board')}
+              aria-label="Xem dạng pipeline"
+              aria-pressed={view === 'board'}
+              className={`flex h-11 items-center gap-1 rounded-control px-2 text-xs fine:h-8 ${focusRing} ${
+                view === 'board' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
+              }`}
+            >
+              <LayoutGrid size={14} aria-hidden="true" />
+              <span className="max-sm:sr-only">Pipeline</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeView('list')}
+              aria-label="Xem dạng danh sách"
+              aria-pressed={view === 'list'}
+              className={`flex h-11 items-center gap-1 rounded-control px-2 text-xs fine:h-8 ${focusRing} ${
+                view === 'list' ? 'bg-tr-primary text-tr-on-primary' : 'text-tr-muted'
+              }`}
+            >
+              <ListIcon size={14} aria-hidden="true" />
+              <span className="max-sm:sr-only">Danh sách</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -465,7 +477,7 @@ function PipelineList({ deals, onOpen }: { deals: Deal[]; onOpen: (deal: Deal) =
   }
 
   return (
-    <div className="tr-scroll flex-1 overflow-auto p-4">
+    <div className="tr-scroll flex-1 p-4 md:overflow-auto">
       {!isWide && (
         <ul className="space-y-2" aria-label="Danh sách cơ hội">
           {deals.map((deal) => (

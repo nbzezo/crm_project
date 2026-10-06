@@ -74,6 +74,23 @@ const SMART_VIEWS: { value: CustomerSmartView; label: string }[] = [
   { value: 'stale', label: 'Lâu chưa tương tác' },
 ];
 
+const SMART_VIEW_COUNT: Record<
+  CustomerSmartView,
+  (summary: {
+    total: number;
+    prospects: number;
+    opportunities: number;
+    followUp: number;
+    stale: number;
+  }) => number
+> = {
+  all: (summary) => summary.total,
+  prospect: (summary) => summary.prospects,
+  opportunity: (summary) => summary.opportunities,
+  'follow-up': (summary) => summary.followUp,
+  stale: (summary) => summary.stale,
+};
+
 export default function CustomersPage() {
   const isWide = useMediaQuery(LG_QUERY);
   const queryClient = useQueryClient();
@@ -229,7 +246,7 @@ export default function CustomersPage() {
         <>
           <section
             aria-label="Tổng quan khách hàng"
-            className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-5"
+            className="mb-4 grid grid-cols-2 gap-2 max-md:hidden lg:grid-cols-5"
           >
             <SummaryItem
               icon={Users}
@@ -336,13 +353,13 @@ export default function CustomersPage() {
 
               <LabelFilter scope="customer" value={labelFilter} onChange={setLabelFilter} />
 
-              <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-                <ArrowDownUp size={14} className="text-tr-muted" aria-hidden="true" />
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:ml-auto sm:flex-none">
+                <ArrowDownUp size={14} className="shrink-0 text-tr-muted" aria-hidden="true" />
                 <Select
                   value={sort}
                   onChange={(event) => setSort(event.target.value as SortKey)}
                   aria-label="Sắp xếp khách hàng"
-                  className="min-w-44"
+                  className="min-w-0 sm:min-w-44"
                 >
                   <option value="name">Tên khách hàng</option>
                   <option value="attention">Cần chăm sóc trước</option>
@@ -366,6 +383,11 @@ export default function CustomersPage() {
                   className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${focusRing} ${smartView === view.value ? 'bg-tr-primary text-tr-on-primary' : 'bg-tr-hover text-tr-subtle hover:bg-tr-hover-strong hover:text-tr-text'}`}
                 >
                   {view.label}
+                  {/* Duoi md luoi o so lieu bi an (chiem tron man hinh dau), so dem
+                      chuyen vao chip cung bo loc. */}
+                  <span className="ml-1 tabular-nums opacity-80 md:hidden">
+                    {SMART_VIEW_COUNT[view.value](summary)}
+                  </span>
                 </button>
               ))}
             </div>
