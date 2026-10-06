@@ -42,6 +42,7 @@ import { ReportRangePicker } from '../components/common/ReportRangePicker';
 import { resolveRange, type RangeKey } from '../lib/reportRange';
 import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
 import { DataFreshness } from '../components/common/DataFreshness';
+import { pickLabel } from '../lib/crmConfig';
 
 interface ReportsData {
   from: string;
@@ -168,7 +169,7 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
   });
 
   const interactionData = data.interactions_by_type.map((row) => ({
-    name: t.interactionType[row.type],
+    name: pickLabel('interaction_type', row.type),
     count: row.count,
   }));
 
@@ -682,7 +683,7 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
                   {reasons.map((reason) => (
                     <tr key={reason} className="border-b border-tr-border/60">
                       <th scope="row" className="py-1.5 pr-3 text-left font-normal text-tr-text">
-                        {t.lostReason[reason] ?? reason}
+                        {pickLabel('lost_reason', reason)}
                       </th>
                       <td className="py-1.5">
                         <span className="flex flex-wrap gap-1.5">

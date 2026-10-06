@@ -9,6 +9,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useDialog } from './useDialog';
 import { focusRing } from './ui';
 import type { Priority, Stage } from '../../types';
+import { pickLabel } from '../../lib/crmConfig';
 
 interface SearchResults {
   cards: {
@@ -354,7 +355,7 @@ export function SearchBox() {
                         close();
                       }}
                       primary={d.name}
-                      secondary={[t.docType[d.doc_type], d.customer_name]
+                      secondary={[pickLabel('doc_type', d.doc_type), d.customer_name]
                         .filter(Boolean)
                         .join(' · ')}
                     />

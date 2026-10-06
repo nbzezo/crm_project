@@ -3,23 +3,15 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
+import { assertPicklistValue } from '../lib/picklists.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 import { createCard, ensureCategorizedTaskList } from '../services/cardService.ts';
 
 const router = Router();
 
-const typeEnum = z.enum([
-  'call',
-  'email',
-  'meeting',
-  'demo',
-  'proposal',
-  'followup',
-  'note',
-  'zalo',
-  'other',
-]);
+/* Loai tuong tac la danh muc dong (v62): kiem bang assertPicklistValue sau khi parse. */
+const typeEnum = z.string().trim().min(1).max(100);
 
 const schema = z.object({
   customer_id: z.number().int(),
@@ -55,6 +47,7 @@ function reload(id: number) {
 
 router.post('/', (req, res) => {
   const body = parseBody(schema, req);
+  assertPicklistValue(db, 'interaction_type', body.type);
   assertEntityLinks(db, body);
 
   const result = db.transaction(() => {
@@ -123,6 +116,7 @@ router.patch('/:id', (req, res) => {
     'Khong tim thay tuong tac'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
+  assertPicklistValue(db, 'interaction_type', body.type, current.type as string);
   assertEntityLinks(db, {
     customer_id: merged.customer_id as number,
     contact_id: merged.contact_id as number | null,

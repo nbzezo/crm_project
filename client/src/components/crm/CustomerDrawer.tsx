@@ -27,6 +27,7 @@ import {
   getCustomerHealth,
   getNextCustomerAction,
 } from './customerInsights';
+import { pickLabel } from '../../lib/crmConfig';
 
 type Props = {
   customer: Customer | null;
@@ -326,7 +327,8 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
                 />
                 <p className="text-sm font-medium text-tr-text">{interaction.summary}</p>
                 <p className="mt-0.5 text-xs text-tr-muted">
-                  {t.interactionType[interaction.type]} · {formatDateTime(interaction.occurred_at)}
+                  {pickLabel('interaction_type', interaction.type)} ·{' '}
+                  {formatDateTime(interaction.occurred_at)}
                 </p>
               </li>
             ))}

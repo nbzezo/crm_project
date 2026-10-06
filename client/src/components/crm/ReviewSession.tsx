@@ -15,10 +15,11 @@ import { ClipboardCheck } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { Button, ColorBadge, Field, Select, focusRing } from '../common/ui';
-import { LOST_REASON_ORDER, t } from '../../i18n/vi';
+import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS, VETO_LABELS } from '../../i18n/scoring';
 import { formatVND } from '../../lib/format';
 import type { Quadrant, VetoCode } from '../../types';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 interface ReviewDeal {
   id: number;
@@ -187,9 +188,9 @@ export function ReviewSession() {
             <Field label="Lý do thua (nếu chuyển sang Thất bại)">
               <Select value={lostReason} onChange={(e) => setLostReason(e.target.value)}>
                 <option value="">— chọn khi cần —</option>
-                {LOST_REASON_ORDER.map((reason) => (
+                {pickOptions('lost_reason', lostReason).map(({ item_key: reason }) => (
                   <option key={reason} value={reason}>
-                    {t.lostReason[reason]}
+                    {pickLabel('lost_reason', reason)}
                   </option>
                 ))}
               </Select>

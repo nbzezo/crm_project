@@ -48,6 +48,7 @@ import type {
   Project,
   Scorecard as ScorecardData,
 } from '../types';
+import { pickLabel } from '../lib/crmConfig';
 
 type Tab = 'info' | 'score' | 'committee' | 'notes' | 'handover';
 
@@ -275,7 +276,7 @@ export default function DealDetailPage() {
                     {deal.lost_reason && (
                       <Row
                         label={t.deal.lostReason}
-                        value={t.lostReason[deal.lost_reason] ?? deal.lost_reason}
+                        value={pickLabel('lost_reason', deal.lost_reason)}
                       />
                     )}
                   </dl>

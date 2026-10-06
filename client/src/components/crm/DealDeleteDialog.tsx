@@ -15,6 +15,7 @@ import { Modal } from '../common/Modal';
 import { Button, SkeletonRows } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { formatDate } from '../../lib/format';
+import { pickLabel } from '../../lib/crmConfig';
 
 type Group =
   | 'documents'
@@ -72,8 +73,7 @@ function statusLabel(group: Group, status: string | null): string | null {
   if (status === 'done') return 'Đã xong';
   if (group === 'quotations') return t.quotationStatus[status] ?? status;
   if (group === 'contracts') return t.contractStatus[status] ?? status;
-  if (group === 'interactions')
-    return (t.interactionType as Record<string, string>)[status] ?? status;
+  if (group === 'interactions') return pickLabel('interaction_type', status);
   return status;
 }
 

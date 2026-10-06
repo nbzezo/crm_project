@@ -5,7 +5,8 @@ import { assertInScope, defaultOwner, scopeWhereOrUnowned } from '../lib/scope.t
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
-import { LOST_REASONS, STAGES, STAGE_PROBABILITY, isClosed } from '../lib/crm.ts';
+import { STAGES, STAGE_PROBABILITY, isClosed } from '../lib/crm.ts';
+import { assertPicklistValue } from '../lib/picklists.ts';
 import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
 import {
   auditFromRequest,
@@ -56,7 +57,7 @@ const dealSchema = z.object({
   competitor: z.string().nullable().optional(),
   next_action: z.string().nullable().optional(),
   next_action_date: dateOnly.optional(),
-  lost_reason: z.enum(LOST_REASONS).nullable().optional(),
+  lost_reason: z.string().max(100).nullable().optional(),
   lost_note: z.string().nullable().optional(),
   is_renewal: z.boolean().optional(),
   notes: z.string().optional(),
@@ -167,6 +168,7 @@ function assertPocDates(value: Record<string, unknown>): void {
 
 router.post('/', (req, res) => {
   const body = parseBody(dealSchema, req);
+  assertPicklistValue(db, 'lost_reason', body.lost_reason);
   assertEntityLinks(db, body);
   assertCrmCustomer(db, body.customer_id);
   assertProjectLink(0, body.project_id, body.customer_id);
@@ -351,6 +353,7 @@ router.patch('/:id', (req, res) => {
   if (body.project_id !== undefined || body.customer_id !== undefined)
     assertProjectLink(id, merged.project_id as number | null, merged.customer_id as number | null);
 
+  assertPicklistValue(db, 'lost_reason', body.lost_reason, current.lost_reason as string | null);
   const nextStage = body.stage ?? (current.stage as string);
   if (nextStage === 'lost' && !(body.lost_reason ?? current.lost_reason))
     throw new HttpError(400, 'Phai chon lý do khi chuyển cơ hội sang Thua');
@@ -476,7 +479,7 @@ router.patch('/:id/move', (req, res) => {
       stage: stageEnum,
       beforeId: z.number().int().nullable().optional(),
       afterId: z.number().int().nullable().optional(),
-      lost_reason: z.enum(LOST_REASONS).nullable().optional(),
+      lost_reason: z.string().max(100).nullable().optional(),
       lost_note: z.string().nullable().optional(),
     }),
     req
@@ -486,6 +489,7 @@ router.patch('/:id/move', (req, res) => {
     'Khong tim thay co hoi'
   ) as Record<string, unknown>;
 
+  assertPicklistValue(db, 'lost_reason', body.lost_reason, current.lost_reason as string | null);
   // BR-03: khong cho chuyen sang Thua neu chua co ly do
   if (body.stage === 'lost' && !(body.lost_reason ?? current.lost_reason))
     throw new HttpError(409, 'NEED_LOST_REASON');

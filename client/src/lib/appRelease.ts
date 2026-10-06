@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.24.0',
+    date: '2026-10-06',
+    title: 'Tự sửa danh mục: lý do thất bại, loại tương tác, loại tài liệu',
+    changes: [
+      'Cài đặt → Danh mục (mới): quản trị viên tự thêm, đổi tên, sắp xếp, ẩn/hiện các mục của Lý do thất bại, Loại tương tác và Loại tài liệu, không cần chờ bản cập nhật.',
+      'Mỗi mục hiện số bản ghi đang dùng. Mục còn dữ liệu không xoá được mà phải Gộp vào mục khác: mọi cơ hội, tương tác, tài liệu mang mục cũ chuyển sang mục mới, và lần đổi lý do thất bại được ghi vào nhật ký thay đổi của cơ hội.',
+      'Mục bị ẩn biến khỏi ô chọn nhưng bản ghi cũ vẫn hiện đúng tên và vẫn sửa được. Mục "Khác" (và loại tài liệu "Hợp đồng") là mục hệ thống: đổi tên được, không ẩn hay xoá được.',
+      'AI đọc tài liệu chọn loại tài liệu theo danh mục đang bật; bản xuất CSV cơ hội hiện tên lý do thất bại thay vì mã.',
+    ],
+  },
+  {
     version: '1.23.1',
     date: '2026-10-06',
     title: 'Sao lưu không làm đầy ổ đĩa, gửi Telegram được dữ liệu lớn',

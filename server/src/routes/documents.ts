@@ -7,7 +7,7 @@ import { db, FILES_DIR } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
-import { DOC_TYPES } from '../lib/crm.ts';
+import { assertPicklistValue } from '../lib/picklists.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import {
@@ -92,7 +92,7 @@ const emptyDateToNull = z.preprocess(
 
 const metadataSchema = z.object({
   name: z.string().trim().min(1).optional(),
-  doc_type: z.enum(DOC_TYPES).optional(),
+  doc_type: z.string().trim().min(1).max(100).optional(),
   description: z.string().max(5000).optional(),
   tags: z.string().max(1000).optional(),
   owner: z.string().trim().max(200).nullable().optional(),
@@ -217,6 +217,7 @@ router.post('/', upload.single('file'), (req, res) => {
   const file = req.file;
   if (!file) throw new HttpError(400, 'Chưa chọn tệp để tải lên');
   const body = parseBody(metadataSchema, req);
+  assertPicklistValue(db, 'doc_type', body.doc_type);
   const id = createDocument(file, body);
   res.status(201).json(reload(id));
 });
@@ -224,6 +225,7 @@ router.post('/', upload.single('file'), (req, res) => {
 router.patch('/bulk', (req, res) => {
   const body = parseBody(idsSchema.and(metadataSchema.partial()), req);
   const { ids, ...patch } = body;
+  assertPicklistValue(db, 'doc_type', patch.doc_type);
   const rows = db
     .prepare(`SELECT * FROM documents WHERE deleted_at IS NULL AND id IN (${placeholders(ids)})`)
     .all(...ids) as Record<string, unknown>[];
@@ -332,6 +334,7 @@ router.patch('/:id', (req, res) => {
     'Không tìm thấy tài liệu'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body } as Record<string, unknown>;
+  assertPicklistValue(db, 'doc_type', body.doc_type, current.doc_type as string);
   assertEntityLinks(db, {
     customer_id: merged.customer_id as number | null,
     contact_id: merged.contact_id as number | null,

@@ -44,6 +44,7 @@ import calendarEvents from './routes/calendarEvents.ts';
 import views from './routes/views.ts';
 import scoring from './routes/scoring.ts';
 import settings from './routes/settings.ts';
+import crmConfig from './routes/crmConfig.ts';
 import system from './routes/system.ts';
 import ai from './routes/ai.ts';
 import focus from './routes/focus.ts';
@@ -185,6 +186,8 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/calendar', requireResource('tasks'), calendarEvents);
   app.use('/api/views', views);
   app.use('/api/focus', requirePermission('tasks', 'read'), focus);
+  /* Ai dang nhap cung doc duoc (moi o chon can danh muc); ghi tu kiem `settings.app`. */
+  app.use('/api/crm-config', crmConfig);
   app.use('/api/settings', requireResource('settings.app'), settings);
   app.use('/api', requireResource('deals'), scoring);
   app.use('/api', system);

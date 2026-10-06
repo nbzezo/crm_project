@@ -4,10 +4,11 @@ import { Download, FileText, Trash2, Upload } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Button, EmptyState, Field, Select, focusRing } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
+import { t } from '../../i18n/vi';
 import { formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
 import type { CrmDocument } from '../../types';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 export function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -89,9 +90,9 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
         <div className="w-52">
           <Field label="Loại tài liệu">
             <Select value={docType} onChange={(e) => setDocType(e.target.value)}>
-              {DOC_TYPE_ORDER.map((d) => (
+              {pickOptions('doc_type', docType).map(({ item_key: d }) => (
                 <option key={d} value={d}>
-                  {t.docType[d]}
+                  {pickLabel('doc_type', d)}
                 </option>
               ))}
             </Select>
@@ -148,7 +149,7 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-tr-text">{doc.name}</div>
                 <div className="truncate text-xs text-tr-muted">
-                  {t.docType[doc.doc_type] ?? doc.doc_type} · {formatBytes(doc.size)} ·{' '}
+                  {pickLabel('doc_type', doc.doc_type)} · {formatBytes(doc.size)} ·{' '}
                   {formatDateTime(doc.created_at.replace(' ', 'T').slice(0, 16))}
                 </div>
               </div>

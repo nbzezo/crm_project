@@ -914,6 +914,7 @@ export const t = {
     pageTitle: 'Cài đặt',
     pageSubtitle: 'Cấu hình nhãn, chấm điểm cơ hội, trợ lý AI và dữ liệu hệ thống',
     tabLabels: 'Nhãn',
+    tabPicklists: 'Danh mục',
     tabScoring: 'Chấm điểm cơ hội',
     tabHandover: 'Bàn giao',
     tabDelivery: 'Triển khai',

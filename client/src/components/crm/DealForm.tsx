@@ -14,14 +14,7 @@ import {
   Select,
   Textarea,
 } from '../common/ui';
-import {
-  ACCOUNT_SOURCES,
-  LOST_REASON_ORDER,
-  NEXT_ACTIONS,
-  STAGE_ORDER,
-  STAGE_PROBABILITY,
-  t,
-} from '../../i18n/vi';
+import { ACCOUNT_SOURCES, NEXT_ACTIONS, STAGE_ORDER, STAGE_PROBABILITY, t } from '../../i18n/vi';
 import { AssigneePicker } from '../tasks/AssigneePicker';
 import { CustomerCombobox } from './CustomerCombobox';
 import { formatVND } from '../../lib/format';
@@ -29,6 +22,7 @@ import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useCustomerOptions, useProjectOptions } from '../../lib/useCrmOptions';
 import type { Contact, Deal, Stage } from '../../types';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 interface Props {
   open: boolean;
@@ -543,9 +537,9 @@ export function DealForm({
                 onChange={(e) => setLostReason(e.target.value)}
               >
                 <option value="">{t.common.selectPlaceholder}</option>
-                {LOST_REASON_ORDER.map((r) => (
+                {pickOptions('lost_reason', lostReason).map(({ item_key: r }) => (
                   <option key={r} value={r}>
-                    {t.lostReason[r]}
+                    {pickLabel('lost_reason', r)}
                   </option>
                 ))}
               </Select>

@@ -10,6 +10,7 @@ import { Panel } from '../common/ui';
 import { t } from '../../i18n/vi';
 import { formatDate, formatDateTime, formatVND } from '../../lib/format';
 import type { ChangeLogEntry, Stage } from '../../types';
+import { pickLabel } from '../../lib/crmConfig';
 
 const FIELD_LABELS: Record<string, string> = {
   stage: 'Giai đoạn',
@@ -40,7 +41,7 @@ function formatValue(field: string, raw: string | null): string {
   if (raw === null || raw === '') return '—';
   if (field === 'stage') return t.stage[raw as Stage] ?? raw;
   if (field === 'handover_ready') return raw === '1' ? 'Đã đủ' : 'Chưa đủ';
-  if (field === 'lost_reason') return t.lostReason[raw] ?? raw;
+  if (field === 'lost_reason') return pickLabel('lost_reason', raw);
   if (field.endsWith('_vnd')) return formatVND(Number(raw));
   if (field.endsWith('_date') || field === 'plan_start' || field === 'plan_end') {
     return formatDate(raw);

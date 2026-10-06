@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 61;
+export const LATEST_VERSION = 62;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -344,6 +344,73 @@ function rebuildDealsForPoc(db: Database): void {
 
   for (const index of indexes) db.exec(index.sql);
   for (const view of views) db.exec(view.sql);
+}
+
+/**
+ * Dung lai mot bang voi cau CREATE TABLE da duoc `transform` sua (v62+).
+ *
+ * Cung cach voi `rebuildDealsForPoc` (v27): lay cau CREATE that tu `sqlite_master`
+ * va chi thay dung phan can doi, de moi cot/mac dinh/khoa ngoai di theo nguyen ven.
+ * Khac o cho chup lai CA trigger cua bang: tu v38 `deals` co trigger nhat ky thay
+ * doi, va DROP TABLE xoa trigger theo — quen dung lai la mat nhat ky im lang.
+ *
+ * Nguoi goi phai tat `foreign_keys` va boc trong transaction.
+ */
+export function rebuildTable(
+  db: Database,
+  table: string,
+  transform: (sql: string) => string
+): void {
+  const current = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(table) as { sql: string } | undefined;
+  if (!current) throw new Error(`Khong tim thay bang ${table}`);
+
+  const indexes = db
+    .prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL`
+    )
+    .all(table) as { sql: string }[];
+  const triggers = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?`)
+    .all(table) as { sql: string }[];
+  const views = db
+    .prepare(`SELECT name, sql FROM sqlite_master WHERE type = 'view' AND sql LIKE ?`)
+    .all(`%${table}%`) as { name: string; sql: string }[];
+  const columns = (db.prepare(`PRAGMA table_info("${table}")`).all() as { name: string }[])
+    .map((column) => `"${column.name}"`)
+    .join(', ');
+
+  const temp = `${table}__rebuild`;
+  const createNew = transform(current.sql).replace(
+    new RegExp(`^CREATE\\s+TABLE\\s+("?${table}"?|\\[${table}\\]|\`${table}\`)`, 'i'),
+    `CREATE TABLE "${temp}"`
+  );
+  if (!createNew.includes(temp)) throw new Error(`Khong doi duoc ten bang ${table} khi dung lai`);
+
+  for (const view of views) db.exec(`DROP VIEW IF EXISTS "${view.name}"`);
+  db.exec(createNew);
+  db.exec(`INSERT INTO "${temp}" (${columns}) SELECT ${columns} FROM "${table}"`);
+  db.exec(`DROP TABLE "${table}"`);
+  db.pragma('legacy_alter_table = ON');
+  try {
+    db.exec(`ALTER TABLE "${temp}" RENAME TO "${table}"`);
+  } finally {
+    db.pragma('legacy_alter_table = OFF');
+  }
+  for (const index of indexes) db.exec(index.sql);
+  for (const trigger of triggers) db.exec(trigger.sql);
+  for (const view of views) db.exec(view.sql);
+}
+
+/** v62: go CHECK liet ke cung cua `interactions.type` — gia tri gio nam o picklist_items. */
+function dropInteractionTypeCheck(db: Database): void {
+  const pattern = /\s*CHECK\s*\(\s*type\s+IN\s*\([^)]*\)\s*\)/i;
+  const current = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'interactions'`)
+    .get() as { sql: string } | undefined;
+  if (!current || !pattern.test(current.sql)) return;
+  rebuildTable(db, 'interactions', (sql) => sql.replace(pattern, ''));
 }
 
 export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
@@ -979,5 +1046,22 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v61 (chi muc dem viec theo cot)');
     current = 61;
+  }
+
+  if (current === 61 && targetVersion >= 62) {
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v62.sql'));
+        dropInteractionTypeCheck(db);
+        db.pragma('user_version = 62');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v62:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v62 (danh muc dong)');
+    current = 62;
   }
 }

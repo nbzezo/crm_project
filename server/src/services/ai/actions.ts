@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
+import { activeValues } from '../../lib/picklists.ts';
 import { createTaskInputSchema } from '@workflow/contracts/schemas';
 import { HttpError, required } from '../../lib/validate.ts';
 import { assertEntityLinks } from '../../lib/entityRelations.ts';
@@ -176,7 +177,8 @@ function execute(db: Database, type: string, rawPayload: unknown, actorContactId
         payload.customer_id,
         payload.contact_id ?? null,
         payload.deal_id ?? null,
-        payload.type,
+        /* Loai tuong tac la danh muc dong (v62): loai AI chon ma da bi an thi ghi 'other'. */
+        activeValues(db, 'interaction_type').includes(payload.type) ? payload.type : 'other',
         payload.occurred_at,
         payload.summary,
         payload.result ?? null

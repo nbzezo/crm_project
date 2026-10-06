@@ -18,6 +18,7 @@ import { STAGE_COLORS, STAGE_ORDER, t } from '../../i18n/vi';
 import { contrastInk } from '../../lib/format';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import type { Deal, Stage } from '../../types';
+import { pickLabel } from '../../lib/crmConfig';
 
 const LINEAR_STAGES = STAGE_ORDER.filter((s) => s !== 'lost');
 
@@ -92,7 +93,7 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
       {isLost ? (
         <span className="inline-flex items-center gap-1 rounded-full bg-tr-danger/15 px-2.5 py-1 text-xs font-semibold text-tr-danger">
           {t.stage.lost}
-          {deal.lost_reason && ` — ${t.lostReason[deal.lost_reason] ?? deal.lost_reason}`}
+          {deal.lost_reason && ` — ${pickLabel('lost_reason', deal.lost_reason)}`}
         </span>
       ) : (
         /* Tach khoi thanh giai doan: truoc day "Đánh dấu thua cuộc" dung ngay

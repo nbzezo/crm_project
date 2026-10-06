@@ -7,6 +7,7 @@ import {
   GanttChartSquare,
   HardDriveDownload,
   Info,
+  ListChecks,
   Mail,
   Network,
   PackageOpen,
@@ -32,6 +33,7 @@ import { useUiStore } from '../stores/uiStore';
 import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
+import { PicklistSettings } from '../components/settings/PicklistSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
 import { DriveBackupSettings } from '../components/settings/DriveBackupSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
@@ -63,6 +65,7 @@ type SettingsTab =
   | 'org'
   | 'positions'
   | 'labels'
+  | 'picklists'
   | 'scoring'
   | 'handover'
   | 'delivery'
@@ -122,6 +125,13 @@ const SETTINGS_TABS: {
     key: 'labels',
     label: t.settings.tabLabels,
     icon: Tag,
+    group: t.settings.groupProcess,
+    permission: 'settings.app:read',
+  },
+  {
+    key: 'picklists',
+    label: t.settings.tabPicklists,
+    icon: ListChecks,
     group: t.settings.groupProcess,
     permission: 'settings.app:read',
   },
@@ -398,6 +408,7 @@ export default function SettingsPage() {
             <ScoringSettings />
           </Panel>
         )}
+        {activeTab === 'picklists' && <PicklistSettings />}
         {activeTab === 'handover' && <HandoverSettings />}
         {activeTab === 'delivery' && <DeliverySettings />}
         {activeTab === 'ai' && <AiSettings />}

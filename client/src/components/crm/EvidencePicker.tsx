@@ -11,9 +11,9 @@ import { FileText, Phone, Search } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { EmptyState, Input, Skeleton, focusRing } from '../common/ui';
-import { t } from '../../i18n/vi';
 import { formatDate } from '../../lib/format';
 import type { EvidenceSource } from '../../types';
+import { pickLabel } from '../../lib/crmConfig';
 
 export function EvidencePicker({
   dealId,
@@ -83,8 +83,8 @@ export function EvidencePicker({
                 )}
                 <span className="font-medium text-tr-subtle">
                   {item.source_type === 'interaction'
-                    ? ((t.interactionType as Record<string, string>)[item.kind] ?? item.kind)
-                    : ((t.docType as Record<string, string>)[item.kind] ?? item.kind)}
+                    ? pickLabel('interaction_type', item.kind)
+                    : pickLabel('doc_type', item.kind)}
                 </span>
                 <span>{formatDate(item.occurred_at)}</span>
                 {item.contact_name && <span>· {item.contact_name}</span>}

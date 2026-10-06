@@ -26,11 +26,12 @@ import {
   Select,
   Textarea,
 } from '../components/common/ui';
-import { LOST_REASON_ORDER, t } from '../i18n/vi';
+import { t } from '../i18n/vi';
 import { FACTOR_LABELS, VETO_LABELS } from '../i18n/scoring';
 import { formatVND, todayStr } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type { Deal, Factor, Stage, VetoCode } from '../types';
+import { pickLabel, pickOptions } from '../lib/crmConfig';
 
 /** Phần chi tiết server gửi kèm lỗi 409 STAGE_GATE_BLOCKED. */
 interface GateDetails {
@@ -279,9 +280,9 @@ function LostReasonDialog({
         <Field label={t.deal.lostReason}>
           <Select value={reason} onChange={(e) => onReason(e.target.value)}>
             <option value="">— bắt buộc chọn —</option>
-            {LOST_REASON_ORDER.map((r) => (
+            {pickOptions('lost_reason', reason).map(({ item_key: r }) => (
               <option key={r} value={r}>
-                {t.lostReason[r]}
+                {pickLabel('lost_reason', r)}
               </option>
             ))}
           </Select>

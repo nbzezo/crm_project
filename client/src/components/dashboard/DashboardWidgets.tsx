@@ -24,6 +24,7 @@ import { formatDate, formatDateShort, formatVNDShort } from '../../lib/format';
 import { AssigneeChip } from '../tasks/AssigneePicker';
 import type { Interaction, OrgKind, Reminder, Stage, TaskRow } from '../../types';
 import { useTaskCounts } from '../../hooks/useTaskCounts';
+import { pickLabel } from '../../lib/crmConfig';
 
 interface AttentionDeal {
   id: number;
@@ -1185,7 +1186,7 @@ export function RecentActivityWidget({ interactions }: { interactions: Interacti
                       {activityWhen(item.occurred_at)}
                     </span>
                     <span aria-hidden="true">·</span>
-                    <span className="truncate">{t.interactionType[item.type]}</span>
+                    <span className="truncate">{pickLabel('interaction_type', item.type)}</span>
                   </span>
                   <span className="block truncate text-sm font-semibold text-tr-text">
                     {item.customer_name}

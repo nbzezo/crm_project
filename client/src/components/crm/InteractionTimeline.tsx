@@ -33,6 +33,7 @@ import { formatDateTime, nowLocalInput } from '../../lib/format';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore } from '../../stores/uiStore';
 import type { Contact, Deal, Interaction, InteractionType } from '../../types';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 export const ICONS: Record<InteractionType, typeof Phone> = {
   call: Phone,
@@ -167,9 +168,9 @@ export function InteractionTimeline({
         <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-tr-border bg-tr-panel p-4 sm:grid-cols-2">
           <Field label="Loại">
             <Select value={type} onChange={(e) => setType(e.target.value as InteractionType)}>
-              {(Object.keys(t.interactionType) as InteractionType[]).map((k) => (
+              {pickOptions('interaction_type', type).map(({ item_key: k }) => (
                 <option key={k} value={k}>
-                  {t.interactionType[k]}
+                  {pickLabel('interaction_type', k)}
                 </option>
               ))}
             </Select>
@@ -283,7 +284,8 @@ export function InteractionTimeline({
                 <div className="rounded-lg border border-tr-border bg-tr-panel p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="text-xs text-tr-muted">
-                      {t.interactionType[item.type]} · {formatDateTime(item.occurred_at)}
+                      {pickLabel('interaction_type', item.type)} ·{' '}
+                      {formatDateTime(item.occurred_at)}
                       {item.contact_name && ` · ${item.contact_name}`}
                       {item.deal_title && ` · ${item.deal_title}`}
                     </div>

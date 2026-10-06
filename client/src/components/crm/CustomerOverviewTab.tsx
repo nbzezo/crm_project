@@ -30,6 +30,7 @@ import { CareAssistant } from './CareAssistant';
 import { CustomerSuggestions } from './CustomerSuggestions';
 import { StakeholderMap } from './StakeholderMap';
 import { formatActionDate, getCustomerHealth, getNextCustomerAction } from './customerInsights';
+import { pickLabel } from '../../lib/crmConfig';
 
 type GoTab = 'contacts' | 'interactions' | 'contracts' | 'services' | 'quotations' | 'tasks';
 
@@ -560,10 +561,7 @@ const TIMELINE_META: Record<TimelineEntry['kind'], { icon: LucideIcon; label: st
 function timelineMeta(entry: TimelineEntry): string {
   switch (entry.kind) {
     case 'interaction':
-      return [
-        (t.interactionType as Record<string, string>)[entry.sub_type ?? ''] ?? 'Tương tác',
-        entry.meta,
-      ]
+      return [pickLabel('interaction_type', entry.sub_type ?? '') || 'Tương tác', entry.meta]
         .filter(Boolean)
         .join(' · ');
     case 'deal_stage': {
@@ -575,7 +573,7 @@ function timelineMeta(entry: TimelineEntry): string {
     case 'contract':
       return t.contractStatus[entry.meta as keyof typeof t.contractStatus] ?? entry.meta;
     case 'document':
-      return (t.docType as Record<string, string>)[entry.meta] ?? entry.meta;
+      return pickLabel('doc_type', entry.meta);
     default:
       return '';
   }

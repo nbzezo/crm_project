@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save, Sparkles } from 'lucide-react';
 import { api } from '../../api/client';
-import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import type { CrmDocument } from '../../types';
 import { Drawer } from '../common/Drawer';
 import { Button, DateInput, Field, Input, Select, Textarea } from '../common/ui';
 import type { DocumentOptions } from './DocumentUploadManager';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 /** De xuat metadata do AI doc tu noi dung tep — chua ghi vao CSDL. */
 interface DocumentAssistResult {
@@ -258,9 +258,9 @@ export function DocumentMetadataDrawer({
                 value={form.doc_type}
                 onChange={(event) => set('doc_type', event.target.value)}
               >
-                {DOC_TYPE_ORDER.map((value) => (
+                {pickOptions('doc_type', form.doc_type).map(({ item_key: value }) => (
                   <option key={value} value={value}>
-                    {t.docType[value]}
+                    {pickLabel('doc_type', value)}
                   </option>
                 ))}
               </Select>

@@ -32,12 +32,12 @@ import {
   type DocumentOptions,
 } from '../../components/documents/DocumentUploadManager';
 import { formatBytes } from '../../components/crm/DocumentUpload';
-import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import { formatDate, formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
 import { ShareButton } from '../share/ShareButton';
 import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../../types';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 type PendingAction = { type: 'trash' | 'permanent'; ids: number[] } | null;
 
@@ -300,9 +300,9 @@ export function DocumentsLibrary() {
             className="w-[calc(50%-0.25rem)] sm:w-48"
           >
             <option value="">Mọi loại tài liệu</option>
-            {DOC_TYPE_ORDER.map((value) => (
+            {pickOptions('doc_type').map(({ item_key: value }) => (
               <option key={value} value={value}>
-                {t.docType[value]}
+                {pickLabel('doc_type', value)}
               </option>
             ))}
           </Select>
@@ -363,9 +363,9 @@ export function DocumentsLibrary() {
                   className="w-44 py-1 text-xs"
                 >
                   <option value="">Không đổi loại</option>
-                  {DOC_TYPE_ORDER.map((value) => (
+                  {pickOptions('doc_type').map(({ item_key: value }) => (
                     <option key={value} value={value}>
-                      {t.docType[value]}
+                      {pickLabel('doc_type', value)}
                     </option>
                   ))}
                 </Select>
@@ -591,7 +591,7 @@ export function DocumentsLibrary() {
                         )}
                       </td>
                       <td className="px-3 py-3 text-xs text-tr-subtle">
-                        <div>{t.docType[document.doc_type] ?? document.doc_type}</div>
+                        <div>{pickLabel('doc_type', document.doc_type)}</div>
                         <div
                           className={`mt-1 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${document.confidentiality === 'confidential' ? 'bg-tr-danger/10 text-tr-danger' : 'bg-tr-hover text-tr-muted'}`}
                         >

@@ -7,6 +7,7 @@ import { t } from '../../i18n/vi';
 import { QUADRANT_COLORS, QUADRANT_LABELS } from '../../i18n/scoring';
 import { formatDateShort, formatVND, isOverdue, todayStr } from '../../lib/format';
 import type { Deal, Label } from '../../types';
+import { pickLabel } from '../../lib/crmConfig';
 
 /**
  * Dưới ngưỡng này thì tuổi giai đoạn chưa nói lên điều gì.
@@ -206,7 +207,7 @@ export function pickDealSignal(deal: Deal): DealSignal | null {
   if (deal.lost_reason)
     signals.push({
       kind: 'lost',
-      text: `Lý do: ${t.lostReason[deal.lost_reason] ?? deal.lost_reason}`,
+      text: `Lý do: ${pickLabel('lost_reason', deal.lost_reason)}`,
       tone: 'danger',
       others: [],
     });

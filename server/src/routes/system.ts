@@ -131,6 +131,8 @@ export const EXPORT_TABLES = [
   'user_positions',
   // v54 — goi y co hoi / ban them va quyet dinh nhan-bo qua
   'customer_suggestions',
+  // v62 — danh muc dong (ly do thua, loai tuong tac, loai tai lieu...)
+  'picklist_items',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
@@ -367,13 +369,15 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
                  d.stage AS "Giai đoạn", d.probability AS "Xác suất %", d.value_vnd AS "Giá trị",
                  d.won_value_vnd AS "Giá trị chốt", d.expected_close_date AS "Dự kiến chốt",
                  d.next_action AS "Hành động tiếp theo", d.next_action_date AS "Ngày hành động",
-                 d.source AS "Nguồn", d.competitor AS "Đối thủ", d.lost_reason AS "Lý do thua",
+                 d.source AS "Nguồn", d.competitor AS "Đối thủ",
+                 COALESCE(lr.label, d.lost_reason) AS "Lý do thua",
                  d.bant_total AS "BANT", d.p4_total AS "4P", s.quadrant AS "Ô ma trận",
                  CASE WHEN s.v1_no_event = 1 OR s.v2_no_economic = 1 THEN 'Có' ELSE '' END AS "Veto",
                  s.score_age_days AS "Tuổi điểm (ngày)",
                  d.notes AS "Ghi chú"
             FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
             JOIN deal_scorecard s ON s.deal_id = d.id
+            LEFT JOIN picklist_items lr ON lr.list_key = 'lost_reason' AND lr.item_key = d.lost_reason
            ORDER BY d.updated_at DESC`,
   },
   /* Xuat chi tiet cham diem: moi dong mot yeu to, kem bang chung — de ra soat

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { DOC_TYPES, PRIORITIES, type PermissionResource } from '@workflow/contracts';
+import { PRIORITIES, type PermissionResource } from '@workflow/contracts';
+import { getPicklist } from '../lib/picklists.ts';
 import { TASK_LINK_KEYS, taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { accessOf, actorContactId } from '../middleware/currentUser.ts';
@@ -838,7 +839,7 @@ function stripNull(links: Record<string, number | null | undefined>) {
 
 const documentAssistResponse = z.object({
   name: z.string().trim().min(1).max(300),
-  doc_type: z.enum(DOC_TYPES).default('other'),
+  doc_type: z.string().trim().max(100).default('other'),
   description: z.string().max(2000).default(''),
   tags: z.string().max(500).default(''),
   owner: z.string().max(200).nullable().default(null),
@@ -898,6 +899,7 @@ router.post('/assist/document/:id', async (req, res) => {
           ORDER BY updated_at DESC LIMIT 200`
       )
       .all() as { id: number; name: string }[];
+    const docTypes = getPicklist(db, 'doc_type').filter((item) => item.is_active === 1);
 
     const { data, meta } = await runStructured(
       db,
@@ -914,10 +916,11 @@ router.post('/assist/document/:id', async (req, res) => {
           'không suy đoán. Không chắc thì để null hoặc chuỗi rỗng. Ngày phải đúng YYYY-MM-DD.',
         prompt:
           'Trả JSON {"name":"tên tài liệu ngắn gọn","doc_type":"' +
-          DOC_TYPES.join('|') +
+          docTypes.map((item) => item.item_key).join('|') +
           '","description":"tóm tắt 1-3 câu","tags":"nhãn, cách nhau bởi dấu phẩy",' +
           '"owner":null,"effective_date":null,"expires_at":null,' +
           '"confidentiality":"public|internal|confidential","customer_name":null,"confidence":0.0}.\n' +
+          `Ý nghĩa doc_type: ${docTypes.map((item) => `${item.item_key} = ${item.label}`).join('; ')}\n` +
           `Tên tệp: ${document.file_name}\n` +
           (usable
             ? `Nội dung (đã trích bằng ${method}):\n${text.slice(0, 12_000)}`
@@ -931,6 +934,8 @@ router.post('/assist/document/:id', async (req, res) => {
      * de mot ten viet hoa/thieu dau van tim ra. Khong khop thi bo, khong doan bua.
      */
     const { customer_name: proposedName, ...metadata } = data;
+    /* Danh muc loai tai lieu la dong (v62): mo hinh tra khoa la thi roi ve 'other'. */
+    if (!docTypes.some((item) => item.item_key === metadata.doc_type)) metadata.doc_type = 'other';
     let customerId: number | null = null;
     if (proposedName) {
       const needle = fold(proposedName);

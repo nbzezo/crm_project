@@ -10,11 +10,11 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { DOC_TYPE_ORDER, t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import type { Contract, Customer, Deal, Quotation } from '../../types';
 import { Button, DateInput, Field, Input, Select, Textarea, focusRing } from '../common/ui';
 import { DOCUMENT_ACCEPT, formatBytes, MAX_UPLOAD_BYTES } from '../crm/DocumentUpload';
+import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 export interface DocumentOptions {
   customers: Customer[];
@@ -283,9 +283,9 @@ export function DocumentUploadManager({
             value={metadata.doc_type}
             onChange={(event) => setField('doc_type', event.target.value)}
           >
-            {DOC_TYPE_ORDER.map((value) => (
+            {pickOptions('doc_type', metadata.doc_type).map(({ item_key: value }) => (
               <option key={value} value={value}>
-                {t.docType[value]}
+                {pickLabel('doc_type', value)}
               </option>
             ))}
           </Select>

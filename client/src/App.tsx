@@ -16,6 +16,7 @@ import { usePermissionCheck, type PermissionKey } from './lib/permissions';
 import { EmptyState } from './components/common/ui';
 import { t } from './i18n/vi';
 import { useViewportInsets } from './lib/useViewportInsets';
+import { useCrmConfigLoader } from './lib/crmConfig';
 
 const CardModal = lazy(() =>
   import('./components/kanban/CardModal').then((module) => ({ default: module.CardModal }))
@@ -36,6 +37,9 @@ export default function App() {
   useRouteViewport(mainRef);
   useViewportInsets();
   useLockTriggers();
+  /* Danh muc va pipeline la du lieu cau hinh (1.24.0): cho nap xong roi moi ve trang,
+     de nhan hien thi o moi noi la ban moi nhat ngay lan ve dau. */
+  const configReady = useCrmConfigLoader();
   const matches = useMatches();
   const pageHandle = [...matches]
     .reverse()
@@ -106,6 +110,10 @@ export default function App() {
             {!pageHandle?.visibleHeading && <h1 className="sr-only">{pageTitle}</h1>}
             {blocked ? (
               <NoPermission />
+            ) : !configReady ? (
+              <div role="status" className="p-6 text-sm text-tr-muted">
+                Đang tải trang…
+              </div>
             ) : (
               <Suspense
                 fallback={
