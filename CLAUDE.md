@@ -50,9 +50,12 @@ Việc chỉ vài dòng thì tự làm, giao còn chậm hơn.
 2. `pwsh scripts/codex.ps1 run -Slug <ten> -Spec <file>`: tạo worktree `.codex-worktrees/<phiên>--<ten>`,
    chạy `codex exec` sandbox `workspace-write`, in báo cáo và `diff --stat`. Chạy ngầm nếu lâu.
    Codex đọc `AGENTS.md` (không git, không migration, không tăng phiên bản).
-3. Claude đọc toàn bộ diff trong worktree đó. Đạt thì `pwsh scripts/codex.ps1 apply -Slug <ten>`
-   (đưa vào worktree hiện tại, đã stage), rồi tự chạy kiểm tra ở trên và commit. Không đạt thì
-   giao lại kèm lý do hoặc tự sửa.
+3. **Không đọc diff.** `pwsh scripts/codex.ps1 apply -Slug <ten> -Allow '<mẫu file được sửa>'`
+   tự chặn file cấm và file ngoài phạm vi, chép vào worktree hiện tại, rồi chạy tsc, vitest, test
+   máy chủ (nếu đụng `server/`), eslint, prettier. Báo `KIỂM TRA ĐẠT` thì commit luôn. Chỉ khi bị
+   chặn, kiểm tra trượt hoặc báo cáo của Codex có vẻ sai thì mới đọc diff rồi giao lại hoặc tự sửa.
+   Việc mà Codex vừa viết mã vừa tự viết test cho chính mã đó thì test đạt chưa chắc mã đúng: đặc
+   tả phải nêu sẵn các trường hợp test, hoặc dựa vào test có sẵn.
 4. Khi người dùng báo đóng phiên: `pwsh scripts/codex.ps1 clean` dọn worktree, nhánh và log Codex
    **của phiên này**. Việc còn thay đổi chưa apply thì bị bỏ qua và báo lại; chỉ thêm `-Force` khi
    người dùng đồng ý bỏ. Không dùng `-AllSessions` khi các phiên khác còn chạy.

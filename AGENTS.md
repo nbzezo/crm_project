@@ -1,7 +1,8 @@
 # Hướng dẫn cho tác tử được giao việc (Codex và các CLI khác)
 
-Bạn đang làm một việc nhỏ do Claude giao, trong một worktree riêng. Claude sẽ đọc lại toàn bộ
-thay đổi, chạy kiểm tra rồi mới đưa vào nhánh chính. Dự án là WorkFlow CRM (Node/TypeScript,
+Bạn đang làm một việc nhỏ do Claude giao, trong một worktree riêng. Thay đổi được nhận khi qua
+kiểm tra tự động (tsc, vitest, eslint, prettier, chặn file cấm), thường không ai đọc lại từng dòng,
+nên test bạn viết phải kiểm thật hành vi. Dự án là WorkFlow CRM (Node/TypeScript,
 `server/` + `client/` + `packages/`). Quy ước chung nằm trong `CLAUDE.md`.
 
 ## Tuyệt đối không
