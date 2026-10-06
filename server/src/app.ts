@@ -9,6 +9,7 @@ import { HttpError } from './lib/validate.ts';
 import { requireAuth } from './middleware/requireAuth.ts';
 import { attachCurrentUser, requirePermission, requireResource } from './middleware/currentUser.ts';
 import { SqliteSessionStore } from './services/auth/SqliteSessionStore.ts';
+import { trackWrites } from './lib/responseCache.ts';
 import auth from './routes/auth.ts';
 import users from './routes/users.ts';
 import orgUnits from './routes/orgUnits.ts';
@@ -132,6 +133,8 @@ export function createApp(options: AppOptions = {}): Express {
      luc do no lui ve contacts.is_me de cac integration test giu nguyen hanh vi.
      Phai nam sau requireAuth va truoc tat ca router ben duoi. */
   app.use('/api', attachCurrentUser);
+  /* Ghi nhan ai vua ghi du lieu, de lop dem cac man tong hop bo ban cu cua ho. */
+  app.use('/api', trackWrites);
 
   /* Quan tri — tu bao ve bang requirePermission ben trong tung router, vi chung
      tron nhieu resource (vd /api/org-units doc ca danh ba). */

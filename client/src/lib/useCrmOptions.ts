@@ -5,7 +5,7 @@ import type { Customer, Deal, DealsResponse, Project } from '../types';
 export function useCustomerOptions(enabled = true) {
   return useQuery({
     queryKey: ['customers', 'select'],
-    queryFn: () => api.get<Customer[]>('/api/customers'),
+    queryFn: () => api.get<Customer[]>('/api/customers?fields=basic'),
     staleTime: 60_000,
     enabled,
   });

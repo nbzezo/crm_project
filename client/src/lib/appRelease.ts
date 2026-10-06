@@ -14,9 +14,22 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-05';
+export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.22.0',
+    date: '2026-10-06',
+    title: 'Báo cáo mở tức thì, nút Làm mới số liệu',
+    changes: [
+      'Tổng quan, Báo cáo, Sức khỏe pipeline và Doanh thu (Tổng hợp, KPI) giữ số liệu tối đa 5 phút: mở lại trong 5 phút là hiện ngay thay vì chờ tính lại.',
+      'Các màn này ghi "Số liệu lúc HH:mm" kèm nút Làm mới để tính lại ngay khi cần. Thay đổi do chính bạn vừa làm luôn hiện ngay; thay đổi của người khác hiện sau tối đa 5 phút hoặc khi bấm Làm mới.',
+      'Huy hiệu số việc trên menu và cột trái màn Công việc nhẹ hơn hẳn, không còn làm chậm máy chủ khi nhiều người cùng dùng.',
+      'Mở thẻ việc, tạo việc và các ô chọn khách hàng nhanh hơn: chỉ tải tên khách hàng thay vì cả bộ số liệu của từng khách.',
+      'Danh sách Bảng mở nhanh hơn nhiều khi có nhiều bảng và nhiều việc.',
+      'Màn KPI doanh thu chỉ tải chi tiết của tháng đang mở, thay vì cả năm.',
+    ],
+  },
   {
     version: '1.21.0',
     date: '2026-10-05',

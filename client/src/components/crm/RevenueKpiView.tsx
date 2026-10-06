@@ -30,6 +30,8 @@ import type {
   RevenueKpiResponse,
   RevenueKpiStatus,
 } from '../../types';
+import { computedAtOf, freshUrl, refreshFresh } from '../../lib/freshFetch';
+import { DataFreshness } from '../common/DataFreshness';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const AXIS_PROPS = { tick: { fontSize: 11 }, tickLine: false };
@@ -69,9 +71,22 @@ export function RevenueKpiView({
 }) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
-  const { data, isLoading } = useQuery({
+  /* Tong theo thang lay mot lan; chi tiet tung dong chi lay cho thang dang mo — ca
+     nam chi tiet co the len hang chuc MB. */
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['revenues', 'kpi', year, filters],
-    queryFn: () => api.get<RevenueKpiResponse>(`/api/revenues/kpi${qs({ year, ...filters })}`),
+    queryFn: ({ queryKey }) =>
+      api.get<RevenueKpiResponse>(
+        freshUrl(`/api/revenues/kpi${qs({ year, ...filters, entries: 'none' })}`, queryKey)
+      ),
+  });
+  const { data: monthDetail } = useQuery({
+    queryKey: ['revenues', 'kpi', year, filters, 'entries', selected],
+    queryFn: () =>
+      api.get<RevenueKpiResponse>(
+        `/api/revenues/kpi${qs({ year, ...filters, entries_period: selected ?? undefined })}`
+      ),
+    enabled: selected !== null,
   });
 
   const saveTarget = useMutation({
@@ -127,6 +142,11 @@ export function RevenueKpiView({
   return (
     <>
       <Panel title={`KPI doanh thu — năm ${year}`}>
+        <DataFreshness
+          computedAt={computedAtOf(data)}
+          refreshing={isFetching}
+          onRefresh={() => void refreshFresh(queryClient, 'revenues')}
+        />
         <p className="mb-3 text-xs text-tr-muted">
           Ghi nhận = Mới + Mở rộng + phần doanh thu Nền vượt TB tháng năm trước. Chỉ tính doanh thu
           đã đối soát trở lên, riêng từng dòng (không bù trừ). Phần Nền thấp hơn TB năm trước ghi là
@@ -267,7 +287,7 @@ export function RevenueKpiView({
       {selected && (
         <MonthDetails
           period={selected}
-          entries={data.entries.filter((e) => e.period === selected)}
+          entries={monthDetail?.entries ?? []}
           onClose={() => setSelected(null)}
         />
       )}

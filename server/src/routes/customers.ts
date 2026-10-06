@@ -152,7 +152,11 @@ router.get('/', (req, res) => {
   /* Pham vi du lieu. `OrUnowned` vi so danh ba co the chua ban ghi chua ai nhan
      — chung chi hien voi nguoi co pham vi toan cong ty. */
   pushScope(where, params, scopeWhereOrUnowned(req, 'customers', 'read', 'c.owner_contact_id'));
-  const sql = `${LIST_SQL} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY c.name COLLATE NOCASE`;
+  /* `fields=basic`: chi cot goc, bo 16 truy van con dem co hoi / viec / hop dong. Dung
+     cho o chon khach hang (mo the viec, tao viec, loc bang...) — chi can ten. Ban day
+     du ton hang giay khi co vai nghin khach, va may chu mot luong bat moi nguoi cho. */
+  const select = req.query.fields === 'basic' ? 'SELECT c.* FROM customers c' : LIST_SQL;
+  const sql = `${select} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY c.name COLLATE NOCASE`;
   res.json(db.prepare(sql).all(...params));
 });
 

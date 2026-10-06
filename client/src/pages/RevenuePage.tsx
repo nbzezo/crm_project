@@ -79,6 +79,8 @@ import type {
   Service,
   ServiceStatus,
 } from '../types';
+import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
+import { DataFreshness } from '../components/common/DataFreshness';
 
 /* Lazy: modal chi tai khi nguoi dung mo. Nhap tinh thi chunk cua no nam
    trong bundle cua trang du phan lon luot xem khong bao gio mo toi. */
@@ -308,10 +310,13 @@ export default function RevenuePage() {
   }, [lines, totalSort]);
   const multiLineGroups = customerGroups.filter((g) => g.lines.length > 1);
 
-  const { data: summary } = useQuery({
+  const { data: summary, isFetching: summaryFetching } = useQuery({
     queryKey: ['revenues', 'summary', year, filters],
     enabled: view !== 'kpi',
-    queryFn: () => api.get<RevenueSummary>(`/api/revenues/summary${qs({ year, ...filters })}`),
+    queryFn: ({ queryKey }) =>
+      api.get<RevenueSummary>(
+        freshUrl(`/api/revenues/summary${qs({ year, ...filters })}`, queryKey)
+      ),
   });
 
   /* So sánh năm trước: màn hình Nền (chỉ tháng Nền) và màn hình Tổng (mọi tháng). */
@@ -689,6 +694,13 @@ export default function RevenuePage() {
           </div>
         }
       />
+      {view !== 'kpi' && (
+        <DataFreshness
+          computedAt={computedAtOf(summary)}
+          refreshing={summaryFetching}
+          onRefresh={() => void refreshFresh(queryClient, 'revenues')}
+        />
+      )}
 
       {/* Ba màn hình: Tổng / Mới + Mở rộng / Nền — mỗi màn hình có đường dẫn riêng. */}
       <div className="flex flex-wrap items-center gap-2">

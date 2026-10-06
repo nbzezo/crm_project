@@ -8,6 +8,7 @@ import { QUADRANTS, STAGES, STALE_DAYS } from '../lib/crm.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
+import { cacheResponse } from '../lib/responseCache.ts';
 
 const router = Router();
 
@@ -397,7 +398,7 @@ router.get('/tasks/older', (req, res) => {
  * So dem cho thanh ben man Cong viec va huy hieu "Can theo doi". Truoc day client tai
  * TOAN BO viec (ca da xong) chi de dem — request nang nhat cua ca ung dung.
  */
-router.get('/tasks/counts', (req, res) => {
+router.get('/tasks/counts', cacheResponse, (req, res) => {
   const { where, params } = baseTaskWhere(req);
   const me = actorContactId(req) ?? -1;
   const counts = db
@@ -670,7 +671,7 @@ router.get('/timeline', (req, res) => {
 });
 
 /** Dashboard ca nhan theo FR-DSH-01..06. */
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', cacheResponse, (req, res) => {
   const taskCounts = db
     .prepare(
       `SELECT
@@ -981,7 +982,7 @@ router.get('/matrix', (req, res) => {
  * nay: phan pipeline dang duoc tinh vao forecast truyen thong nhung khong vuot noi
  * bo loc veto + staleness. Xac suat theo giai doan KHONG bi dong toi.
  */
-router.get('/pipeline-health', (req, res) => {
+router.get('/pipeline-health', cacheResponse, (req, res) => {
   const settings = getScoringSettings(db);
 
   const rows = db
@@ -1080,7 +1081,7 @@ router.get('/pipeline-health', (req, res) => {
 });
 
 /** So lieu tong hop cho trang Bao cao. */
-router.get('/reports', (req, res) => {
+router.get('/reports', cacheResponse, (req, res) => {
   const defaultFrom = db.prepare(`SELECT date('now','localtime','-6 months') AS d`).get() as {
     d: string;
   };

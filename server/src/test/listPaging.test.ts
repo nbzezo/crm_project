@@ -200,3 +200,17 @@ test('/documents/page: moi nhat truoc, tai dan theo con tro, loc theo id de mo t
     [ids[4]]
   );
 });
+
+test('/customers?fields=basic: cung danh sach, khong kem so lieu tinh tu bang con', async () => {
+  const full = await get<Record<string, unknown>[]>('/api/customers');
+  const basic = await get<Record<string, unknown>[]>('/api/customers?fields=basic');
+  assert.equal(basic.status, 200);
+  assert.deepEqual(
+    basic.data.map((c) => c.id),
+    full.data.map((c) => c.id)
+  );
+  for (const customer of basic.data) {
+    assert.equal(typeof customer.name, 'string');
+    assert.equal(customer.open_deal_count, undefined);
+  }
+});

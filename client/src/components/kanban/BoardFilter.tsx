@@ -39,7 +39,7 @@ export function BoardFilter({
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers', 'select'],
-    queryFn: () => api.get<Customer[]>('/api/customers'),
+    queryFn: () => api.get<Customer[]>('/api/customers?fields=basic'),
     staleTime: 60_000,
     enabled: open,
   });

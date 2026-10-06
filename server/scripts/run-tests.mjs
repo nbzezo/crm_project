@@ -25,5 +25,8 @@ if (tests.length === 0) {
 const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', ...tests], {
   cwd: serverRoot,
   stdio: 'inherit',
+  /* Nhieu test chen thang vao CSDL roi doc lai qua API — tat lop dem ket qua
+     (lib/responseCache.ts). responseCache.test.ts tu bat lai de kiem tra rieng. */
+  env: { ...process.env, WORKFLOW_RESPONSE_CACHE: 'off' },
 });
 process.exit(result.status ?? 1);

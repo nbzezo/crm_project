@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bar,
   BarChart,
@@ -40,6 +40,8 @@ import type { Factor, InteractionType, OrgKind, Priority, Quadrant, Stage } from
 import { PageHeader } from '../components/common/PageShell';
 import { ReportRangePicker } from '../components/common/ReportRangePicker';
 import { resolveRange, type RangeKey } from '../lib/reportRange';
+import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
+import { DataFreshness } from '../components/common/DataFreshness';
 
 interface ReportsData {
   from: string;
@@ -124,9 +126,11 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
 
   const range = resolveRange(rangeKey, customFrom, customTo);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const queryClient = useQueryClient();
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['reports', range.from, range.to],
-    queryFn: () => api.get<ReportsData>(`/api/views/reports${qs(range)}`),
+    queryFn: ({ queryKey }) =>
+      api.get<ReportsData>(freshUrl(`/api/views/reports${qs(range)}`, queryKey)),
   });
 
   if (error)
@@ -211,6 +215,11 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
 
   return (
     <div className="space-y-4">
+      <DataFreshness
+        computedAt={computedAtOf(data)}
+        refreshing={isFetching}
+        onRefresh={() => void refreshFresh(queryClient, 'reports')}
+      />
       <ReportRangePicker
         rangeKey={rangeKey}
         onRangeKeyChange={setRangeKey}

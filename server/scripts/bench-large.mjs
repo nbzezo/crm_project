@@ -12,7 +12,8 @@
  * 10.000 dong dich vu x 24 thang doanh thu, 20.000 tai lieu. Production KHONG chay
  * ANALYZE, nen bo do cung khong chay — de bo lap ke hoach chon giong het that.
  *
- * Truy van nao lau hon 300 ms duoc in kem cau SQL va cac buoc SCAN cua no.
+ * Truy van nao lau hon 300 ms duoc in kem cau SQL va cac buoc SCAN cua no. Moi API goi
+ * ba lan: "lan dau" la khi chua co dem, "nhanh nhat" cho thay lop dem 5 phut (1.22.0).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -221,6 +222,7 @@ await new Promise((resolve) => server.once('listening', resolve));
 const base = `http://127.0.0.1:${server.address().port}/api`;
 const endpoints = [
   '/customers',
+  '/customers?fields=basic',
   '/customers?q=vien',
   '/customers/1/full',
   '/deals',
@@ -244,6 +246,7 @@ const endpoints = [
   `/revenues/lines?year=${year}`,
   `/revenues/summary?year=${year}`,
   `/revenues/kpi?year=${year}`,
+  `/revenues/kpi?year=${year}&entries=none`,
 ];
 for (const endpoint of endpoints) {
   if (only && !only.some((prefix) => endpoint.startsWith(prefix))) continue;
@@ -259,9 +262,10 @@ for (const endpoint of endpoints) {
     times.push(performance.now() - t);
     if (times.at(-1) > 5000) break;
   }
+  const first = times[0];
   times.sort((a, b) => a - b);
   console.log(
-    `${status}  nhanh nhat ${times[0].toFixed(0).padStart(6)} ms  ${(bytes / 1e6).toFixed(2).padStart(7)} MB`
+    `${status}  lan dau ${first.toFixed(0).padStart(6)} ms  nhanh nhat ${times[0].toFixed(0).padStart(6)} ms  ${(bytes / 1e6).toFixed(2).padStart(7)} MB`
   );
 }
 

@@ -457,7 +457,8 @@ export function RevenuePanel({ data }: { data: FocusData }) {
   const am = data.scope.mode === 'me' && userId ? `&am_user_id=${userId}` : '';
   const { data: kpi } = useQuery({
     queryKey: ['revenues', 'kpi', year, am],
-    queryFn: () => api.get<{ months: KpiMonth[] }>(`/api/revenues/kpi?year=${year}${am}`),
+    queryFn: () =>
+      api.get<{ months: KpiMonth[] }>(`/api/revenues/kpi?year=${year}${am}&entries=none`),
     enabled: canRead && monthly,
     staleTime: 5 * 60_000,
   });

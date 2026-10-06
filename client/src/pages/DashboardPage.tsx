@@ -28,6 +28,8 @@ import { focusPlanKey, focusPlanUrl, planStatus } from '../components/focus/focu
 import type { FocusPlan } from '../components/focus/focusTypes';
 import { usePermission } from '../lib/permissions';
 import { todayStr } from '../lib/format';
+import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
+import { stampLabel } from '../components/common/DataFreshness';
 
 /**
  * Ket qua AI cua ky Trong tam mac dinh (loai ky + pham vi lan truoc, tinh tu hom
@@ -185,11 +187,14 @@ function DashboardHeader({
   onRefresh,
   overdueCount,
   showBrief = true,
+  computedAt,
 }: {
   refreshing: boolean;
   onRefresh: () => void;
   overdueCount?: number;
   showBrief?: boolean;
+  /** Thoi diem may chu tinh so lieu (ban luu dem toi da 5 phut). */
+  computedAt?: string;
 }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between print:hidden">
@@ -200,6 +205,11 @@ function DashboardHeader({
         </h1>
         <span className="tr-rule" aria-hidden="true" />
         <p className="mt-0.5 text-sm text-tr-muted">Toàn cảnh công việc &amp; kinh doanh của bạn</p>
+        {computedAt && (
+          <p className="mt-0.5 text-xs text-tr-muted">
+            Số liệu lúc {stampLabel(computedAt)} · bấm nút làm mới để tính lại ngay
+          </p>
+        )}
       </div>
       <div className="flex w-full items-center gap-2 self-start sm:w-auto sm:self-auto">
         <span className="hidden min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm sm:inline-flex">
@@ -230,13 +240,14 @@ export default function DashboardPage() {
   const [view, setView] = useDashboardView();
   const queryClient = useQueryClient();
   const focusFetching = useIsFetching({ queryKey: ['focus'] }) > 0;
+  const reportsFetching = useIsFetching({ queryKey: ['reports'] }) > 0;
 
   if (view === 'report')
     return (
       <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
         <DashboardHeader
-          refreshing={false}
-          onRefresh={() => void queryClient.invalidateQueries({ queryKey: ['reports'] })}
+          refreshing={reportsFetching}
+          onRefresh={() => void refreshFresh(queryClient, 'reports')}
           showBrief={false}
         />
         <DashboardTabs view={view} onChange={setView} />
@@ -270,10 +281,13 @@ function OverviewDashboard({ tabs }: { tabs: ReactNode }) {
   const navigate = useNavigate();
   const openCard = useUiStore((state) => state.openCard);
   const setTaskFilters = useUiStore((state) => state.setTaskFilters);
+  const queryClient = useQueryClient();
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['dashboard'],
-    queryFn: () => api.get<DashboardData>('/api/views/dashboard'),
+    queryFn: ({ queryKey }) => api.get<DashboardData>(freshUrl('/api/views/dashboard', queryKey)),
   });
+  /* Ban luu dem 5 phut: nut lam moi phai bat may chu tinh lai, khong chi tai lai. */
+  const refreshDashboard = () => void refreshFresh(queryClient, 'dashboard');
 
   const openTaskBucket = (bucket: TaskBucketKey) => {
     const due =
@@ -339,8 +353,9 @@ function OverviewDashboard({ tabs }: { tabs: ReactNode }) {
     <div className="mx-auto max-w-[1600px] space-y-3 p-3 sm:space-y-4 sm:p-5">
       <DashboardHeader
         refreshing={isFetching}
-        onRefresh={() => void refetch()}
+        onRefresh={refreshDashboard}
         overdueCount={data.kpi.overdue_task_count}
+        computedAt={computedAtOf(data)}
       />
       {tabs}
 

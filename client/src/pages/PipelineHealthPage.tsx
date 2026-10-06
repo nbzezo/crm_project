@@ -8,7 +8,7 @@
  * Kèm F-02 (ma trận), F-18 (deal đang tụt điểm) và F-17 (phiên rà soát).
  */
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { AlertTriangle, TrendingDown } from 'lucide-react';
 import { api, qs } from '../api/client';
@@ -28,6 +28,8 @@ import { FACTOR_LABELS, QUADRANT_COLORS, QUADRANT_LABELS, VETO_LABELS } from '..
 import { formatDate, formatPercent, formatVND, formatVNDShort } from '../lib/format';
 import type { Factor, Quadrant, Stage, VetoCode } from '../types';
 import { PageHeader } from '../components/common/PageShell';
+import { computedAtOf, freshUrl, refreshFresh } from '../lib/freshFetch';
+import { DataFreshness } from '../components/common/DataFreshness';
 
 interface HealthData {
   stage_weighted_vnd: number;
@@ -64,12 +66,15 @@ export default function PipelineHealthPage() {
   const {
     data: health,
     isLoading,
+    isFetching,
     error,
     refetch,
   } = useQuery({
     queryKey: ['pipeline-health'],
-    queryFn: () => api.get<HealthData>('/api/views/pipeline-health'),
+    queryFn: ({ queryKey }) =>
+      api.get<HealthData>(freshUrl('/api/views/pipeline-health', queryKey)),
   });
+  const queryClient = useQueryClient();
 
   const { data: matrix } = useQuery({
     queryKey: ['matrix', stage, industry, minValue],
@@ -99,6 +104,11 @@ export default function PipelineHealthPage() {
         description="Forecast sau khi loại các cơ hội chưa đủ điều kiện."
         actions={<ReviewSession />}
         align="center"
+      />
+      <DataFreshness
+        computedAt={computedAtOf(health)}
+        refreshing={isFetching}
+        onRefresh={() => void refreshFresh(queryClient, 'pipeline-health')}
       />
 
       {/* Ba con số: truyền thống, đã lọc, và chênh lệch */}

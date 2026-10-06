@@ -29,6 +29,7 @@ import {
   type ParsedRow,
 } from '../services/revenueImport.ts';
 import type { ContractKind, ContractTerm, ServiceStatus } from '@workflow/contracts';
+import { cacheResponse } from '../lib/responseCache.ts';
 
 const router = Router();
 
@@ -586,7 +587,7 @@ router.put('/period-stage', (req, res) => {
  * (xem revenueSegments.ts) — giu MOT noi phan nhom de bang dong va bang tong
  * khong bao gio lech nhau.
  */
-router.get('/summary', (req, res) => {
+router.get('/summary', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const { only, lines } = selectLines(req, year);
 
@@ -656,7 +657,7 @@ function currentPeriod(): string {
  * So sanh voi nam truoc va du kien ca nam, tung dong, chi tren cac thang thuoc
  * nhom dang xem (mac dinh Nen; `group=all` lay moi thang).
  */
-router.get('/comparison', (req, res) => {
+router.get('/comparison', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const groupParam = req.query.group ?? 'base';
   const only = groupParam === 'all' ? null : parseGroupFilter(groupParam);
@@ -756,7 +757,15 @@ function userNames(): Map<number, { name: string; active: boolean }> {
  * AM va chi tiet tung dong. AM la nguoi dung; 0 = "Chua gan AM". Loc theo AM thi
  * chi tieu cung chi lay cua AM do.
  */
-router.get('/kpi', (req, res) => {
+/** Loc phan chi tiet cua /kpi theo `entries` / `entries_period` (xem ghi chu trong /kpi). */
+function entryFilter(query: Record<string, unknown>): (entry: { period: string }) => boolean {
+  if (query.entries === 'none') return () => false;
+  const period = String(query.entries_period ?? '');
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return (entry) => entry.period === period;
+  return () => true;
+}
+
+router.get('/kpi', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const { sql, params } = buildFilters(req);
   const raw = db
@@ -839,7 +848,11 @@ router.get('/kpi', (req, res) => {
     current_period: current,
     months: summarizeKpi(entries, year, targetsTotal),
     by_am: byAm,
-    entries: entries.map((e) => {
+    /* Chi tiet tung dong x tung thang co the len hang chuc MB (20.000 dong x 12
+       thang). Man KPI chi hien chi tiet MOT thang dang chon, o Trong tam chi can tong:
+       `entries=none` bo han, `entries_period=YYYY-MM` chi lay thang do. Khong gui gi
+       thi giu nhu cu. */
+    entries: entries.filter(entryFilter(req.query)).map((e) => {
       const line = info.get(e.line_id)!;
       return {
         ...e,

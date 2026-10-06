@@ -1,7 +1,7 @@
 # Phương án: tính trước và lưu đệm cho báo cáo, danh sách nặng
 
 Nhánh: `claude/crm-stability-performance-eval-618dc9` (từ `main` @ cad9336, bản 1.20.0)
-Trạng thái: **đã chốt hướng; đợt 0 (1.20.1) và đợt 1 (1.21.0) đã xong** (quyết định ở mục 6, kết quả đợt 1 ở mục 7). Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
+Trạng thái: **đợt 0 (1.20.1), đợt 1 (1.21.0) và đợt 3 (1.22.0) đã xong**; còn đợt 2 (lớp A), 4 (lớp B), 5 (worker). Quyết định ở mục 6, kết quả ở mục 7–8. Bước chuẩn bị (chỉ mục v60, nén gzip, chia lô `IN`, sửa `/boards`) đã làm trong 1.20.1.
 
 ---
 
@@ -151,7 +151,7 @@ trực tiếp.
 | **0** (1.20.1, xong) | Chỉ mục v60, gzip, chia lô `IN`, sửa `/boards` | v60 | bảng ở mục 1 |
 | **1** (1.21.0, xong) | Bộ đo cố định trong repo (`server/scripts/bench-large.mjs`), log request chậm, Công việc 30 ngày + tải dần, vẽ dần 300 dòng, số đếm và huy hiệu tính ở máy chủ, Tài liệu theo trang. Lịch vốn đã tải theo khoảng ngày nên không đổi | — | xem mục 7 |
 | **2** | Lớp A: `customer_stats`, `deal_stats`, `card_stats`, trigger, `stats_dirty`, test so khớp | v61 | Khách hàng / Cơ hội / Công việc dưới 150 ms |
-| **3** | Lớp C: đệm cho Tổng quan, Báo cáo, Trọng tâm | — | lần mở thứ hai dưới 20 ms |
+| **3** (1.22.0, xong — làm trước đợt 2) | Lớp C: đệm 5 phút theo người dùng cho Tổng quan, Báo cáo, Sức khỏe pipeline, Doanh thu tổng hợp / KPI / so sánh và số đếm việc; nút Làm mới. Kèm: chỉ mục v61 cho danh sách Bảng, `customers?fields=basic` cho ô chọn, KPI chỉ tải chi tiết một tháng | v61 | xem mục 8 |
 | **4** | Lớp B: `revenue_rollup` cho Tổng hợp / KPI / So sánh; phân trang `/revenues/lines` | v62 | Doanh thu dưới 300 ms |
 | **5** | Worker cho xuất dữ liệu và dựng lại ban đêm; nén bản sao lưu Telegram và tự xoá bản cũ | — | xuất dữ liệu không quá 200 MB RAM, sao lưu dưới 50 MB |
 
@@ -210,3 +210,26 @@ Giờ danh sách lựa chọn dựng một lần dùng chung, và danh sách vi�
 48.000 việc). Lớp A (bảng `card_stats`) và rút gọn cột trả về sẽ xử lý tiếp. Chế độ Kanban chưa vẽ
 dần. Mỗi ô chọn khách hàng vẫn tải `/api/customers` đầy đủ (4,4 MB ở mức 1×); nên có một API danh sách
 rút gọn chỉ gồm id và tên.
+
+## 8. Kết quả đợt 3 (1.22.0)
+
+Lớp C làm khác đề xuất ban đầu ở một điểm. Khoá đệm **không** gắn với "đời dữ liệu" (`total_changes()`):
+với 100 người cùng ghi, đời dữ liệu đổi liên tục và đệm gần như không bao giờ trúng. Thay vào đó, mỗi người
+có bản đệm riêng, giữ 5 phút; bản đệm của một người bị bỏ ngay khi **chính người đó** ghi dữ liệu thành
+công. Đổi quyền hoặc sơ đồ tổ chức thì bỏ toàn bộ đệm. Kết quả lớn hơn 2 MB không được lưu
+(`server/src/lib/responseCache.ts`).
+
+Đo ở mức 2× (`bench-large.mjs 2`):
+
+| Request | Trước | Lần đầu | Lần sau (trong 5 phút) |
+|---|---|---|---|
+| Tổng quan | 1,4 s | 1,3 s | 26 ms |
+| Báo cáo | 3,7 s | 3,8 s | 27 ms |
+| Doanh thu tổng hợp | 1,7 s | 1,9 s | 22 ms |
+| KPI doanh thu (màn KPI, không kèm chi tiết) | 3,4 s · 61 MB | 4,0 s · dưới 1 KB | 18 ms |
+| Số đếm việc (huy hiệu trên mọi trang) | 0,45 s | 0,43 s | 18 ms |
+| Danh sách Bảng (chỉ mục v61) | 1,2 s | 0,06 s | — |
+| Ô chọn khách hàng (`fields=basic`) | 1,7 s · 8,7 MB | 0,11 s · 4,1 MB | — |
+
+**Còn lại cho đợt 2 và 4:** lần mở đầu của Báo cáo, KPI và Doanh thu vẫn 2–4 s; danh sách Khách hàng
+1,7 s; chi tiết doanh thu (`/revenues/lines`) 3 s · 42 MB.

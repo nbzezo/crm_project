@@ -646,3 +646,25 @@ test('v60: chi muc cot lien ket — truy van con theo co hoi/khach khong con que
   );
   scratch.close();
 });
+
+test('v61: dem viec dang mo theo cot chi doc chi muc, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  migrate(scratch, 61);
+  const plan = (
+    scratch
+      .prepare(
+        `EXPLAIN QUERY PLAN SELECT COUNT(*) FROM cards
+          WHERE list_id = 1 AND is_done = 0 AND is_archived = 0 AND parent_id IS NULL`
+      )
+      .all() as { detail: string }[]
+  )
+    .map((r) => r.detail)
+    .join(' | ');
+  assert.match(plan, /COVERING INDEX idx_cards_list_open/);
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v61-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'idx_cards_list_open'`).get(),
+    undefined
+  );
+  scratch.close();
+});
