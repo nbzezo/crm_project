@@ -46,7 +46,8 @@ export function Topbar({ title }: { title: string }) {
         {title}
       </span>
 
-      <div className="ml-1 min-w-0 flex-1">
+      {/* O tim kiem an tren dien thoai: khong chia flex-1 voi tieu de, keo tieu de bi cat ("Tổng q…"). */}
+      <div className="min-w-0 md:ml-1 md:flex-1">
         <SearchBox />
       </div>
       <button

@@ -197,7 +197,7 @@ function DashboardHeader({
   computedAt?: string;
 }) {
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between print:hidden">
+    <header className="flex items-start justify-between gap-3 sm:items-end print:hidden">
       <div className="min-w-0">
         {/* tr-display / tr-rule: moc cho theme Don sac */}
         <h1 className="tr-display tr-display-page text-2xl font-bold tracking-[-0.03em] text-tr-text sm:text-3xl">
@@ -205,20 +205,21 @@ function DashboardHeader({
         </h1>
         <span className="tr-rule" aria-hidden="true" />
         <p className="mt-0.5 text-sm text-tr-muted">Toàn cảnh công việc &amp; kinh doanh của bạn</p>
+        {/* Dien thoai: ngay nam ngay duoi phu de, nut lam moi len canh tieu de — bot mot hang trong. */}
+        <p className="mt-0.5 truncate text-xs text-tr-muted sm:hidden">
+          {shortDateLabel()}
+          {overdueCount != null && ` · ${overdueCount} việc quá hạn`}
+        </p>
         {computedAt && (
           <p className="mt-0.5 text-xs text-tr-muted">
             Số liệu lúc {stampLabel(computedAt)} · bấm nút làm mới để tính lại ngay
           </p>
         )}
       </div>
-      <div className="flex w-full items-center gap-2 self-start sm:w-auto sm:self-auto">
+      <div className="flex shrink-0 items-center gap-2">
         <span className="hidden min-h-9 items-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 text-xs text-tr-subtle shadow-sm sm:inline-flex">
           <CalendarDays size={14} className="text-tr-muted" aria-hidden="true" />
           {currentDateLabel()}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-xs text-tr-muted sm:hidden">
-          {shortDateLabel()}
-          {overdueCount != null && ` · ${overdueCount} việc quá hạn`}
         </span>
         {showBrief && <AiBrief contextType="today" />}
         <button
