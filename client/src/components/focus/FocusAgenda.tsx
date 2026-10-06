@@ -145,7 +145,7 @@ function DayView({ data, date, wrap = false }: { data: FocusData; date: string; 
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <section aria-label="Theo giờ">
         <h3 className="mb-1 text-xs font-semibold text-tr-subtle">Theo giờ</h3>
         {rows.length === 0 ? (

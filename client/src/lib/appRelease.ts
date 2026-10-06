@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.31.1',
+    date: '2026-10-06',
+    title: 'Sửa tab Trọng tâm bị tràn ngang trên điện thoại',
+    changes: [
+      'Tab Trọng tâm trên điện thoại không còn bị kéo lệch sang ngang: khi AI gợi ý xếp lịch có tên việc dài, khung "AI phân tích" trước đây phình rộng quá màn hình làm mất cột giờ và cắt chữ ở mép trái. Nay tên dài được rút gọn bằng dấu "…" trong đúng khung.',
+      'Thanh công cụ Trọng tâm trên điện thoại gọn hơn: nút In và Bản tin Telegram nằm cùng hàng với chọn Ngày/Tuần/Tháng, hàng dưới chỉ còn chuyển kỳ và Của tôi/Cả nhóm, thẳng hàng với nhau.',
+    ],
+  },
+  {
     version: '1.31.0',
     date: '2026-10-06',
     title: 'Cần theo dõi đổi thành Nhắc người khác',

@@ -99,7 +99,7 @@ export function FocusView() {
                 mode={effectiveMode}
               />
               <FocusAgenda key={`${period.from}|${period.to}`} data={data} />
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <RetroPanel data={data} />
                 <RevenuePanel data={data} />
               </div>

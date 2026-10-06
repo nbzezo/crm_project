@@ -58,6 +58,19 @@ export function FocusToolbar({
         options={KIND_OPTIONS}
       />
 
+      {/* Dien thoai: nam cung hang voi chon ky de hang duoi chi con dieu huong + pham vi;
+          man rong: ve cuoi thanh cong cu. */}
+      <div className="ml-auto flex items-center gap-1 sm:order-last sm:ml-0">
+        <IconButton label="In / lưu PDF" onClick={() => window.print()}>
+          <Printer size={16} aria-hidden="true" />
+        </IconButton>
+        {canTelegram && (
+          <IconButton label="Bản tin Telegram" onClick={onOpenDigest}>
+            <Send size={16} aria-hidden="true" />
+          </IconButton>
+        )}
+      </div>
+
       <div className="flex items-center gap-1">
         <IconButton label="Kỳ trước" onClick={() => onChange(shiftPeriod(period, -1))}>
           <ChevronLeft size={16} aria-hidden="true" />
@@ -105,8 +118,8 @@ export function FocusToolbar({
         </div>
       )}
 
-      <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-        {canTeam && (
+      {canTeam && (
+        <div className="flex flex-1 justify-end">
           <Segmented
             label="Phạm vi"
             value={mode}
@@ -120,16 +133,8 @@ export function FocusToolbar({
               },
             ]}
           />
-        )}
-        <IconButton label="In / lưu PDF" onClick={() => window.print()}>
-          <Printer size={16} aria-hidden="true" />
-        </IconButton>
-        {canTelegram && (
-          <IconButton label="Bản tin Telegram" onClick={onOpenDigest}>
-            <Send size={16} aria-hidden="true" />
-          </IconButton>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

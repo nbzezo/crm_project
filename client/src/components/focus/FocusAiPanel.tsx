@@ -37,7 +37,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-panel bg-tr-hover p-3">
+    <section className="min-w-0 rounded-panel bg-tr-hover p-3">
       <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-tr-text">
         <Icon size={14} className={tone} aria-hidden="true" /> {title}
       </h3>
@@ -237,7 +237,7 @@ export function FocusAiPanel({ data, mode }: { data: FocusData; mode: FocusMode 
       )}
       <FormError error={generate.error} />
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
         {plan.priorities.length > 0 && (
           <Section icon={Target} title="Ưu tiên">
             <ol className="space-y-1.5">
