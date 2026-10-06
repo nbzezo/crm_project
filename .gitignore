@@ -9,3 +9,6 @@ server/data/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Worktree tạm của Codex (scripts/codex.ps1)
+.codex-worktrees/

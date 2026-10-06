@@ -36,3 +36,23 @@ kế tiếp, gộp ghi chú của các thay đổi chưa có trong `RELEASE_NOTE
 - Máy chủ: `cd server && node scripts/run-tests.mjs`
 - Giao diện: `cd client && npx tsc --noEmit -p tsconfig.json && npx vitest run`
 - Lint: `npx eslint client/src server/src`
+
+## Giao việc cho Codex (chạy local)
+
+Việc **khối lượng lớn, lặp lại, dễ kiểm chứng** thì Claude giao cho Codex CLI, còn Claude giữ phần
+khó và việc duyệt. Ví dụ việc nên giao: viết test theo mẫu, sửa lint hàng loạt, đổi tên/thay chuỗi
+nhiều file, chuỗi giao diện, dữ liệu mẫu, chạy test dài và tóm tắt lỗi.
+Claude tự làm: thiết kế, migration, phân quyền/bảo mật, lỗi khó, phát hành, mọi thao tác git.
+Việc chỉ vài dòng thì tự làm, giao còn chậm hơn.
+
+1. Commit phần đang làm (Codex chỉ thấy `HEAD`), viết đặc tả vào file trong scratchpad: mục tiêu,
+   file được sửa, điều kiện xong, kiểm tra cần chạy.
+2. `pwsh scripts/codex.ps1 run -Slug <ten> -Spec <file>`: tạo worktree `.codex-worktrees/<phiên>--<ten>`,
+   chạy `codex exec` sandbox `workspace-write`, in báo cáo và `diff --stat`. Chạy ngầm nếu lâu.
+   Codex đọc `AGENTS.md` (không git, không migration, không tăng phiên bản).
+3. Claude đọc toàn bộ diff trong worktree đó. Đạt thì `pwsh scripts/codex.ps1 apply -Slug <ten>`
+   (đưa vào worktree hiện tại, đã stage), rồi tự chạy kiểm tra ở trên và commit. Không đạt thì
+   giao lại kèm lý do hoặc tự sửa.
+4. Khi người dùng báo đóng phiên: `pwsh scripts/codex.ps1 clean` dọn worktree, nhánh và log Codex
+   **của phiên này**. Việc còn thay đổi chưa apply thì bị bỏ qua và báo lại; chỉ thêm `-Force` khi
+   người dùng đồng ý bỏ. Không dùng `-AllSessions` khi các phiên khác còn chạy.
