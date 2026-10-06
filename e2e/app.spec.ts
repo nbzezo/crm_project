@@ -313,22 +313,32 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
     const tabCount = await tabs.count();
     expect(tabCount).toBeGreaterThanOrEqual(4);
 
+    /* 1.32.0: kich hoat THU CONG — mui ten chi doi tieu diem, Enter moi mo muc.
+       Moi muc la mot trang nang va co the hoi "con thay doi chua luu", nen luot
+       qua bang mui ten khong duoc mo tung trang. */
     await tabs.nth(0).focus();
     await page.keyboard.press('ArrowRight');
     await expect(tabs.nth(1)).toBeFocused();
+    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Enter');
     await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
 
     await page.keyboard.press('End');
     await expect(tabs.nth(tabCount - 1)).toBeFocused();
-    await expect(tabs.nth(tabCount - 1)).toHaveAttribute('aria-selected', 'true');
 
     await page.keyboard.press('Home');
     await expect(tabs.nth(0)).toBeFocused();
-    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Enter');
     await expect(page.getByRole('tabpanel')).toHaveAttribute(
       'aria-labelledby',
-      'settingstab-users'
+      'settingstab-overview'
     );
+
+    /* O tim loc danh sach muc, ca theo tu khoa khong dau. */
+    await page.getByRole('searchbox', { name: 'Tìm cài đặt' }).fill('sao luu');
+    await expect(tabs.filter({ hasText: 'Sao lưu' })).toBeVisible();
+    await expect(tabs.filter({ hasText: 'Người dùng' })).toHaveCount(0);
+    await page.getByRole('searchbox', { name: 'Tìm cài đặt' }).fill('');
   }
 
   /* Tab nằm trong URL: F5 phải giữ đúng chỗ đang xem, và link gửi được cho
@@ -345,9 +355,8 @@ test('dieu huong lazy routes, heading va search keyboard/deep-link', async ({
 
   await tabs.filter({ hasText: 'Giới thiệu' }).click();
   await expect(page).toHaveURL(/tab=about/);
-  await expect(page.getByRole('heading', { name: 'Giới thiệu chung' })).toBeVisible();
-  await expect(page.getByText('Phiên bản hiện tại')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Lịch sử thay đổi phiên bản' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'WorkFlow', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lịch sử thay đổi', exact: true })).toBeVisible();
 });
 
 test('menu tai khoan tren thanh tren: ho so, vi tri, doi mat khau', async ({ page }) => {

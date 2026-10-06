@@ -16,6 +16,9 @@ import { api } from '../../api/client';
 import type { AiProviderConfig, VoiceModelSetting, VoicePromptTemplate } from '../../ai/types';
 import { Button, Field, FormError, Input, Panel, Select, Textarea, focusRing } from '../common/ui';
 import { useUiStore } from '../../stores/uiStore';
+import { ChevronDown } from 'lucide-react';
+import { SaveBar, StatusBadge, TechDetails, Toggle } from '../settings/SettingsKit';
+import { useSettingsDirty } from '../settings/settingsDirty';
 
 function nullableNumber(value: string): number | null {
   if (value.trim() === '') return null;
@@ -60,6 +63,7 @@ function ProviderEditor({ config }: { config: AiProviderConfig }) {
   }, [config]);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['ai-providers'] });
+  const [open, setOpen] = useState(config.status !== 'ready');
   const save = useMutation({
     mutationFn: async () => {
       await api.put(`/api/ai/providers/${config.provider}`, {
@@ -74,14 +78,15 @@ function ProviderEditor({ config }: { config: AiProviderConfig }) {
         input_cost_per_million_usd: nullableNumber(inputPrice),
         output_cost_per_million_usd: nullableNumber(outputPrice),
       });
-      if (apiKey || config.has_api_key) {
-        await api.post(`/api/ai/providers/${config.provider}/sync`);
-      }
+      return Boolean(apiKey || config.has_api_key);
     },
-    onSuccess: () => {
+    onSuccess: (hasKey) => {
       setApiKey('');
-      void refresh();
-      pushToast(`Đã lưu và nhận diện model ${config.display_name}`, 'success');
+      pushToast(`Đã lưu cấu hình ${config.display_name}`, 'success');
+      /* Luu va nhan dien model la hai buoc rieng: luu thanh cong ma nhan dien
+         loi thi loi do hien rieng, khong lam nguoi dung tuong chua luu duoc. */
+      if (hasKey) sync.mutate();
+      else void refresh();
     },
   });
   const sync = useMutation({
@@ -93,6 +98,27 @@ function ProviderEditor({ config }: { config: AiProviderConfig }) {
   });
 
   const models = config.models.filter((model) => model.is_available);
+  const dirty =
+    baseUrl !== config.base_url ||
+    apiKey !== '' ||
+    enabled !== config.enabled ||
+    defaultModel !== (config.default_model ?? '') ||
+    fastModel !== (config.fast_model ?? '') ||
+    reasoningModel !== (config.reasoning_model ?? '') ||
+    tokenLimit !== String(config.daily_token_limit) ||
+    costLimit !==
+      (config.daily_cost_limit_usd === null ? '' : String(config.daily_cost_limit_usd)) ||
+    inputPrice !==
+      (config.input_cost_per_million_usd === null
+        ? ''
+        : String(config.input_cost_per_million_usd)) ||
+    outputPrice !==
+      (config.output_cost_per_million_usd === null
+        ? ''
+        : String(config.output_cost_per_million_usd));
+  useSettingsDirty(`ai-${config.provider}`, dirty, `AI · ${config.display_name}`, () =>
+    save.mutateAsync()
+  );
   const statusIcon =
     config.status === 'ready' ? (
       <CheckCircle2 size={14} className="text-tr-success" />
@@ -103,120 +129,170 @@ function ProviderEditor({ config }: { config: AiProviderConfig }) {
     );
 
   return (
-    <div className="rounded-panel border border-tr-border bg-tr-list p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-tr-text">
-            <Bot size={16} /> {config.display_name}
-          </h3>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-tr-muted">
+    <div className="rounded-panel border border-tr-border bg-tr-list">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className={`flex min-h-11 w-full flex-wrap items-center gap-3 rounded-panel p-4 text-left ${focusRing}`}
+      >
+        <Bot size={16} className="text-tr-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-tr-text">{config.display_name}</span>
+          <span className="flex items-center gap-1.5 text-xs text-tr-muted">
             {statusIcon}
             {config.status === 'ready'
               ? `${models.length} model sẵn sàng${config.api_key_hint ? ` · ${config.api_key_hint}` : ''}`
               : config.status === 'error'
                 ? config.last_error || 'Kết nối lỗi'
                 : 'Chưa cấu hình'}
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-tr-subtle">
-          <input
-            type="checkbox"
+          </span>
+        </span>
+        {!config.enabled ? (
+          <StatusBadge tone="off">Đang tắt</StatusBadge>
+        ) : config.status === 'ready' ? (
+          <StatusBadge tone="ok">Sẵn sàng</StatusBadge>
+        ) : config.status === 'error' ? (
+          <StatusBadge tone="error">Lỗi</StatusBadge>
+        ) : (
+          <StatusBadge tone="warn">Chưa cấu hình</StatusBadge>
+        )}
+        {dirty && <span className="text-xs font-medium text-tr-warning">Chưa lưu</span>}
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={`text-tr-muted transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-tr-border p-4">
+          <Toggle
             checked={enabled}
-            onChange={(event) => setEnabled(event.target.checked)}
-            className="h-4 w-4 rounded border-tr-border"
+            onChange={setEnabled}
+            label="Kích hoạt nhà cung cấp này"
+            description="Tắt thì hệ thống không gọi tới nhà cung cấp này, kể cả khi dự phòng."
           />
-          Kích hoạt
-        </label>
-      </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <Field label="API Base URL">
+              <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+            </Field>
+            <Field
+              label="API key"
+              hint={
+                config.has_api_key
+                  ? `Đã lưu ${config.api_key_hint}; để trống để giữ nguyên`
+                  : undefined
+              }
+            >
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder={config.has_api_key ? '••••••••' : 'Nhập API key'}
+              />
+            </Field>
+            <ModelField
+              label="Model cân bằng"
+              value={defaultModel}
+              onChange={setDefaultModel}
+              models={models}
+            />
+            <ModelField
+              label="Model nhanh"
+              value={fastModel}
+              onChange={setFastModel}
+              models={models}
+            />
+            <ModelField
+              label="Model suy luận"
+              value={reasoningModel}
+              onChange={setReasoningModel}
+              models={models}
+            />
+            <Field label="Giới hạn token/ngày" hint="0 = không giới hạn">
+              <Input
+                type="number"
+                min="0"
+                value={tokenLimit}
+                onChange={(event) => setTokenLimit(event.target.value)}
+              />
+            </Field>
+            <Field label="Ngân sách/ngày (USD)" hint="Để trống nếu chưa cấu hình đơn giá">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={costLimit}
+                onChange={(event) => setCostLimit(event.target.value)}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="USD/M token vào">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={inputPrice}
+                  onChange={(event) => setInputPrice(event.target.value)}
+                />
+              </Field>
+              <Field label="USD/M token ra">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={outputPrice}
+                  onChange={(event) => setOutputPrice(event.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <Field label="API Base URL">
-          <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-        </Field>
-        <Field
-          label="API key"
-          hint={
-            config.has_api_key ? `Đã lưu ${config.api_key_hint}; để trống để giữ nguyên` : undefined
-          }
-        >
-          <Input
-            type="password"
-            autoComplete="new-password"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            placeholder={config.has_api_key ? '••••••••' : 'Nhập API key'}
-          />
-        </Field>
-        <ModelField
-          label="Model cân bằng"
-          value={defaultModel}
-          onChange={setDefaultModel}
-          models={models}
-        />
-        <ModelField label="Model nhanh" value={fastModel} onChange={setFastModel} models={models} />
-        <ModelField
-          label="Model suy luận"
-          value={reasoningModel}
-          onChange={setReasoningModel}
-          models={models}
-        />
-        <Field label="Giới hạn token/ngày" hint="0 = không giới hạn">
-          <Input
-            type="number"
-            min="0"
-            value={tokenLimit}
-            onChange={(event) => setTokenLimit(event.target.value)}
-          />
-        </Field>
-        <Field label="Ngân sách/ngày (USD)" hint="Để trống nếu chưa cấu hình đơn giá">
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={costLimit}
-            onChange={(event) => setCostLimit(event.target.value)}
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="USD/M token vào">
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={inputPrice}
-              onChange={(event) => setInputPrice(event.target.value)}
-            />
-          </Field>
-          <Field label="USD/M token ra">
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={outputPrice}
-              onChange={(event) => setOutputPrice(event.target.value)}
-            />
-          </Field>
+          {config.provider === '9router' && (
+            <div className="mt-3">
+              <TechDetails>
+                <p className="leading-relaxed">
+                  Mặc định dùng 9Router cục bộ tại <code>http://127.0.0.1:20128/v1</code>. Nếu dùng
+                  9Router Cloud, đổi Base URL thành <code>https://9router.com/v1</code> rồi nhập API
+                  key từ Dashboard 9Router. Khi WorkFlow chạy bằng Docker và 9Router chạy trên máy
+                  chủ, dùng
+                  <code> http://host.docker.internal:20128/v1</code>.
+                </p>
+              </TechDetails>
+            </div>
+          )}
+
+          <FormError error={save.error} />
+          {sync.error && (
+            <p className="mt-2 text-xs text-tr-danger">
+              Đã lưu, nhưng nhận diện model lỗi: {(sync.error as Error).message}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="primary"
+              disabled={!dirty || save.isPending}
+              onClick={() => save.mutate()}
+            >
+              <ShieldCheck size={15} aria-hidden="true" />{' '}
+              {save.isPending ? 'Đang lưu…' : 'Lưu thay đổi'}
+            </Button>
+            <Button
+              disabled={!config.has_api_key || sync.isPending || dirty}
+              title={dirty ? 'Lưu thay đổi trước' : undefined}
+              onClick={() => sync.mutate()}
+            >
+              <RefreshCw
+                size={15}
+                className={sync.isPending ? 'animate-spin' : ''}
+                aria-hidden="true"
+              />
+              {sync.isPending ? 'Đang nhận diện…' : 'Kiểm tra & nhận diện model'}
+            </Button>
+          </div>
         </div>
-      </div>
-
-      {config.provider === '9router' && (
-        <p className="mt-3 text-xs leading-relaxed text-tr-muted">
-          Mặc định dùng 9Router cục bộ tại <code>http://127.0.0.1:20128/v1</code>. Nếu dùng 9Router
-          Cloud, đổi Base URL thành <code>https://9router.com/v1</code> rồi nhập API key từ
-          Dashboard 9Router. Khi WorkFlow chạy bằng Docker và 9Router chạy trên máy chủ, dùng
-          <code> http://host.docker.internal:20128/v1</code>.
-        </p>
       )}
-
-      <FormError error={save.error ?? sync.error} />
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>
-          <ShieldCheck size={15} /> {save.isPending ? 'Đang kiểm tra…' : 'Lưu & nhận diện model'}
-        </Button>
-        <Button disabled={!config.has_api_key || sync.isPending} onClick={() => sync.mutate()}>
-          <RefreshCw size={15} className={sync.isPending ? 'animate-spin' : ''} /> Đồng bộ model
-        </Button>
-      </div>
     </div>
   );
 }
@@ -444,7 +520,7 @@ function VoicePromptTemplatesSettings({ providers }: { providers: AiProviderConf
         ))}
       </ul>
 
-      <div className="mt-3 flex items-center gap-2 border-t border-tr-border pt-3">
+      <div className="mt-3 border-t border-tr-border pt-3">
         <Button
           onClick={() => {
             const key = slugifyKey('mau moi', new Set(draft.map((item) => item.key)));
@@ -453,20 +529,15 @@ function VoicePromptTemplatesSettings({ providers }: { providers: AiProviderConf
         >
           <Plus size={15} aria-hidden="true" /> Thêm mẫu
         </Button>
-        <span className="flex-1" />
-        <Button
-          variant="primary"
-          disabled={save.isPending || !dirty || invalid}
-          onClick={() => save.mutate()}
-        >
-          {save.isPending ? 'Đang lưu…' : 'Lưu cấu hình'}
-        </Button>
       </div>
-      {invalid && (
-        <p className="mt-2 text-xs text-tr-danger">
-          Còn mẫu thiếu tên hoặc nội dung — điền đầy đủ hoặc xóa mẫu đó trước khi lưu.
-        </p>
-      )}
+      <SaveBar
+        dirty={dirty}
+        saving={save.isPending}
+        disabled={invalid}
+        problem={invalid ? 'Còn mẫu thiếu tên hoặc nội dung — điền đầy đủ hoặc xoá mẫu đó.' : null}
+        onSave={() => save.mutate()}
+        onReset={() => loaded && setDraft(structuredClone(loaded))}
+      />
     </Panel>
   );
 }

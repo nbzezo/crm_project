@@ -1,390 +1,87 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Bot,
-  ChevronLeft,
-  Database,
-  Download,
-  FileJson,
-  GanttChartSquare,
-  HardDriveDownload,
-  Info,
-  ListChecks,
-  ListOrdered,
-  Mail,
-  Network,
-  PackageOpen,
-  Send,
-  Share2,
-  ShieldCheck,
-  Tag,
-  Target,
-  Users,
-  Workflow,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { api } from '../api/client';
-import type { TelegramConfig } from '../types';
-import { Button, EmptyState, Panel } from '../components/common/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, Search, X } from 'lucide-react';
+import { useBlocker, useSearchParams } from 'react-router';
+import { Button, EmptyState, Panel, focusRing } from '../components/common/ui';
+import { Modal } from '../components/common/Modal';
 import { Tabs } from '../components/common/Tabs';
 import { PageHeader, PageShell } from '../components/common/PageShell';
 import { LabelManager } from '../components/labels/LabelManager';
 import { ScoringSettings } from '../components/crm/ScoringSettings';
 import { t } from '../i18n/vi';
-import { formatBytes } from '../components/crm/DocumentUpload';
-import { formatDateTime } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { TaskFlowSettings } from '../components/settings/TaskFlowSettings';
+import { TaskStatusSettings } from '../components/settings/TaskStatusSettings';
 import { PicklistSettings } from '../components/settings/PicklistSettings';
 import { PipelineSettings } from '../components/settings/PipelineSettings';
 import { ConfigProfileSettings } from '../components/settings/ConfigProfileSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
-import { DriveBackupSettings } from '../components/settings/DriveBackupSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
 import { UserSettings } from '../components/settings/UserSettings';
 import { OrgChartSettings } from '../components/settings/OrgChartSettings';
 import { PositionSettings } from '../components/settings/PositionSettings';
 import { AboutSettings } from '../components/settings/AboutSettings';
 import { ShareLinksSettings } from '../components/settings/ShareLinksSettings';
-import { usePermissionCheck, type PermissionKey } from '../lib/permissions';
-import { useSearchParams } from 'react-router';
-
-interface BackupFile {
-  name: string;
-  size: number;
-  created_at: string;
-}
-
-const CSV_EXPORTS: [string, string][] = [
-  ['customers', 'Khách hàng'],
-  ['contacts', 'Người liên hệ'],
-  ['deals', 'Cơ hội'],
-  ['contracts', 'Hợp đồng'],
-  ['tasks', 'Công việc'],
-  ['revenues', 'Doanh thu theo tháng'],
-];
-
-type SettingsTab =
-  | 'users'
-  | 'org'
-  | 'positions'
-  | 'labels'
-  | 'picklists'
-  | 'pipeline'
-  | 'scoring'
-  | 'handover'
-  | 'delivery'
-  | 'taskFlow'
-  | 'email'
-  | 'telegram'
-  | 'ai'
-  | 'data'
-  | 'profile'
-  | 'shares'
-  | 'about';
+import { BackupSettings, ExportSettings } from '../components/settings/DataSettings';
+import { OverviewSettings } from '../components/settings/OverviewSettings';
+import { dirtySummary, useSettingsDirtyStore } from '../components/settings/settingsDirty';
+import { usePermissionCheck } from '../lib/permissions';
+import {
+  resolveSettingsTab,
+  searchSettings,
+  visibleSettingsTabs,
+  type SettingsTab,
+} from '../lib/settingsNav';
 
 /*
- * Muc Cai dat, xep theo NAM NHOM.
+ * Muc Cai dat.
  *
- * Truoc day day la mot danh sach phang muoi hai muc tren mot dai tab ngang —
- * ma khung trang chi rong 896px nen nam muc cuoi khong bao gio hien ra. Te hon,
- * chung tron bon loai viec khac han nhau: cau hinh quy trinh, ket noi ra ngoai,
- * quan tri to chuc va viec ca nhan, khong co thu tu nao giai thich duoc.
- *
- * *Tai khoan* da chuyen ra menu avatar. *Gioi thieu* la thong tin chung nen
- * khong doi quyen; cac muc cau hinh con lai deu la viec quan tri.
- *
- * `group` phai lien tuc theo thu tu mang — tieu de nhom chi ve o muc dau tien
- * cua moi nhom (xem cho goi Tabs ben duoi).
+ * 1.32.0: danh muc trang chuyen sang lib/settingsNav.ts (nhom lai theo cau hoi
+ * nguoi dung, them Tong quan, tach Trang thai cong viec, Sao luu, Xuat du lieu);
+ * cot trai co o tim; doi muc / roi trang khi con thay doi chua luu thi hoi lai.
  */
-const SETTINGS_TABS: {
-  key: SettingsTab;
-  label: string;
-  icon: LucideIcon;
-  group: string;
-  permission?: PermissionKey;
-  /** Hien khi co MOT trong cac quyen nay (thay cho `permission`). */
-  permissionAny?: PermissionKey[];
-}[] = [
-  {
-    key: 'users',
-    label: t.settings.tabUsers,
-    icon: Users,
-    group: t.settings.groupOrg,
-    permission: 'admin.users:read',
-  },
-  {
-    key: 'org',
-    label: t.permissions.tabOrg,
-    icon: Network,
-    group: t.settings.groupOrg,
-    permission: 'admin.org:read',
-  },
-  {
-    key: 'positions',
-    label: t.permissions.tabPositions,
-    icon: ShieldCheck,
-    group: t.settings.groupOrg,
-    permission: 'admin.positions:read',
-  },
-
-  {
-    key: 'labels',
-    label: t.settings.tabLabels,
-    icon: Tag,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-  {
-    key: 'pipeline',
-    label: t.settings.tabPipeline,
-    icon: Workflow,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-  {
-    key: 'picklists',
-    label: t.settings.tabPicklists,
-    icon: ListChecks,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-  {
-    key: 'scoring',
-    label: t.settings.tabScoring,
-    icon: Target,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-  {
-    key: 'handover',
-    label: t.settings.tabHandover,
-    icon: PackageOpen,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-  {
-    key: 'delivery',
-    label: t.settings.tabDelivery,
-    icon: GanttChartSquare,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-  {
-    /* Quy trinh theo trang thai cua cong viec (v66). */
-    key: 'taskFlow',
-    label: t.settings.tabTaskFlow,
-    icon: ListOrdered,
-    group: t.settings.groupProcess,
-    permission: 'settings.app:read',
-  },
-
-  {
-    key: 'email',
-    label: t.settings.tabEmail,
-    icon: Mail,
-    group: t.settings.groupIntegration,
-    permission: 'settings.email:read',
-  },
-  {
-    key: 'telegram',
-    label: t.settings.tabTelegram,
-    icon: Send,
-    group: t.settings.groupIntegration,
-    permission: 'settings.telegram:read',
-  },
-  {
-    key: 'ai',
-    label: t.settings.tabAi,
-    icon: Bot,
-    group: t.settings.groupIntegration,
-    permission: 'settings.ai:read',
-  },
-
-  {
-    key: 'data',
-    label: t.settings.tabData,
-    icon: Database,
-    group: t.settings.groupData,
-    permission: 'data.export:export',
-  },
-  {
-    /* Cau hinh nghiep vu dong goi thanh mot tep — mang giua cac ban cai (1.27.0). */
-    key: 'profile',
-    label: t.settings.tabProfile,
-    icon: FileJson,
-    group: t.settings.groupData,
-    permission: 'settings.app:read',
-  },
-  {
-    /* Danh sach link cong khai dang mo + cong tac bat/tat chia se toan cong ty.
-       Cung nhom voi xuat du lieu: ca hai la noi du lieu di ra ngoai he thong. */
-    key: 'shares',
-    label: t.settings.tabShares,
-    icon: Share2,
-    group: t.settings.groupData,
-    permissionAny: ['documents:update', 'quotations:update', 'contracts:update'],
-  },
-
-  {
-    key: 'about',
-    label: t.settings.tabAbout,
-    icon: Info,
-    group: t.settings.groupSystem,
-  },
-];
-
-function DataSettings() {
-  const queryClient = useQueryClient();
-  const pushToast = useUiStore((s) => s.pushToast);
-
-  const { data: backups = [] } = useQuery({
-    queryKey: ['backups'],
-    queryFn: () => api.get<BackupFile[]>('/api/backups'),
-  });
-
-  const { data: telegramConfig } = useQuery({
-    queryKey: ['telegram-config'],
-    queryFn: () => api.get<TelegramConfig>('/api/telegram/config'),
-  });
-  const telegramReady = Boolean(telegramConfig?.has_token && telegramConfig?.chat_id);
-
-  const backup = useMutation({
-    mutationFn: () => api.post<{ name: string; size: number }>('/api/backup'),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['backups'] });
-      pushToast(`Đã tạo bản sao lưu ${result.name}`, 'success');
-      window.location.href = `/api/backups/${encodeURIComponent(result.name)}/download`;
-    },
-  });
-
-  const sendBackupToTelegram = useMutation({
-    mutationFn: () => api.post<{ name: string }>('/api/telegram/send-backup'),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['backups'] });
-      queryClient.invalidateQueries({ queryKey: ['telegram-config'] });
-      pushToast(`Đã gửi bản sao lưu ${result.name} qua Telegram`, 'success');
-    },
-  });
-
-  return (
-    <div className="space-y-4">
-      <Panel title={t.settings.backup}>
-        <p className="mb-3 flex items-center gap-2 text-sm text-tr-subtle">
-          <Database size={15} /> {t.settings.dataLocation}
-        </p>
-        <p className="mb-2 text-xs text-tr-subtle">{t.settings.backupChoiceHint}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={() => backup.mutate()} disabled={backup.isPending}>
-            <HardDriveDownload size={15} />
-            {backup.isPending ? 'Đang tạo…' : t.settings.backupDownload}
-          </Button>
-          <Button
-            onClick={() => sendBackupToTelegram.mutate()}
-            disabled={!telegramReady || sendBackupToTelegram.isPending}
-            title={telegramReady ? undefined : t.settings.backupTelegramNotReady}
-          >
-            <Send size={15} />
-            {sendBackupToTelegram.isPending ? 'Đang gửi…' : t.settings.backupSendTelegram}
-          </Button>
-          <a
-            href="/api/export"
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-tr-border bg-tr-panel px-3 py-1.5 text-sm font-medium text-tr-text transition hover:bg-tr-hover"
-          >
-            <Download size={15} /> {t.settings.exportJson}
-          </a>
-        </div>
-        {!telegramReady && (
-          <p className="mt-2 text-xs text-tr-muted">{t.settings.backupTelegramNotReady}</p>
-        )}
-
-        {/* NFR-06: xuất CSV mở được bằng Excel */}
-        <div className="mt-4">
-          <h3 className="mb-2 text-xs font-semibold text-tr-subtle">{t.settings.exportCsv}</h3>
-          <div className="flex flex-wrap gap-2">
-            {CSV_EXPORTS.map(([entity, label]) => (
-              <a
-                key={entity}
-                href={`/api/export/${entity}.csv`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-tr-border bg-tr-panel px-3 py-1.5 text-sm text-tr-text transition hover:bg-tr-hover"
-              >
-                <Download size={14} /> {label}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {backups.length > 0 && (
-          <div className="mt-4">
-            <h3 className="mb-2 text-xs font-semibold text-tr-subtle">{t.settings.backupList}</h3>
-            <p className="mb-2 text-xs text-tr-muted">
-              Máy chủ chỉ giữ 10 bản mới nhất; bản cũ hơn tự xoá để không đầy ổ đĩa. Tải về những
-              bản cần lưu lâu dài.
-            </p>
-            <ul className="divide-y divide-tr-border rounded-lg border border-tr-border">
-              {backups.map((file) => (
-                <li key={file.name} className="flex items-center gap-3 px-3 py-2 text-sm">
-                  <span className="flex-1 truncate text-tr-text">{file.name}</span>
-                  <span className="text-xs text-tr-muted">{formatBytes(file.size)}</span>
-                  <span className="text-xs text-tr-muted">
-                    {formatDateTime(file.created_at.slice(0, 16))}
-                  </span>
-                  <a
-                    href={`/api/backups/${encodeURIComponent(file.name)}/download`}
-                    className="rounded-control p-1 text-tr-muted transition hover:bg-tr-hover hover:text-tr-text"
-                    aria-label={`${t.settings.backupDownload} ${file.name}`}
-                    title={t.settings.backupDownload}
-                  >
-                    <Download size={14} />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </Panel>
-
-      <DriveBackupSettings />
-
-      <Panel title={t.settings.sampleData}>
-        <p className="text-sm text-tr-subtle">
-          Chạy lệnh <code className="rounded bg-tr-hover px-1.5 py-0.5">npm run seed</code> trong
-          thư mục dự án để nạp dữ liệu mẫu (chỉ chạy khi cơ sở dữ liệu còn trống).
-        </p>
-      </Panel>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const allowed = usePermissionCheck();
   const [params, setParams] = useSearchParams();
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  /* *Tai khoan* da chuyen ra menu avatar. Cac muc quan tri duoc loc theo quyen;
-   *Gioi thieu* luon hien vi khong doc hay thay doi du lieu nghiep vu. */
-  const visibleTabs = SETTINGS_TABS.filter((item) =>
-    item.permissionAny ? item.permissionAny.some((key) => allowed(key)) : allowed(item.permission)
-  );
+  const visibleTabs = visibleSettingsTabs(allowed);
+  const shownTabs = useMemo(() => searchSettings(visibleTabs, query), [visibleTabs, query]);
 
-  /* Tab nam trong URL chu khong phai useState: mot khu co muoi mot muc thi F5
-     mat cho dang xem, va khong gui duoc lien ket cho dong nghiep, la kho chiu
-     thay ro. */
-  const requested = params.get('tab') as SettingsTab | null;
-  const activeTab =
-    requested && visibleTabs.some((item) => item.key === requested)
-      ? requested
-      : (visibleTabs[0]?.key ?? 'users');
-  const validSelection = requested && visibleTabs.some((item) => item.key === requested);
+  /* Tab nam trong URL chu khong phai useState: F5 khong mat cho dang xem, va gui
+     duoc lien ket cho dong nghiep. `?tab=data` (lien ket cu, URL quay ve tu
+     Google Drive) tro sang Sao luu. */
+  const requested = resolveSettingsTab(params.get('tab'));
+  const validSelection = Boolean(requested && visibleTabs.some((item) => item.key === requested));
+  const activeTab: SettingsTab = validSelection ? requested! : (visibleTabs[0]?.key ?? 'overview');
+  const activeDef = visibleTabs.find((item) => item.key === activeTab);
 
   const setTab = (next: SettingsTab) => {
     setParams((prev) => {
-      const copy = new URLSearchParams(prev);
+      const copy = new URLSearchParams();
+      /* Bo cac tham so cua trang cu (vd. ?drive=connected) — chung chi co nghia
+         voi trang da sinh ra chung. */
+      if (prev.get('tab') === next) return prev;
       copy.set('tab', next);
       return copy;
     });
   };
+
+  /* Phim "/" mo o tim, nhu o tim cua nhieu ung dung — tru khi dang go trong o. */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   if (visibleTabs.length === 0) {
     return (
@@ -395,9 +92,54 @@ export default function SettingsPage() {
     );
   }
 
+  const search = (
+    <div className="mb-3">
+      <label
+        className={`flex h-11 items-center gap-2 rounded-control border border-tr-border bg-tr-panel px-2.5 fine:h-9 ${focusRing} focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-tr-primary`}
+      >
+        <Search size={15} className="shrink-0 text-tr-muted" aria-hidden="true" />
+        <input
+          ref={searchRef}
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setQuery('');
+            if (event.key === 'Enter' && shownTabs[0]) {
+              setTab(shownTabs[0].key);
+              setQuery('');
+            }
+          }}
+          placeholder="Tìm cài đặt…"
+          aria-label="Tìm cài đặt"
+          className="min-w-0 flex-1 bg-transparent text-sm text-tr-text outline-none placeholder:text-tr-muted [&::-webkit-search-cancel-button]:hidden"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label="Xoá ô tìm"
+            className="rounded-control p-0.5 text-tr-muted hover:text-tr-text"
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        ) : (
+          <kbd className="hidden rounded border border-tr-border px-1.5 text-[11px] text-tr-muted md:inline">
+            /
+          </kbd>
+        )}
+      </label>
+      {query && shownTabs.length === 0 && (
+        <p className="mt-2 px-1 text-xs text-tr-muted">Không có cài đặt nào khớp “{query}”.</p>
+      )}
+    </div>
+  );
+
   return (
     <PageShell width="wide" spacing="none">
       <PageHeader title={t.settings.pageTitle} className="mb-5" />
+
+      <LeaveGuard />
 
       {validSelection && (
         <button
@@ -419,19 +161,33 @@ export default function SettingsPage() {
         value={activeTab}
         onChange={setTab}
         orientation="vertical"
+        activation="manual"
         mobileListMode={validSelection ? 'panel' : 'list'}
-        items={visibleTabs.map((item, index) => ({
+        before={search}
+        items={shownTabs.map((item, index) => ({
           value: item.key,
           label: item.label,
           icon: <item.icon size={15} aria-hidden="true" />,
-          /* Chi muc DAU TIEN cua moi nhom mang tieu de — cac muc sau nam duoi no. */
-          group: visibleTabs[index - 1]?.group === item.group ? undefined : item.group,
+          /* Chi muc DAU TIEN cua moi nhom mang tieu de. Dang tim thi bo tieu de:
+             ket qua xep theo do khop, khong theo nhom. */
+          group: query
+            ? undefined
+            : shownTabs[index - 1]?.group === item.group
+              ? undefined
+              : item.group,
         }))}
         ariaLabel={t.settings.pageTitle}
         idPrefix="settingstab"
       >
+        {activeDef && (
+          <header className="mb-4">
+            <h2 className="text-xl font-bold tracking-[-0.01em] text-tr-text">{activeDef.label}</h2>
+            <p className="mt-0.5 text-sm text-tr-subtle">{activeDef.description}</p>
+          </header>
+        )}
+        {activeTab === 'overview' && <OverviewSettings onOpen={setTab} />}
         {activeTab === 'labels' && (
-          <Panel title={t.settings.manageLabels}>
+          <Panel>
             <LabelManager />
           </Panel>
         )}
@@ -443,12 +199,14 @@ export default function SettingsPage() {
         {activeTab === 'pipeline' && <PipelineSettings />}
         {activeTab === 'picklists' && <PicklistSettings />}
         {activeTab === 'handover' && <HandoverSettings />}
+        {activeTab === 'taskStatuses' && <TaskStatusSettings />}
         {activeTab === 'taskFlow' && <TaskFlowSettings />}
         {activeTab === 'delivery' && <DeliverySettings />}
         {activeTab === 'ai' && <AiSettings />}
-        {activeTab === 'telegram' && <TelegramSettings />}
+        {activeTab === 'telegram' && <TelegramSettings onOpen={setTab} />}
         {activeTab === 'email' && <EmailSettings />}
-        {activeTab === 'data' && <DataSettings />}
+        {activeTab === 'backup' && <BackupSettings />}
+        {activeTab === 'export' && <ExportSettings />}
         {activeTab === 'profile' && <ConfigProfileSettings />}
         {activeTab === 'shares' && <ShareLinksSettings />}
         {activeTab === 'users' && <UserSettings />}
@@ -457,5 +215,90 @@ export default function SettingsPage() {
         {activeTab === 'about' && <AboutSettings />}
       </Tabs>
     </PageShell>
+  );
+}
+
+/**
+ * Hoi lai khi roi muc (doi tab, bam lien ket khac trong ung dung) hoac dong tab
+ * trinh duyet trong luc con thay doi chua luu o bat ky trang Cai dat nao.
+ */
+function LeaveGuard() {
+  const sources = useSettingsDirtyStore((s) => s.sources);
+  const clear = useSettingsDirtyStore((s) => s.clear);
+  const pushToast = useUiStore((s) => s.pushToast);
+  const dirty = Object.keys(sources).length > 0;
+  const [saving, setSaving] = useState(false);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        new URLSearchParams(currentLocation.search).get('tab') !==
+          new URLSearchParams(nextLocation.search).get('tab'))
+  );
+
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      /* Trinh duyet cu doi gan returnValue moi hien hop thoai. */
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
+
+  const savers = Object.values(sources).map((source) => source.save);
+  const canSaveAll = savers.length > 0 && savers.every(Boolean);
+
+  const saveAndGo = async () => {
+    setSaving(true);
+    try {
+      await Promise.all(savers.map((save) => save!()));
+      clear();
+      blocker.proceed?.();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : 'Chưa lưu được thay đổi', 'error');
+      blocker.reset?.();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={blocker.state === 'blocked'}
+      onClose={() => blocker.reset?.()}
+      title="Còn thay đổi chưa lưu"
+      width="max-w-md"
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            className="mr-auto text-tr-danger"
+            disabled={saving}
+            onClick={() => {
+              clear();
+              blocker.proceed?.();
+            }}
+          >
+            Bỏ thay đổi
+          </Button>
+          <Button disabled={saving} onClick={() => blocker.reset?.()}>
+            Ở lại
+          </Button>
+          {canSaveAll && (
+            <Button variant="primary" disabled={saving} onClick={() => void saveAndGo()}>
+              {saving ? 'Đang lưu…' : 'Lưu và đi tiếp'}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <p className="text-sm text-tr-subtle">
+        Bạn đã sửa <b className="text-tr-text">{dirtySummary(sources)}</b> nhưng chưa lưu. Rời đi
+        bây giờ sẽ mất các thay đổi này.
+      </p>
+    </Modal>
   );
 }

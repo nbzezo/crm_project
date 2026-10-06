@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import {
@@ -33,6 +33,8 @@ import {
 } from '../../i18n/permissions';
 import { useUiStore } from '../../stores/uiStore';
 import { useAuthStore } from '../../stores/authStore';
+import { SaveBar } from './SettingsKit';
+import { useSettingsDirty } from './settingsDirty';
 
 /**
  * Vi tri va ma tran phan quyen — toan bo la cau hinh dong.
@@ -78,6 +80,10 @@ export function PositionSettings() {
   const [newName, setNewName] = useState('');
   const [cloneFrom, setCloneFrom] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<Position | null>(null);
+  const [confirmSave, setConfirmSave] = useState(false);
+  /* Doi sang vi tri khac khi ma tran dang co thay doi: hoi truoc khi bo. */
+  const [pendingSelect, setPendingSelect] = useState<number | null>(null);
+  const myPositions = useAuthStore((s) => s.user?.positions);
 
   const positions = useQuery({
     queryKey: ['positions'],
@@ -112,6 +118,7 @@ export function PositionSettings() {
     onSuccess: (rows) => {
       queryClient.setQueryData(['positions', selected?.id, 'permissions'], rows);
       setDirty(false);
+      setConfirmSave(false);
       pushToast(t.positions.saved, 'success');
       /* Nguoi dang sua co the vua doi chinh quyen cua MINH — nap lai ho so de
          menu va cac man hinh khac khop ngay, khong doi lan tai trang sau. */
@@ -158,6 +165,37 @@ export function PositionSettings() {
     });
     setDirty(true);
   }
+
+  const original = useMemo(
+    () => (permissions.data ? toMatrix(permissions.data) : {}),
+    [permissions.data]
+  );
+  const scopeRank = (scope: PermissionScope | undefined) =>
+    PERMISSION_SCOPES.indexOf(scope ?? 'none');
+  const changes = useMemo(() => {
+    const list: { key: string; from: PermissionScope; to: PermissionScope }[] = [];
+    for (const [key, to] of Object.entries(draft)) {
+      const from = original[key] ?? 'none';
+      if (from !== to) list.push({ key, from, to });
+    }
+    return list;
+  }, [draft, original]);
+  const realDirty = dirty && changes.length > 0;
+  const holdsSelected = Boolean(selected && myPositions?.some((p) => p.id === selected.id));
+  const lowersOwn =
+    holdsSelected && changes.some((change) => scopeRank(change.to) < scopeRank(change.from));
+  useSettingsDirty('positions', realDirty, `quyền của vị trí ${selected?.name ?? ''}`);
+
+  const describe = (key: string) => {
+    const [resource, action] = key.split(':') as [PermissionResource, PermissionAction];
+    return `${RESOURCE_LABELS[resource] ?? resource} · ${ACTION_LABELS[action] ?? action}`;
+  };
+
+  const choose = (id: number) => {
+    if (id === selected?.id) return;
+    if (realDirty) setPendingSelect(id);
+    else setSelectedId(id);
+  };
 
   return (
     <Panel
@@ -209,7 +247,7 @@ export function PositionSettings() {
       {positions.isPending ? <SkeletonRows rows={4} /> : null}
 
       {positions.data && positions.data.length > 0 ? (
-        <div className="grid gap-4 xl:grid-cols-[15rem_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[15rem_minmax(0,1fr)]">
           <div className="space-y-1">
             {positions.data.map((position) => (
               <div
@@ -222,7 +260,7 @@ export function PositionSettings() {
               >
                 <button
                   type="button"
-                  onClick={() => setSelectedId(position.id)}
+                  onClick={() => choose(position.id)}
                   aria-current={selected?.id === position.id}
                   className="min-w-0 flex-1 text-left"
                 >
@@ -265,13 +303,10 @@ export function PositionSettings() {
                     <p className="text-xs text-tr-muted">{selected.description}</p>
                   ) : null}
                 </div>
-                <Button
-                  variant="primary"
-                  disabled={!dirty || save.isPending}
-                  onClick={() => save.mutate()}
-                >
-                  {save.isPending ? t.common.saving : t.common.save}
-                </Button>
+                <span className="text-xs text-tr-muted">
+                  {t.positions.holders.replace('{n}', String(selected.holder_count))} · ô viền vàng
+                  là ô đã đổi
+                </span>
               </div>
 
               {permissions.isPending ? <SkeletonRows rows={6} /> : null}
@@ -336,6 +371,12 @@ export function PositionSettings() {
                                         {applies ? (
                                           <Select
                                             fullWidth={false}
+                                            className={scopeClass(
+                                              draft[permissionKey(resource, action)] ?? 'none',
+                                              (draft[permissionKey(resource, action)] ?? 'none') !==
+                                                (original[permissionKey(resource, action)] ??
+                                                  'none')
+                                            )}
                                             aria-label={`${RESOURCE_LABELS[resource]} — ${ACTION_LABELS[action]}`}
                                             title={
                                               SCOPE_HINTS[
@@ -401,6 +442,59 @@ export function PositionSettings() {
         </div>
       ) : null}
 
+      <SaveBar
+        dirty={realDirty}
+        saving={save.isPending}
+        message={`${changes.length} thay đổi cho “${selected?.name ?? ''}” — áp dụng ngay cho ${selected?.holder_count ?? 0} người`}
+        saveLabel="Xem lại & lưu"
+        onSave={() => setConfirmSave(true)}
+        onReset={() => {
+          setDraft(original);
+          setDirty(false);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmSave}
+        tone={lowersOwn ? 'danger' : 'primary'}
+        title={`Lưu ${changes.length} thay đổi quyền?`}
+        message={
+          <>
+            Áp dụng ngay cho <b>{selected?.holder_count ?? 0} người</b> đang giữ vị trí “
+            {selected?.name}”.
+            {lowersOwn ? (
+              <span className="mt-2 block font-medium text-tr-danger">
+                Bạn đang giữ vị trí này và sắp tự hạ quyền của chính mình — có thể mất quyền vào
+                trang này.
+              </span>
+            ) : null}
+          </>
+        }
+        details={[
+          ...changes
+            .slice(0, 8)
+            .map(
+              (change) =>
+                `${describe(change.key)}: ${SCOPE_LABELS[change.from]} → ${SCOPE_LABELS[change.to]}`
+            ),
+          ...(changes.length > 8 ? [`… và ${changes.length - 8} thay đổi khác`] : []),
+        ]}
+        confirmLabel="Lưu thay đổi"
+        pending={save.isPending}
+        onConfirm={() => save.mutate()}
+        onCancel={() => setConfirmSave(false)}
+      />
+      <ConfirmDialog
+        open={pendingSelect !== null}
+        title="Bỏ thay đổi chưa lưu?"
+        message={`Ma trận quyền của “${selected?.name ?? ''}” còn ${changes.length} thay đổi chưa lưu. Chuyển sang vị trí khác sẽ bỏ các thay đổi này.`}
+        confirmLabel="Bỏ thay đổi"
+        onConfirm={() => {
+          setDirty(false);
+          setSelectedId(pendingSelect);
+          setPendingSelect(null);
+        }}
+        onCancel={() => setPendingSelect(null)}
+      />
       <ConfirmDialog
         open={confirmDelete !== null}
         title={t.positions.confirmDeleteTitle}
@@ -411,4 +505,15 @@ export function PositionSettings() {
       />
     </Panel>
   );
+}
+
+/** To mau o pham vi theo do rong, de doc ca hang bang mat; o da doi co vien vang. */
+function scopeClass(scope: PermissionScope, changed: boolean): string {
+  const tone =
+    scope === 'none'
+      ? 'text-tr-muted'
+      : scope === 'all'
+        ? 'font-semibold text-tr-primary'
+        : 'text-tr-text';
+  return `${tone} ${changed ? 'outline-2 outline-tr-warning' : ''}`;
 }

@@ -8,6 +8,9 @@ import { formatBytes } from '../crm/DocumentUpload';
 import { t } from '../../i18n/vi';
 import { formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { SaveBar, Toggle } from './SettingsKit';
+import { useSettingsDirty, useSettingsDirtyStore } from './settingsDirty';
 
 /*
  * Sao luu CSDL va tep tai len ra Google Drive (v49).
@@ -60,6 +63,7 @@ export function DriveBackupSettings() {
   const [intervalHours, setIntervalHours] = useState(24);
   const [keepDbCount, setKeepDbCount] = useState(14);
   const [copied, setCopied] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const config = useQuery({
     queryKey: QUERY_KEY,
@@ -122,7 +126,10 @@ export function DriveBackupSettings() {
         google_client_id: clientId.trim(),
         google_client_secret: clientSecret || undefined,
       }),
-    onSuccess: () => window.location.assign('/api/drive-backup/oauth/start'),
+    onSuccess: () => {
+      useSettingsDirtyStore.getState().clear();
+      window.location.assign('/api/drive-backup/oauth/start');
+    },
   });
 
   const reuseEmailClient = useMutation({
@@ -138,6 +145,7 @@ export function DriveBackupSettings() {
     mutationFn: () => api.post<DriveConfig>('/api/drive-backup/disconnect', {}),
     onSuccess: (data) => {
       setConfig(data);
+      setConfirmDisconnect(false);
       pushToast(t.driveBackup.disconnected, 'success');
     },
   });
@@ -186,6 +194,16 @@ export function DriveBackupSettings() {
       /* Trinh duyet chan clipboard: o van chon duoc de copy tay. */
     }
   };
+
+  const scheduleDirty = Boolean(
+    saved?.connected &&
+    (enabled !== saved.enabled ||
+      intervalHours !== saved.interval_hours ||
+      keepDbCount !== saved.keep_db_count)
+  );
+  useSettingsDirty('drive-backup', scheduleDirty, 'lịch sao lưu Google Drive', () =>
+    save.mutateAsync()
+  );
 
   if (!saved) return null;
 
@@ -289,14 +307,12 @@ export function DriveBackupSettings() {
               ) : null}
             </dl>
 
-            <label className="flex items-center gap-2 text-sm text-tr-text">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-              />
-              {t.driveBackup.enabled}
-            </label>
+            <Toggle
+              checked={enabled}
+              onChange={setEnabled}
+              label={t.driveBackup.enabled}
+              hideLabel={false}
+            />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={t.driveBackup.interval}>
                 <Select
@@ -322,9 +338,6 @@ export function DriveBackupSettings() {
             </div>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>
-                {save.isPending ? t.common.saving : t.driveBackup.save}
-              </Button>
               <Button variant="secondary" disabled={busy} onClick={() => run.mutate()}>
                 <CloudUpload size={15} aria-hidden />
                 {saved.running ? t.driveBackup.running : t.driveBackup.runNow}
@@ -332,7 +345,7 @@ export function DriveBackupSettings() {
               <Button
                 variant="secondary"
                 disabled={disconnect.isPending || saved.running}
-                onClick={() => disconnect.mutate()}
+                onClick={() => setConfirmDisconnect(true)}
               >
                 {t.driveBackup.disconnect}
               </Button>
@@ -447,6 +460,29 @@ export function DriveBackupSettings() {
           {saved.connected ? t.driveBackup.reconnect : t.driveBackup.connect}
         </Button>
       </div>
+      <SaveBar
+        dirty={scheduleDirty}
+        saving={save.isPending}
+        onSave={() => save.mutate()}
+        onReset={() => {
+          setEnabled(saved.enabled);
+          setIntervalHours(saved.interval_hours);
+          setKeepDbCount(saved.keep_db_count);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmDisconnect}
+        title="Ngắt kết nối Google Drive?"
+        message="Sao lưu định kỳ ra Drive dừng ngay. Các bản đã có trên Drive vẫn được giữ."
+        details={[
+          'Tệp tải lên sẽ không còn bản sao nào ngoài máy chủ.',
+          'Muốn sao lưu lại phải đăng nhập Google lần nữa.',
+        ]}
+        confirmLabel="Ngắt kết nối"
+        pending={disconnect.isPending}
+        onConfirm={() => disconnect.mutate()}
+        onCancel={() => setConfirmDisconnect(false)}
+      />
     </Panel>
   );
 }

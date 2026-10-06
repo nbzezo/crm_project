@@ -22,6 +22,8 @@ export function Tabs<T extends string>({
   orientation = 'horizontal',
   mobileListMode,
   actions,
+  activation = 'auto',
+  before,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -44,6 +46,14 @@ export function Tabs<T extends string>({
   mobileListMode?: 'list' | 'panel';
   /** Nut thao tac chinh dat cuoi hang tab (chi huong ngang), vd. "Tạo trang". */
   actions?: ReactNode;
+  /**
+   * `manual`: phim mui ten chi doi tieu diem, Enter/Space moi mo muc. Dung cho
+   * cot Cai dat — moi muc la mot trang nang, va doi muc co the hoi "con thay
+   * doi chua luu"; lot qua tung muc bang mui ten khong duoc kich hoat ca hai.
+   */
+  activation?: 'auto' | 'manual';
+  /** Noi dung dat tren danh sach tab o huong doc (vd. o tim cai dat). */
+  before?: ReactNode;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const panelId = `${idPrefix}-panel`;
@@ -55,7 +65,7 @@ export function Tabs<T extends string>({
     if (!next) return;
     const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
     buttons?.[nextIndex]?.focus();
-    onChange(next.value);
+    if (activation === 'auto') onChange(next.value);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -167,10 +177,11 @@ export function Tabs<T extends string>({
   /* Dưới md: cột nhóm xếp TRÊN nội dung thay vì quay lại kiểu cuộn ngang — màn
      hẹp chính là nơi dải tab ngang hỏng nặng nhất. */
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:gap-6">
       <div
         className={`${mobileListMode === 'panel' ? 'max-md:hidden' : ''} md:sticky md:top-4 md:self-start`}
       >
+        {before}
         {list}
       </div>
       {panel}

@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Download, FileUp } from 'lucide-react';
 import { api } from '../../api/client';
 import { Button, FormError, Panel } from '../common/ui';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useUiStore } from '../../stores/uiStore';
 import { usePermission } from '../../lib/permissions';
 import { CRM_CONFIG_QUERY_KEY } from '../../lib/crmConfig';
@@ -30,6 +31,7 @@ export function ConfigProfileSettings() {
   const [profile, setProfile] = useState<{ name: string; data: unknown } | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
+  const [confirmApply, setConfirmApply] = useState(false);
 
   /* Dữ liệu hồ sơ đi theo tham số của lần gọi, không đọc từ state: lần chạy thử
      được gọi ngay sau setProfile, khi state còn là giá trị cũ. */
@@ -39,6 +41,7 @@ export function ConfigProfileSettings() {
     onSuccess: (result) => {
       setReport(result);
       if (!result.dry_run) {
+        setConfirmApply(false);
         queryClient.invalidateQueries();
         queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
         pushToast('Đã áp dụng hồ sơ cấu hình', 'success');
@@ -72,7 +75,7 @@ export function ConfigProfileSettings() {
         </p>
         <a
           href="/api/crm-config/profile"
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-tr-border bg-tr-panel px-3 py-1.5 text-sm font-medium text-tr-text transition hover:bg-tr-hover"
+          className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-control border border-tr-border bg-tr-panel px-3 py-1.5 text-sm font-medium text-tr-text transition hover:bg-tr-hover fine:min-h-[32px]"
         >
           <Download size={15} aria-hidden="true" /> Tải hồ sơ cấu hình
         </a>
@@ -115,13 +118,28 @@ export function ConfigProfileSettings() {
                 <Button
                   variant="primary"
                   disabled={run.isPending}
-                  onClick={() => run.mutate({ data: profile.data, dryRun: false })}
+                  onClick={() => setConfirmApply(true)}
                 >
                   {run.isPending ? 'Đang áp dụng…' : 'Áp dụng hồ sơ'}
                 </Button>
               )}
             </div>
           )}
+          <ConfirmDialog
+            open={confirmApply}
+            tone="primary"
+            title="Áp dụng hồ sơ cấu hình?"
+            message={`Cấu hình của bản cài này sẽ thay đổi ngay cho mọi người${profile ? ` theo tệp “${profile.name}”` : ''}.`}
+            details={[
+              `${report?.created.length ?? 0} mục được thêm mới`,
+              `${report?.updated.length ?? 0} mục được cập nhật`,
+              'Mục chỉ có ở bản cài này được giữ nguyên, không xoá gì.',
+            ]}
+            confirmLabel="Áp dụng"
+            pending={run.isPending}
+            onConfirm={() => profile && run.mutate({ data: profile.data, dryRun: false })}
+            onCancel={() => setConfirmApply(false)}
+          />
         </Panel>
       )}
     </div>

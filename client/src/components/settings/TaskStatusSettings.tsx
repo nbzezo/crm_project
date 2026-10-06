@@ -17,6 +17,7 @@ import { usePermission } from '../../lib/permissions';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { STATUS_KIND_LABELS, TASK_STATUSES_KEY } from '../../lib/taskStatuses';
 import { useUiStore } from '../../stores/uiStore';
+import { SaveStatus, useSaveState } from './SettingsKit';
 import { TASK_FLOW_SETTINGS_KEY } from '../taskFlow/taskFlowApi';
 import { CARD_STATUS_TONE } from '../tasks/CardStatusControl';
 import { STATUS_COLOR_PLACEHOLDER } from '../../theme/palettes';
@@ -67,6 +68,8 @@ export function TaskStatusSettings() {
     onSuccess: refresh,
   });
 
+  const saveState = useSaveState([create, update, reorder]);
+
   if (isLoading || !list) return <Skeleton className="h-48 rounded-panel" />;
 
   const activeList = list.filter((status) => status.is_active);
@@ -87,13 +90,13 @@ export function TaskStatusSettings() {
   };
 
   return (
-    <Panel title="Trạng thái công việc">
+    <Panel title="Danh sách trạng thái" action={<SaveStatus state={saveState} />}>
       <p className="mb-3 text-xs text-tr-muted">
         Danh sách trạng thái hiện ở ô Trạng thái của mọi công việc. Mỗi trạng thái chọn một{' '}
         <span className="font-medium text-tr-text">ý nghĩa</span> để hệ thống biết việc đã xong,
         đang chờ hay cần duyệt — báo cáo, nhắc việc và nút hoàn thành dựa vào đó. Việc mới vào trạng
         thái “Chưa bắt đầu” đầu tiên; nút hoàn thành nhanh đưa việc vào trạng thái “Hoàn thành” đầu
-        tiên.
+        tiên. Mỗi thay đổi lưu ngay.
       </p>
       <FormError error={create.error ?? update.error ?? reorder.error} />
 

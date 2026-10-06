@@ -7,10 +7,13 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api/client';
-import { Button, Field, FormError, Input, Panel, Select, Skeleton, focusRing } from '../common/ui';
+import { Button, Field, FormError, Input, Panel, Select, IconButton, Skeleton } from '../common/ui';
 import { useUiStore } from '../../stores/uiStore';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { ReorderButtons, SaveBar, moveItem } from './SettingsKit';
+import { useSettingsDirty } from './settingsDirty';
 import type { HandoverSettingsData, HandoverTemplateItem } from '../../types';
 
 /** Bộ mẫu này là chỗ rơi về của mọi cơ hội nên không cho xoá. */
@@ -24,6 +27,7 @@ export function HandoverSettings() {
   const [slaDays, setSlaDays] = useState(7);
   const [activeKey, setActiveKey] = useState(FALLBACK_KEY);
   const [newKey, setNewKey] = useState('');
+  const [confirmDeleteSet, setConfirmDeleteSet] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'handover'],
@@ -53,6 +57,13 @@ export function HandoverSettings() {
     },
   });
 
+  const anyDirty = Boolean(
+    loaded &&
+    draft &&
+    (JSON.stringify(draft) !== JSON.stringify(loaded.templates) || slaDays !== loaded.slaDays)
+  );
+  useSettingsDirty('handover', anyDirty, 'cấu hình bàn giao', () => save.mutateAsync());
+
   if (isLoading || !draft) return <Skeleton className="h-64 rounded-panel" />;
 
   const items = draft[activeKey] ?? [];
@@ -63,6 +74,7 @@ export function HandoverSettings() {
   const dirty = loaded ? JSON.stringify(draft) !== JSON.stringify(loaded.templates) : false;
   const slaDirty = loaded ? slaDays !== loaded.slaDays : false;
   const requiredCount = items.filter((item) => item.required).length;
+  const hasBlank = Object.values(draft).some((list) => list.some((item) => !item.content.trim()));
 
   return (
     <div className="space-y-4">
@@ -126,12 +138,9 @@ export function HandoverSettings() {
             </Button>
             {activeKey !== FALLBACK_KEY && (
               <Button
-                onClick={() => {
-                  const next = { ...draft };
-                  delete next[activeKey];
-                  setDraft(next);
-                  setActiveKey(FALLBACK_KEY);
-                }}
+                variant="ghost"
+                className="text-tr-danger"
+                onClick={() => setConfirmDeleteSet(true)}
               >
                 <Trash2 size={15} aria-hidden="true" /> Xóa bộ này
               </Button>
@@ -147,7 +156,12 @@ export function HandoverSettings() {
         <ul className="space-y-1.5">
           {items.map((item, index) => (
             <li key={index} className="flex items-center gap-2">
-              <GripVertical size={14} aria-hidden="true" className="shrink-0 text-tr-muted" />
+              <ReorderButtons
+                label={item.content || `mục ${index + 1}`}
+                canUp={index > 0}
+                canDown={index < items.length - 1}
+                onMove={(delta) => patchItems(moveItem(items, index, delta))}
+              />
               <Input
                 value={item.content}
                 onChange={(event) => {
@@ -170,48 +184,63 @@ export function HandoverSettings() {
                 />
                 Bắt buộc
               </label>
-              <button
-                type="button"
+              <IconButton
+                label={`Xóa mục ${index + 1}`}
+                tone="danger"
                 onClick={() => patchItems(items.filter((_, i) => i !== index))}
-                aria-label={`Xóa mục ${index + 1}`}
-                className={`shrink-0 rounded p-1 text-tr-muted transition hover:text-tr-danger ${focusRing}`}
               >
                 <Trash2 size={14} aria-hidden="true" />
-              </button>
+              </IconButton>
             </li>
           ))}
         </ul>
 
-        <div className="mt-3 flex items-center gap-2 border-t border-tr-border pt-3">
+        <div className="mt-3 border-t border-tr-border pt-3">
           <Button onClick={() => patchItems([...items, { content: '', required: true }])}>
             <Plus size={15} aria-hidden="true" /> Thêm mục
           </Button>
-          <span className="flex-1" />
-          <Button
-            variant="primary"
-            disabled={
-              save.isPending ||
-              (!dirty && !slaDirty) ||
-              items.some((item) => !item.content.trim()) ||
-              (draft[FALLBACK_KEY] ?? []).length === 0
-            }
-            onClick={() => save.mutate()}
-          >
-            {save.isPending ? 'Đang lưu…' : 'Lưu cấu hình'}
-          </Button>
         </div>
-
-        {items.some((item) => !item.content.trim()) && (
-          <p className="mt-2 text-xs text-tr-danger">
-            Còn mục để trống — điền nội dung hoặc xóa mục đó trước khi lưu.
-          </p>
-        )}
 
         <p className="mt-3 text-xs text-tr-muted">
           Đổi bộ mẫu chỉ ảnh hưởng tới checklist tạo mới sau này. Các cơ hội đã có checklist giữ
           nguyên nội dung tại thời điểm chúng được tạo.
         </p>
       </Panel>
+
+      <SaveBar
+        dirty={dirty || slaDirty}
+        saving={save.isPending}
+        disabled={hasBlank || (draft[FALLBACK_KEY] ?? []).length === 0}
+        problem={
+          hasBlank
+            ? 'Còn mục để trống — điền nội dung hoặc xoá mục đó.'
+            : (draft[FALLBACK_KEY] ?? []).length === 0
+              ? 'Bộ mẫu mặc định không được để rỗng.'
+              : null
+        }
+        onSave={() => save.mutate()}
+        onReset={() => {
+          if (!loaded) return;
+          setDraft(structuredClone(loaded.templates));
+          setSlaDays(loaded.slaDays);
+          if (!loaded.templates[activeKey]) setActiveKey(FALLBACK_KEY);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteSet}
+        title={`Xoá bộ mẫu “${activeKey}”?`}
+        message="Cơ hội thuộc loại giải pháp này sẽ dùng bộ mặc định cho checklist tạo sau này. Checklist đã có giữ nguyên. Thay đổi chỉ áp dụng khi bạn bấm Lưu thay đổi."
+        confirmLabel="Xoá bộ mẫu"
+        onConfirm={() => {
+          const next = { ...draft };
+          delete next[activeKey];
+          setDraft(next);
+          setActiveKey(FALLBACK_KEY);
+          setConfirmDeleteSet(false);
+        }}
+        onCancel={() => setConfirmDeleteSet(false)}
+      />
     </div>
   );
 }

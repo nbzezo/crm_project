@@ -8,14 +8,17 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { Button, Field, FormError, Input, Select, Skeleton } from '../common/ui';
-import { t } from '../../i18n/vi';
+import { Field, FormError, Input, Select, Skeleton } from '../common/ui';
+import { useUiStore } from '../../stores/uiStore';
+import { SaveBar } from '../settings/SettingsKit';
+import { useSettingsDirty } from '../settings/settingsDirty';
 import { formatVNDInput, parseVNDInput } from '../../lib/format';
 import { Link } from 'react-router';
 import type { ScoringSettings as Settings } from '../../types';
 
 export function ScoringSettings() {
   const queryClient = useQueryClient();
+  const pushToast = useUiStore((s) => s.pushToast);
   const [draft, setDraft] = useState<Settings | null>(null);
 
   const { data } = useQuery({
@@ -40,8 +43,21 @@ export function ScoringSettings() {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['pipeline-health'] });
+      pushToast('Đã lưu cấu hình chấm điểm', 'success');
     },
   });
+
+  const dirty = Boolean(
+    data &&
+    draft &&
+    (draft.staleDays !== data.staleDays ||
+      draft.v3Mode !== data.v3Mode ||
+      draft.challengeThresholdVnd !== data.challengeThresholdVnd ||
+      draft.winlossMinDeals !== data.winlossMinDeals)
+  );
+  useSettingsDirty('scoring', dirty, 'cấu hình chấm điểm', () =>
+    draft ? save.mutateAsync(draft) : Promise.resolve()
+  );
 
   if (!draft) return <Skeleton className="h-48 rounded-panel" />;
 
@@ -109,18 +125,19 @@ export function ScoringSettings() {
       </div>
 
       <FormError error={save.error} />
-      <div className="flex items-center gap-2">
-        <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate(draft)}>
-          {save.isPending ? t.common.saving : t.common.save}
-        </Button>
-        {save.isSuccess && <span className="text-xs text-tr-success">Đã lưu cấu hình.</span>}
-      </div>
 
       <p className="border-t border-tr-border pt-3 text-xs text-tr-muted">
         Điểm chất lượng <strong>không bao giờ</strong> ghi đè xác suất theo giai đoạn của cơ hội.
         Hai chỉ số được phép khác nhau — chênh lệch giữa chúng chính là thứ trang{' '}
         <em>Sức khỏe pipeline</em> đo.
       </p>
+
+      <SaveBar
+        dirty={dirty}
+        saving={save.isPending}
+        onSave={() => save.mutate(draft)}
+        onReset={() => data && setDraft(data)}
+      />
     </div>
   );
 }

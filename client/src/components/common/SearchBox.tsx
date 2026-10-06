@@ -10,6 +10,8 @@ import { useDialog } from './useDialog';
 import { focusRing } from './ui';
 import type { Priority, Stage } from '../../types';
 import { pickLabel, stageLabel } from '../../lib/crmConfig';
+import { usePermissionCheck } from '../../lib/permissions';
+import { searchSettings, visibleSettingsTabs } from '../../lib/settingsNav';
 
 interface SearchResults {
   cards: {
@@ -119,7 +121,15 @@ export function SearchBox() {
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog({ open, onClose: () => closeRef.current(), containerRef: panelRef });
 
-  const total = data ? Object.values(data).reduce((n, list) => n + list.length, 0) : 0;
+  const allowed = usePermissionCheck();
+  /* 1.32.0: Ctrl+K tim ca trang Cai dat — loc tai cho, khong goi may chu. */
+  const settingsHits = term.trim()
+    ? searchSettings(visibleSettingsTabs(allowed), term)
+        .filter((tab) => tab.key !== 'overview')
+        .slice(0, 4)
+    : [];
+  const total =
+    (data ? Object.values(data).reduce((n, list) => n + list.length, 0) : 0) + settingsHits.length;
 
   return (
     <>
@@ -230,6 +240,22 @@ export function SearchBox() {
                     </button>
                   ))}
                 </div>
+              )}
+
+              {settingsHits.length > 0 && (
+                <Group title="Cài đặt">
+                  {settingsHits.map((tab) => (
+                    <Row
+                      key={tab.key}
+                      onClick={() => {
+                        navigate(`/settings?tab=${tab.key}`);
+                        close();
+                      }}
+                      primary={tab.label}
+                      secondary={`${tab.group} · ${tab.description}`}
+                    />
+                  ))}
+                </Group>
               )}
 
               {data && data.cards.length > 0 && (

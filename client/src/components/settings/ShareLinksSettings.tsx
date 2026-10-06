@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { ErrorState, SkeletonRows } from '../common/ui';
+import { ErrorState, Panel, Select, SkeletonRows } from '../common/ui';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { DangerRow, DangerZone, Toggle } from './SettingsKit';
 import { ShareLinkItem } from '../share/ShareButton';
 import { usePermission } from '../../lib/permissions';
 import type { ShareLink } from '../../lib/share';
@@ -18,6 +20,8 @@ export function ShareLinksSettings() {
   const isAdmin = usePermission('settings.app', 'update');
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const [filter, setFilter] = useState<'active' | 'all'>('active');
+  const [confirm, setConfirm] = useState<'disable' | null>(null);
+  const [revoking, setRevoking] = useState<ShareLink | null>(null);
 
   const links = useQuery({
     queryKey: ['shares', 'all', scope],
@@ -31,6 +35,7 @@ export function ShareLinksSettings() {
   const revoke = useMutation({
     mutationFn: (id: number) => api.post<ShareLink>(`/api/shares/${id}/revoke`),
     onSuccess: () => {
+      setRevoking(null);
       void queryClient.invalidateQueries({ queryKey: ['shares'] });
       pushToast('Đã thu hồi liên kết', 'success');
     },
@@ -48,86 +53,128 @@ export function ShareLinksSettings() {
   const toggle = useMutation({
     mutationFn: (enabled: boolean) =>
       api.put<{ public_enabled: boolean }>('/api/shares/settings', { public_enabled: enabled }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['share-settings'] }),
+    onSuccess: (_data, enabled) => {
+      setConfirm(null);
+      void queryClient.invalidateQueries({ queryKey: ['share-settings'] });
+      pushToast(enabled ? 'Đã bật lại chia sẻ công khai' : 'Đã tắt chia sẻ công khai', 'success');
+    },
   });
+  const enabled = settings.data?.public_enabled ?? true;
+  const activeCount = (links.data ?? []).filter((l) => l.status === 'active').length;
 
   const rows = (links.data ?? []).filter((l) => filter === 'all' || l.status === 'active');
 
   return (
-    <div className="w-full max-w-3xl">
-      <p className="mb-3 text-sm text-tr-subtle">
-        Các liên kết công khai (chỉ xem) đã tạo cho tài liệu, trang tài liệu, báo giá và hợp đồng.
-        Thu hồi một liên kết là vô hiệu hóa nó ngay lập tức.
-      </p>
-
-      {isAdmin && (
-        <label className="mb-4 flex items-start gap-2 rounded-card border border-tr-border bg-tr-panel p-3 text-sm">
-          <input
-            type="checkbox"
-            className="mt-1"
-            checked={settings.data?.public_enabled ?? true}
+    <div className="w-full max-w-3xl space-y-4">
+      {isAdmin && !enabled && (
+        <Panel title="Chia sẻ công khai đang tắt">
+          <Toggle
+            checked={false}
             disabled={toggle.isPending || settings.isLoading}
-            onChange={(e) => toggle.mutate(e.target.checked)}
+            onChange={() => toggle.mutate(true)}
+            label="Bật lại chia sẻ bằng liên kết công khai"
+            description="Nút Chia sẻ hiện lại và các liên kết chưa hết hạn hoạt động trở lại."
           />
-          <span>
-            Cho phép chia sẻ bằng liên kết công khai
-            <span className="block text-xs text-tr-muted">
-              Tắt = ẩn nút Chia sẻ và mọi liên kết đã gửi ngừng hoạt động (có thể bật lại).
-            </span>
-          </span>
-        </label>
+        </Panel>
       )}
-
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-1.5">
-          Hiển thị
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as 'active' | 'all')}
-            className="rounded-control border border-tr-border bg-tr-list px-2 py-1"
-          >
-            <option value="active">Đang hoạt động</option>
-            <option value="all">Tất cả</option>
-          </select>
-        </label>
-        {isAdmin && (
-          <label className="flex items-center gap-1.5">
-            Của
-            <select
-              value={scope}
-              onChange={(e) => setScope(e.target.value as 'mine' | 'all')}
-              className="rounded-control border border-tr-border bg-tr-list px-2 py-1"
-            >
-              <option value="mine">Tôi</option>
-              <option value="all">Toàn công ty</option>
-            </select>
-          </label>
-        )}
-      </div>
-
-      {links.isLoading ? (
-        <SkeletonRows rows={4} cols={1} />
-      ) : links.isError ? (
-        <ErrorState message={(links.error as Error).message} onRetry={() => void links.refetch()} />
-      ) : rows.length === 0 ? (
-        <p className="rounded-card border border-dashed border-tr-border p-6 text-center text-sm text-tr-muted">
-          Chưa có liên kết nào. Bấm nút Chia sẻ trên một tài liệu, báo giá hoặc hợp đồng để tạo.
+      <Panel title="Liên kết đang có">
+        <p className="mb-3 text-sm text-tr-subtle">
+          Liên kết chỉ xem cho tài liệu, trang tài liệu, báo giá và hợp đồng. Thu hồi một liên kết
+          là vô hiệu hoá nó ngay lập tức.
         </p>
-      ) : (
-        <ul className="space-y-2">
-          {rows.map((link) => (
-            <ShareLinkItem
-              key={link.id}
-              link={link}
-              showTitle
-              onRevoke={() => revoke.mutate(link.id)}
-              revoking={revoke.isPending}
-              onExtend={(days) => extend.mutate({ id: link.id, days })}
-              extending={extend.isPending}
-            />
-          ))}
-        </ul>
+
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-1.5 text-tr-subtle">
+            Hiển thị
+            <Select
+              fullWidth={false}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as 'active' | 'all')}
+            >
+              <option value="active">Đang hoạt động</option>
+              <option value="all">Tất cả</option>
+            </Select>
+          </label>
+          {isAdmin && (
+            <label className="flex items-center gap-1.5 text-tr-subtle">
+              Người tạo
+              <Select
+                fullWidth={false}
+                value={scope}
+                onChange={(e) => setScope(e.target.value as 'mine' | 'all')}
+              >
+                <option value="mine">Của tôi</option>
+                <option value="all">Cả công ty</option>
+              </Select>
+            </label>
+          )}
+        </div>
+
+        {links.isLoading ? (
+          <SkeletonRows rows={4} cols={1} />
+        ) : links.isError ? (
+          <ErrorState
+            message={(links.error as Error).message}
+            onRetry={() => void links.refetch()}
+          />
+        ) : rows.length === 0 ? (
+          <p className="rounded-card border border-dashed border-tr-border p-6 text-center text-sm text-tr-muted">
+            Chưa có liên kết nào. Bấm nút Chia sẻ trên một tài liệu, báo giá hoặc hợp đồng để tạo.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((link) => (
+              <ShareLinkItem
+                key={link.id}
+                link={link}
+                showTitle
+                onRevoke={() => setRevoking(link)}
+                revoking={revoke.isPending}
+                onExtend={(days) => extend.mutate({ id: link.id, days })}
+                extending={extend.isPending}
+              />
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      {isAdmin && enabled && (
+        <DangerZone>
+          <DangerRow
+            title="Tắt chia sẻ công khai cho cả công ty"
+            description="Ẩn nút Chia sẻ và mọi liên kết đã gửi ngừng hoạt động (bật lại được)."
+            actionLabel="Tắt…"
+            disabled={toggle.isPending || settings.isLoading}
+            onAction={() => setConfirm('disable')}
+          />
+        </DangerZone>
       )}
+
+      <ConfirmDialog
+        open={confirm === 'disable'}
+        title="Tắt chia sẻ công khai?"
+        message="Người nhận đang mở liên kết sẽ thấy trang báo liên kết không còn hiệu lực."
+        details={[
+          scope === 'all'
+            ? `${activeCount} liên kết đang hoạt động sẽ ngừng ngay.`
+            : 'Mọi liên kết đang hoạt động của cả công ty sẽ ngừng ngay.',
+          'Nút Chia sẻ bị ẩn khỏi tài liệu, báo giá và hợp đồng.',
+          'Bật lại thì các liên kết chưa hết hạn hoạt động trở lại.',
+        ]}
+        confirmLabel="Tắt chia sẻ"
+        pending={toggle.isPending}
+        onConfirm={() => toggle.mutate(false)}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={revoking !== null}
+        title="Thu hồi liên kết này?"
+        message="Liên kết ngừng hoạt động ngay và không khôi phục được — muốn chia sẻ lại phải tạo liên kết mới."
+        confirmLabel="Thu hồi"
+        pending={revoke.isPending}
+        onConfirm={() => revoking && revoke.mutate(revoking.id)}
+        onCancel={() => setRevoking(null)}
+      />
     </div>
   );
 }

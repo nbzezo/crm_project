@@ -18,11 +18,14 @@ import {
   Input,
   MoneyInput,
   Panel,
+  Segmented,
   Select,
   Skeleton,
-  focusRing,
+  IconButton,
 } from '../common/ui';
 import { useUiStore } from '../../stores/uiStore';
+import { ReorderButtons, SaveBar, moveItem } from './SettingsKit';
+import { useSettingsDirty } from './settingsDirty';
 import type { DeliverySettingsData } from '../../types';
 
 type Templates = DeliverySettingsData['boardTemplates'];
@@ -32,8 +35,8 @@ type Thresholds = DeliverySettingsData['classification'];
 const REQUIRED_KEYS = ['large', 'small'];
 
 const KEY_LABELS: Record<string, string> = {
-  large: 'large — dự án lớn (Mô hình A)',
-  small: 'small — dự án nhỏ (Mô hình B)',
+  large: 'Dự án lớn (Mô hình A)',
+  small: 'Dự án nhỏ (Mô hình B)',
 };
 
 export function DeliverySettings() {
@@ -72,6 +75,15 @@ export function DeliverySettings() {
       pushToast('Đã lưu cấu hình triển khai', 'success');
     },
   });
+
+  const anyDirty = Boolean(
+    loaded &&
+    thresholds &&
+    templates &&
+    JSON.stringify({ thresholds, templates }) !==
+      JSON.stringify({ thresholds: loaded.classification, templates: loaded.boardTemplates })
+  );
+  useSettingsDirty('delivery', anyDirty, 'cấu hình triển khai', () => save.mutateAsync());
 
   if (isLoading || !thresholds || !templates) return <Skeleton className="h-64 rounded-panel" />;
 
@@ -149,31 +161,30 @@ export function DeliverySettings() {
       <Panel title="Bộ mẫu cột cho luồng việc triển khai">
         <FormError error={save.error} />
 
-        <div className="mb-3">
-          <Field
+        <div className="mb-3 space-y-1">
+          <Segmented
             label="Bộ mẫu"
-            hint="Cột có ánh xạ trạng thái thì kéo thẻ vào đó sẽ đổi trạng thái công việc."
-          >
-            <Select
-              value={activeKey}
-              onChange={(event) => setActiveKey(event.target.value)}
-              className="max-w-72"
-            >
-              {Object.keys(templates).map((key) => (
-                <option key={key} value={key}>
-                  {KEY_LABELS[key] ?? key}
-                </option>
-              ))}
-            </Select>
-          </Field>
+            value={activeKey}
+            onChange={setActiveKey}
+            options={Object.keys(templates).map((key) => ({
+              value: key,
+              label: KEY_LABELS[key] ?? key,
+            }))}
+          />
+          <p className="text-xs text-tr-muted">
+            Cột có gắn trạng thái thì kéo thẻ vào đó sẽ đổi trạng thái công việc.
+          </p>
         </div>
 
         <ul className="space-y-1.5">
           {items.map((item, index) => (
             <li key={index} className="flex items-center gap-2">
-              <span className="w-6 shrink-0 text-right text-xs tabular-nums text-tr-muted">
-                {index + 1}
-              </span>
+              <ReorderButtons
+                label={item.name || `cột ${index + 1}`}
+                canUp={index > 0}
+                canDown={index < items.length - 1}
+                onMove={(delta) => patchItems(moveItem(items, index, delta))}
+              />
               <Input
                 value={item.name}
                 onChange={(event) => {
@@ -203,43 +214,45 @@ export function DeliverySettings() {
                   </option>
                 ))}
               </Select>
-              <button
-                type="button"
+              <IconButton
+                label={`Xóa cột ${index + 1}`}
+                tone="danger"
                 onClick={() => patchItems(items.filter((_, i) => i !== index))}
-                aria-label={`Xóa cột ${index + 1}`}
-                className={`shrink-0 rounded p-1 text-tr-muted transition hover:text-tr-danger ${focusRing}`}
               >
                 <Trash2 size={14} aria-hidden="true" />
-              </button>
+              </IconButton>
             </li>
           ))}
         </ul>
 
-        <div className="mt-3 flex items-center gap-2 border-t border-tr-border pt-3">
+        <div className="mt-3 border-t border-tr-border pt-3">
           <Button onClick={() => patchItems([...items, { name: '', status: null }])}>
             <Plus size={15} aria-hidden="true" /> Thêm cột
           </Button>
-          <span className="flex-1" />
-          <Button
-            variant="primary"
-            disabled={!dirty || invalid || save.isPending}
-            onClick={() => save.mutate()}
-          >
-            {save.isPending ? 'Đang lưu…' : 'Lưu cấu hình'}
-          </Button>
         </div>
-
-        {invalid && (
-          <p className="mt-2 text-xs text-tr-danger">
-            Còn cột chưa đặt tên, hoặc bộ “large”/“small” đang rỗng — cả hai bộ này là bắt buộc.
-          </p>
-        )}
 
         <p className="mt-3 text-xs text-tr-muted">
           Đổi bộ mẫu chỉ ảnh hưởng tới luồng việc đổ mẫu sau này. Luồng đã có công việc không bao
           giờ bị thay cột.
         </p>
       </Panel>
+
+      <SaveBar
+        dirty={dirty}
+        saving={save.isPending}
+        disabled={invalid}
+        problem={
+          invalid
+            ? 'Còn cột chưa đặt tên, hoặc bộ dự án lớn/nhỏ đang rỗng — cả hai bộ là bắt buộc.'
+            : null
+        }
+        onSave={() => save.mutate()}
+        onReset={() => {
+          if (!loaded) return;
+          setThresholds({ ...loaded.classification });
+          setTemplates(structuredClone(loaded.boardTemplates));
+        }}
+      />
     </div>
   );
 }

@@ -21,7 +21,8 @@ import { usePermission } from '../../lib/permissions';
 import { useTaskStatuses } from '../../lib/taskStatuses';
 import { useUiStore } from '../../stores/uiStore';
 import { TASK_FLOW_SETTINGS_KEY, useTaskFlowSettings } from '../taskFlow/taskFlowApi';
-import { TaskStatusSettings } from './TaskStatusSettings';
+import { SaveBar, Toggle } from './SettingsKit';
+import { useSettingsDirty } from './settingsDirty';
 
 const ASK_LABELS: Record<FlowAskMode, string> = {
   always: 'Luôn hỏi',
@@ -67,6 +68,13 @@ export function TaskFlowSettings() {
     },
   });
 
+  const dirtyAll = Boolean(
+    draft && loaded && JSON.stringify(draft) !== JSON.stringify(loaded.templates)
+  );
+  useSettingsDirty('task-flow', dirtyAll, 'mẫu quy trình công việc', () =>
+    draft ? save.mutateAsync({ templates: draft }) : Promise.resolve()
+  );
+
   if (!settings || !draft || !loaded) return <Skeleton className="h-64 rounded-panel" />;
 
   /* Trạng thái đang chọn có thể vừa bị ẩn, hoặc vừa tạo mà mẫu chưa tải lại. */
@@ -86,40 +94,24 @@ export function TaskFlowSettings() {
 
   return (
     <div className="space-y-4">
-      <TaskStatusSettings />
-
       <Panel title="Quy trình cho công việc">
         <FormError error={save.error} />
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={settings.enabled}
-            disabled={!canEdit || save.isPending}
-            onChange={(e) => save.mutate({ enabled: e.target.checked })}
-            className="mt-0.5 h-5 w-5 rounded border-tr-border"
-          />
-          <span>
-            <span className="block text-sm font-medium text-tr-text">
-              Bật quy trình cho công việc
-            </span>
-            <span className="block text-xs text-tr-muted">
-              Mỗi trạng thái của công việc có thể có một quy trình gồm các bước làm lần lượt. Đổi
-              trạng thái khi quy trình chưa xong thì phải xác nhận bỏ qua; xong bước cuối thì công
-              việc tự chuyển trạng thái. Tắt thì công việc chạy như trước, các quy trình đã tạo vẫn
-              được giữ.
-            </span>
-          </span>
-        </label>
+        <Toggle
+          checked={settings.enabled}
+          disabled={!canEdit || save.isPending}
+          onChange={(value) => save.mutate({ enabled: value })}
+          label="Bật quy trình cho công việc"
+          description="Mỗi trạng thái có thể có các bước làm lần lượt; xong bước cuối thì công việc tự chuyển trạng thái. Tắt thì công việc chạy như trước, các quy trình đã tạo vẫn được giữ. Công tắc này lưu ngay."
+        />
       </Panel>
 
       <Panel title="Mẫu quy trình theo trạng thái">
-        <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Trạng thái">
+        <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Chọn trạng thái">
           {flowStatuses.map((status) => (
             <button
               key={status.key}
               type="button"
-              role="tab"
-              aria-selected={status.key === activeKey}
+              aria-pressed={status.key === activeKey}
               onClick={() => setActive(status.key)}
               className={`rounded-control border px-3 py-1.5 text-sm ${focusRing} ${
                 status.key === activeKey
@@ -240,25 +232,20 @@ export function TaskFlowSettings() {
         </ol>
 
         {canEdit && (
-          <div className="mt-3 flex items-center gap-2 border-t border-tr-border pt-3">
+          <div className="mt-3 border-t border-tr-border pt-3">
             <Button onClick={() => setSteps([...template.steps, ''])}>
               <Plus size={15} aria-hidden="true" /> Thêm bước
             </Button>
-            <span className="flex-1" />
-            <Button
-              variant="primary"
-              disabled={save.isPending || !dirty || hasBlank}
-              onClick={() => save.mutate({ templates: draft })}
-            >
-              {save.isPending ? 'Đang lưu…' : 'Lưu mẫu'}
-            </Button>
           </div>
         )}
-        {hasBlank && (
-          <p className="mt-2 text-xs text-tr-danger">
-            Còn bước để trống — điền tên hoặc xóa bước đó trước khi lưu.
-          </p>
-        )}
+        <SaveBar
+          dirty={dirty}
+          saving={save.isPending}
+          disabled={hasBlank}
+          problem={hasBlank ? 'Còn bước để trống — điền tên hoặc xoá bước đó.' : null}
+          onSave={() => save.mutate({ templates: draft })}
+          onReset={() => setDraft(structuredClone(loaded.templates))}
+        />
         <p className="mt-3 text-xs text-tr-muted">
           Đổi mẫu chỉ ảnh hưởng tới quy trình tạo sau này. Quy trình đã có trong công việc giữ
           nguyên các bước của nó.

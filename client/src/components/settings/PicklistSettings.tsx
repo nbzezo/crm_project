@@ -17,6 +17,8 @@ import { Button, Field, FormError, IconButton, Input, Panel, Select } from '../c
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useUiStore } from '../../stores/uiStore';
+import { SaveStatus, useSaveState } from './SettingsKit';
+import { focusRing } from '../common/ui';
 import { usePermission } from '../../lib/permissions';
 import { CRM_CONFIG_QUERY_KEY, usePicklist } from '../../lib/crmConfig';
 
@@ -62,30 +64,43 @@ export const PICKLIST_META: { key: PicklistKey; title: string; hint: string }[] 
 export function PicklistSettings() {
   const [list, setList] = useState<PicklistKey>(PICKLIST_META[0].key);
   const meta = PICKLIST_META.find((entry) => entry.key === list) ?? PICKLIST_META[0];
+  const picklist = usePicklist();
 
+  /* 1.32.0: bay danh muc hien thanh mot danh sach ben trai kem so muc, thay cho
+     mot o chon nam trong khoi rieng — nhin mot lan la biet co nhung gi. */
   return (
-    <div className="space-y-4">
-      <Panel title="Danh mục">
-        <Field label="Danh mục cần sửa" hint={meta.hint}>
-          <Select
-            value={list}
-            onChange={(event) => setList(event.target.value as PicklistKey)}
-            className="max-w-72"
-          >
-            {PICKLIST_META.map((entry) => (
-              <option key={entry.key} value={entry.key}>
-                {entry.title}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </Panel>
-      <PicklistEditor key={list} list={list} title={meta.title} />
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
+      <nav aria-label="Danh mục" className="md:sticky md:top-4 md:self-start">
+        <ul className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+          {PICKLIST_META.map((entry) => {
+            const selected = entry.key === list;
+            const count = picklist.items(entry.key).filter((item) => item.is_active === 1).length;
+            return (
+              <li key={entry.key} className="shrink-0">
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setList(entry.key)}
+                  className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-control px-3 text-left text-sm whitespace-nowrap fine:min-h-9 ${focusRing} ${
+                    selected
+                      ? 'bg-tr-panel font-semibold text-tr-primary shadow-sm'
+                      : 'text-tr-subtle hover:bg-tr-hover hover:text-tr-text'
+                  }`}
+                >
+                  {entry.title}
+                  <span className="text-xs text-tr-muted tabular-nums">{count}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      <PicklistEditor key={list} list={list} title={meta.title} hint={meta.hint} />
     </div>
   );
 }
 
-function PicklistEditor({ list, title }: { list: PicklistKey; title: string }) {
+function PicklistEditor({ list, title, hint }: { list: PicklistKey; title: string; hint: string }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
   const canEdit = usePermission('settings.app', 'update');
@@ -93,6 +108,9 @@ function PicklistEditor({ list, title }: { list: PicklistKey; title: string }) {
   const [newLabel, setNewLabel] = useState('');
   const [merging, setMerging] = useState<PicklistItem | null>(null);
   const [deleting, setDeleting] = useState<PicklistItem | null>(null);
+  const [renaming, setRenaming] = useState<{ item: PicklistItem; label: string } | null>(null);
+  /* Huy doi ten thi o nhap phai tro ve ten cu — doi key de dung lai o. */
+  const [resetKey, setResetKey] = useState(0);
 
   const usage = useQuery({
     queryKey: ['crm-config', 'usage', list],
@@ -138,16 +156,21 @@ function PicklistEditor({ list, title }: { list: PicklistKey; title: string }) {
 
   const error = create.error ?? patch.error ?? reorder.error ?? remove.error;
   const labelStorage = PICKLISTS[list].storage === 'label';
+  const saveState = useSaveState([create, patch, reorder, remove]);
+
+  /* Danh muc luu-theo-ten: doi ten = sua moi ban ghi dang dung. Hoi lai truoc. */
+  const rename = (item: PicklistItem, label: string) => {
+    const used = usage.data?.[item.id] ?? 0;
+    if (labelStorage && used > 0) setRenaming({ item, label });
+    else patch.mutate({ id: item.id, label });
+  };
 
   return (
-    <Panel title={title}>
+    <Panel title={title} action={<SaveStatus state={saveState} />}>
+      <p className="mb-3 text-xs text-tr-muted">
+        {hint} Mỗi thay đổi lưu ngay và có hiệu lực với mọi người.
+      </p>
       <FormError error={error} />
-      {labelStorage && (
-        <p className="mb-2 text-xs text-tr-muted">
-          Danh mục này lưu chính tên hiển thị: đổi tên một mục sẽ cập nhật luôn mọi bản ghi đang
-          dùng nó.
-        </p>
-      )}
       <ul className="divide-y divide-tr-border">
         {items.map((item, index) => {
           const used = usage.data?.[item.id];
@@ -170,9 +193,10 @@ function PicklistEditor({ list, title }: { list: PicklistKey; title: string }) {
                 </IconButton>
               </div>
               <LabelInput
+                key={`${item.id}:${resetKey}`}
                 item={item}
                 disabled={!canEdit}
-                onSave={(label) => patch.mutate({ id: item.id, label })}
+                onSave={(label) => rename(item, label)}
               />
               <span className="w-32 shrink-0 text-xs text-tr-muted">
                 {used === undefined ? '' : `${used} bản ghi`}
@@ -247,6 +271,21 @@ function PicklistEditor({ list, title }: { list: PicklistKey; title: string }) {
           }}
         />
       )}
+      <ConfirmDialog
+        open={renaming !== null}
+        tone="primary"
+        title={`Đổi tên “${renaming?.item.label ?? ''}”?`}
+        message={`Danh mục này lưu chính tên hiển thị, nên ${usage.data?.[renaming?.item.id ?? 0] ?? 0} bản ghi đang dùng mục này sẽ được đổi theo thành “${renaming?.label ?? ''}”.`}
+        confirmLabel="Đổi tên"
+        onConfirm={() => {
+          if (renaming) patch.mutate({ id: renaming.item.id, label: renaming.label });
+          setRenaming(null);
+        }}
+        onCancel={() => {
+          setRenaming(null);
+          setResetKey((value) => value + 1);
+        }}
+      />
       <ConfirmDialog
         open={deleting !== null}
         message={`Xoá hẳn mục "${deleting?.label ?? ''}"? Mục chưa có bản ghi nào dùng.`}

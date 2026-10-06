@@ -9,6 +9,9 @@ import { formatDateTime } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
 import { detectProvider, EMAIL_PROVIDERS, type EmailProviderId } from './emailProviders';
 import { GoogleMailConnect } from './GoogleMailConnect';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { SaveBar, StatusBadge, Toggle } from './SettingsKit';
+import { useSettingsDirty, useSettingsDirtyStore } from './settingsDirty';
 
 /**
  * Cau hinh SMTP. Cung khuon voi TelegramSettings: soan nhap vao state, bam luu
@@ -50,6 +53,20 @@ type Draft = Omit<
   google_client_secret: string;
 };
 
+function draftFromConfig(config: EmailConfig): Draft {
+  const {
+    has_password: _hp,
+    ready: _r,
+    last_test_at: _lt,
+    last_error: _le,
+    has_google_client_secret: _hs,
+    google_account: _ga,
+    google_redirect_uri: _gr,
+    ...rest
+  } = config;
+  return { ...rest, password: '', google_client_secret: '' };
+}
+
 const EMPTY: Draft = {
   enabled: false,
   host: '',
@@ -77,19 +94,11 @@ export function EmailSettings() {
     queryFn: () => api.get<EmailConfig>('/api/email/config'),
   });
 
+  const [confirm, setConfirm] = useState<'password' | 'google' | null>(null);
+
   useEffect(() => {
     if (!config.data) return;
-    const {
-      has_password: _hp,
-      ready: _r,
-      last_test_at: _lt,
-      last_error: _le,
-      has_google_client_secret: _hs,
-      google_account: _ga,
-      google_redirect_uri: _gr,
-      ...rest
-    } = config.data;
-    setDraft({ ...rest, password: '', google_client_secret: '' });
+    setDraft(draftFromConfig(config.data));
   }, [config.data]);
 
   /* Quay ve tu trang dang nhap Google: bao ket qua mot lan roi xoa tham so khoi
@@ -178,20 +187,28 @@ export function EmailSettings() {
      moi dung duoc trang dang nhap. */
   const connectGoogle = useMutation({
     mutationFn: saveDraft,
-    onSuccess: () => window.location.assign('/api/email/oauth/google/start'),
+    onSuccess: () => {
+      /* Da luu xong — trang sap roi sang Google, khong hoi "con thay doi chua luu". */
+      useSettingsDirtyStore.getState().clear();
+      window.location.assign('/api/email/oauth/google/start');
+    },
   });
 
   const disconnectGoogle = useMutation({
     mutationFn: () => api.post<EmailConfig>('/api/email/oauth/google/disconnect', {}),
     onSuccess: (data) => {
       queryClient.setQueryData(['email', 'config'], data);
+      setConfirm(null);
       pushToast(t.emailSettings.googleDisconnected, 'success');
     },
   });
 
   const clearPassword = useMutation({
     mutationFn: () => api.put<EmailConfig>('/api/email/config', { clear_password: true }),
-    onSuccess: (data) => queryClient.setQueryData(['email', 'config'], data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['email', 'config'], data);
+      setConfirm(null);
+    },
   });
 
   const testConnection = useMutation({
@@ -212,17 +229,37 @@ export function EmailSettings() {
 
   const saved = config.data;
   const googleMode = draft.auth_type === 'google';
+  const dirty = Boolean(saved && JSON.stringify(draft) !== JSON.stringify(draftFromConfig(saved)));
+  useSettingsDirty('email', dirty, 'cấu hình Email', () => save.mutateAsync());
 
   return (
     <Panel title={t.emailSettings.title}>
-      <p className="mb-4 text-sm text-tr-subtle">{t.emailSettings.description}</p>
+      <p className="mb-3 text-sm text-tr-subtle">{t.emailSettings.description}</p>
 
-      {saved?.last_error ? (
-        <p className="mb-4 flex items-center gap-1.5 text-xs text-tr-danger">
-          <TriangleAlert size={14} aria-hidden />
-          {saved.last_error}
-        </p>
-      ) : null}
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-control border border-tr-border bg-tr-surface p-3 text-sm">
+        {saved?.last_error ? (
+          <StatusBadge tone="error">Lỗi</StatusBadge>
+        ) : saved?.ready && saved.enabled ? (
+          <StatusBadge tone="ok">Đang gửi được</StatusBadge>
+        ) : (
+          <StatusBadge tone="off">Chưa sẵn sàng</StatusBadge>
+        )}
+        <span className="min-w-0 flex-1 text-tr-subtle">
+          {saved?.last_error ? (
+            <span className="inline-flex items-start gap-1.5 text-tr-danger">
+              <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden />
+              {saved.last_error} — kiểm tra lại bước 2 rồi bấm Kiểm tra kết nối.
+            </span>
+          ) : (
+            <>
+              {t.emailSettings.lastTest}:{' '}
+              {saved?.last_test_at
+                ? formatDateTime(saved.last_test_at)
+                : t.emailSettings.notConfigured}
+            </>
+          )}
+        </span>
+      </div>
 
       <FormError
         error={
@@ -236,6 +273,15 @@ export function EmailSettings() {
       />
 
       <div className="max-w-xl space-y-3">
+        <Toggle
+          checked={draft.enabled}
+          onChange={(value) => set('enabled', value)}
+          label={t.emailSettings.enabled}
+          description="Tắt thì hệ thống không gửi thư nào; thư mời phải gửi liên kết bằng tay."
+        />
+        <h3 className="border-t border-tr-border pt-3 text-sm font-semibold text-tr-text">
+          1. Nhà cung cấp
+        </h3>
         <div>
           <p className="mb-1 text-xs font-semibold text-tr-subtle">{t.emailSettings.provider}</p>
           <Segmented
@@ -249,6 +295,9 @@ export function EmailSettings() {
           />
         </div>
 
+        <h3 className="border-t border-tr-border pt-3 text-sm font-semibold text-tr-text">
+          2. Đăng nhập hộp thư
+        </h3>
         {activeProvider === 'gmail' ? (
           <div>
             <p className="mb-1 text-xs font-semibold text-tr-subtle">
@@ -279,7 +328,7 @@ export function EmailSettings() {
             connecting={connectGoogle.isPending}
             onConnect={() => connectGoogle.mutate()}
             disconnecting={disconnectGoogle.isPending}
-            onDisconnect={() => disconnectGoogle.mutate()}
+            onDisconnect={() => setConfirm('google')}
           />
         ) : null}
 
@@ -304,15 +353,6 @@ export function EmailSettings() {
             </a>
           </div>
         ) : null}
-
-        <label className="flex items-center gap-2 text-sm text-tr-text">
-          <input
-            type="checkbox"
-            checked={draft.enabled}
-            onChange={(e) => set('enabled', e.target.checked)}
-          />
-          {t.emailSettings.enabled}
-        </label>
 
         {googleMode ? null : (
           <>
@@ -371,7 +411,7 @@ export function EmailSettings() {
               <Button
                 variant="secondary"
                 disabled={clearPassword.isPending}
-                onClick={() => clearPassword.mutate()}
+                onClick={() => setConfirm('password')}
               >
                 {t.emailSettings.clearPassword}
               </Button>
@@ -379,6 +419,9 @@ export function EmailSettings() {
           </>
         )}
 
+        <h3 className="border-t border-tr-border pt-3 text-sm font-semibold text-tr-text">
+          3. Người gửi
+        </h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t.emailSettings.fromName}>
             <Input value={draft.from_name} onChange={(e) => set('from_name', e.target.value)} />
@@ -402,13 +445,15 @@ export function EmailSettings() {
           />
         </Field>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? t.common.saving : t.common.save}
-          </Button>
+        <h3 className="border-t border-tr-border pt-3 text-sm font-semibold text-tr-text">
+          4. Kiểm tra
+        </h3>
+        {dirty && <p className="text-xs text-tr-warning">Lưu thay đổi trước khi kiểm tra.</p>}
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="secondary"
             disabled={
+              dirty ||
               testConnection.isPending ||
               (saved?.auth_type === 'google' ? !saved.google_account : !saved?.host)
             }
@@ -416,15 +461,9 @@ export function EmailSettings() {
           >
             {testConnection.isPending ? t.emailSettings.testing : t.emailSettings.test}
           </Button>
-          <span className="text-xs text-tr-muted">
-            {t.emailSettings.lastTest}:{' '}
-            {saved?.last_test_at
-              ? formatDateTime(saved.last_test_at)
-              : t.emailSettings.notConfigured}
-          </span>
         </div>
 
-        <div className="flex flex-wrap items-end gap-2 border-t border-tr-border pt-3">
+        <div className="flex flex-wrap items-end gap-2">
           <Field label={t.emailSettings.sendTestTo}>
             <Input
               type="email"
@@ -435,13 +474,35 @@ export function EmailSettings() {
           </Field>
           <Button
             variant="secondary"
-            disabled={sendTest.isPending || !testTo.trim() || !saved?.ready}
+            disabled={dirty || sendTest.isPending || !testTo.trim() || !saved?.ready}
             onClick={() => sendTest.mutate()}
           >
             {t.emailSettings.sendTest}
           </Button>
         </div>
       </div>
+
+      <SaveBar
+        dirty={dirty}
+        saving={save.isPending}
+        onSave={() => save.mutate()}
+        onReset={() => {
+          if (saved) setDraft(draftFromConfig(saved));
+          setCustomMode(false);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirm !== null}
+        title={confirm === 'google' ? 'Ngắt kết nối Google?' : 'Xoá mật khẩu đã lưu?'}
+        message="Hệ thống sẽ không gửi được thư — thư mời, đặt lại mật khẩu, thông báo — cho tới khi đăng nhập lại."
+        confirmLabel={confirm === 'google' ? 'Ngắt kết nối' : 'Xoá mật khẩu'}
+        pending={disconnectGoogle.isPending || clearPassword.isPending}
+        onConfirm={() =>
+          confirm === 'google' ? disconnectGoogle.mutate() : clearPassword.mutate()
+        }
+        onCancel={() => setConfirm(null)}
+      />
     </Panel>
   );
 }

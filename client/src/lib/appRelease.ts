@@ -18,6 +18,27 @@ export const APP_UPDATED_AT = '2026-10-07';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.32.0',
+    date: '2026-10-07',
+    title: 'Cài đặt làm lại: không còn mất thay đổi, dễ tìm, an toàn hơn',
+    changes: [
+      'Trang Tổng quan mới là trang đầu tiên của Cài đặt: khối "Cần chú ý" gom lỗi Email/Telegram/AI, sao lưu Google Drive thất bại, tài khoản chưa kích hoạt hoặc chưa có vị trí; mỗi mục cài đặt kèm một dòng trạng thái.',
+      'Các mục được nhóm lại theo việc cần làm: Tổ chức & quyền · Bán hàng · Công việc & triển khai · Dùng chung · Kết nối · Dữ liệu & bảo mật · Hệ thống. "Trạng thái công việc" thành mục riêng; mỗi trang có tiêu đề và một dòng mô tả.',
+      'Ô "Tìm cài đặt" trên cột trái (phím /), gõ không dấu cũng được; Ctrl+K giờ tìm ra cả các trang Cài đặt.',
+      'Rời một trang khi còn thay đổi chưa lưu (đổi mục, bấm sang trang khác, đóng tab) sẽ được hỏi lại: Ở lại · Bỏ thay đổi · Lưu và đi tiếp. Phím mũi tên trong cột trái chỉ di chuyển, Enter mới mở mục.',
+      'Một thanh "Lưu thay đổi" dính đáy dùng chung cho mọi biểu mẫu (Chấm điểm, Bàn giao, Triển khai, Quy trình công việc, Email, Telegram, Trợ lý AI, Google Drive, Phân quyền), kèm nút "Bỏ thay đổi" và lý do khi chưa lưu được. Các danh sách lưu ngay (Quy trình bán hàng, Danh mục, Trạng thái công việc) hiện "Đang lưu… / Đã lưu".',
+      'Thao tác nguy hiểm luôn hỏi lại và nói rõ hậu quả: khoá tài khoản, đăng xuất mọi thiết bị, tắt chia sẻ công khai, thu hồi liên kết, ngắt Google Drive, ngắt Google/xoá mật khẩu Email, xoá Bot Token, xoá loại đơn vị, xoá bộ mẫu bàn giao, áp dụng hồ sơ cấu hình, đổi tên mục danh mục đang được dùng.',
+      'Người dùng: tìm theo tên/email, lọc theo trạng thái và đơn vị, chọn nhiều để gửi lại thư mời hoặc khoá; năm nút trên mỗi hàng gom vào menu "⋯"; trạng thái là nhãn màu; "Mời người dùng" mở hộp thoại riêng; trên điện thoại hiện dạng thẻ thay vì bảng cuộn ngang.',
+      'Vị trí & phân quyền: ô đã đổi có viền vàng, ô phạm vi tô theo độ rộng; trước khi lưu hiện danh sách thay đổi và số người bị ảnh hưởng, cảnh báo khi bạn sắp tự hạ quyền của chính mình; đổi sang vị trí khác khi chưa lưu cũng được hỏi lại.',
+      'Sao lưu gom về một trang: trạng thái Máy chủ · Telegram · Google Drive ở đầu trang, danh sách bản sao lưu xếp theo ngày giờ; lịch gửi qua Telegram chuyển từ trang Telegram sang đây. Xuất JSON/CSV thành mục "Xuất dữ liệu" riêng.',
+      'Quy trình bán hàng gọn hơn: mỗi giai đoạn một dòng (tên, màu, xác suất, số cơ hội), bấm mở rộng để sửa cổng BANT, số ngày tối đa, người duyệt ngân sách, PoC. Danh mục có danh sách bảy danh mục bên trái kèm số mục.',
+      'Bàn giao và Triển khai sắp xếp mục bằng nút lên/xuống (bỏ biểu tượng kéo không kéo được); Triển khai chọn "Dự án lớn / Dự án nhỏ" thay cho tên khoá kỹ thuật.',
+      'Email chia thành 4 bước đánh số và có thẻ trạng thái ở đầu; Telegram dùng công tắc bật/tắt, giờ gửi thử hiển thị đúng định dạng; Trợ lý AI thu gọn từng nhà cung cấp, tách "Lưu" khỏi "Kiểm tra & nhận diện model".',
+      'Sơ đồ tổ chức sửa đơn vị trong hộp thoại (không phải cuộn lên đầu trang); Loại đơn vị là một tab cạnh Sơ đồ/Danh sách. Liên kết chia sẻ có khung và Vùng nguy hiểm riêng cho công tắc tắt chia sẻ.',
+      'Giới thiệu gọn lại: một khối phiên bản, lịch sử chỉ mở sẵn 5 bản mới nhất, bản cũ gom theo phiên bản lớn. Thông tin kỹ thuật (đường dẫn cơ sở dữ liệu, lệnh nạp dữ liệu mẫu, cấu hình 9Router) chuyển vào "Chi tiết kỹ thuật".',
+    ],
+  },
+  {
     version: '1.31.3',
     date: '2026-10-07',
     title: 'Rà soát giao diện điện thoại: đủ menu sau đăng nhập, các màn danh sách gọn hơn',

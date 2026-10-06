@@ -1,23 +1,47 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, DatabaseBackup, KeyRound, Send, TriangleAlert } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { api } from '../../api/client';
 import type { TelegramConfig } from '../../types';
 import { formatDateTime } from '../../lib/format';
-import { Button, Field, FormError, Input, Panel, Select } from '../common/ui';
+import { Button, Field, FormError, Input, Panel, Skeleton } from '../common/ui';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useUiStore } from '../../stores/uiStore';
+import { usePermission } from '../../lib/permissions';
+import type { SettingsTab } from '../../lib/settingsNav';
+import { SaveBar, StatusBadge, Toggle } from './SettingsKit';
+import { useSettingsDirty } from './settingsDirty';
 
-const BACKUP_INTERVAL_OPTIONS: [number, string][] = [
-  [6, 'Mỗi 6 giờ'],
-  [12, 'Mỗi 12 giờ'],
-  [24, 'Mỗi ngày'],
-  [72, 'Mỗi 3 ngày'],
-  [168, 'Mỗi tuần'],
-];
+interface Draft {
+  enabled: boolean;
+  chatId: string;
+  botToken: string;
+  notifyDueDates: boolean;
+  notifyReminders: boolean;
+  notifyAssignee: boolean;
+}
 
-export function TelegramSettings() {
+function draftOf(config: TelegramConfig): Draft {
+  return {
+    enabled: config.enabled,
+    chatId: config.chat_id,
+    botToken: '',
+    notifyDueDates: config.notify_due_dates,
+    notifyReminders: config.notify_reminders,
+    notifyAssignee: config.notify_assignee,
+  };
+}
+
+/**
+ * Thong bao qua Telegram.
+ *
+ * 1.32.0: phan sao luu dinh ky chuyen sang Cai dat → Sao luu (gom ba diem den
+ * mot cho); gio kiem tra duoc dinh dang; cong tac thay o tick; mot thanh luu.
+ */
+export function TelegramSettings({ onOpen }: { onOpen?: (tab: SettingsTab) => void }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((state) => state.pushToast);
+  const canEdit = usePermission('settings.telegram', 'update');
   const {
     data: config,
     isLoading,
@@ -27,44 +51,38 @@ export function TelegramSettings() {
     queryFn: () => api.get<TelegramConfig>('/api/telegram/config'),
   });
 
-  const [chatId, setChatId] = useState('');
-  const [botToken, setBotToken] = useState('');
-  const [enabled, setEnabled] = useState(false);
-  const [notifyDueDates, setNotifyDueDates] = useState(true);
-  const [notifyReminders, setNotifyReminders] = useState(true);
-  const [notifyAssignee, setNotifyAssignee] = useState(true);
-  const [backupEnabled, setBackupEnabled] = useState(false);
-  const [backupIntervalHours, setBackupIntervalHours] = useState(24);
-
-  useEffect(() => {
-    if (!config) return;
-    setChatId(config.chat_id);
-    setEnabled(config.enabled);
-    setNotifyDueDates(config.notify_due_dates);
-    setNotifyReminders(config.notify_reminders);
-    setNotifyAssignee(config.notify_assignee);
-    setBackupEnabled(config.backup_enabled);
-    setBackupIntervalHours(config.backup_interval_hours);
-  }, [config]);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [source, setSource] = useState<TelegramConfig | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  if (config && config !== source) {
+    setSource(config);
+    setDraft(draftOf(config));
+  }
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['telegram-config'] });
 
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (next: Draft) =>
       api.put<TelegramConfig>('/api/telegram/config', {
-        enabled,
-        chat_id: chatId,
-        bot_token: botToken || undefined,
-        notify_due_dates: notifyDueDates,
-        notify_reminders: notifyReminders,
-        notify_assignee: notifyAssignee,
-        backup_enabled: backupEnabled,
-        backup_interval_hours: backupIntervalHours,
+        enabled: next.enabled,
+        chat_id: next.chatId,
+        bot_token: next.botToken || undefined,
+        notify_due_dates: next.notifyDueDates,
+        notify_reminders: next.notifyReminders,
+        notify_assignee: next.notifyAssignee,
       }),
     onSuccess: () => {
-      setBotToken('');
       void refresh();
       pushToast('Đã lưu cấu hình Telegram', 'success');
+    },
+  });
+
+  const clearToken = useMutation({
+    mutationFn: () => api.put<TelegramConfig>('/api/telegram/config', { clear_bot_token: true }),
+    onSuccess: () => {
+      setConfirmClear(false);
+      void refresh();
+      pushToast('Đã xoá Bot Token', 'success');
     },
   });
 
@@ -77,177 +95,159 @@ export function TelegramSettings() {
     onError: () => void refresh(),
   });
 
-  const sendBackup = useMutation({
-    mutationFn: () => api.post<{ name: string }>('/api/telegram/send-backup'),
-    onSuccess: (result) => {
-      void refresh();
-      pushToast(`Đã gửi bản sao lưu ${result.name} qua Telegram`, 'success');
-    },
-    onError: () => void refresh(),
-  });
+  const base = config ? draftOf(config) : null;
+  const dirty = Boolean(draft && base && JSON.stringify(draft) !== JSON.stringify(base));
+  useSettingsDirty('telegram', dirty, 'Telegram', () =>
+    draft ? save.mutateAsync(draft) : Promise.resolve()
+  );
 
-  const statusIcon =
-    config?.last_error && !test.isPending ? (
-      <TriangleAlert size={14} className="text-tr-danger" />
-    ) : config?.last_test_at ? (
-      <CheckCircle2 size={14} className="text-tr-success" />
-    ) : (
-      <KeyRound size={14} className="text-tr-muted" />
-    );
+  if (isLoading || !config || !draft) {
+    return error ? <FormError error={error} /> : <Skeleton className="h-64 rounded-panel" />;
+  }
+
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const status = config.last_error ? (
+    <StatusBadge tone="error">Lỗi</StatusBadge>
+  ) : config.last_test_at ? (
+    <StatusBadge tone="ok">Đã kết nối</StatusBadge>
+  ) : (
+    <StatusBadge tone="off">Chưa kiểm tra</StatusBadge>
+  );
 
   return (
-    <Panel
-      title={
-        <span className="flex items-center gap-2">
-          <Send size={16} className="text-tr-primary" /> Thông báo qua Telegram
-        </span>
-      }
-    >
-      <p className="mb-4 text-sm text-tr-subtle">
-        Tạo bot qua @BotFather để lấy Bot Token, và lấy Chat ID qua @userinfobot. Token chỉ được gửi
-        đến backend và mã hoá tại máy chủ.
-      </p>
-      {isLoading && <p className="text-sm text-tr-muted">Đang tải cấu hình…</p>}
-      <FormError error={error ?? save.error ?? test.error ?? sendBackup.error} />
-
-      {config && (
-        <div className="rounded-panel border border-tr-border bg-tr-list p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="flex items-center gap-1.5 text-xs text-tr-muted">
-              {statusIcon}
-              {config.last_error
-                ? config.last_error
-                : config.last_test_at
-                  ? `Đã kết nối · lần thử gần nhất lúc ${config.last_test_at}`
-                  : 'Chưa kiểm tra kết nối'}
+    <div className="space-y-4">
+      <Panel
+        title={
+          <span className="flex items-center gap-2">
+            <Send size={16} className="text-tr-primary" aria-hidden="true" /> Kết nối bot
+          </span>
+        }
+        action={status}
+      >
+        <FormError error={error ?? save.error ?? test.error ?? clearToken.error} />
+        <div className="mb-3 rounded-control border border-tr-border bg-tr-surface p-3 text-sm">
+          {config.last_error ? (
+            <p className="text-tr-danger">{config.last_error}</p>
+          ) : config.last_test_at ? (
+            <p className="text-tr-subtle">
+              Gửi thử thành công lúc{' '}
+              <b className="text-tr-text">{formatDateTime(config.last_test_at)}</b>
             </p>
-            <label className="flex items-center gap-2 text-sm text-tr-subtle">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(event) => setEnabled(event.target.checked)}
-                className="h-4 w-4 rounded border-tr-border"
-              />
-              Kích hoạt
-            </label>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <Field label="Chat ID">
-              <Input
-                value={chatId}
-                onChange={(event) => setChatId(event.target.value)}
-                placeholder="Ví dụ: 123456789"
-              />
-            </Field>
-            <Field
-              label="Bot Token"
-              hint={
-                config.has_token ? `Đã lưu ${config.token_hint}; để trống để giữ nguyên` : undefined
-              }
-            >
-              <Input
-                type="password"
-                autoComplete="new-password"
-                value={botToken}
-                onChange={(event) => setBotToken(event.target.value)}
-                placeholder={config.has_token ? '••••••••' : 'Nhập Bot Token'}
-              />
-            </Field>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            <label className="flex items-center gap-2 text-sm text-tr-subtle">
-              <input
-                type="checkbox"
-                checked={notifyDueDates}
-                onChange={(event) => setNotifyDueDates(event.target.checked)}
-                className="h-4 w-4 rounded border-tr-border"
-              />
-              Báo việc đến hạn / quá hạn
-            </label>
-            <label className="flex items-center gap-2 text-sm text-tr-subtle">
-              <input
-                type="checkbox"
-                checked={notifyReminders}
-                onChange={(event) => setNotifyReminders(event.target.checked)}
-                className="h-4 w-4 rounded border-tr-border"
-              />
-              Báo nhắc hẹn cá nhân
-            </label>
-            <label className="flex items-center gap-2 text-sm text-tr-subtle">
-              <input
-                type="checkbox"
-                checked={notifyAssignee}
-                onChange={(event) => setNotifyAssignee(event.target.checked)}
-                className="h-4 w-4 rounded border-tr-border"
-              />
-              Báo khi được giao việc mới
-            </label>
-          </div>
-
-          <div className="mt-5 border-t border-tr-border pt-4">
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-tr-text">
-              <DatabaseBackup size={15} className="text-tr-primary" /> Sao lưu CSDL định kỳ
-            </p>
-            <p className="mb-3 text-xs text-tr-subtle">
-              Tự động tạo bản sao lưu CSDL, nén gzip và gửi vào nhóm/chat Telegram ở trên theo chu
-              kỳ đã chọn. Telegram chỉ nhận tệp tới 50 MB; dữ liệu lớn hơn thì dùng sao lưu Google
-              Drive.
-            </p>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="flex items-center gap-2 text-sm text-tr-subtle">
-                <input
-                  type="checkbox"
-                  checked={backupEnabled}
-                  onChange={(event) => setBackupEnabled(event.target.checked)}
-                  className="h-4 w-4 rounded border-tr-border"
-                />
-                Bật gửi sao lưu định kỳ
-              </label>
-              <div className="w-44">
-                <Field label="Chu kỳ gửi">
-                  <Select
-                    value={backupIntervalHours}
-                    disabled={!backupEnabled}
-                    onChange={(event) => setBackupIntervalHours(Number(event.target.value))}
-                  >
-                    {BACKUP_INTERVAL_OPTIONS.map(([hours, label]) => (
-                      <option key={hours} value={hours}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
-              <Button
-                disabled={!config.has_token || !config.chat_id || sendBackup.isPending}
-                onClick={() => sendBackup.mutate()}
-              >
-                <DatabaseBackup size={15} />{' '}
-                {sendBackup.isPending ? 'Đang gửi…' : 'Gửi sao lưu ngay'}
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-tr-muted">
-              {config.backup_enabled && config.next_backup_at
-                ? `Lần gửi tiếp theo: ${formatDateTime(config.next_backup_at)}`
-                : 'Chưa bật gửi định kỳ'}
-              {config.last_backup_sent_at
-                ? ` · Lần gửi gần nhất: ${formatDateTime(config.last_backup_sent_at)}`
-                : ''}
-            </p>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? 'Đang lưu…' : 'Lưu'}
-            </Button>
-            <Button disabled={!config.has_token || test.isPending} onClick={() => test.mutate()}>
-              <Send size={15} /> {test.isPending ? 'Đang gửi…' : 'Gửi thử'}
-            </Button>
-          </div>
+          ) : (
+            <p className="text-tr-subtle">Chưa gửi tin thử lần nào.</p>
+          )}
         </div>
-      )}
-    </Panel>
+        <Toggle
+          checked={draft.enabled}
+          onChange={(value) => set('enabled', value)}
+          disabled={!canEdit}
+          label="Gửi thông báo qua Telegram"
+          description="Tắt thì không gửi tin nào, cấu hình vẫn được giữ."
+        />
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <Field label="Chat ID" hint="Lấy bằng cách nhắn cho @userinfobot.">
+            <Input
+              value={draft.chatId}
+              disabled={!canEdit}
+              onChange={(event) => set('chatId', event.target.value)}
+              placeholder="Ví dụ: 123456789"
+            />
+          </Field>
+          <Field
+            label="Bot Token"
+            hint={
+              config.has_token
+                ? `Đã lưu ${config.token_hint ?? ''}; để trống để giữ nguyên`
+                : 'Tạo bot qua @BotFather để lấy token. Token được mã hoá tại máy chủ.'
+            }
+          >
+            <Input
+              type="password"
+              autoComplete="new-password"
+              disabled={!canEdit}
+              value={draft.botToken}
+              onChange={(event) => set('botToken', event.target.value)}
+              placeholder={config.has_token ? '••••••••' : 'Nhập Bot Token'}
+            />
+          </Field>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            disabled={!config.has_token || test.isPending || dirty}
+            title={dirty ? 'Lưu thay đổi trước khi gửi thử' : undefined}
+            onClick={() => test.mutate()}
+          >
+            <Send size={15} aria-hidden="true" /> {test.isPending ? 'Đang gửi…' : 'Gửi tin thử'}
+          </Button>
+          {config.has_token && canEdit && (
+            <Button
+              variant="ghost"
+              className="text-tr-danger"
+              onClick={() => setConfirmClear(true)}
+            >
+              Xoá Bot Token
+            </Button>
+          )}
+        </div>
+      </Panel>
+
+      <Panel title="Gửi những thông báo nào">
+        <div className="divide-y divide-tr-border">
+          <Toggle
+            checked={draft.notifyDueDates}
+            onChange={(value) => set('notifyDueDates', value)}
+            disabled={!canEdit}
+            label="Việc đến hạn và quá hạn"
+            description="Tóm tắt các việc sắp đến hạn hoặc đã trễ."
+          />
+          <Toggle
+            checked={draft.notifyReminders}
+            onChange={(value) => set('notifyReminders', value)}
+            disabled={!canEdit}
+            label="Nhắc hẹn cá nhân"
+            description="Theo giờ hẹn của từng người."
+          />
+          <Toggle
+            checked={draft.notifyAssignee}
+            onChange={(value) => set('notifyAssignee', value)}
+            disabled={!canEdit}
+            label="Khi được giao việc mới"
+            description="Gửi ngay khi có người giao việc."
+          />
+        </div>
+        {onOpen && (
+          <p className="mt-3 text-xs text-tr-muted">
+            Gửi bản sao lưu định kỳ qua Telegram nay nằm ở{' '}
+            <button
+              type="button"
+              onClick={() => onOpen('backup')}
+              className="font-medium text-tr-primary underline"
+            >
+              Dữ liệu &amp; bảo mật → Sao lưu
+            </button>
+            .
+          </p>
+        )}
+      </Panel>
+
+      <SaveBar
+        dirty={dirty}
+        saving={save.isPending}
+        onSave={() => save.mutate(draft)}
+        onReset={() => setDraft(draftOf(config))}
+      />
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Xoá Bot Token?"
+        message="Hệ thống sẽ ngừng gửi mọi tin Telegram — thông báo và sao lưu định kỳ — cho tới khi nhập token mới."
+        confirmLabel="Xoá token"
+        pending={clearToken.isPending}
+        onConfirm={() => clearToken.mutate()}
+        onCancel={() => setConfirmClear(false)}
+      />
+    </div>
   );
 }

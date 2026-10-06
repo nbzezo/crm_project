@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { api } from '../../api/client';
@@ -15,6 +15,7 @@ import {
 } from '../common/ui';
 import { OrgChartTree } from './OrgChartTree';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { Modal } from '../common/Modal';
 import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import type { Assignee } from '../../types';
@@ -86,18 +87,9 @@ export function OrgChartSettings() {
   const pushToast = useUiStore((s) => s.pushToast);
   const [editing, setEditing] = useState<{ id: number | null; draft: Draft } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<OrgUnit | null>(null);
-  const [showKinds, setShowKinds] = useState(false);
+  const [confirmKind, setConfirmKind] = useState<UnitKind | null>(null);
   const [newKind, setNewKind] = useState('');
-  const [view, setView] = useState<'chart' | 'list'>('chart');
-  const formRef = useRef<HTMLDivElement>(null);
-  const editingKey = editing ? `${editing.id}:${editing.draft.parent_id}` : null;
-
-  /* Bam Sua tren mot o nam sau trong so do thi form o dau trang — keo len cho
-     nguoi dung thay ngay, khong thi bam xong tuong nhu khong co gi xay ra. */
-  useEffect(() => {
-    if (editingKey) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [editingKey]);
-
+  const [view, setView] = useState<'chart' | 'list' | 'kinds'>('chart');
   const units = useQuery({
     queryKey: ['org-units'],
     queryFn: () => api.get<OrgUnit[]>('/api/org-units'),
@@ -114,6 +106,15 @@ export function OrgChartSettings() {
 
   /* May chu tra ve danh sach PHANG kem parent_id; cay duoc dung o day. Tra ve cay
      long nhau tu API se buoc moi man hinh tu viet mot ham duyet rieng. */
+  const editingDirty = Boolean(
+    editing &&
+    JSON.stringify(editing.draft) !==
+      JSON.stringify(
+        editing.id === null
+          ? { ...EMPTY_DRAFT, parent_id: editing.draft.parent_id }
+          : draftOf(units.data?.find((unit) => unit.id === editing.id) ?? ({} as OrgUnit))
+      )
+  );
   const childrenOf = useMemo(() => {
     const map = new Map<number | null, OrgUnit[]>();
     for (const unit of units.data ?? []) {
@@ -175,7 +176,10 @@ export function OrgChartSettings() {
 
   const removeKind = useMutation({
     mutationFn: (id: number) => api.del(`/api/org-units/kinds/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['org-units', 'kinds'] }),
+    onSuccess: () => {
+      setConfirmKind(null);
+      void queryClient.invalidateQueries({ queryKey: ['org-units', 'kinds'] });
+    },
   });
 
   function renderUnit(unit: OrgUnit, depth: number) {
@@ -237,9 +241,6 @@ export function OrgChartSettings() {
       title={t.orgChart.title}
       action={
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setShowKinds((v) => !v)}>
-            {t.orgChart.kinds}
-          </Button>
           <Button
             variant="primary"
             onClick={() => setEditing({ id: null, draft: { ...EMPTY_DRAFT } })}
@@ -255,7 +256,19 @@ export function OrgChartSettings() {
         error={units.error ?? save.error ?? remove.error ?? addKind.error ?? removeKind.error}
       />
 
-      {showKinds ? (
+      <div className="mb-3">
+        <Segmented
+          label={t.orgChart.title}
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'chart', label: t.orgChart.viewChart },
+            { value: 'list', label: t.orgChart.viewList },
+            { value: 'kinds', label: t.orgChart.kinds },
+          ]}
+        />
+      </div>
+      {view === 'kinds' ? (
         <div className="mb-4 rounded-control border border-tr-border p-3">
           <p className="mb-2 text-xs text-tr-muted">{t.orgChart.kindsHint}</p>
           <ul className="mb-3 space-y-1">
@@ -266,7 +279,7 @@ export function OrgChartSettings() {
                   <IconButton
                     label={t.common.delete}
                     tone="danger"
-                    onClick={() => removeKind.mutate(kind.id)}
+                    onClick={() => setConfirmKind(kind)}
                   >
                     <Trash2 size={13} aria-hidden />
                   </IconButton>
@@ -293,120 +306,6 @@ export function OrgChartSettings() {
         </div>
       ) : null}
 
-      {editing ? (
-        <div ref={formRef} className="mb-4 space-y-3 rounded-control border border-tr-border p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t.orgChart.unitName} required>
-              <Input
-                value={editing.draft.name}
-                onChange={(e) =>
-                  setEditing({ ...editing, draft: { ...editing.draft, name: e.target.value } })
-                }
-              />
-            </Field>
-            <Field label={t.orgChart.unitCode}>
-              <Input
-                value={editing.draft.code}
-                onChange={(e) =>
-                  setEditing({ ...editing, draft: { ...editing.draft, code: e.target.value } })
-                }
-              />
-            </Field>
-            <Field label={t.orgChart.parent}>
-              <Select
-                value={editing.draft.parent_id ?? ''}
-                onChange={(e) =>
-                  setEditing({
-                    ...editing,
-                    draft: {
-                      ...editing.draft,
-                      parent_id: e.target.value ? Number(e.target.value) : null,
-                    },
-                  })
-                }
-              >
-                <option value="">{t.orgChart.noParent}</option>
-                {(units.data ?? [])
-                  /* Khong cho chon chinh no lam cap tren. Chu trinh sau hon do may
-                     chu chan (assertNoCycle) — day chi la loc cho de dung. */
-                  .filter((u) => u.id !== editing.id)
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-              </Select>
-            </Field>
-            <Field label={t.orgChart.unitKind}>
-              <Select
-                value={editing.draft.kind_id ?? ''}
-                onChange={(e) =>
-                  setEditing({
-                    ...editing,
-                    draft: {
-                      ...editing.draft,
-                      kind_id: e.target.value ? Number(e.target.value) : null,
-                    },
-                  })
-                }
-              >
-                <option value="">—</option>
-                {(kinds.data ?? []).map((kind) => (
-                  <option key={kind.id} value={kind.id}>
-                    {kind.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t.orgChart.head}>
-              <Select
-                value={editing.draft.head_contact_id ?? ''}
-                onChange={(e) =>
-                  setEditing({
-                    ...editing,
-                    draft: {
-                      ...editing.draft,
-                      head_contact_id: e.target.value ? Number(e.target.value) : null,
-                    },
-                  })
-                }
-              >
-                <option value="">{t.orgChart.noHead}</option>
-                {(staff.data ?? []).map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.full_name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="primary"
-              disabled={save.isPending || !editing.draft.name.trim()}
-              onClick={() => save.mutate(editing)}
-            >
-              {save.isPending ? t.common.saving : t.common.save}
-            </Button>
-            <Button variant="secondary" onClick={() => setEditing(null)}>
-              {t.common.cancel}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mb-3">
-        <Segmented
-          label={t.orgChart.title}
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'chart', label: t.orgChart.viewChart },
-            { value: 'list', label: t.orgChart.viewList },
-          ]}
-        />
-      </div>
-
       {units.isPending ? <SkeletonRows rows={4} /> : null}
       {view === 'chart' && units.data ? (
         <OrgChartTree
@@ -421,6 +320,123 @@ export function OrgChartSettings() {
       ) : null}
       {view === 'list' ? (childrenOf.get(null) ?? []).map((unit) => renderUnit(unit, 0)) : null}
 
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        dirty={Boolean(editing && editingDirty)}
+        title={editing?.id === null ? t.orgChart.addUnit : t.common.edit}
+        footer={
+          <>
+            <Button onClick={() => setEditing(null)}>{t.common.cancel}</Button>
+            <Button
+              variant="primary"
+              disabled={save.isPending || !editing?.draft.name.trim()}
+              onClick={() => editing && save.mutate(editing)}
+            >
+              {save.isPending ? t.common.saving : t.common.save}
+            </Button>
+          </>
+        }
+      >
+        {editing ? (
+          <>
+            <FormError error={save.error} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t.orgChart.unitName} required>
+                <Input
+                  value={editing.draft.name}
+                  onChange={(e) =>
+                    setEditing({ ...editing, draft: { ...editing.draft, name: e.target.value } })
+                  }
+                />
+              </Field>
+              <Field label={t.orgChart.unitCode}>
+                <Input
+                  value={editing.draft.code}
+                  onChange={(e) =>
+                    setEditing({ ...editing, draft: { ...editing.draft, code: e.target.value } })
+                  }
+                />
+              </Field>
+              <Field label={t.orgChart.parent}>
+                <Select
+                  value={editing.draft.parent_id ?? ''}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      draft: {
+                        ...editing.draft,
+                        parent_id: e.target.value ? Number(e.target.value) : null,
+                      },
+                    })
+                  }
+                >
+                  <option value="">{t.orgChart.noParent}</option>
+                  {(units.data ?? [])
+                    /* Khong cho chon chinh no lam cap tren. Chu trinh sau hon do may
+                     chu chan (assertNoCycle) — day chi la loc cho de dung. */
+                    .filter((u) => u.id !== editing.id)
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+              <Field label={t.orgChart.unitKind}>
+                <Select
+                  value={editing.draft.kind_id ?? ''}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      draft: {
+                        ...editing.draft,
+                        kind_id: e.target.value ? Number(e.target.value) : null,
+                      },
+                    })
+                  }
+                >
+                  <option value="">—</option>
+                  {(kinds.data ?? []).map((kind) => (
+                    <option key={kind.id} value={kind.id}>
+                      {kind.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t.orgChart.head}>
+                <Select
+                  value={editing.draft.head_contact_id ?? ''}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      draft: {
+                        ...editing.draft,
+                        head_contact_id: e.target.value ? Number(e.target.value) : null,
+                      },
+                    })
+                  }
+                >
+                  <option value="">{t.orgChart.noHead}</option>
+                  {(staff.data ?? []).map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.full_name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          </>
+        ) : null}
+      </Modal>
+      <ConfirmDialog
+        open={confirmKind !== null}
+        title={`Xoá loại đơn vị “${confirmKind?.name ?? ''}”?`}
+        message="Các đơn vị đang mang loại này sẽ không còn nhãn loại. Cây đơn vị và người trong đó giữ nguyên."
+        pending={removeKind.isPending}
+        onConfirm={() => confirmKind && removeKind.mutate(confirmKind.id)}
+        onCancel={() => setConfirmKind(null)}
+      />
       <ConfirmDialog
         open={confirmDelete !== null}
         title={t.orgChart.confirmDeleteUnitTitle}
