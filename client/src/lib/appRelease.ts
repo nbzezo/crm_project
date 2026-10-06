@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.28.2',
+    date: '2026-10-06',
+    title: 'Tệp tải lên và ghi chú nhanh theo đúng phạm vi xem',
+    changes: [
+      'Kho tệp nay theo phạm vi dữ liệu: bạn thấy tệp do mình tải lên, và tệp gắn với khách hàng, người liên hệ, cơ hội, hợp đồng, báo giá, công việc, ghi chú hay trang tài liệu mà bạn được xem. Trước đây ai mở được màn hình Tài liệu cũng tải được mọi tệp.',
+      'Tải xuống, tải ZIP, sửa thông tin, xoá, khôi phục và chia sẻ link một tệp đều kiểm tra phạm vi này. Trợ lý AI chỉ đọc nội dung những tệp bạn được xem.',
+      'Tệp tải lên từ bản này ghi lại người tải lên. Tệp cũ không gắn với bản ghi nào vẫn hiện như trước.',
+      'Ghi chú nhanh: mở, sửa, ghim, lưu trữ, xoá một ghi chú của người khác bằng đường dẫn trực tiếp nay bị chặn (trước đây chỉ danh sách là được lọc). Danh sách thẻ gợi ý cũng chỉ lấy từ ghi chú của bạn.',
+    ],
+  },
+  {
     version: '1.28.1',
     date: '2026-10-06',
     title: 'Trang tài liệu theo đúng phạm vi xem; xoá vĩnh viễn từ Thùng rác',

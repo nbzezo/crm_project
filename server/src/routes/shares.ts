@@ -21,6 +21,7 @@ import {
   type ShareLinkRow,
 } from '../services/shareService.ts';
 import { assertMeetingNoteInScope } from '../lib/meetingNoteScope.ts';
+import { assertDocumentsInScope } from '../lib/documentScope.ts';
 
 /*
  * Quan ly lien ket chia se (can dang nhap). Phan phuc vu cong khai nam o
@@ -91,12 +92,14 @@ function assertEntityAccess(
     throw new HttpError(403, 'Bạn không có quyền dùng chức năng này');
   }
   const info = required(loadEntity(db, type, id), 'Không tìm thấy bản ghi cần chia sẻ');
-  /* Tai lieu khong nam trong pham vi du lieu (route cua no cung chi chan theo
-     tinh nang) nen o day cung chi kiem quyen tinh nang. Trang tai lieu theo luat
-     rieng (chu trang HOAC ban ghi gan kem, 1.28.1); bao gia va hop dong theo chu. */
+  /* Trang tai lieu va tep theo luat rieng (nguoi viet/tai len HOAC ban ghi gan
+     kem — lib/meetingNoteScope.ts, lib/documentScope.ts); bao gia va hop dong
+     theo chu. */
   if (type === 'page') {
     assertMeetingNoteInScope(req, id, action);
-  } else if (type !== 'document') {
+  } else if (type === 'document') {
+    assertDocumentsInScope(req, [id], action);
+  } else {
     assertInScope(req, resource, action, info.ownerContactId, 'Không tìm thấy bản ghi cần chia sẻ');
   }
   return info;

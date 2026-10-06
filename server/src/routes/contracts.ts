@@ -372,6 +372,7 @@ router.post('/from-file', contractUpload.single('file'), (req, res) => {
         customer_id: created.customerId,
         contract_id: created.contractId,
         deal_id: row.deal_id,
+        owner_contact_id: defaultOwner(req),
       });
     } catch (error) {
       documentError = error instanceof Error ? error.message : 'Không đính kèm được tệp';

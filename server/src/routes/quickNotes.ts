@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
+import type { PermissionAction } from '@workflow/contracts';
 import { z } from 'zod';
 import {
   meetingNoteInputSchema,
@@ -9,7 +10,8 @@ import {
 } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
 import { accessOf, actorContactId } from '../middleware/currentUser.ts';
-import { intParam, parseBody } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody } from '../lib/validate.ts';
+import { assertInScope } from '../lib/scope.ts';
 import { createMeetingNote } from '../services/meetingNoteService.ts';
 import {
   createQuickNote,
@@ -30,6 +32,24 @@ import {
 } from '../services/quickNoteService.ts';
 
 const router = Router();
+
+/**
+ * Kiem mot ghi chu CU THE (1.28.2). Danh sach da loc theo nguoi viet tu truoc,
+ * nhung moi route theo id thi khong — doan id la doc, sua, xoa duoc ghi chu ca
+ * nhan cua nguoi khac. Ghi chu nhanh la du lieu ca nhan: ghi chu chua co chu chi
+ * nguoi co pham vi `all` thay, giong danh sach. Ca ghi chu trong Thung rac.
+ */
+function guard(req: Request, id: number, action: PermissionAction): number {
+  const row = db.prepare(`SELECT owner_contact_id FROM quick_notes WHERE id = ?`).get(id) as
+    { owner_contact_id: number | null } | undefined;
+  if (!row) throw new HttpError(404, 'Khong tim thay ghi chu');
+  assertInScope(req, 'notes', action, row.owner_contact_id, 'Khong tim thay ghi chu');
+  return id;
+}
+
+/** `:id` da kiem pham vi cho hanh dong `action`. */
+const noteId = (req: Request, action: PermissionAction) =>
+  guard(req, intParam(req.params.id as string), action);
 
 function boolQuery(value: unknown): boolean {
   return value === '1' || value === 'true';
@@ -60,23 +80,26 @@ router.post('/', (req, res) => {
 });
 
 /** Danh sach tag khong trung — phai dung TRUOC '/:id' de khong bi intParam bat nham. */
-router.get('/tags', (_req, res) => res.json(listQuickNoteTags(db)));
+router.get('/tags', (req, res) => {
+  const visible = accessOf(req).visibleContactIds('notes', 'read');
+  res.json(listQuickNoteTags(db, visible === 'all' ? undefined : visible));
+});
 
-router.get('/:id', (req, res) => res.json(getQuickNote(db, intParam(req.params.id))));
+router.get('/:id', (req, res) => res.json(getQuickNote(db, noteId(req, 'read'))));
 
 router.patch('/:id', (req, res) => {
   const body = parseBody(quickNoteFieldsSchema.partial(), req);
-  res.json(updateQuickNote(db, intParam(req.params.id), body));
+  res.json(updateQuickNote(db, noteId(req, 'update'), body));
 });
 
 router.delete('/:id', (req, res) => {
-  softDeleteQuickNote(db, intParam(req.params.id));
+  softDeleteQuickNote(db, noteId(req, 'delete'));
   res.json({ ok: true });
 });
 
 /** Chi xoa vinh vien duoc ghi chu DANG trong Thung rac (xem permanentlyDeleteQuickNote). */
 router.delete('/:id/permanent', (req, res) => {
-  permanentlyDeleteQuickNote(db, intParam(req.params.id));
+  permanentlyDeleteQuickNote(db, noteId(req, 'delete'));
   res.json({ ok: true });
 });
 
@@ -85,31 +108,31 @@ router.delete('/:id/permanent', (req, res) => {
  * hoan toan rong, giong Google Keep (xem discardIfEmptyQuickNote).
  */
 router.post('/:id/discard-if-empty', (req, res) => {
-  const discarded = discardIfEmptyQuickNote(db, intParam(req.params.id));
+  const discarded = discardIfEmptyQuickNote(db, noteId(req, 'update'));
   res.json({ discarded });
 });
 
-router.post('/:id/restore', (req, res) => res.json(restoreQuickNote(db, intParam(req.params.id))));
+router.post('/:id/restore', (req, res) => res.json(restoreQuickNote(db, noteId(req, 'delete'))));
 
 router.post('/:id/pin', (req, res) => {
   const { pinned } = parseBody(z.object({ pinned: z.boolean() }), req);
-  res.json(setPinned(db, intParam(req.params.id), pinned));
+  res.json(setPinned(db, noteId(req, 'update'), pinned));
 });
 
 router.post('/:id/archive', (req, res) => {
   const { archived } = parseBody(z.object({ archived: z.boolean() }), req);
-  res.json(setArchived(db, intParam(req.params.id), archived));
+  res.json(setArchived(db, noteId(req, 'update'), archived));
 });
 
 /** FR-BOARD: keo tha sap xep tay (v33) — xem moveQuickNote/computeMovePosition. */
 router.post('/:id/move', (req, res) => {
   const body = parseBody(quickNoteMoveSchema, req);
-  res.json(moveQuickNote(db, intParam(req.params.id), body));
+  res.json(moveQuickNote(db, noteId(req, 'update'), body));
 });
 
 router.put('/:id/relations', (req, res) => {
   const { relations } = parseBody(z.object({ relations: z.array(quickNoteRelationSchema) }), req);
-  res.json(syncRelations(db, intParam(req.params.id), relations));
+  res.json(syncRelations(db, noteId(req, 'update'), relations));
 });
 
 /**
@@ -119,12 +142,12 @@ router.put('/:id/relations', (req, res) => {
  */
 router.post('/:id/convert/task', (req, res) => {
   const { card_id } = parseBody(z.object({ card_id: z.number().int().positive() }), req);
-  res.json(markConverted(db, intParam(req.params.id), 'task', card_id));
+  res.json(markConverted(db, noteId(req, 'update'), 'task', card_id));
 });
 
 /** FR16: tao mot CRM Note (meeting_notes) moi tu noi dung Quick Note, giu nguyen ban goc. */
 router.post('/:id/convert/crm-note', (req, res) => {
-  const id = intParam(req.params.id);
+  const id = noteId(req, 'update');
   const note = getQuickNote(db, id);
   const links = parseBody(
     meetingNoteInputSchema.pick({ customer_id: true, deal_id: true, project_id: true }),

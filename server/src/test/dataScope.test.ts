@@ -32,7 +32,7 @@ process.env.WORKFLOW_ADMIN_PASSWORD = 'admin-password-1';
 process.env.WORKFLOW_ADMIN_EMAIL = 'admin@congty.vn';
 
 const { createApp } = await import('../app.ts');
-const { db, closeDatabase } = await import('../db/connection.ts');
+const { db, closeDatabase, FILES_DIR } = await import('../db/connection.ts');
 const { ensureAdminUser } = await import('../services/auth/bootstrapAdmin.ts');
 const { setPassword } = await import('../services/auth/users.ts');
 
@@ -426,6 +426,126 @@ test('trang tai lieu: thay trang cua minh va trang gan voi co hoi minh thay', as
 
   await signInAs('admin');
   assert.equal((await titles()).length, 3);
+});
+
+test('ghi chu nhanh: mo, sua, xoa theo id cua nguoi khac la 404; the cung theo nguoi viet', async () => {
+  await signInAs(n1);
+  const created = await call('POST', '/api/quick-notes', {
+    title: 'Ghi chú theo id của N1',
+    tags: ['the-rieng-n1'],
+  });
+  const id = (created.data as { id: number }).id;
+  assert.equal((await call('GET', `/api/quick-notes/${id}`)).status, 200);
+
+  await signInAs(n2);
+  assert.equal((await call('GET', `/api/quick-notes/${id}`)).status, 404);
+  assert.equal((await call('PATCH', `/api/quick-notes/${id}`, { title: 'sua trom' })).status, 404);
+  assert.equal((await call('POST', `/api/quick-notes/${id}/pin`, { pinned: true })).status, 404);
+  assert.equal((await call('DELETE', `/api/quick-notes/${id}`)).status, 404);
+  assert.ok(
+    !JSON.stringify((await call('GET', '/api/quick-notes/tags')).data).includes('the-rieng-n1')
+  );
+
+  await signInAs(head);
+  assert.equal(
+    (await call('GET', `/api/quick-notes/${id}`)).status,
+    404,
+    'ghi chu nhanh la du lieu ca nhan — cap tren cung khong mo duoc'
+  );
+});
+
+test('kho tep: thay tep minh tai len va tep gan voi ban ghi minh thay', async () => {
+  const idOf = (sql: string, value: string) => (db.prepare(sql).get(value) as { id: number }).id;
+  const n1Deal = idOf('SELECT id FROM deals WHERE title = ?', 'Cơ hội của N1');
+  const n2Customer = idOf('SELECT id FROM customers WHERE name = ?', 'Khách của N2');
+  const insert = db.prepare(
+    `INSERT INTO documents (name, file_name, stored_name, mime, size, owner_contact_id, deal_id, customer_id, search_text)
+     VALUES (?, ?, ?, 'text/plain', 5, ?, ?, ?, 'kho tep')`
+  );
+  const doc = (
+    name: string,
+    owner: Person | null,
+    dealId: number | null,
+    customerId: number | null
+  ) => {
+    const stored = `scope-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
+    fs.mkdirSync(FILES_DIR, { recursive: true });
+    fs.writeFileSync(path.join(FILES_DIR, stored), 'tep');
+    return Number(
+      insert.run(name, `${name}.txt`, stored, owner?.contactId ?? null, dealId, customerId)
+        .lastInsertRowid
+    );
+  };
+  const n1Private = doc('Tệp riêng N1', n1, null, null);
+  doc('Tệp cũ không gắn', null, null, null);
+  doc('Tệp N2 trên cơ hội N1', n2, n1Deal, null);
+  const onN2Customer = doc('Tệp của khách N2', null, null, n2Customer);
+
+  // Tai xuong tra tep nhi phan, khong phai JSON — chi can ma trang thai.
+  const fetchStatus = async (pathname: string) =>
+    (await fetch(`${baseUrl}${pathname}`, { headers: cookie ? { cookie } : {} })).status;
+  const names = async () =>
+    ((await call('GET', '/api/documents?q=kho tep')).data as { name: string }[])
+      .map((d) => d.name)
+      .sort();
+
+  await signInAs(n1);
+  assert.deepEqual(await names(), ['Tệp N2 trên cơ hội N1', 'Tệp cũ không gắn', 'Tệp riêng N1']);
+  assert.equal(await fetchStatus(`/api/documents/${n1Private}/download`), 200);
+
+  await signInAs(n2);
+  assert.deepEqual(await names(), [
+    'Tệp N2 trên cơ hội N1',
+    'Tệp cũ không gắn',
+    'Tệp của khách N2',
+  ]);
+  assert.equal(
+    ((await call('GET', '/api/documents/count?q=kho tep')).data as { count: number }).count,
+    3
+  );
+  const page = (await call('GET', '/api/documents/page?q=kho tep')).data as { items: unknown[] };
+  assert.equal(page.items.length, 3);
+  // Doan id: tai xuong, ZIP, sua, xoa, chia se tep ngoai pham vi deu la 404.
+  assert.equal(await fetchStatus(`/api/documents/${n1Private}/download`), 404);
+  assert.equal(
+    await fetchStatus(`/api/documents/download.zip?ids=${n1Private},${onN2Customer}`),
+    404
+  );
+  assert.equal((await call('PATCH', `/api/documents/${n1Private}`, { name: 'sua' })).status, 404);
+  assert.equal((await call('DELETE', `/api/documents/${n1Private}`)).status, 404);
+  assert.equal((await call('POST', '/api/documents/bulk/trash', { ids: [n1Private] })).status, 404);
+  assert.equal(
+    (await call('GET', `/api/shares?entity_type=document&entity_id=${n1Private}`)).status,
+    404
+  );
+
+  await signInAs(head);
+  assert.ok(
+    !(await names()).includes('Tệp của khách N2'),
+    'Truong phong P1 khong thay tep gan voi khach cua phong P2'
+  );
+
+  await signInAs('admin');
+  assert.equal((await names()).length, 4);
+});
+
+test('kho tep: tep vua tai len ghi nguoi tai len, nguoi phong khac khong thay', async () => {
+  await signInAs(n1);
+  const form = new FormData();
+  form.append('name', 'Tệp mới tải của N1');
+  form.append('file', new Blob(['noi dung'], { type: 'text/plain' }), 'moi-tai.txt');
+  const uploaded = await fetch(`${baseUrl}/api/documents`, {
+    method: 'POST',
+    headers: { cookie },
+    body: form,
+  });
+  assert.equal(uploaded.status, 201);
+  const created = (await uploaded.json()) as { id: number; owner_contact_id: number | null };
+  assert.equal(created.owner_contact_id, n1.contactId);
+
+  await signInAs(n2);
+  const visible = JSON.stringify((await call('GET', '/api/documents')).data);
+  assert.ok(!visible.includes('Tệp mới tải của N1'));
 });
 
 test('xuat toan bo CSDL van chi danh cho nguoi co quyen', async () => {

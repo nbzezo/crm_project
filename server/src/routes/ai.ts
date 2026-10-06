@@ -79,6 +79,7 @@ import {
   type VoicePromptTemplate,
 } from '../services/ai/promptTemplates.ts';
 import { assertMeetingNoteInScope } from '../lib/meetingNoteScope.ts';
+import { assertDocumentsInScope, documentScope } from '../lib/documentScope.ts';
 
 const router = Router();
 
@@ -1165,6 +1166,7 @@ const voiceNoteConvertResponse = z.object({ text: z.string() });
 router.post('/assist/voice-note/convert', async (req, res) => {
   try {
     const body = parseBody(voiceNoteConvertSchema, req);
+    assertDocumentsInScope(req, [body.document_id], 'read');
     const doc = db
       .prepare(
         `SELECT stored_name, mime, file_name FROM documents WHERE id = ? AND deleted_at IS NULL`
@@ -1285,7 +1287,12 @@ router.post('/ask', async (req, res) => {
       documents:
         body.scope === 'crm'
           ? []
-          : searchDocumentChunks(db, body.question, body.scope === 'all' ? 8 : 12),
+          : searchDocumentChunks(
+              db,
+              body.question,
+              body.scope === 'all' ? 8 : 12,
+              documentScope(req, 'read', 'd')
+            ),
     };
     const history = body.history
       .map((item) => `${item.role === 'user' ? 'Người dùng' : 'Trợ lý'}: ${item.content}`)
@@ -1407,7 +1414,7 @@ router.post('/documents/:id/index', async (req, res) =>
 );
 router.get('/documents/search', (req, res) => {
   const query = String(req.query.q ?? '').trim();
-  res.json(query ? searchDocumentChunks(db, query) : []);
+  res.json(query ? searchDocumentChunks(db, query, 8, documentScope(req, 'read', 'd')) : []);
 });
 
 router.get('/usage', (_req, res) => {

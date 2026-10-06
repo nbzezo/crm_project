@@ -361,10 +361,15 @@ export function syncRelations(db: Database, id: number, relations: QuickNoteRela
 }
 
 /** Danh sach tag khong trung, dung de dung popup Loc theo tag (giong Label cua Google Keep). */
-export function listQuickNoteTags(db: Database): string[] {
+/** `ownerContactIds`: pham vi `notes` cua nguoi hoi — undefined la khong gioi han. */
+export function listQuickNoteTags(db: Database, ownerContactIds?: number[]): string[] {
+  if (ownerContactIds && ownerContactIds.length === 0) return [];
+  const owned = ownerContactIds
+    ? ` AND owner_contact_id IN (${ownerContactIds.map(() => '?').join(',')})`
+    : '';
   const rows = db
-    .prepare(`SELECT tags FROM quick_notes WHERE deleted_at IS NULL AND tags != '[]'`)
-    .all() as { tags: string }[];
+    .prepare(`SELECT tags FROM quick_notes WHERE deleted_at IS NULL AND tags != '[]'${owned}`)
+    .all(...(ownerContactIds ?? [])) as { tags: string }[];
   const set = new Set<string>();
   for (const row of rows) {
     for (const tag of JSON.parse(row.tags) as string[]) set.add(tag);

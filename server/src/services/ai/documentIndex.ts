@@ -4,6 +4,7 @@ import { FILES_DIR } from '../../db/connection.ts';
 import { buildSearchText, fold } from '../../lib/viSearch.ts';
 import { HttpError, required } from '../../lib/validate.ts';
 import { extractText, type ExtractMethod } from './textExtract.ts';
+import type { ScopeClause } from '../../lib/scope.ts';
 
 interface DocumentRow {
   id: number;
@@ -174,7 +175,17 @@ function ftsQuery(query: string): string {
     .join(' OR ');
 }
 
-export function searchDocumentChunks(db: Database, query: string, limit = 8) {
+/**
+ * `scope`: pham vi du lieu kho tep cua nguoi hoi (lib/documentScope.ts, bi danh
+ * `d`) — khong co thi tro ly AI tra loi bang noi dung tep cua phong khac.
+ */
+export function searchDocumentChunks(
+  db: Database,
+  query: string,
+  limit = 8,
+  scope: ScopeClause = { sql: '', params: [] }
+) {
+  const scoped = scope.sql ? ` AND ${scope.sql}` : '';
   const expression = ftsQuery(query);
   if (!expression) return [];
   try {
@@ -187,10 +198,10 @@ export function searchDocumentChunks(db: Database, query: string, limit = 8) {
            JOIN ai_document_chunks ch ON ch.id = f.rowid
            JOIN documents d ON d.id = ch.document_id
           WHERE ai_document_chunks_fts MATCH ? AND d.deleted_at IS NULL
-            AND d.confidentiality <> 'confidential'
+            AND d.confidentiality <> 'confidential'${scoped}
           ORDER BY rank LIMIT ?`
       )
-      .all(expression, Math.max(1, Math.min(limit, 20)));
+      .all(expression, ...scope.params, Math.max(1, Math.min(limit, 20)));
   } catch {
     const like = `%${fold(query)}%`;
     return db
@@ -199,9 +210,9 @@ export function searchDocumentChunks(db: Database, query: string, limit = 8) {
                 d.name AS document_name, d.file_name, d.confidentiality, 0 AS rank
            FROM ai_document_chunks ch JOIN documents d ON d.id = ch.document_id
           WHERE ch.search_text LIKE ? AND d.deleted_at IS NULL
-            AND d.confidentiality <> 'confidential'
+            AND d.confidentiality <> 'confidential'${scoped}
           ORDER BY ch.id DESC LIMIT ?`
       )
-      .all(like, Math.max(1, Math.min(limit, 20)));
+      .all(like, ...scope.params, Math.max(1, Math.min(limit, 20)));
   }
 }

@@ -18,6 +18,8 @@ import {
   DOCUMENT_TEMP_DIR,
 } from '../services/documentService.ts';
 import { sendDocumentsZip, type ZipDocument } from '../services/zipService.ts';
+import { assertDocumentsInScope, documentScope } from '../lib/documentScope.ts';
+import { defaultOwner } from '../lib/scope.ts';
 import { indexDocument } from '../services/ai/documentIndex.ts';
 
 const router = Router();
@@ -137,6 +139,12 @@ function documentWhere(req: Request): { where: string[]; params: unknown[] } {
     req.query.trash === '1' ? 'dc.deleted_at IS NOT NULL' : 'dc.deleted_at IS NULL',
   ];
   const params: unknown[] = [];
+  /* Pham vi du lieu (1.28.2) — moi danh sach, so dem cua kho tep deu qua day. */
+  const scope = documentScope(req, 'read');
+  if (scope.sql) {
+    where.push(scope.sql);
+    params.push(...scope.params);
+  }
   const q = fold(String(req.query.q ?? '').trim());
   if (q) {
     where.push(`dc.search_text LIKE '%' || ? || '%'`);
@@ -213,6 +221,7 @@ router.get('/download.zip', (req, res) => {
     .filter((id) => Number.isInteger(id) && id > 0)
     .slice(0, 200);
   if (ids.length === 0) throw new HttpError(400, 'Chưa chọn tài liệu để tải');
+  assertDocumentsInScope(req, ids, 'read');
   const documents = db
     .prepare(
       `SELECT file_name, stored_name FROM documents WHERE deleted_at IS NULL AND id IN (${placeholders(ids)}) ORDER BY id`
@@ -227,13 +236,14 @@ router.post('/', upload.single('file'), (req, res) => {
   if (!file) throw new HttpError(400, 'Chưa chọn tệp để tải lên');
   const body = parseBody(metadataSchema, req);
   assertPicklistValue(db, 'doc_type', body.doc_type);
-  const id = createDocument(file, body);
+  const id = createDocument(file, { ...body, owner_contact_id: defaultOwner(req) });
   res.status(201).json(reload(id));
 });
 
 router.patch('/bulk', (req, res) => {
   const body = parseBody(idsSchema.and(metadataSchema.partial()), req);
   const { ids, ...patch } = body;
+  assertDocumentsInScope(req, ids, 'update');
   assertPicklistValue(db, 'doc_type', patch.doc_type);
   const rows = db
     .prepare(`SELECT * FROM documents WHERE deleted_at IS NULL AND id IN (${placeholders(ids)})`)
@@ -293,6 +303,7 @@ router.patch('/bulk', (req, res) => {
 
 router.post('/bulk/trash', (req, res) => {
   const { ids } = parseBody(idsSchema, req);
+  assertDocumentsInScope(req, ids, 'delete');
   const result = db.transaction(() => {
     const updated = db
       .prepare(
@@ -307,6 +318,7 @@ router.post('/bulk/trash', (req, res) => {
 
 router.post('/bulk/restore', (req, res) => {
   const { ids } = parseBody(idsSchema, req);
+  assertDocumentsInScope(req, ids, 'delete', true);
   const result = db
     .prepare(
       `UPDATE documents SET deleted_at = NULL, updated_at = datetime('now','localtime') WHERE deleted_at IS NOT NULL AND id IN (${placeholders(ids)})`
@@ -317,6 +329,7 @@ router.post('/bulk/restore', (req, res) => {
 
 router.get('/:id/download', (req, res) => {
   const id = intParam(req.params.id);
+  assertDocumentsInScope(req, [id], 'read');
   const doc = required(
     db.prepare(`SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL`).get(id),
     'Không tìm thấy tài liệu'
@@ -337,6 +350,7 @@ router.get('/:id/download', (req, res) => {
 
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertDocumentsInScope(req, [id], 'update', true);
   const body = parseBody(metadataSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM documents WHERE id = ?`).get(id),
@@ -395,6 +409,7 @@ router.patch('/:id', (req, res) => {
 
 router.post('/:id/restore', (req, res) => {
   const id = intParam(req.params.id);
+  assertDocumentsInScope(req, [id], 'delete', true);
   const result = db
     .prepare(
       `UPDATE documents SET deleted_at = NULL, updated_at = datetime('now','localtime') WHERE id = ? AND deleted_at IS NOT NULL`
@@ -409,6 +424,7 @@ router.post('/:id/restore', (req, res) => {
 
 router.delete('/:id/permanent', (req, res) => {
   const id = intParam(req.params.id);
+  assertDocumentsInScope(req, [id], 'delete', true);
   required(
     db.prepare(`SELECT id FROM documents WHERE id = ? AND deleted_at IS NOT NULL`).get(id),
     'Chỉ tài liệu trong thùng rác mới được xóa vĩnh viễn'
@@ -419,6 +435,7 @@ router.delete('/:id/permanent', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertDocumentsInScope(req, [id], 'delete');
   const result = db.transaction(() => {
     const updated = db
       .prepare(

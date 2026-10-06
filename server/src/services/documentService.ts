@@ -47,6 +47,8 @@ interface DocumentInput extends EntityLinks {
   effective_date?: string | null;
   expires_at?: string | null;
   confidentiality?: 'public' | 'internal' | 'confidential';
+  /** Nguoi tai len (v65) — co so cua pham vi du lieu kho tep, xem lib/documentScope.ts. */
+  owner_contact_id?: number | null;
 }
 
 /** Dua file tu kho tam sang kho chinh va chi commit metadata khi ca hai buoc thanh cong. */
@@ -66,8 +68,8 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
                                   customer_id, contact_id, deal_id, contract_id, quotation_id, card_id,
                                   quick_note_id, meeting_note_id,
                                   description, tags, owner, effective_date, expires_at, confidentiality,
-                                  search_text, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
+                                  search_text, owner_contact_id, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`
         )
         .run(
           name,
@@ -90,7 +92,8 @@ export function createDocument(file: Express.Multer.File, body: DocumentInput): 
           body.effective_date ?? null,
           body.expires_at ?? null,
           body.confidentiality ?? 'internal',
-          buildSearchText(name, file.originalname, body.description, body.tags, body.owner)
+          buildSearchText(name, file.originalname, body.description, body.tags, body.owner),
+          body.owner_contact_id ?? null
         );
       return Number(info.lastInsertRowid);
     })();

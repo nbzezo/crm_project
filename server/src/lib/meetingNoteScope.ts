@@ -4,6 +4,7 @@ import { db } from '../db/connection.ts';
 import { accessOf } from '../middleware/currentUser.ts';
 import { HttpError } from './validate.ts';
 import { scopeWhereOrUnowned, type ScopeClause } from './scope.ts';
+import { anyOf, linkedBranch } from './linkedScope.ts';
 
 /*
  * Pham vi du lieu cua "Trang tài liệu" (bang meeting_notes) — 1.28.1.
@@ -24,28 +25,6 @@ import { scopeWhereOrUnowned, type ScopeClause } from './scope.ts';
  * quyen SUA ban ghi do, khong chi quyen doc.
  */
 
-/** Hanh dong tren ban ghi gan kem: doc → read, moi thao tac ghi → update. */
-function linkedAction(action: PermissionAction): PermissionAction {
-  return action === 'read' ? 'read' : 'update';
-}
-
-/** Mot nhanh "gan voi ban ghi X ma nguoi xem thay duoc", dung subquery theo id. */
-function linkedBranch(
-  req: Request,
-  column: string,
-  table: string,
-  resource: 'deals' | 'projects' | 'customers',
-  action: PermissionAction
-): ScopeClause {
-  const clause = scopeWhereOrUnowned(req, resource, linkedAction(action), 'x.owner_contact_id');
-  if (clause.sql === '') return { sql: `${column} IS NOT NULL`, params: [] };
-  if (clause.sql === '1 = 0') return clause;
-  return {
-    sql: `${column} IN (SELECT x.id FROM ${table} x WHERE ${clause.sql})`,
-    params: clause.params,
-  };
-}
-
 /**
  * Dieu kien WHERE cho bang meeting_notes (bi danh `alias`). Chuoi rong khi khong
  * gioi han (pham vi `all` hoac tat xac thuc).
@@ -53,18 +32,12 @@ function linkedBranch(
 export function meetingNoteScope(req: Request, action: PermissionAction, alias = 'm'): ScopeClause {
   const own = scopeWhereOrUnowned(req, 'notes', action, `${alias}.owner_contact_id`);
   if (own.sql === '') return own;
-
-  const branches = [
+  return anyOf([
     own,
-    linkedBranch(req, `${alias}.deal_id`, 'deals', 'deals', action),
-    linkedBranch(req, `${alias}.project_id`, 'projects', 'projects', action),
-    linkedBranch(req, `${alias}.customer_id`, 'customers', 'customers', action),
-  ].filter((branch) => branch.sql !== '1 = 0');
-  if (branches.length === 0) return { sql: '1 = 0', params: [] };
-  return {
-    sql: `(${branches.map((branch) => branch.sql).join(' OR ')})`,
-    params: branches.flatMap((branch) => branch.params),
-  };
+    linkedBranch(req, `${alias}.deal_id`, 'deal', action),
+    linkedBranch(req, `${alias}.project_id`, 'project', action),
+    linkedBranch(req, `${alias}.customer_id`, 'customer', action),
+  ]);
 }
 
 /**
