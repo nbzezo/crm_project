@@ -14,7 +14,7 @@ Mỗi trạng thái có một thuộc tính **Ý nghĩa với hệ thống**, ch
 |---|---|
 | Chưa bắt đầu | Việc mới vào trạng thái đầu tiên có ý nghĩa này |
 | Đang thực hiện | Mặc định cho trạng thái thường |
-| Chờ bên ngoài | Hiện ở màn Cần theo dõi, nhắc người khác |
+| Chờ bên ngoài | Hiện ở màn Nhắc người khác khi có hạn trong 3 ngày (từ 1.31.0) |
 | Bị chặn | Ghi lý do và thời điểm bị chặn |
 | Chờ duyệt | Hiện cho người duyệt |
 | Hoàn thành | Tính là xong: báo cáo, việc lặp lại, tiến độ dự án |

@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.31.0',
+    date: '2026-10-06',
+    title: 'Cần theo dõi đổi thành Nhắc người khác',
+    changes: [
+      'Màn "Cần theo dõi" đổi tên thành "Nhắc người khác" và chỉ còn việc giao cho người khác hoặc chưa giao: việc của chính bạn không còn nằm ở đây (xem ở màn Công việc), nên không còn cảnh soạn lời nhắc gửi cho chính mình.',
+      'Việc ở trạng thái "Chờ bên ngoài" chỉ vào danh sách khi có hạn trong 3 ngày tới; việc bị chặn vẫn luôn hiện.',
+      'Huy hiệu số việc cần nhắc trên menu đổi từ đỏ sang màu thường, và con số khớp với danh sách mới.',
+      'Trên điện thoại, ô "Nhắc" ở thanh dưới chỉ hiện khi có việc cần nhắc; lúc không có, mục này nằm trong "Thêm".',
+      'Công cụ nội bộ: giao việc cho Codex gọn thành một lệnh, có kiểm tra tự động trước khi nhận.',
+    ],
+  },
+  {
     version: '1.30.0',
     date: '2026-10-06',
     title: 'Trạng thái công việc tự cấu hình',

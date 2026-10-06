@@ -71,7 +71,7 @@ export function statusKeyOf(item: {
 export const STATUS_KIND_LABELS: Record<CardStatus, string> = {
   todo: 'Chưa bắt đầu — việc mới vào đây',
   doing: 'Đang thực hiện',
-  waiting_customer: 'Chờ bên ngoài — hiện ở Cần theo dõi',
+  waiting_customer: 'Chờ bên ngoài — hiện ở Nhắc người khác khi sắp đến hạn',
   blocked: 'Bị chặn — ghi lý do bị chặn',
   review: 'Chờ duyệt — hiện cho người duyệt',
   done: 'Hoàn thành — tính là đã xong',
