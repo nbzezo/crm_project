@@ -34,11 +34,15 @@ Giao diện và thao tác mô phỏng Trello, **mặc định chế độ tối*
   - Nút bật/tắt hiện tên trên nhãn (thanh màu ↔ có chữ), giống Trello.
 - **Khách hàng B2B (Account)** — hồ sơ công ty (tên viết tắt, MST, ngành, quy mô, nguồn, trạng thái Tiềm năng/Khách hàng/Ngừng hợp tác), cảnh báo trùng khi tạo mới.
 - **Người liên hệ (Contact)** — chức vụ, phòng ban, Zalo, LinkedIn, vai trò trong quyết định mua, mức độ quan hệ.
-- **Cơ hội bán hàng (Opportunity)** — pipeline 8 giai đoạn (Tiềm năng → Đang tiếp cận → Đang trao đổi → **PoC / Thử nghiệm** → Gửi báo giá → Đàm phán → Thành công / Thất bại), xác suất tự gợi ý theo giai đoạn, **Next Action + ngày thực hiện**, nhu cầu, đối thủ, nguồn, và **tuổi giai đoạn** (số ngày đã nằm ở giai đoạn hiện tại, tính từ lần chuyển gần nhất). Kéo sang Thất bại **bắt buộc chọn lý do**; chốt Thành công thì nhập giá trị thật và tạo hợp đồng ngay. Cờ **Tạm dừng** (kèm lý do, ngày hẹn xem lại) gắn thêm vào bất kỳ giai đoạn nào thay vì là một giai đoạn riêng, vì một cơ hội dừng lại vẫn đang nằm ở một chỗ cụ thể trong pipeline. Trang chi tiết cơ hội có thêm **thanh giai đoạn bấm chuyển trực tiếp** (không cần vào Kanban), dải nút nhanh nhảy tới tab điểm số / tài liệu / bàn giao, và khung nhật ký hoạt động cho ghi chú nhanh một dòng ngay cạnh mà không cần mở hồ sơ khách hàng.
+- **Cơ hội bán hàng (Opportunity)** — pipeline mặc định 8 giai đoạn (Tiềm năng → Đang tiếp cận → Đang trao đổi → **PoC / Thử nghiệm** → Gửi báo giá → Đàm phán → Thành công / Thất bại), **tự cấu hình được** ở *Cài đặt → Quy trình bán hàng* (xem mục *Cấu hình nghiệp vụ* bên dưới), xác suất tự gợi ý theo giai đoạn, **Next Action + ngày thực hiện**, nhu cầu, đối thủ, nguồn, và **tuổi giai đoạn** (số ngày đã nằm ở giai đoạn hiện tại, tính từ lần chuyển gần nhất). Kéo sang Thất bại **bắt buộc chọn lý do**; chốt Thành công thì nhập giá trị thật và tạo hợp đồng ngay. Cờ **Tạm dừng** (kèm lý do, ngày hẹn xem lại) gắn thêm vào bất kỳ giai đoạn nào thay vì là một giai đoạn riêng, vì một cơ hội dừng lại vẫn đang nằm ở một chỗ cụ thể trong pipeline. Trang chi tiết cơ hội có thêm **thanh giai đoạn bấm chuyển trực tiếp** (không cần vào Kanban), dải nút nhanh nhảy tới tab điểm số / tài liệu / bàn giao, và khung nhật ký hoạt động cho ghi chú nhanh một dòng ngay cạnh mà không cần mở hồ sơ khách hàng.
 - **Chấm điểm cơ hội (BANT + 4P)** — mỗi cơ hội có trang riêng với 8 yếu tố chấm 0–3 trên hai trục: **BANT** (đây có phải cơ hội thật không) và **4P** (ta có khả năng thắng không). Điểm ≥ 1 **bắt buộc có bằng chứng**, và bằng chứng lấy thẳng từ *Lịch sử tương tác* hoặc *Tài liệu* của chính cơ hội đó — chọn xong thì điểm được đánh dấu *đã xác thực*. Điểm cao nhất của mỗi yếu tố còn bị ràng buộc bởi dữ liệu có thật: không có sự kiện bắt buộc được khách xác nhận thì không chấm Thời gian 3 điểm được, chưa gặp người duyệt ngân sách thì Quyền hạn tối đa 2. Hai tổng điểm quyết định **ô ma trận** (Theo đuổi / Tái định hình / Nuôi dưỡng / Loại bỏ) và ba **quy tắc phủ quyết** loại deal khỏi forecast bất kể tổng điểm. Ghi xong một cuộc gọi, hệ thống hỏi luôn *"cuộc trao đổi này thay đổi yếu tố nào?"*. Kèm nhóm ra quyết định (vai trò, thái độ, champion, ai chưa được tiếp xúc), sự kiện bắt buộc kèm **lịch triển khai ngược**, và đối thủ (ai đang cung cấp, ai đã tham gia soạn tiêu chí thầu).
   - **Cổng giai đoạn**: mặc định phải đạt BANT ≥ 7 để sang *Gửi báo giá*, ≥ 9 và đã tiếp cận người duyệt ngân sách để sang *Đàm phán*. Bị chặn thì thẻ bật về cột cũ kèm danh sách yếu tố đang thiếu; ghi đè được nhưng **lý do là bắt buộc** và được lưu vào lịch sử. Kéo sang *Thất bại* không bao giờ bị chặn.
   - **Sức khỏe pipeline** — ma trận phân tán toàn bộ cơ hội trên hai trục, và hai con số forecast đặt cạnh nhau: theo giai đoạn (như cũ) và đã lọc theo phủ quyết + tuổi điểm. **Chênh lệch giữa chúng là mức thổi phồng pipeline.** Kèm *phiên rà soát* đi qua từng deal quá hạn để giữ / chấm lại / đóng.
   - Điểm chất lượng **không bao giờ ghi đè xác suất theo giai đoạn** — hai chỉ số được phép khác nhau, đó chính là phép đo.
+- **Cấu hình nghiệp vụ không cần sửa mã** (từ 1.24.0) — mỗi khách hàng là một bản cài riêng nhưng dùng chung một mã nguồn; khác biệt nằm ở dữ liệu cấu hình:
+  - *Cài đặt → Danh mục*: Lý do thất bại, Loại tương tác, Loại tài liệu, Ngành nghề / Quy mô / Nguồn khách hàng, Nguồn cơ hội. Thêm, đổi tên, sắp xếp, ẩn, **gộp** (chuyển mọi bản ghi sang mục khác); mục còn dữ liệu không xoá hẳn được.
+  - *Cài đặt → Quy trình bán hàng*: thêm/đổi tên/màu/sắp xếp/ẩn giai đoạn; mỗi giai đoạn có xác suất gợi ý, cổng BANT tối thiểu, cờ *phải gặp người duyệt ngân sách*, cờ *theo dõi PoC*, số ngày tối đa. Thành công / Thất bại là giai đoạn hệ thống. Mã nguồn không gọi tên giai đoạn mà hỏi thuộc tính — có test chặn tái phạm (`server/src/test/stageLiterals.test.ts`).
+  - *Cài đặt → Hồ sơ cấu hình*: xuất toàn bộ cấu hình (danh mục, pipeline, chấm điểm, bàn giao, triển khai, vị trí & quyền) thành một tệp JSON, nhập lại ở bản cài khác (luôn chạy thử trước). Hai hồ sơ mẫu ở `docs/profiles/`. Thiết kế: `docs/PLAN-DANH-MUC-VA-PIPELINE-DONG.md`.
 - **Báo giá (Quotation)** — mã, phiên bản tự tăng, hiệu lực, 6 trạng thái, đính kèm tệp.
 - **Hợp đồng (Contract) & Gia hạn** — giá trị, ngày ký/hiệu lực, trạng thái, đếm ngược ngày còn lại, danh sách sắp hết hạn theo mốc 30/60/90 ngày và nút tạo cơ hội gia hạn.
 - **Doanh thu khách hàng hiện hữu (Revenue)** — bảng 12 tháng theo từng dòng *khách hàng × dịch vụ*: AM, loại hợp đồng (Mới / Mở rộng), thời hạn (Lâu dài / Ngắn hạn / Dùng thử), tình trạng sử dụng. Mỗi tháng là **một khoản tiền có trạng thái**, chuyển tiếp theo vòng đời **Dự kiến → Đã đối soát → Đã xuất hóa đơn → Đã thanh toán** (tiền không nhân đôi giữa các bước). Đối soát có thể sửa lại số tiền — ví dụ dự kiến 100k, đối soát thực tế 95k — hệ thống giữ số dự kiến ban đầu để báo chênh lệch. Gõ số ngay trên ô, bấm chấm màu trong ô để chuyển trạng thái, bấm tiêu đề tháng để chuyển trạng thái cả cột, hoặc mở bảng 12 tháng (dự kiến / thực tế / trạng thái / ghi chú). Có tổng theo dòng, theo tháng, cả năm, phễu lũy kế theo trạng thái, tỷ lệ thu tiền và biểu đồ cột chồng theo trạng thái.
@@ -208,6 +212,19 @@ Dữ liệu (DB, tệp tải lên, backup, `.ai-master.key`) nằm trong Docker 
 mọi lần `docker compose down && up`. Định kỳ chạy `docker compose build --pull` để lấy bản vá bảo
 mật của base image. nginx hiện phục vụ HTTP cổng 80 — đặt sau một reverse proxy TLS (cookie phiên
 chỉ an toàn qua HTTPS).
+
+Dựng bản cài cho khách mới từ một hồ sơ cấu hình (chạy thử bằng `--dry-run`; hồ sơ khớp theo khoá,
+không xoá gì — mục không có trong hồ sơ mà chưa có dữ liệu thì bị ẩn):
+
+```bash
+# Máy dev / chạy bằng Node
+npm run config:apply --workspace server -- docs/profiles/phan-mem-b2b.json --dry-run
+# Trong container (bản build): chép tệp vào container rồi chạy bản đã biên dịch
+docker compose cp docs/profiles/phan-mem-b2b.json app:/tmp/ho-so.json
+docker compose exec app node server/dist/db/applyProfile.js /tmp/ho-so.json
+```
+
+Cũng làm được trên giao diện ở *Cài đặt → Hồ sơ cấu hình*.
 
 ### Tự động deploy (CI)
 

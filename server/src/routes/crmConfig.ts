@@ -30,6 +30,7 @@ import {
   stageDealCounts,
   updateStage,
 } from '../lib/pipeline.ts';
+import { applyProfile, exportProfile, parseProfile } from '../services/configProfile.ts';
 
 const router = Router();
 const canEdit = requirePermission('settings.app', 'update');
@@ -55,6 +56,23 @@ const mergeSchema = z.object({ into_id: z.number().int().positive() });
 
 router.get('/', (_req, res) => {
   res.json({ picklists: getAllPicklists(db), pipelines: getPipelines(db) });
+});
+
+/* ---------- Ho so cau hinh (1.27.0) ---------- */
+
+router.get('/profile', requirePermission('settings.app', 'read'), (req, res) => {
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Disposition', `attachment; filename=ho-so-cau-hinh-${date}.json`);
+  res.json(exportProfile(db, typeof req.query.name === 'string' ? req.query.name : undefined));
+});
+
+/** `?dry_run=1`: chay thu roi huy, tra bao cao nhung gi se doi. */
+router.post('/profile', canEdit, (req, res) => {
+  const profile = parseProfile(req.body);
+  res.json({
+    dry_run: req.query.dry_run === '1',
+    ...applyProfile(db, profile, req.query.dry_run === '1'),
+  });
 });
 
 /* ---------- Pipeline (1.26.0) ---------- */

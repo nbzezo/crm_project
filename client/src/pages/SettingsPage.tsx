@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   Database,
   Download,
+  FileJson,
   GanttChartSquare,
   HardDriveDownload,
   Info,
@@ -36,6 +37,7 @@ import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
 import { PicklistSettings } from '../components/settings/PicklistSettings';
 import { PipelineSettings } from '../components/settings/PipelineSettings';
+import { ConfigProfileSettings } from '../components/settings/ConfigProfileSettings';
 import { DeliverySettings } from '../components/settings/DeliverySettings';
 import { DriveBackupSettings } from '../components/settings/DriveBackupSettings';
 import { EmailSettings } from '../components/settings/EmailSettings';
@@ -76,6 +78,7 @@ type SettingsTab =
   | 'telegram'
   | 'ai'
   | 'data'
+  | 'profile'
   | 'shares'
   | 'about';
 
@@ -195,6 +198,14 @@ const SETTINGS_TABS: {
     icon: Database,
     group: t.settings.groupData,
     permission: 'data.export:export',
+  },
+  {
+    /* Cau hinh nghiep vu dong goi thanh mot tep — mang giua cac ban cai (1.27.0). */
+    key: 'profile',
+    label: t.settings.tabProfile,
+    icon: FileJson,
+    group: t.settings.groupData,
+    permission: 'settings.app:read',
   },
   {
     /* Danh sach link cong khai dang mo + cong tac bat/tat chia se toan cong ty.
@@ -426,6 +437,7 @@ export default function SettingsPage() {
         {activeTab === 'telegram' && <TelegramSettings />}
         {activeTab === 'email' && <EmailSettings />}
         {activeTab === 'data' && <DataSettings />}
+        {activeTab === 'profile' && <ConfigProfileSettings />}
         {activeTab === 'shares' && <ShareLinksSettings />}
         {activeTab === 'users' && <UserSettings />}
         {activeTab === 'org' && <OrgChartSettings />}

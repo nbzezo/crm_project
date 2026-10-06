@@ -916,6 +916,7 @@ export const t = {
     tabLabels: 'Nhãn',
     tabPicklists: 'Danh mục',
     tabPipeline: 'Quy trình bán hàng',
+    tabProfile: 'Hồ sơ cấu hình',
     tabScoring: 'Chấm điểm cơ hội',
     tabHandover: 'Bàn giao',
     tabDelivery: 'Triển khai',

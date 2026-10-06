@@ -1,0 +1,532 @@
+{
+  "schema_version": 1,
+  "name": "Phân phối thiết bị",
+  "picklists": {
+    "lost_reason": [
+      {
+        "key": "price",
+        "label": "Giá cao",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "competitor",
+        "label": "Có đối thủ tốt hơn",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "no_budget",
+        "label": "Không có ngân sách",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "giao_hang",
+        "label": "Không đáp ứng thời gian giao hàng",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "hang_khong_san",
+        "label": "Hàng không sẵn có",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "bad_timing",
+        "label": "Thời điểm chưa phù hợp",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "other",
+        "label": "Khác",
+        "color": null,
+        "is_active": true
+      }
+    ],
+    "interaction_type": [
+      {
+        "key": "call",
+        "label": "Gọi điện",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "email",
+        "label": "Email",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "meeting",
+        "label": "Gặp mặt",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "demo",
+        "label": "Demo",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "proposal",
+        "label": "Proposal",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "followup",
+        "label": "Follow-up",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "note",
+        "label": "Ghi chú",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "zalo",
+        "label": "Zalo",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "other",
+        "label": "Khác",
+        "color": null,
+        "is_active": true
+      }
+    ],
+    "doc_type": [
+      {
+        "key": "proposal",
+        "label": "Proposal",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "quotation",
+        "label": "Báo giá",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "contract",
+        "label": "Hợp đồng",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "nda",
+        "label": "NDA",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "meeting_minute",
+        "label": "Biên bản họp",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "requirement",
+        "label": "Yêu cầu khách hàng",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "profile",
+        "label": "Hồ sơ năng lực",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "other",
+        "label": "Khác",
+        "color": null,
+        "is_active": true
+      }
+    ],
+    "customer_industry": [
+      {
+        "key": "san_xuat",
+        "label": "Sản xuất",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "xay_dung",
+        "label": "Xây dựng",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "nang_luong",
+        "label": "Năng lượng",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "y_te",
+        "label": "Y tế",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "giao_duc",
+        "label": "Giáo dục",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "nha_nuoc",
+        "label": "Nhà nước",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "thuong_mai",
+        "label": "Thương mại",
+        "color": null,
+        "is_active": true
+      }
+    ],
+    "customer_size": [
+      {
+        "key": "nho_50_nguoi",
+        "label": "Nhỏ (< 50 người)",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "vua_50_300_nguoi",
+        "label": "Vừa (50–300 người)",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "lon_300_nguoi",
+        "label": "Lớn (> 300 người)",
+        "color": null,
+        "is_active": true
+      }
+    ],
+    "customer_source": [
+      {
+        "key": "gioi_thieu",
+        "label": "Giới thiệu",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "su_kien_hoi_cho",
+        "label": "Sự kiện / Hội chợ",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "linkedin",
+        "label": "LinkedIn",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "website",
+        "label": "Website",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "goi_lanh",
+        "label": "Gọi lạnh",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "doi_tac",
+        "label": "Đối tác",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "khac",
+        "label": "Khác",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "contract",
+        "label": "Hợp đồng",
+        "color": null,
+        "is_active": true
+      }
+    ],
+    "deal_source": [
+      {
+        "key": "gioi_thieu",
+        "label": "Giới thiệu",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "su_kien_hoi_cho",
+        "label": "Sự kiện / Hội chợ",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "linkedin",
+        "label": "LinkedIn",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "website",
+        "label": "Website",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "goi_lanh",
+        "label": "Gọi lạnh",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "doi_tac",
+        "label": "Đối tác",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "khac",
+        "label": "Khác",
+        "color": null,
+        "is_active": true
+      },
+      {
+        "key": "renewal",
+        "label": "Gia hạn hợp đồng",
+        "color": null,
+        "is_active": true
+      }
+    ]
+  },
+  "pipeline": {
+    "name": "Bán hàng thiết bị",
+    "stages": [
+      {
+        "key": "lead",
+        "label": "Tiềm năng",
+        "category": "open",
+        "probability": 10,
+        "color": "#cde2fb",
+        "is_active": true,
+        "gate_bant_min": null,
+        "require_economic_buyer": false,
+        "track_poc": false,
+        "max_days_in_stage": null
+      },
+      {
+        "key": "khao_sat",
+        "label": "Khảo sát nhu cầu",
+        "category": "open",
+        "probability": 30,
+        "color": "#9ec5f4",
+        "is_active": true,
+        "gate_bant_min": null,
+        "require_economic_buyer": false,
+        "track_poc": false,
+        "max_days_in_stage": 14
+      },
+      {
+        "key": "quoted",
+        "label": "Gửi báo giá",
+        "category": "open",
+        "probability": 50,
+        "color": "#3987e5",
+        "is_active": true,
+        "gate_bant_min": 6,
+        "require_economic_buyer": false,
+        "track_poc": false,
+        "max_days_in_stage": 14
+      },
+      {
+        "key": "negotiating",
+        "label": "Thương lượng",
+        "category": "open",
+        "probability": 70,
+        "color": "#1c5cab",
+        "is_active": true,
+        "gate_bant_min": 8,
+        "require_economic_buyer": true,
+        "track_poc": false,
+        "max_days_in_stage": null
+      },
+      {
+        "key": "cho_don_hang",
+        "label": "Chờ đơn đặt hàng",
+        "category": "open",
+        "probability": 90,
+        "color": "#174a8b",
+        "is_active": true,
+        "gate_bant_min": null,
+        "require_economic_buyer": false,
+        "track_poc": false,
+        "max_days_in_stage": 10
+      },
+      {
+        "key": "won",
+        "label": "Đã có đơn hàng",
+        "category": "won",
+        "probability": 100,
+        "color": "#0ca30c",
+        "is_active": true,
+        "gate_bant_min": null,
+        "require_economic_buyer": false,
+        "track_poc": false,
+        "max_days_in_stage": null
+      },
+      {
+        "key": "lost",
+        "label": "Thất bại",
+        "category": "lost",
+        "probability": 0,
+        "color": "#d03b3b",
+        "is_active": true,
+        "gate_bant_min": null,
+        "require_economic_buyer": false,
+        "track_poc": false,
+        "max_days_in_stage": null
+      }
+    ]
+  },
+  "scoring": {
+    "stale_days": 30,
+    "v3_mode": "warn",
+    "challenge_threshold_vnd": 500000000,
+    "winloss_min_deals": 30
+  },
+  "handover": {
+    "sla_days": 7,
+    "templates": {
+      "default": [
+        {
+          "content": "Hợp đồng/PO hoặc phê duyệt triển khai hợp lệ",
+          "required": true
+        },
+        {
+          "content": "Phạm vi bán và các nội dung loại trừ",
+          "required": true
+        },
+        {
+          "content": "Kiến trúc/giải pháp đã chốt",
+          "required": true
+        },
+        {
+          "content": "Sizing, CCU, hạ tầng, tích hợp và yêu cầu ATTT",
+          "required": true
+        },
+        {
+          "content": "Giá bán, cấu phần chi phí và các cam kết ảnh hưởng triển khai",
+          "required": true
+        },
+        {
+          "content": "Milestone và thời hạn cam kết",
+          "required": true
+        },
+        {
+          "content": "Tiêu chí UAT/nghiệm thu",
+          "required": true
+        },
+        {
+          "content": "Danh sách đầu mối khách hàng và nội bộ",
+          "required": true
+        },
+        {
+          "content": "Các rủi ro, giả định và phụ thuộc đã biết",
+          "required": true
+        },
+        {
+          "content": "Tài liệu được gắn phiên bản và quyền truy cập phù hợp",
+          "required": true
+        }
+      ]
+    }
+  },
+  "delivery": {
+    "classification": {
+      "contract_value_vnd": 500000000,
+      "duration_days": 90,
+      "phase_count": 3,
+      "team_count": 3
+    },
+    "board_templates": {
+      "large": [
+        {
+          "name": "P01 Khởi tạo & Bàn giao",
+          "status": "todo"
+        },
+        {
+          "name": "P02 Backlog & Phân tích",
+          "status": "todo"
+        },
+        {
+          "name": "P03 Cấu hình & Phát triển",
+          "status": "doing"
+        },
+        {
+          "name": "P04 Kiểm thử nội bộ",
+          "status": "review"
+        },
+        {
+          "name": "P05 UAT",
+          "status": "waiting_customer"
+        },
+        {
+          "name": "P06 Đào tạo & Bàn giao",
+          "status": "doing"
+        },
+        {
+          "name": "P07 Nghiệm thu",
+          "status": "review"
+        },
+        {
+          "name": "P08 Hypercare",
+          "status": null
+        },
+        {
+          "name": "P09 Hoàn tất",
+          "status": "done"
+        }
+      ],
+      "small": [
+        {
+          "name": "Chờ tiếp nhận",
+          "status": "todo"
+        },
+        {
+          "name": "Đã phân công",
+          "status": "todo"
+        },
+        {
+          "name": "Đang thực hiện",
+          "status": "doing"
+        },
+        {
+          "name": "Chờ xác nhận khách hàng",
+          "status": "waiting_customer"
+        },
+        {
+          "name": "Hoàn tất",
+          "status": "done"
+        }
+      ]
+    }
+  }
+}

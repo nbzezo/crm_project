@@ -18,6 +18,16 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.27.0',
+    date: '2026-10-06',
+    title: 'Hồ sơ cấu hình: mang cấu hình giữa các bản cài',
+    changes: [
+      'Cài đặt → Hồ sơ cấu hình (mới): tải toàn bộ cấu hình nghiệp vụ (danh mục, quy trình bán hàng, chấm điểm, bàn giao, triển khai, vị trí và quyền) về một tệp JSON, không kèm dữ liệu khách hàng nào.',
+      'Nhập hồ sơ ở bản cài khác: chọn tệp là hệ thống chạy thử ngay và liệt kê những gì sẽ thêm, cập nhật, cần lưu ý; bấm Áp dụng mới ghi. Hồ sơ không xoá gì: mục không có trong hồ sơ mà chưa có dữ liệu thì được ẩn, đang có dữ liệu thì giữ nguyên.',
+      'Kèm hai hồ sơ mẫu "Phần mềm B2B" và "Phân phối thiết bị" để dựng nhanh bản cài cho khách mới; quản trị máy chủ có thể áp hồ sơ bằng lệnh config:apply.',
+    ],
+  },
+  {
     version: '1.26.0',
     date: '2026-10-06',
     title: 'Tự cấu hình quy trình bán hàng',

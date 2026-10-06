@@ -10,6 +10,7 @@
     "start:dev": "tsx src/index.ts",
     "seed": "tsx src/db/seed.ts",
     "db:rollback": "tsx src/db/rollback.ts",
+    "config:apply": "tsx src/db/applyProfile.ts",
     "auth:reset-password": "tsx src/db/resetPassword.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node scripts/run-tests.mjs"

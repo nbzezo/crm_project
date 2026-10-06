@@ -379,3 +379,120 @@ test('phu quyet V2 theo co "phai gap nguoi duyet ngan sach" thay vi ten Dam phan
     require_economic_buyer: false,
   });
 });
+
+/* ---------- 1.27.0: ho so cau hinh ---------- */
+
+test('xuat ho so roi nhap lai vao ban cai khac cho cung cau hinh; chay thu khong ghi gi', async () => {
+  const exported = await json('GET', '/api/crm-config/profile?name=Mau');
+  assert.equal(exported.status, 200);
+  assert.equal(exported.data.schema_version, 1);
+  const pipeline = exported.data.pipeline as { stages: { key: string }[] };
+  assert.ok(pipeline.stages.some((stage) => stage.key === 'ra_soat_phap_ly'));
+
+  const { applyProfile, parseProfile, exportProfile } =
+    await import('../services/configProfile.ts');
+  const target = new Database(':memory:');
+  target.pragma('foreign_keys = ON');
+  migrate(target);
+  const profile = parseProfile(exported.data);
+
+  const before = JSON.stringify(exportProfile(target));
+  const dry = applyProfile(target, profile, true);
+  assert.ok(dry.created.some((line) => line.includes('Rà soát pháp lý')));
+  assert.equal(JSON.stringify(exportProfile(target)), before, 'chay thu khong duoc ghi');
+
+  applyProfile(target, profile);
+  const after = exportProfile(target);
+  assert.deepEqual(
+    after.pipeline!.stages.map((stage) => [stage.key, stage.label, stage.gate_bant_min]),
+    profile.pipeline!.stages.map((stage) => [stage.key, stage.label, stage.gate_bant_min])
+  );
+  assert.deepEqual(
+    after.picklists!.lost_reason!.map((item) => item.key),
+    profile.picklists!.lost_reason!.map((item) => item.key)
+  );
+
+  // Nhap lan hai: khong tao them gi (theo khoa)
+  const again = applyProfile(target, profile);
+  assert.equal(again.created.length, 0);
+  target.close();
+});
+
+test('ho so sai cau truc hoac sai quyen bi tu choi ca khoi', async () => {
+  const bad = await json('POST', '/api/crm-config/profile?dry_run=1', { schema_version: 99 });
+  assert.equal(bad.status, 422);
+  assert.equal(bad.data.code, 'PROFILE_INVALID');
+
+  const badPermission = await json('POST', '/api/crm-config/profile', {
+    schema_version: 1,
+    positions: [
+      { name: 'Vị trí lạ', permissions: [{ resource: 'khong_co', action: 'read', scope: 'all' }] },
+    ],
+  });
+  assert.equal(badPermission.status, 422);
+  assert.equal(
+    db.prepare(`SELECT id FROM positions WHERE name = 'Vị trí lạ'`).get(),
+    undefined,
+    'giao dich phai huy toan bo'
+  );
+});
+
+test('ho so them giai doan va danh muc moi, giu muc chi co o ban cai, khong an giai doan con co hoi', async () => {
+  const id = await newDeal('Giữ giai đoạn', { stage: 'approaching' });
+  const result = await json('POST', '/api/crm-config/profile', {
+    schema_version: 1,
+    picklists: { customer_industry: [{ key: 'nong_nghiep', label: 'Nông nghiệp' }] },
+    pipeline: {
+      stages: [
+        { key: 'lead', label: 'Khách tiềm năng', category: 'open' },
+        { key: 'approaching', label: 'Đang tiếp cận', category: 'open', is_active: false },
+        { key: 'khao_sat', label: 'Khảo sát', category: 'open', probability: 30 },
+        { key: 'won', label: 'Thành công', category: 'won' },
+        { key: 'lost', label: 'Thất bại', category: 'lost' },
+      ],
+    },
+  });
+  assert.equal(result.status, 200, JSON.stringify(result.data));
+  const warnings = result.data.warnings as string[];
+  assert.ok(warnings.some((line) => line.includes('còn') && line.includes('cơ hội')));
+  assert.ok(
+    warnings.some((line) => line.startsWith('Giữ') && line.includes('không có trong hồ sơ'))
+  );
+
+  const keys = (await stages()).map((stage) => stage.key);
+  assert.deepEqual(keys.slice(0, 3), ['lead', 'approaching', 'khao_sat']);
+  assert.equal((await stages()).find((stage) => stage.key === 'approaching')!.is_active, 1);
+  assert.equal((await stages())[0].label, 'Khách tiềm năng');
+  assert.equal(category(id), 'open');
+  assert.ok(
+    db
+      .prepare(
+        `SELECT 1 FROM picklist_items WHERE list_key = 'customer_industry' AND item_key = 'nong_nghiep'`
+      )
+      .get()
+  );
+});
+
+test('hai ho so mau trong docs/profiles ap duoc len ban cai moi va cho dung pipeline cua mau', async () => {
+  const { applyProfile, parseProfile, exportProfile } =
+    await import('../services/configProfile.ts');
+  for (const name of ['phan-mem-b2b.json', 'phan-phoi-thiet-bi.json']) {
+    const raw = JSON.parse(
+      fs.readFileSync(new URL(`../../../docs/profiles/${name}`, import.meta.url), 'utf8')
+    ) as unknown;
+    const profile = parseProfile(raw);
+    const target = new Database(':memory:');
+    target.pragma('foreign_keys = ON');
+    migrate(target);
+    applyProfile(target, profile);
+    const active = exportProfile(target)
+      .pipeline!.stages.filter((stage) => stage.is_active)
+      .map((stage) => stage.label);
+    assert.deepEqual(
+      active,
+      profile.pipeline!.stages.map((stage) => stage.label),
+      name
+    );
+    target.close();
+  }
+});

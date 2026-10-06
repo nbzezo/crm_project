@@ -1,7 +1,7 @@
 # Phương án: danh mục động và pipeline cấu hình được
 
 Nhánh: `ccr-cd146d84-w9ejer` (từ `main` @ 33efafe, bản 1.23.1, migration mới nhất v61)
-Trạng thái: **thiết kế, chưa làm**.
+Trạng thái: **đã làm xong cả 5 đợt** (1.24.0 → 1.27.0, migration v62–v64). Những chỗ làm khác thiết kế ban đầu ghi ở mục 10.
 Bối cảnh: chuẩn bị thương mại hoá theo hướng **mỗi khách hàng một bản cài riêng** (Docker), chưa làm SaaS.
 Vì vậy không cần `tenant_id`; cấu hình nằm trong CSDL của từng bản cài.
 
@@ -404,3 +404,44 @@ Mỗi khách là một bản cài, nên cần cách mang cấu hình giữa các
 | Ánh xạ ngành/nguồn cũ gom sai | Thấp | chỉ gom khi trùng sau chuẩn hoá; còn lại để quản trị viên tự Gộp; có nhật ký ánh xạ |
 | Khách đổi pipeline giữa chừng làm báo cáo theo giai đoạn trong quá khứ khó đọc | Trung bình | khoá không đổi, ẩn chứ không xoá; báo cáo lịch sử hiện nhãn kèm "(đã ẩn)" |
 | Mất kiểm tra kiểu khi `Stage` thành `string` | Thấp | chính là mục tiêu; test chặn tái phạm thay cho kiểm tra kiểu |
+
+## 10. Kết quả triển khai và chỗ khác thiết kế
+
+| Đợt | Bản | Migration | Ghi chú |
+|---|---|---|---|
+| 1 | 1.24.0 | v62 | `picklist_items`, `/api/crm-config`, Cài đặt → Danh mục; dựng lại `interactions` bỏ `CHECK` |
+| 2 | 1.25.0 | v63 | ngành, quy mô, nguồn KH, nguồn cơ hội; gom biến thể khác dấu/hoa thường |
+| 3 | 1.25.1 | v64 | `pipelines`, `pipeline_stages`, `deals.stage_category` + trigger, khoá ngoại thay `CHECK` |
+| 4 | 1.26.0 | — | API và Cài đặt → Quy trình bán hàng; giao diện đọc giai đoạn từ cấu hình |
+| 5 | 1.27.0 | — | hồ sơ cấu hình: API, Cài đặt → Hồ sơ cấu hình, `config:apply`, `docs/profiles/` |
+
+**Khác thiết kế:**
+
+1. **Ít migration hơn (v62–v64 thay vì v62–v65).** Dựng lại `deals` với khoá ngoại được gộp vào v64
+   cùng `stage_category`, nên chỉ dựng lại bảng trung tâm một lần. Đợt 4 và 5 không cần migration.
+2. **Ngành, quy mô, nguồn lưu NHÃN chứ không lưu khoá** (mục 4.3 chọn khoá). Bốn cột này được đọc
+   thô ở nhiều nơi: ngữ cảnh AI, tìm kiếm (`search_text`), so sánh khách cùng ngành, tra cứu công
+   ty bằng AI. Lưu khoá sẽ phải sửa tất cả những chỗ đó. Thay vào đó: `PICKLISTS[...].storage = 'label'`,
+   đổi tên/gộp thì máy chủ cập nhật lại mọi cột trong `usages` (kể cả dựng lại `search_text`).
+   Luồng tự động (tải hợp đồng lên, AI đọc ra ngành lạ) tự thêm mục thay vì từ chối.
+3. **Dựng lại bảng giữ cả trigger** (`rebuildTable` trong `migrate.ts`). Hàm của v27 chỉ giữ chỉ
+   mục và view; từ v38 `deals` có trigger nhật ký, dựng lại mà không chép trigger sẽ mất nó.
+4. **Quay lui v64 không dựng lại `deals`** (giữ khoá ngoại, giữ hai bảng pipeline), cùng lý do với
+   rollback v27; chèn lại 8 giai đoạn gốc nếu đã bị xoá và kéo cơ hội ở giai đoạn tự thêm về giai
+   đoạn gốc gần nhất cùng loại.
+5. **"Giai đoạn đầu phễu"** (chưa chấm điểm là bình thường, trước là `lead`/`approaching`) nay là
+   hai giai đoạn mở đầu tiên của pipeline (`isEarlyStage`).
+6. **Danh sách "cần chú ý" trên Tổng quan có thứ tự cố định** khi hai cơ hội bằng nhau (thêm `id`
+   vào `ORDER BY`). Lộ ra khi đối chiếu số liệu đợt 3: chỉ mục mới đổi thứ tự các dòng hoà.
+7. **Nhập hồ sơ** khớp mục theo khoá, không có thì theo tên (hai bản cài tự sinh khoá từ tên nên
+   cùng một mục có thể mang khoá khác nhau). Mục/giai đoạn không có trong hồ sơ: chưa có dữ liệu
+   thì **ẩn** (dùng lại được), đang có dữ liệu thì giữ và báo. Không xoá gì.
+
+**Kiểm chứng:**
+
+- Đợt 3 đối chiếu 17 API (Tổng quan, Sức khỏe pipeline, Báo cáo, Ma trận, Cơ hội, Khách hàng…) trên
+  406 cơ hội giữa 1.25.0 và 1.25.1: kết quả giống hệt (bỏ qua dấu thời gian sinh lúc đọc).
+- Test máy chủ: `picklists.test.ts`, `pipeline.test.ts`, `stageLiterals.test.ts` (chặn gọi tên giai
+  đoạn trong mã máy chủ). Hai hồ sơ mẫu được test áp lên bản cài mới.
+- E2E: 6 ca hỏng (menu thanh bên "Trợ lý AI", nút Giao diện, hoàn tác thông báo, độ tương phản
+  trên vài route) hỏng y hệt trên `main` 1.23.1, không do các đợt này.
