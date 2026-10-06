@@ -80,6 +80,16 @@ switch ($Command) {
     $log = Join-Path $logs "$session--$Slug.log"
     $result = Join-Path $logs "$session--$Slug.result.md"
     $codexArgs = @('exec', '-C', $dir, '-s', 'workspace-write', '--ephemeral', '--color', 'never', '-o', $result)
+    # Vite/Vitest ghi cache vào node_modules/.vite*, mà node_modules là junction ra ngoài sandbox.
+    foreach ($m in $modules) {
+      foreach ($c in '.vite', '.vite-temp') {
+        $cache = Join-Path (Join-Path $root $m) $c
+        if (Test-Path (Join-Path $root $m)) {
+          New-Item -ItemType Directory -Force -Path $cache | Out-Null
+          $codexArgs += @('--add-dir', $cache)
+        }
+      }
+    }
     if ($Model) { $codexArgs += @('-m', $Model) }
     $prompt = (Get-Content $Spec -Raw) + "`n`nĐọc AGENTS.md ở gốc repo trước khi làm. Không commit, không push."
 
