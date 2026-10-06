@@ -1453,6 +1453,15 @@ select.tr-field-control {
   flex: 1 0 auto;
   width: 100%;
 }
+/* Menu "/" (SuggestionMenu cua BlockNote) co nhieu muc hon cho trong duoi con tro:
+   khong gioi han chieu cao thi bi cat o mep man hinh va khong cuon xem tiep duoc.
+   Gioi han theo khung nhin + cho cuon trong menu, khong day cuon ra trang. */
+.bn-suggestion-menu {
+  max-height: min(360px, 45dvh) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
 .document-editor-toolbar {
   order: -1;
   position: sticky;

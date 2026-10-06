@@ -18,6 +18,14 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.28.3',
+    date: '2026-10-06',
+    title: 'Sửa menu "/" trong soạn thảo bị cắt và không cuộn được',
+    changes: [
+      'Khi gõ "/" để gọi công cụ ở trang soạn thảo tài liệu và ghi chú, menu không còn tràn ra ngoài mép màn hình: danh sách có chiều cao giới hạn và cuộn được để xem hết các công cụ.',
+    ],
+  },
+  {
     version: '1.28.2',
     date: '2026-10-06',
     title: 'Tệp tải lên và ghi chú nhanh theo đúng phạm vi xem',
