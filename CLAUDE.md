@@ -39,26 +39,31 @@ kế tiếp, gộp ghi chú của các thay đổi chưa có trong `RELEASE_NOTE
 
 ## Giao việc cho Codex (chạy local)
 
-Việc **khối lượng lớn, lặp lại, dễ kiểm chứng** thì Claude giao cho Codex CLI, còn Claude giữ phần
-khó và việc duyệt. Ví dụ việc nên giao: viết test theo mẫu, sửa lint hàng loạt, đổi tên/thay chuỗi
-nhiều file, chuỗi giao diện, dữ liệu mẫu, chạy test dài và tóm tắt lỗi.
-Claude tự làm: thiết kế, migration, phân quyền/bảo mật, lỗi khó, phát hành, mọi thao tác git.
-Việc chỉ vài dòng thì tự làm, giao còn chậm hơn.
+Claude vẫn viết mã; Codex chỉ thay phần "chân tay" khối lượng lớn. Chia việc theo số liệu đo ngày
+2026-10-06: chi phí chính của Claude là **số lượt** (mỗi lượt đọc lại toàn bộ ngữ cảnh), không phải số dòng.
+
+- **Claude tự làm:** thiết kế, máy chủ/CSDL/migration, phân quyền/bảo mật, lỗi khó, phát hành, git;
+  việc nhỏ hoặc nằm trong phần mã vừa đọc (tự làm hết trong 1–2 lượt thì rẻ hơn giao); sửa lại
+  khi Codex bị chặn hoặc kiểm tra trượt.
+- **Giao Codex:** việc nhiều file, lặp lại, đặc tả rõ, có test giữ cửa, mà tự làm sẽ tốn từ khoảng
+  3 lượt trở lên (phải đọc nhiều file chưa quen, sửa hàng loạt, viết test theo mẫu, chạy test dài).
 
 1. Commit phần đang làm (Codex chỉ thấy `HEAD`), viết đặc tả vào file trong scratchpad: mục tiêu,
-   file được sửa, điều kiện xong, kiểm tra cần chạy.
-2. `pwsh scripts/codex.ps1 run -Slug <ten> -Spec <file>`: tạo worktree `.codex-worktrees/<phiên>--<ten>`,
-   chạy `codex exec` sandbox `workspace-write`, in báo cáo và `diff --stat`. Chạy ngầm nếu lâu.
-   Codex đọc `AGENTS.md` (không git, không migration, không tăng phiên bản).
-3. **Không đọc diff.** `pwsh scripts/codex.ps1 apply -Slug <ten> -Allow '<mẫu file được sửa>'`
-   tự chặn file cấm và file ngoài phạm vi, chép vào worktree hiện tại, rồi chạy tsc, vitest, test
-   máy chủ (nếu đụng `server/`), eslint, prettier. Báo `KIỂM TRA ĐẠT` thì commit luôn. Chỉ khi bị
-   chặn, kiểm tra trượt hoặc báo cáo của Codex có vẻ sai thì mới đọc diff rồi giao lại hoặc tự sửa.
-   Việc mà Codex vừa viết mã vừa tự viết test cho chính mã đó thì test đạt chưa chắc mã đúng: đặc
-   tả phải nêu sẵn các trường hợp test, hoặc dựa vào test có sẵn.
-4. Khi người dùng báo đóng phiên: `pwsh scripts/codex.ps1 clean` dọn worktree, nhánh và log Codex
+   file được sửa, điều kiện xong, kiểm tra cần chạy. Việc có sửa mã thì đặc tả phải nêu sẵn các
+   trường hợp test (Codex tự viết test cho mã của chính nó thì test đạt chưa chắc mã đúng).
+2. **Một lệnh, một lượt:**
+   `pwsh scripts/codex.ps1 go -Slug <ten> -Spec <file> -Allow '<mẫu,...>' -Message '<commit>'`
+   - chạy `codex exec` trong worktree `.codex-worktrees/<phiên>--<ten>` (sandbox `workspace-write`,
+     Codex đọc `AGENTS.md`: không git, không migration, không tăng phiên bản);
+   - chặn file cấm và file ngoài `-Allow`, chép vào worktree hiện tại, chạy tsc, vitest, test máy
+     chủ (nếu đụng `server/`), eslint, prettier;
+   - đạt thì tự commit và dọn. **Không đọc diff khi đạt.** Trượt hoặc bị chặn thì worktree Codex được
+     giữ lại: lúc đó mới đọc diff, giao lại hoặc tự sửa (`run`/`apply`/`status` dùng riêng được).
+3. Khi người dùng báo đóng phiên: `pwsh scripts/codex.ps1 clean` dọn worktree, nhánh và log Codex
    **của phiên này**. Việc còn thay đổi chưa apply thì bị bỏ qua và báo lại; chỉ thêm `-Force` khi
    người dùng đồng ý bỏ. Không dùng `-AllSessions` khi các phiên khác còn chạy.
+4. Worktree dùng chung `node_modules` của repo chính: test máy chủ báo thiếu export từ
+   `@workflow/contracts` thì build lại contracts ở repo chính (`npm run build -w @workflow/contracts`).
 
 ### Gỡ bỏ quy trình Codex (khi thấy không hiệu quả)
 

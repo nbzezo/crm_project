@@ -7,12 +7,14 @@
   pwsh scripts/codex.ps1 apply  -Slug <ten> [-Allow 'client/src/lib/*.test.ts'] [-NoCheck]
         # chặn file cấm / ngoài phạm vi, chép vào worktree hiện tại (đã stage), rồi tự chạy kiểm tra
   pwsh scripts/codex.ps1 clean  [-Slug <ten>] [-AllSessions] [-Force]
+  pwsh scripts/codex.ps1 go     -Slug <ten> -Spec <file.md> -Allow '<mau,...>' -Message '<commit>'
+        # một lượt: run -> apply (chặn + kiểm tra) -> đạt thì commit và dọn; trượt thì giữ lại để Claude đọc
 
   Worktree của Codex: <repo>/.codex-worktrees/<phiên>--<ten>, nhánh codex/<phiên>/<ten>.
   <phiên> là tên worktree đang chạy lệnh, nên "clean" chỉ dọn việc của phiên này.
 #>
 param(
-  [Parameter(Position = 0, Mandatory)][ValidateSet('run', 'status', 'apply', 'clean')][string]$Command,
+  [Parameter(Position = 0, Mandatory)][ValidateSet('run', 'status', 'apply', 'clean', 'go')][string]$Command,
   [string]$Slug,
   [string]$Spec,
   [string]$Model,
@@ -20,7 +22,8 @@ param(
   [string[]]$Allow,
   [switch]$NoCheck,
   [switch]$AllSessions,
-  [switch]$Force
+  [switch]$Force,
+  [string]$Message
 )
 $ErrorActionPreference = 'Stop'
 
@@ -178,6 +181,26 @@ switch ($Command) {
     finally { Pop-Location }
     if ($failed) { Write-Error "KIỂM TRA TRƯỢT: $($failed -join ', '). Cần đọc diff và sửa."; exit 1 }
     'KIỂM TRA ĐẠT: có thể commit, không cần đọc diff.'
+  }
+
+  'go' {
+    # Gộp cả vòng vào MỘT lệnh: mỗi lượt của Claude phải đọc lại toàn bộ ngữ cảnh, nên
+    # số lượt mới là chi phí chính (đo ngày 2026-10-06), không phải số dòng mã.
+    Assert-Slug
+    if (-not $Message) { throw 'Cần -Message cho commit.' }
+    $self = $PSCommandPath
+    & pwsh -NoProfile -File $self run -Slug $Slug -Spec $Spec -Model $Model -TimeoutMin $TimeoutMin
+    $applyArgs = @('-NoProfile', '-File', $self, 'apply', '-Slug', $Slug)
+    if ($Allow) { $applyArgs += @('-Allow', ($Allow -join ',')) }
+    & pwsh @applyArgs
+    if ($LASTEXITCODE -ne 0) {
+      Write-Error "Dừng: apply bị chặn hoặc kiểm tra trượt. Worktree Codex vẫn giữ: $(Get-TaskDir $Slug)"
+      exit 1
+    }
+    git -C $here commit -q -m "$Message`n`nCodex viết, qua kiểm tra tự động (scripts/codex.ps1 go)."
+    if ($LASTEXITCODE -ne 0) { throw 'git commit lỗi.' }
+    git -C $here log --oneline -1
+    & pwsh -NoProfile -File $self clean -Slug $Slug
   }
 
   'clean' {
