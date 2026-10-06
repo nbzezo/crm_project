@@ -18,6 +18,14 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.29.1',
+    date: '2026-10-06',
+    title: 'Chỉnh định dạng mã nguồn của Quy trình',
+    changes: [
+      'Không đổi gì trên giao diện: chỉnh định dạng hai tệp mã của tính năng Quy trình để bước kiểm tra chất lượng tự động chạy qua.',
+    ],
+  },
+  {
     version: '1.29.0',
     date: '2026-10-06',
     title: 'Quy trình theo trạng thái của công việc',

@@ -168,11 +168,7 @@ function FlowSteps({
               ) : isDone ? (
                 <Check size={16} className="text-tr-success" aria-label="Đã xong" />
               ) : (
-                <Lock
-                  size={14}
-                  className="mx-px text-tr-muted"
-                  aria-label="Chờ xong bước trước"
-                />
+                <Lock size={14} className="mx-px text-tr-muted" aria-label="Chờ xong bước trước" />
               )}
               <span
                 className={`flex-1 text-sm ${isDone ? 'text-tr-muted line-through' : canToggle ? 'font-medium text-tr-text' : 'text-tr-subtle'}`}

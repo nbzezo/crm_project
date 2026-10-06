@@ -51,8 +51,8 @@ function SkipFlowDialog() {
       }
     >
       <p className="text-sm text-tr-subtle">
-        Quy trình “{t.cardStatus[details.status]}” mới xong {details.done}/{details.total} bước.
-        Còn lại:
+        Quy trình “{t.cardStatus[details.status]}” mới xong {details.done}/{details.total} bước. Còn
+        lại:
       </p>
       <ol className="mt-2 list-inside list-decimal space-y-0.5 text-sm text-tr-text">
         {details.remaining.map((step, index) => (
