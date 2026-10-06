@@ -299,3 +299,136 @@ test('v62: gia tri la co san thanh muc an; quay lui keo gia tri tu them ve other
   );
   scratch.close();
 });
+
+/* ---------- v63: nganh, quy mo, nguon ---------- */
+
+test('v63: gom bien the khac dau/hoa thuong, viet lai du lieu, them muc he thong', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 62);
+  scratch.exec(`
+    INSERT INTO customers (id, name, industry, size, source) VALUES
+      (1, 'A', 'CNTT', 'SME', 'website'),
+      (2, 'B', 'cntt ', 'sme', 'Website'),
+      (3, 'C', 'CNTT', NULL, ''),
+      (4, 'D', 'Vận tải', 'Rất lớn', NULL);
+    INSERT INTO deals (customer_id, title, source) VALUES (1, 'D1', 'Gia hạn hợp đồng');
+  `);
+  migrate(scratch, 63);
+
+  const industries = scratch
+    .prepare(`SELECT industry FROM customers ORDER BY id`)
+    .all()
+    .map((row) => (row as { industry: string }).industry);
+  assert.deepEqual(industries, ['CNTT', 'CNTT', 'CNTT', 'Vận tải']);
+  // Cot da co du lieu nganh thi khong chen danh sach nganh mac dinh
+  const industryItems = scratch
+    .prepare(
+      `SELECT label FROM picklist_items WHERE list_key = 'customer_industry' ORDER BY position`
+    )
+    .all()
+    .map((row) => (row as { label: string }).label);
+  assert.deepEqual(industryItems, ['CNTT', 'Vận tải']);
+
+  // Quy mo: bien the trung voi mac dinh lay dung nhan mac dinh; gia tri la duoc them
+  const sizes = scratch
+    .prepare(`SELECT size FROM customers ORDER BY id`)
+    .all()
+    .map((row) => (row as { size: string | null }).size);
+  assert.deepEqual(sizes, ['SME', 'SME', null, 'Rất lớn']);
+  assert.equal(
+    (
+      scratch.prepare(`SELECT source FROM customers WHERE id = 3`).get() as {
+        source: string | null;
+      }
+    ).source,
+    null
+  );
+  const sources = scratch
+    .prepare(`SELECT DISTINCT source FROM customers WHERE source IS NOT NULL`)
+    .all()
+    .map((row) => (row as { source: string }).source);
+  assert.deepEqual(sources, ['Website']);
+
+  const renewal = scratch
+    .prepare(
+      `SELECT label, is_system FROM picklist_items WHERE list_key = 'deal_source' AND item_key = 'renewal'`
+    )
+    .get() as { label: string; is_system: number };
+  assert.deepEqual({ ...renewal }, { label: 'Gia hạn hợp đồng', is_system: 1 });
+  // Gia tri 'Gia hạn hợp đồng' da co trong du lieu khong sinh them muc trung
+  assert.equal(
+    (
+      scratch
+        .prepare(
+          `SELECT COUNT(*) AS n FROM picklist_items WHERE list_key = 'deal_source' AND label = 'Gia hạn hợp đồng'`
+        )
+        .get() as { n: number }
+    ).n,
+    1
+  );
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v63-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    (
+      scratch
+        .prepare(`SELECT COUNT(*) AS n FROM picklist_items WHERE list_key LIKE 'customer_%'`)
+        .get() as { n: number }
+    ).n,
+    0
+  );
+  scratch.close();
+});
+
+test('khach hang: nganh phai co trong danh muc, go khac dau van khop dung nhan', async () => {
+  const bad = await json('POST', '/api/customers', { name: 'KH Ngành lạ', industry: 'Ngành lạ' });
+  assert.equal(bad.status, 422);
+
+  const ok = await json('POST', '/api/customers', {
+    name: 'KH Ngành đúng',
+    industry: 'cong nghe thong tin',
+    size: 'sme',
+  });
+  assert.equal(ok.status, 201);
+  assert.equal(ok.data.industry, 'Công nghệ thông tin');
+  assert.equal(ok.data.size, 'SME');
+});
+
+test('doi ten muc luu nhan cap nhat moi khach hang va chuoi tim kiem', async () => {
+  const created = await json('POST', '/api/crm-config/picklists/customer_industry', {
+    label: 'Viễn thông',
+  });
+  const customer = await json('POST', '/api/customers', {
+    name: 'KH Viễn thông',
+    industry: 'Viễn thông',
+  });
+  assert.equal(customer.status, 201);
+  const renamed = await json(
+    'PATCH',
+    `/api/crm-config/picklists/customer_industry/${created.data.id}`,
+    {
+      label: 'Viễn thông – Internet',
+    }
+  );
+  assert.equal(renamed.status, 200);
+  const row = db
+    .prepare(`SELECT industry, search_text FROM customers WHERE id = ?`)
+    .get(customer.data.id) as { industry: string; search_text: string };
+  assert.equal(row.industry, 'Viễn thông – Internet');
+  assert.match(row.search_text, /internet/);
+});
+
+test('luong tu dong them muc moi thay vi tu choi; nhan muc he thong theo ten da doi', async () => {
+  const { ensurePicklistValue, systemLabel } = await import('../lib/picklists.ts');
+  assert.equal(ensurePicklistValue(db, 'customer_industry', '  Hàng không  '), 'Hàng không');
+  assert.equal(ensurePicklistValue(db, 'customer_industry', 'hang khong'), 'Hàng không');
+  const contractItem = db
+    .prepare(
+      `SELECT id FROM picklist_items WHERE list_key = 'customer_source' AND item_key = 'contract'`
+    )
+    .get() as { id: number };
+  await json('PATCH', `/api/crm-config/picklists/customer_source/${contractItem.id}`, {
+    label: 'Từ hợp đồng',
+  });
+  assert.equal(systemLabel(db, 'customer_source', 'contract', 'Hợp đồng'), 'Từ hợp đồng');
+});

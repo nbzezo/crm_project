@@ -20,6 +20,7 @@ import { createDocument, DOCUMENT_TEMP_DIR } from '../services/documentService.t
 import { extractContract } from '../services/ai/contractExtract.ts';
 import { describeAiError } from '../services/ai/describeError.ts';
 import { insertCustomer } from './customers.ts';
+import { systemLabel } from '../lib/picklists.ts';
 
 const router = Router();
 
@@ -308,7 +309,11 @@ router.post('/from-file', contractUpload.single('file'), (req, res) => {
       let customerCreated = false;
       if (body.new_customer) {
         const customer = insertCustomer(
-          { ...body.new_customer, status: 'customer', source: 'Hợp đồng' },
+          {
+            ...body.new_customer,
+            status: 'customer',
+            source: systemLabel(db, 'customer_source', 'contract', 'Hợp đồng'),
+          },
           defaultOwner(req)
         );
         customerId = customer.id;
@@ -514,7 +519,7 @@ router.post('/:id/renew', (req, res) => {
       .prepare(
         `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
                             position, expected_close_date, source, is_renewal, notes, search_text)
-         VALUES (?, ?, ?, ?, 'lead', ?, ?, ?, ?, 'Gia hạn hợp đồng', 1, ?, ?)`
+         VALUES (?, ?, ?, ?, 'lead', ?, ?, ?, ?, ?, 1, ?, ?)`
       )
       .run(
         contract.customer_id,
@@ -525,6 +530,7 @@ router.post('/:id/renew', (req, res) => {
         contract.value_vnd,
         position,
         contract.end_date,
+        systemLabel(db, 'deal_source', 'renewal', 'Gia hạn hợp đồng'),
         `Tạo từ hợp đồng ${contract.number ?? contract.name} (hết hạn ${contract.end_date ?? '—'}).`,
         buildSearchText(title)
       );

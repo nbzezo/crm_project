@@ -4,7 +4,9 @@ import { AlertTriangle } from 'lucide-react';
 import { api, qs } from '../../api/client';
 import { Modal } from '../common/Modal';
 import { Field, FormError, FormModalActions, Input, Select, Textarea } from '../common/ui';
-import { ACCOUNT_SIZES, ACCOUNT_SOURCES, t } from '../../i18n/vi';
+import { t } from '../../i18n/vi';
+import { PicklistField } from '../common/PicklistField';
+import { matchPicklistValue } from '../../lib/crmConfig';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import type { CareTier, Customer, OrgKind } from '../../types';
@@ -183,7 +185,16 @@ export function CustomerForm({
         <CustomerAiLookup
           key={`${open}-${customer?.id ?? 'new'}`}
           current={form}
-          onApply={(values) => setForm((f) => ({ ...f, ...values }))}
+          onApply={(values) =>
+            setForm((f) => ({
+              ...f,
+              ...values,
+              ...(values.industry
+                ? { industry: matchPicklistValue('customer_industry', values.industry) }
+                : {}),
+              ...(values.size ? { size: matchPicklistValue('customer_size', values.size) } : {}),
+            }))
+          }
         />
       )}
 
@@ -213,19 +224,18 @@ export function CustomerForm({
         <Field label={t.customer.taxCode}>
           <Input value={form.tax_code} onChange={(e) => set('tax_code', e.target.value)} />
         </Field>
-        <Field label={t.customer.industry}>
-          <Input value={form.industry} onChange={(e) => set('industry', e.target.value)} />
-        </Field>
-        <Field label={t.customer.size}>
-          <Select value={form.size} onChange={(e) => set('size', e.target.value)}>
-            <option value="">— {t.common.none} —</option>
-            {ACCOUNT_SIZES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <PicklistField
+          label={t.customer.industry}
+          list="customer_industry"
+          value={form.industry}
+          onChange={(value) => set('industry', value)}
+        />
+        <PicklistField
+          label={t.customer.size}
+          list="customer_size"
+          value={form.size}
+          onChange={(value) => set('size', value)}
+        />
         <Field label={t.customer.phone}>
           <Input
             type="tel"
@@ -247,16 +257,12 @@ export function CustomerForm({
         <Field label={t.customer.website}>
           <Input value={form.website} onChange={(e) => set('website', e.target.value)} />
         </Field>
-        <Field label={t.customer.source}>
-          <Select value={form.source} onChange={(e) => set('source', e.target.value)}>
-            <option value="">— {t.common.none} —</option>
-            {ACCOUNT_SOURCES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <PicklistField
+          label={t.customer.source}
+          list="customer_source"
+          value={form.source}
+          onChange={(value) => set('source', value)}
+        />
         {showOrgKind && (
           <Field
             label="Loại tổ chức"

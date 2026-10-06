@@ -169,6 +169,7 @@ function assertPocDates(value: Record<string, unknown>): void {
 router.post('/', (req, res) => {
   const body = parseBody(dealSchema, req);
   assertPicklistValue(db, 'lost_reason', body.lost_reason);
+  body.source = assertPicklistValue(db, 'deal_source', body.source);
   assertEntityLinks(db, body);
   assertCrmCustomer(db, body.customer_id);
   assertProjectLink(0, body.project_id, body.customer_id);
@@ -354,6 +355,13 @@ router.patch('/:id', (req, res) => {
     assertProjectLink(id, merged.project_id as number | null, merged.customer_id as number | null);
 
   assertPicklistValue(db, 'lost_reason', body.lost_reason, current.lost_reason as string | null);
+  if (body.source !== undefined)
+    body.source = assertPicklistValue(
+      db,
+      'deal_source',
+      body.source,
+      current.source as string | null
+    );
   const nextStage = body.stage ?? (current.stage as string);
   if (nextStage === 'lost' && !(body.lost_reason ?? current.lost_reason))
     throw new HttpError(400, 'Phai chon lý do khi chuyển cơ hội sang Thua');

@@ -14,7 +14,7 @@ import {
   Select,
   Textarea,
 } from '../common/ui';
-import { ACCOUNT_SOURCES, NEXT_ACTIONS, STAGE_ORDER, STAGE_PROBABILITY, t } from '../../i18n/vi';
+import { NEXT_ACTIONS, STAGE_ORDER, STAGE_PROBABILITY, t } from '../../i18n/vi';
 import { AssigneePicker } from '../tasks/AssigneePicker';
 import { CustomerCombobox } from './CustomerCombobox';
 import { formatVND } from '../../lib/format';
@@ -22,6 +22,7 @@ import { useFormErrors, type FieldIssue } from '../../lib/useFormErrors';
 import { invalidateCrmViews } from '../../lib/queryKeys';
 import { useCustomerOptions, useProjectOptions } from '../../lib/useCrmOptions';
 import type { Contact, Deal, Stage } from '../../types';
+import { PicklistField } from '../common/PicklistField';
 import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 interface Props {
@@ -300,16 +301,7 @@ export function DealForm({
         <Field label="Sản phẩm / dịch vụ">
           <Input value={product} onChange={(e) => setProduct(e.target.value)} />
         </Field>
-        <Field label="Nguồn">
-          <Select value={source} onChange={(e) => setSource(e.target.value)}>
-            <option value="">— {t.common.none} —</option>
-            {ACCOUNT_SOURCES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <PicklistField label="Nguồn" list="deal_source" value={source} onChange={setSource} />
 
         <Field label={t.deal.stage}>
           <Select value={stage} onChange={(e) => changeStage(e.target.value as Stage)}>

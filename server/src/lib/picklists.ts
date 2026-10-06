@@ -8,7 +8,7 @@
 import type { Database } from 'better-sqlite3';
 import { PICKLISTS, PICKLIST_KEYS, type PicklistItem, type PicklistKey } from '@workflow/contracts';
 import { HttpError } from './validate.ts';
-import { fold } from './viSearch.ts';
+import { buildSearchText, fold } from './viSearch.ts';
 
 const cache = new WeakMap<Database, Map<PicklistKey, PicklistItem[]>>();
 
@@ -97,6 +97,33 @@ export function assertPicklistValue(
   });
 }
 
+/**
+ * Nhan hien tai cua mot muc he thong — dung khi ma nguon tu ghi gia tri vao mot
+ * danh muc luu nhan (vd nguon "Gia hạn hợp đồng"). Quan tri vien doi ten thi ma
+ * nguon ghi theo ten moi.
+ */
+export function systemLabel(db: Database, list: PicklistKey, key: string, fallback: string) {
+  return getPicklist(db, list).find((item) => item.item_key === key)?.label ?? fallback;
+}
+
+/**
+ * Ban "de dai" cua assertPicklistValue cho cac luong tu dong (AI, tai hop dong len):
+ * khop duoc thi tra ve nhan chuan, khong khop thi THEM muc moi thay vi tu choi —
+ * khong de mot hop dong tai len that bai chi vi AI doc ra mot nganh la. Muc moi
+ * hien ngay o Cai dat -> Danh muc de quan tri vien gop neu can.
+ */
+export function ensurePicklistValue(
+  db: Database,
+  list: PicklistKey,
+  value: string | null | undefined
+): string | null {
+  const text = value?.trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+  const item = findByStored(db, list, text);
+  if (item) return storedValue(list, item);
+  return storedValue(list, createPicklistItem(db, list, { label: text }));
+}
+
 /* ---------- Ghi ---------- */
 
 function makeKey(db: Database, list: PicklistKey, label: string): string {
@@ -152,11 +179,38 @@ export function usageCounts(db: Database, list: PicklistKey): Record<number, num
 function replaceUsages(db: Database, list: PicklistKey, from: string, to: string): number {
   let changed = 0;
   for (const [table, column] of PICKLISTS[list].usages) {
+    /* Nganh nam trong `customers.search_text` (routes/customers.ts) — doi nganh ma
+       khong dung lai chuoi tim kiem thi go ten nganh moi se khong ra khach hang. */
+    const reindex =
+      table === 'customers' && column === 'industry'
+        ? (db.prepare(`SELECT id FROM customers WHERE industry = ?`).all(from) as { id: number }[])
+        : [];
     changed += db
       .prepare(`UPDATE "${table}" SET "${column}" = ? WHERE "${column}" = ?`)
       .run(to, from).changes;
+    for (const { id } of reindex) reindexCustomer(db, id);
   }
   return changed;
+}
+
+function reindexCustomer(db: Database, id: number): void {
+  const row = db
+    .prepare(
+      `SELECT name, short_name, industry, notes, phone, email, tax_code FROM customers WHERE id = ?`
+    )
+    .get(id) as Record<string, string | null>;
+  db.prepare(`UPDATE customers SET search_text = ? WHERE id = ?`).run(
+    buildSearchText(
+      row.name,
+      row.short_name,
+      row.industry,
+      row.notes,
+      row.phone,
+      row.email,
+      row.tax_code
+    ),
+    id
+  );
 }
 
 export function createPicklistItem(

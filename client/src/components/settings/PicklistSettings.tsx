@@ -37,6 +37,26 @@ export const PICKLIST_META: { key: PicklistKey; title: string; hint: string }[] 
     title: 'Loại tài liệu',
     hint: 'Phân loại tệp tải lên; AI đọc tài liệu cũng chọn trong danh sách này.',
   },
+  {
+    key: 'customer_industry',
+    title: 'Ngành nghề khách hàng',
+    hint: 'Ô Ngành nghề trên hồ sơ khách hàng; dùng để lọc và so sánh khách cùng ngành.',
+  },
+  {
+    key: 'customer_size',
+    title: 'Quy mô khách hàng',
+    hint: 'Ô Quy mô trên hồ sơ khách hàng.',
+  },
+  {
+    key: 'customer_source',
+    title: 'Nguồn khách hàng',
+    hint: 'Khách hàng đến từ đâu. Mục "Hợp đồng" được gán tự động khi tạo khách từ tệp hợp đồng.',
+  },
+  {
+    key: 'deal_source',
+    title: 'Nguồn cơ hội',
+    hint: 'Cơ hội đến từ đâu. Mục "Gia hạn hợp đồng" được gán tự động cho cơ hội gia hạn.',
+  },
 ];
 
 export function PicklistSettings() {

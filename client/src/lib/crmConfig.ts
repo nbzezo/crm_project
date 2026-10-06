@@ -14,7 +14,9 @@ import { useQuery } from '@tanstack/react-query';
 import { create } from 'zustand';
 import type { PicklistItem, PicklistKey } from '@workflow/contracts';
 import { api } from '../api/client';
-import { DOC_TYPE_ORDER, LOST_REASON_ORDER, t } from '../i18n/vi';
+import { foldText } from './format';
+import { PICKLISTS } from '@workflow/contracts';
+import { ACCOUNT_SIZES, ACCOUNT_SOURCES, DOC_TYPE_ORDER, LOST_REASON_ORDER, t } from '../i18n/vi';
 
 export interface CrmConfig {
   picklists: Record<PicklistKey, PicklistItem[]>;
@@ -44,6 +46,10 @@ export const DEFAULT_CRM_CONFIG: CrmConfig = {
       t.interactionType as Record<string, string>
     ),
     doc_type: seed('doc_type', DOC_TYPE_ORDER, t.docType),
+    customer_industry: [],
+    customer_size: seed('customer_size', ACCOUNT_SIZES, {}),
+    customer_source: seed('customer_source', ACCOUNT_SOURCES, {}),
+    deal_source: seed('deal_source', ACCOUNT_SOURCES, {}),
   },
 };
 
@@ -89,8 +95,14 @@ export function useCrmConfigLoader(): boolean {
   return loaded || query.isError;
 }
 
+/** Giá trị lưu trong bản ghi của một mục: khoá, hoặc chính nhãn (danh mục lưu nhãn). */
+export function storedValue(list: PicklistKey, item: PicklistItem): string {
+  return PICKLISTS[list].storage === 'key' ? item.item_key : item.label;
+}
+
 function labelIn(config: CrmConfig, list: PicklistKey, value: string | null | undefined): string {
   if (!value) return '';
+  if (PICKLISTS[list].storage === 'label') return value;
   return config.picklists[list]?.find((item) => item.item_key === value)?.label ?? value;
 }
 
@@ -100,8 +112,45 @@ function labelIn(config: CrmConfig, list: PicklistKey, value: string | null | un
  */
 function optionsIn(config: CrmConfig, list: PicklistKey, current?: string | null) {
   return (config.picklists[list] ?? []).filter(
-    (item) => item.is_active === 1 || (current != null && item.item_key === current)
+    (item) => item.is_active === 1 || (current != null && storedValue(list, item) === current)
   );
+}
+
+export interface PicklistChoice {
+  value: string;
+  label: string;
+  /** Giá trị bản ghi đang mang nhưng không còn trong danh mục (dữ liệu cũ). */
+  missing?: boolean;
+}
+
+/**
+ * Lựa chọn sẵn cho `<select>`: giá trị + nhãn. Bản ghi đang mang một giá trị không
+ * có trong danh mục thì vẫn có một dòng cho nó, để mở form không âm thầm xoá mất.
+ */
+function choicesIn(config: CrmConfig, list: PicklistKey, current?: string | null) {
+  const choices: PicklistChoice[] = optionsIn(config, list, current).map((item) => ({
+    value: storedValue(list, item),
+    label: item.label,
+  }));
+  if (current && !choices.some((choice) => choice.value === current))
+    choices.push({ value: current, label: current, missing: true });
+  return choices;
+}
+
+/**
+ * Đưa một giá trị gõ tự do (AI điền, dán từ nơi khác) về đúng giá trị trong danh
+ * mục nếu khớp khi bỏ dấu và hoa thường; không khớp thì trả lại nguyên văn.
+ */
+export function matchPicklistValue(list: PicklistKey, raw: string): string {
+  const folded = foldText(raw.trim());
+  const item = (useCrmConfigStore.getState().config.picklists[list] ?? []).find(
+    (entry) => foldText(entry.label) === folded || foldText(entry.item_key) === folded
+  );
+  return item ? storedValue(list, item) : raw;
+}
+
+export function pickChoices(list: PicklistKey, current?: string | null): PicklistChoice[] {
+  return choicesIn(useCrmConfigStore.getState().config, list, current);
 }
 
 /** Nhãn của một giá trị danh mục, dùng ngoài component (đọc bản cấu hình hiện tại). */
@@ -121,6 +170,7 @@ export function usePicklist() {
     () => ({
       label: (list: PicklistKey, value: string | null | undefined) => labelIn(config, list, value),
       options: (list: PicklistKey, current?: string | null) => optionsIn(config, list, current),
+      choices: (list: PicklistKey, current?: string | null) => choicesIn(config, list, current),
       items: (list: PicklistKey) => config.picklists[list] ?? [],
     }),
     [config]

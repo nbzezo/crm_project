@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { assertPicklistValue, ensurePicklistValue } from '../lib/picklists.ts';
 import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
@@ -200,7 +201,15 @@ export type NewCustomer = z.infer<typeof customerSchema>;
  */
 export function insertCustomer(input: NewCustomer, ownerContactId: number | null) {
   // Ten to chuc luon luu dang "Viet Hoa Chu Dau" — ke ca khi tao tu luong hop dong.
-  const body = { ...input, name: normalizeOrgName(input.name) };
+  const body = {
+    ...input,
+    name: normalizeOrgName(input.name),
+    /* Danh muc luu nhan (v63). Ham nay con phuc vu luong tai hop dong len (AI doc ra
+       nganh), nen o day chi chuan hoa/them muc; route POST da kiem chat truoc do. */
+    industry: ensurePicklistValue(db, 'customer_industry', input.industry),
+    size: ensurePicklistValue(db, 'customer_size', input.size),
+    source: ensurePicklistValue(db, 'customer_source', input.source),
+  };
   const taxCode = normalizedTaxCode(body.tax_code);
   const email = normalizedEmail(body.email);
   const website = clean(body.website);
@@ -249,6 +258,9 @@ export function insertCustomer(input: NewCustomer, ownerContactId: number | null
 
 router.post('/', (req, res) => {
   const body = parseBody(customerSchema, req);
+  body.industry = assertPicklistValue(db, 'customer_industry', body.industry);
+  body.size = assertPicklistValue(db, 'customer_size', body.size);
+  body.source = assertPicklistValue(db, 'customer_source', body.source);
   res.status(201).json(insertCustomer(body, defaultOwner(req)));
 });
 
@@ -493,6 +505,12 @@ router.patch('/:id', (req, res) => {
      "khong duoc xem" phai khong phan biet duoc. */
   assertInScope(req, 'customers', 'update', current.owner_contact_id as number | null);
 
+  if (body.industry !== undefined)
+    body.industry = assertPicklistValue(db, 'customer_industry', body.industry, current.industry);
+  if (body.size !== undefined)
+    body.size = assertPicklistValue(db, 'customer_size', body.size, current.size);
+  if (body.source !== undefined)
+    body.source = assertPicklistValue(db, 'customer_source', body.source, current.source);
   const merged = { ...current, ...body };
   // Chi chuan hoa khi ten DUOC GUI LEN: sua truong khac khong lang le doi ten cu.
   if (body.name !== undefined) merged.name = normalizeOrgName(body.name);

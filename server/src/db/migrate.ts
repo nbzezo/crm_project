@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 62;
+export const LATEST_VERSION = 63;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -401,6 +401,168 @@ export function rebuildTable(
   for (const index of indexes) db.exec(index.sql);
   for (const trigger of triggers) db.exec(trigger.sql);
   for (const view of views) db.exec(view.sql);
+}
+
+/**
+ * v63: bien bon cot chu tu do thanh danh muc luu NHAN (xem PICKLISTS trong contracts).
+ *
+ * Moi nhom gia tri trung nhau sau khi bo dau, bo hoa thuong va cat khoang trang
+ * ("CNTT", "cntt ", "Cntt") gop thanh MOT muc; nhan la bien the xuat hien nhieu
+ * nhat, hoac nhan mac dinh neu nhom trung voi mot muc mac dinh. Du lieu duoc viet
+ * lai ve dung nhan do de bao cao theo nhom khong bi tach. Nhom chi khac biet that
+ * su (vd "CNTT" va "Cong nghe thong tin") thi de nguyen — quan tri vien tu Gop.
+ *
+ * Viet ham rieng, khong dung lib/picklists.ts: migration phai chay giong het nhau
+ * du sau nay thu vien do doi.
+ */
+const V63_LISTS: {
+  list: string;
+  table: string;
+  column: string;
+  defaults: string[];
+  /** Chi chen mac dinh khi cot chua co du lieu nao (cai moi, hoac chua ai nhap). */
+  defaultsOnlyWhenEmpty: boolean;
+  system: { key: string; label: string }[];
+}[] = [
+  {
+    list: 'customer_industry',
+    table: 'customers',
+    column: 'industry',
+    defaults: [
+      'Công nghệ thông tin',
+      'Tài chính – Ngân hàng',
+      'Bảo hiểm',
+      'Bán lẻ',
+      'Sản xuất',
+      'Logistics',
+      'Giáo dục',
+      'Y tế',
+      'Bất động sản',
+      'Nhà nước',
+    ],
+    defaultsOnlyWhenEmpty: true,
+    system: [],
+  },
+  {
+    list: 'customer_size',
+    table: 'customers',
+    column: 'size',
+    defaults: ['SME', 'Mid-market', 'Enterprise'],
+    defaultsOnlyWhenEmpty: false,
+    system: [],
+  },
+  {
+    list: 'customer_source',
+    table: 'customers',
+    column: 'source',
+    defaults: [
+      'Giới thiệu',
+      'Sự kiện / Hội chợ',
+      'LinkedIn',
+      'Website',
+      'Gọi lạnh',
+      'Đối tác',
+      'Khác',
+    ],
+    defaultsOnlyWhenEmpty: false,
+    /* Khach hang tao tu luong tai hop dong len (routes/contracts.ts). */
+    system: [{ key: 'contract', label: 'Hợp đồng' }],
+  },
+  {
+    list: 'deal_source',
+    table: 'deals',
+    column: 'source',
+    defaults: [
+      'Giới thiệu',
+      'Sự kiện / Hội chợ',
+      'LinkedIn',
+      'Website',
+      'Gọi lạnh',
+      'Đối tác',
+      'Khác',
+    ],
+    defaultsOnlyWhenEmpty: false,
+    /* Co hoi gia han tao tu hop dong sap het han (routes/contracts.ts). */
+    system: [{ key: 'renewal', label: 'Gia hạn hợp đồng' }],
+  },
+];
+
+function seedLabelPicklists(db: Database): void {
+  const insert = db.prepare(
+    `INSERT INTO picklist_items (list_key, item_key, label, position, is_system) VALUES (?, ?, ?, ?, ?)`
+  );
+  for (const spec of V63_LISTS) {
+    const { table, column } = spec;
+    db.prepare(`UPDATE "${table}" SET "${column}" = NULL WHERE TRIM("${column}") = ''`).run();
+    const rows = db
+      .prepare(
+        `SELECT "${column}" AS value, COUNT(*) AS n FROM "${table}"
+          WHERE "${column}" IS NOT NULL GROUP BY "${column}"`
+      )
+      .all() as { value: string; n: number }[];
+
+    /* Nhom theo dang da bo dau. */
+    const groups = new Map<string, { variants: { value: string; n: number }[] }>();
+    for (const row of rows) {
+      const folded = fold(row.value.trim()).replace(/\s+/g, ' ');
+      if (!folded) continue;
+      const group = groups.get(folded) ?? { variants: [] };
+      group.variants.push(row);
+      groups.set(folded, group);
+    }
+
+    const labels: { label: string; key?: string; system?: boolean }[] = [];
+    const seen = new Set<string>();
+    const add = (label: string, key?: string, system = false) => {
+      const folded = fold(label).replace(/\s+/g, ' ');
+      if (seen.has(folded)) return;
+      seen.add(folded);
+      labels.push({ label, key, system });
+    };
+    const useDefaults = !spec.defaultsOnlyWhenEmpty || groups.size === 0;
+    if (useDefaults) for (const label of spec.defaults) add(label);
+    for (const item of spec.system) add(item.label, item.key, true);
+
+    const canonical = new Map<string, string>();
+    for (const [folded, group] of groups) {
+      const fromDefaults = labels.find(
+        (entry) => fold(entry.label).replace(/\s+/g, ' ') === folded
+      );
+      const best = [...group.variants].sort(
+        (a, b) => b.n - a.n || a.value.trim().localeCompare(b.value.trim())
+      )[0];
+      const label = fromDefaults?.label ?? best.value.trim().replace(/\s+/g, ' ');
+      canonical.set(folded, label);
+      for (const variant of group.variants) {
+        if (variant.value !== label) {
+          db.prepare(`UPDATE "${table}" SET "${column}" = ? WHERE "${column}" = ?`).run(
+            label,
+            variant.value
+          );
+        }
+      }
+    }
+    for (const label of [...canonical.values()].sort((a, b) => a.localeCompare(b, 'vi')))
+      add(label);
+
+    const taken = new Set<string>();
+    labels.forEach((entry, index) => {
+      let key =
+        entry.key ??
+        (fold(entry.label)
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .slice(0, 40) ||
+          'muc');
+      if (taken.has(key)) {
+        let n = 2;
+        while (taken.has(`${key}_${n}`)) n += 1;
+        key = `${key}_${n}`;
+      }
+      taken.add(key);
+      insert.run(spec.list, key, entry.label, index + 1, entry.system ? 1 : 0);
+    });
+  }
 }
 
 /** v62: go CHECK liet ke cung cua `interactions.type` — gia tri gio nam o picklist_items. */
@@ -1063,5 +1225,14 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v62:', broken.length, 'dong');
     console.log('[db] Da nang cap schema len v62 (danh muc dong)');
     current = 62;
+  }
+
+  if (current === 62 && targetVersion >= 63) {
+    db.transaction(() => {
+      seedLabelPicklists(db);
+      db.pragma('user_version = 63');
+    })();
+    console.log('[db] Da nang cap schema len v63 (nganh, quy mo, nguon thanh danh muc)');
+    current = 63;
   }
 }

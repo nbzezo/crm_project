@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.25.0',
+    date: '2026-10-06',
+    title: 'Ngành nghề, quy mô, nguồn thành danh mục chọn',
+    changes: [
+      'Ngành nghề, Quy mô, Nguồn của khách hàng và Nguồn của cơ hội nay là ô chọn từ danh mục, sửa được ở Cài đặt → Danh mục, thay cho ô gõ tự do dễ sai chính tả.',
+      'Khi cập nhật, các cách viết khác nhau của cùng một giá trị (khác dấu, khác hoa thường, thừa khoảng trắng như "CNTT", "cntt ") được gom về một tên, nên báo cáo và bộ lọc theo ngành không còn bị tách nhóm. Các giá trị chỉ gần giống nhau thì quản trị viên tự Gộp.',
+      'Đổi tên một ngành/nguồn trong danh mục sẽ đổi luôn trên mọi khách hàng, cơ hội đang dùng, và tìm kiếm khách hàng theo tên ngành mới vẫn ra.',
+      'Tra cứu công ty bằng AI điền ngành khớp với danh mục (không phân biệt dấu); khách hàng tạo từ tệp hợp đồng mang ngành lạ thì ngành đó được tự thêm vào danh mục để rà lại sau.',
+      'Nguồn "Hợp đồng" của khách hàng và "Gia hạn hợp đồng" của cơ hội là mục hệ thống: đổi tên được, hệ thống tự gán theo tên mới.',
+    ],
+  },
+  {
     version: '1.24.0',
     date: '2026-10-06',
     title: 'Tự sửa danh mục: lý do thất bại, loại tương tác, loại tài liệu',

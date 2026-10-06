@@ -16,7 +16,15 @@
  * `usages` la nguon su that cho ba viec: dem so ban ghi dang dung mot muc, gop
  * muc, va kiem tra gia tri khi ghi.
  */
-export const PICKLIST_KEYS = ['lost_reason', 'interaction_type', 'doc_type'] as const;
+export const PICKLIST_KEYS = [
+  'lost_reason',
+  'interaction_type',
+  'doc_type',
+  'customer_industry',
+  'customer_size',
+  'customer_source',
+  'deal_source',
+] as const;
 export type PicklistKey = (typeof PICKLIST_KEYS)[number];
 
 export type PicklistStorage = 'key' | 'label';
@@ -45,6 +53,17 @@ export const PICKLISTS: Record<PicklistKey, PicklistDefinition> = {
     /* 'contract': tep tai len tu trang Hop dong luon mang loai nay (routes/contracts.ts). */
     systemKeys: ['contract', 'other'],
   },
+  // v63: bon cot von la chu tu do
+  customer_industry: { storage: 'label', usages: [['customers', 'industry']], systemKeys: [] },
+  customer_size: { storage: 'label', usages: [['customers', 'size']], systemKeys: [] },
+  /* 'contract': khach hang tao tu luong tai hop dong len. */
+  customer_source: {
+    storage: 'label',
+    usages: [['customers', 'source']],
+    systemKeys: ['contract'],
+  },
+  /* 'renewal': co hoi gia han tao tu hop dong sap het han. */
+  deal_source: { storage: 'label', usages: [['deals', 'source']], systemKeys: ['renewal'] },
 };
 
 export function isPicklistKey(value: string): value is PicklistKey {

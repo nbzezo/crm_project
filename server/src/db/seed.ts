@@ -1,5 +1,6 @@
 import { db } from './connection.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
+import { ensurePicklistValue } from '../lib/picklists.ts';
 
 function dayOffset(days: number): string {
   const d = new Date();
@@ -110,6 +111,8 @@ db.transaction(() => {
       ).lastInsertRowid
     )
   );
+  /* Nganh la danh muc dong (v63): them nganh cua du lieu mau vao danh muc. */
+  for (const c of customers) ensurePicklistValue(db, 'customer_industry', c.industry);
 
   /* ---- Nguoi lien he ---- */
   const insertContact = db.prepare(
