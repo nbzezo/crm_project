@@ -8,6 +8,7 @@ import { AssistantLauncher } from './components/layout/AssistantLauncher';
 import { LockScreen } from './components/lock/LockScreen';
 import { MusicHost } from './components/music/MusicHost';
 import { DueReminderPopup } from './components/layout/DueReminderPopup';
+import { TaskFlowDialogs } from './components/taskFlow/TaskFlowDialogs';
 import { QuickAddTask } from './components/layout/QuickAddTask';
 import { useLockTriggers } from './components/lock/useLockTriggers';
 import { MobileTabBar } from './components/layout/MobileTabBar';
@@ -136,6 +137,7 @@ export default function App() {
       <AssistantLauncher />
       <QuickAddTask />
       <DueReminderPopup />
+      <TaskFlowDialogs />
       <LockScreen />
       <MusicHost />
       <div className="contents print:hidden">

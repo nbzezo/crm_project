@@ -1,6 +1,11 @@
 import type { Database } from 'better-sqlite3';
 import type { PermissionAction, PermissionResource } from '@workflow/contracts';
 import { STALE_DAYS } from '../lib/crm.ts';
+import {
+  FLOW_NEXT_STEP_COLUMN,
+  FLOW_PROGRESS_COLUMNS,
+  flowProgressText,
+} from '../lib/taskFlowSql.ts';
 import { HttpError } from '../lib/validate.ts';
 import { cadenceSql, careEventsBetween } from './customerCare.ts';
 
@@ -382,7 +387,9 @@ const TASK_COLUMNS = `
   ac.full_name AS assignee_name, b.name AS board_name, c.name AS customer_name, d.title AS deal_title,
   (SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS slip_count,
   (SELECT COUNT(*) FROM card_dependencies cd JOIN cards p ON p.id = cd.predecessor_id
-    WHERE cd.successor_id = k.id AND p.is_done = 0 AND p.is_archived = 0) AS blocked_by`;
+    WHERE cd.successor_id = k.id AND p.is_done = 0 AND p.is_archived = 0) AS blocked_by,
+  ${FLOW_PROGRESS_COLUMNS},
+  ${FLOW_NEXT_STEP_COLUMN}`;
 
 const TASK_FROM = `
   FROM cards k
@@ -442,7 +449,9 @@ function cardItem(row: Row, today: string, showAssignee: boolean): AgendaItem {
     meta: joinMeta(
       showAssignee ? (row.assignee_name ?? 'Chưa giao') : null,
       row.customer_name,
-      row.deal_title ?? row.board_name
+      row.deal_title ?? row.board_name,
+      // Buoc dang lam cua quy trinh (v66) — ca nguoi doc lan AI phan tich deu can.
+      done ? null : flowProgressText(row)
     ),
     card_id: Number(row.id),
     customer_id: (row.customer_id as number) ?? null,

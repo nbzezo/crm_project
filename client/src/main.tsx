@@ -6,6 +6,7 @@ import App from './App';
 import { AuthGate } from './components/auth/AuthGate';
 import { NotFoundPage, RouteErrorPage } from './components/common/RouteError';
 import { useUiStore } from './stores/uiStore';
+import { isUserCancelled } from './api/client';
 import { t } from './i18n/vi';
 import { initTheme } from './stores/themeStore';
 import './index.css';
@@ -50,6 +51,9 @@ const queryClient = new QueryClient({
     queries: { staleTime: 15_000, refetchOnWindowFocus: false, retry: 1 },
     mutations: {
       onError: (error) => {
+        /* Người dùng tự chọn "Giữ nguyên trạng thái" ở hộp Quy trình (v66): không
+           phải lỗi, không báo đỏ. Thao tác lạc quan vẫn được hoàn lại như mọi lỗi. */
+        if (isUserCancelled(error)) return;
         useUiStore.getState().pushToast(error instanceof Error ? error.message : 'Đã xảy ra lỗi');
       },
     },

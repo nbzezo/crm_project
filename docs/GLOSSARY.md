@@ -60,15 +60,17 @@ trang. Tài liệu này là nguồn quyết định duy nhất cho câu hỏi "g
 
 | Khái niệm | Tên hiển thị | Định nghĩa |
 |---|---|---|
-| board | **Bảng – Luồng việc** (thanh bên, tiêu đề trang); **Luồng việc** ở chỗ hẹp | Một mảng công việc có quy trình riêng. Dự án chỉ có một luồng thì luồng đó là ngầm, không bắt người dùng chọn |
-| list | **Cột** | Một bước trong quy trình của luồng việc, gắn với một trạng thái |
+| board | **Bảng – Luồng việc** (thanh bên, tiêu đề trang); **Luồng việc** ở chỗ hẹp | Một mảng công việc, chia thành các cột. Dự án chỉ có một luồng thì luồng đó là ngầm, không bắt người dùng chọn |
+| list | **Cột** | Một cột của luồng việc, gắn với một trạng thái (`lists.status_mapping`) |
+| card_flow (1.29.0) | **Quy trình**; đơn vị là **bước** | Danh sách bước làm lần lượt của **một công việc** trong **một trạng thái**. Nằm bên trong công việc, không thay cột. Mẫu theo trạng thái ở Cài đặt → Quy trình công việc |
 | phase (dự án) | **Giai đoạn** | Luồng việc **có mốc bàn giao**. Không phải thực thể riêng (`boards.milestone_date`) |
 | dạng xem `board` | **Kanban** (trong luồng việc), **Cây việc** (tab Công việc của dự án) | |
 | dạng xem `table` | **Bảng tính** | Không gọi là "Bảng" để khỏi trùng với luồng việc |
 
 Ranh giới: luồng việc chia việc theo **mảng**, giai đoạn là luồng việc được gắn **mốc thời
-gian**, cột chia việc theo **bước** bên trong một luồng. "Giai đoạn" của cơ hội (stage) là
-khái niệm của Kinh doanh, không liên quan.
+gian**, cột chia việc theo **trạng thái** bên trong một luồng, còn **quy trình** chia phần
+việc của một trạng thái thành các **bước** của riêng công việc đó. "Giai đoạn" của cơ hội
+(stage) là khái niệm của Kinh doanh, không liên quan.
 
 ## Khi thêm thuật ngữ mới
 

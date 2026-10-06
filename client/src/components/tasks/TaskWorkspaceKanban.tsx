@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { CARD_STATUSES, type CardStatus } from '@workflow/contracts';
-import { CalendarDays, GripVertical, Plus, UserRound } from 'lucide-react';
+import { CalendarDays, GripVertical, ListOrdered, Plus, UserRound } from 'lucide-react';
 import { api } from '../../api/client';
 import { t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
@@ -125,6 +125,14 @@ function TaskCardContent({
         <span className="inline-flex items-center gap-1 text-tr-subtle">
           <UserRound size={13} /> {task.assignee_name ?? 'Chưa giao'}
         </span>
+        {(task.flow_total ?? 0) > 0 && (
+          <span
+            className="inline-flex items-center gap-1 text-tr-subtle"
+            title={`Quy trình: bước ${task.flow_done ?? 0}/${task.flow_total}`}
+          >
+            <ListOrdered size={13} aria-hidden="true" /> {task.flow_done ?? 0}/{task.flow_total}
+          </span>
+        )}
         {(task.subtask_total ?? 0) > 0 && (
           <span className="ml-auto text-tr-muted">
             {task.subtask_done ?? 0}/{task.subtask_total}

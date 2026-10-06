@@ -922,6 +922,7 @@ export const t = {
     tabScoring: 'Chấm điểm cơ hội',
     tabHandover: 'Bàn giao',
     tabDelivery: 'Triển khai',
+    tabTaskFlow: 'Quy trình công việc',
     tabAi: 'Trợ lý AI',
     tabTelegram: 'Telegram',
     tabData: 'Dữ liệu & sao lưu',

@@ -12,11 +12,19 @@ import { computeMovePosition, nextPosition, STEP } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { HttpError, required } from '../lib/validate.ts';
 import { logTaskActivity } from './taskActivity.ts';
+import {
+  copyFlows,
+  enterStatus,
+  FLOW_PROGRESS_COLUMNS,
+  guardLeaveStatus,
+} from './taskFlowService.ts';
 
 interface MoveCardInput {
   list_id: number;
   beforeId?: number | null;
   afterId?: number | null;
+  /** Nguoi dung da xac nhan bo qua quy trinh dang do cua trang thai cu (v66). */
+  skip_flow?: boolean;
 }
 
 /** Trang thai ma mot cot khai bao no dai dien; null = cot khong mang nghia vong doi. */
@@ -51,11 +59,15 @@ function mappedListInBoard(listId: number, status: CardStatus): number | null {
  * Goi `setCardStatus` voi `moveToMappedList: false` — the DA o dung cot roi, de
  * mac dinh `true` se khien hai ham day nhau qua lai.
  */
-export function moveCard(id: number, input: MoveCardInput) {
+export function moveCard(
+  id: number,
+  input: MoveCardInput,
+  options: { actorContactId?: number | null } = {}
+) {
   const card = required(
-    db.prepare(`SELECT id, customer_id FROM cards WHERE id = ?`).get(id),
+    db.prepare(`SELECT id, customer_id, status FROM cards WHERE id = ?`).get(id),
     'Khong tim thay the'
-  ) as { id: number; customer_id: number | null };
+  ) as { id: number; customer_id: number | null; status: CardStatus };
   required(
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(input.list_id),
     'Khong tim thay danh sach'
@@ -64,6 +76,15 @@ export function moveCard(id: number, input: MoveCardInput) {
   assertListProjectCustomer(db, input.list_id, card.customer_id);
 
   const position = db.transaction(() => {
+    /* Keo sang cot mang trang thai khac = doi trang thai, nen phai qua cung cua
+       chan quy trinh nhu PATCH. Keo giua hai cot cung trang thai thi khong. */
+    const target = listStatusMapping(input.list_id);
+    if (target) {
+      guardLeaveStatus(id, card.status, target, {
+        skip: input.skip_flow,
+        actorContactId: options.actorContactId,
+      });
+    }
     db.prepare(`UPDATE cards SET list_id = ? WHERE id = ?`).run(input.list_id, id);
     const next = computeMovePosition(
       { table: 'cards', scopeCol: 'list_id', scopeVal: input.list_id },
@@ -76,7 +97,12 @@ export function moveCard(id: number, input: MoveCardInput) {
     ).run(next, id);
 
     const mapped = listStatusMapping(input.list_id);
-    if (mapped) setCardStatus(id, mapped, { moveToMappedList: false });
+    if (mapped) {
+      setCardStatus(id, mapped, {
+        moveToMappedList: false,
+        actorContactId: options.actorContactId,
+      });
+    }
     return next;
   })();
 
@@ -105,6 +131,7 @@ export function reloadCard(id: number) {
               (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
               (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
               (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
+              ${FLOW_PROGRESS_COLUMNS},
               (SELECT COUNT(*) FROM documents dc WHERE dc.card_id = k.id AND dc.deleted_at IS NULL) AS attachment_total,
               (SELECT COUNT(*) FROM task_nudges n WHERE n.card_id = k.id) AS nudge_count,
               (SELECT MAX(n.sent_at) FROM task_nudges n WHERE n.card_id = k.id) AS last_nudged_at,
@@ -483,6 +510,12 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
         insertItem.run(cardId, content, (index + 1) * STEP);
       });
     }
+    /* Quy trinh cua trang thai ban dau (v66): cac buoc nguoi dung vua nhap tren
+       form, hoac mau neu mau tu ap. Tinh nang tat thi enterStatus khong lam gi. */
+    enterStatus(cardId, initialStatus, {
+      actorContactId: options.actorContactId,
+      explicitSteps: input.flow_steps,
+    });
     return cardId;
   })();
 
@@ -624,12 +657,21 @@ function shiftDate(date: string, rule: RecurRule): string {
  *
  * Ham cung phu trach hai he qua di kem:
  *  - vao/ra 'blocked' thi dat/xoa `blocked_since` va `blocked_reason`;
- *  - vao 'done' ma the co `recur_rule` thi sinh ban ke tiep, trong CUNG transaction.
+ *  - vao 'done' ma the co `recur_rule` thi sinh ban ke tiep, trong CUNG transaction;
+ *  - vao mot trang thai thi dung lai / tu ap quy trinh cua no (v66, enterStatus).
+ *
+ * KHONG chan quy trinh dang do o day: ham nay con duoc goi tu cac duong noi bo
+ * (doi anh xa cot, viec lap lai, buoc cuoi tu chuyen) ma khong ai de xac nhan.
+ * Cac route nguoi dung goi `guardLeaveStatus` truoc khi vao day.
  */
 export function setCardStatus(
   id: number,
   status: CardStatus,
-  options: { blockedReason?: string | null; moveToMappedList?: boolean } = {}
+  options: {
+    blockedReason?: string | null;
+    moveToMappedList?: boolean;
+    actorContactId?: number | null;
+  } = {}
 ): void {
   const card = required(
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
@@ -683,6 +725,8 @@ export function setCardStatus(
       id
     );
 
+    if (status !== previous) enterStatus(id, status, { actorContactId: options.actorContactId });
+
     if (!done || previous === 'done') return;
     const rule = parseRecurRule(card.recur_rule);
     if (!rule) return;
@@ -717,17 +761,21 @@ export function setCardStatus(
     const originList = card.list_id as number;
     const nextList = mappedListInBoard(originList, 'todo') ?? originList;
     const position = nextPosition({ table: 'cards', scopeCol: 'list_id', scopeVal: nextList });
-    db.prepare(
-      `INSERT INTO cards (list_id, parent_id, title, description, position, priority,
-                          start_date, due_date, customer_id, contact_id, deal_id,
-                          contract_id, quotation_id, assignee_contact_id, assignee_org_id,
-                          approver_contact_id, recur_rule, recur_until, search_text)
-       SELECT ?, parent_id, title, description, ?, priority,
-              ?, ?, customer_id, contact_id, deal_id,
-              contract_id, quotation_id, assignee_contact_id, assignee_org_id,
-              approver_contact_id, recur_rule, recur_until, search_text
-         FROM cards WHERE id = ?`
-    ).run(nextList, position, nextStart, card.due_date ? nextDue : null, id);
+    const nextId = db
+      .prepare(
+        `INSERT INTO cards (list_id, parent_id, title, description, position, priority,
+                            start_date, due_date, customer_id, contact_id, deal_id,
+                            contract_id, quotation_id, assignee_contact_id, assignee_org_id,
+                            approver_contact_id, recur_rule, recur_until, search_text)
+         SELECT ?, parent_id, title, description, ?, priority,
+                ?, ?, customer_id, contact_id, deal_id,
+                contract_id, quotation_id, assignee_contact_id, assignee_org_id,
+                approver_contact_id, recur_rule, recur_until, search_text
+           FROM cards WHERE id = ?`
+      )
+      .run(nextList, position, nextStart, card.due_date ? nextDue : null, id).lastInsertRowid;
+    // Ban ke tiep lam lai dung cac buoc da dinh, tu dau (v66).
+    copyFlows(id, Number(nextId));
 
     // Ban vua dong khong con lap nua — neu khong, hoan thanh lai se sinh trung.
     db.prepare(`UPDATE cards SET recur_rule = NULL, recur_until = NULL WHERE id = ?`).run(id);

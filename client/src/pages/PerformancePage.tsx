@@ -105,6 +105,15 @@ function MetricCells({ totals }: { totals: PerfTotals }) {
       <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums">
         {totals.completed}
         <Change totals={totals} />
+        {(totals.flow_skipped ?? 0) > 0 && (
+          <span
+            className="ml-1 rounded-full bg-amber-500/15 px-1.5 text-xs text-amber-600"
+            title={`${totals.flow_skipped} việc hoàn thành đã bỏ qua quy trình`}
+          >
+            {totals.flow_skipped} bỏ QT
+            <span className="sr-only"> — việc hoàn thành đã bỏ qua quy trình</span>
+          </span>
+        )}
       </td>
       <td
         className={`px-2 py-1.5 text-right tabular-nums ${rateTone(rate)}`}

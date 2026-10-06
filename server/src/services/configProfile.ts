@@ -13,11 +13,16 @@
 import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
 import {
+  CARD_STATUSES,
+  FLOW_ASK_MODES,
+  FLOW_STATUSES,
   PERMISSION_RESOURCES,
   PERMISSION_SCOPES,
   PICKLIST_KEYS,
   PERMISSION_ACTIONS,
+  type FlowStatus,
 } from '@workflow/contracts';
+import { getTaskFlowSettings, saveTaskFlowSettings } from '../lib/taskFlowSettings.ts';
 import { HttpError } from '../lib/validate.ts';
 import {
   createPicklistItem,
@@ -117,6 +122,22 @@ const profileSchema = z.object({
         .optional(),
     })
     .optional(),
+  /* v66 — Quy trinh theo trang thai: cong tac va mau tung trang thai. */
+  task_flow: z
+    .object({
+      enabled: z.boolean().optional(),
+      templates: z
+        .partialRecord(
+          z.enum(FLOW_STATUSES as [FlowStatus, ...FlowStatus[]]),
+          z.object({
+            steps: z.array(z.string().trim().min(1).max(500)).max(50),
+            next_status: z.enum(CARD_STATUSES),
+            ask: z.enum(FLOW_ASK_MODES),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
   positions: z
     .array(
       z.object({
@@ -151,6 +172,7 @@ export function exportProfile(db: Database, name?: string): ConfigProfile {
   const scoring = getScoringSettings(db);
   const handover = getHandoverSettings(db);
   const delivery = getDeliverySettings(db);
+  const taskFlow = getTaskFlowSettings(db);
   const positions = db
     .prepare(`SELECT id, name, code, description FROM positions ORDER BY position, id`)
     .all() as { id: number; name: string; code: string | null; description: string }[];
@@ -198,6 +220,7 @@ export function exportProfile(db: Database, name?: string): ConfigProfile {
       classification: { ...delivery.classification },
       board_templates: delivery.boardTemplates,
     },
+    task_flow: { enabled: taskFlow.enabled, templates: taskFlow.templates },
     positions: positions.map((position) => ({
       name: position.name,
       code: position.code,
@@ -458,6 +481,17 @@ function applySettings(db: Database, profile: ConfigProfile, report: ImportRepor
   if (profile.delivery && Object.keys(profile.delivery).length > 0) {
     saveDeliverySettings(db, profile.delivery as Record<string, unknown>);
     report.updated.push('Triển khai');
+  }
+  if (profile.task_flow && Object.keys(profile.task_flow).length > 0) {
+    for (const [status, template] of Object.entries(profile.task_flow.templates ?? {})) {
+      if (template?.next_status === status) {
+        throw new HttpError(422, `Hồ sơ: quy trình "${status}" không được tự chuyển về chính nó`, {
+          code: 'PROFILE_INVALID',
+        });
+      }
+    }
+    saveTaskFlowSettings(db, profile.task_flow);
+    report.updated.push('Quy trình công việc');
   }
 }
 

@@ -1,4 +1,6 @@
 import type {
+  CardFlow,
+  CardFlowStep,
   CardStatus,
   ContractKind,
   ContractTerm,
@@ -19,6 +21,8 @@ import type {
 } from '@workflow/contracts';
 
 export type {
+  CardFlow,
+  CardFlowStep,
   CardStatus,
   ContractKind,
   ContractTerm,
@@ -182,6 +186,9 @@ export interface Card {
   label_ids: number[];
   checklist_total: number;
   checklist_done: number;
+  /** Tiến độ quy trình của trạng thái HIỆN TẠI (v66); 0/0 khi không có. */
+  flow_total?: number;
+  flow_done?: number;
   subtask_total?: number;
   subtask_done?: number;
   attachment_total?: number;
@@ -238,6 +245,8 @@ export interface CardDetail extends Card {
   fields: CardFieldValue[];
   parent: { id: number; title: string } | null;
   board: { id: number; name: string; list_id: number; list_name: string } | null;
+  /** Quy trình theo từng trạng thái (v66), theo thứ tự vòng đời. */
+  flows?: CardFlow[];
 }
 
 export interface SubTask {
@@ -896,6 +905,9 @@ export interface TaskRow {
   parent_id: number | null;
   subtask_total?: number;
   subtask_done?: number;
+  /** Quy trình của trạng thái hiện tại (v66). */
+  flow_total?: number;
+  flow_done?: number;
   label_ids: number[];
   assignee_contact_id: number | null;
   assignee_name: string | null;

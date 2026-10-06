@@ -75,6 +75,8 @@ export const createTaskInputSchema = taskLinksSchema.extend({
   due_date: taskDate.optional(),
   label_ids: z.array(z.number().int().positive()).max(50).optional(),
   checklist: z.array(z.string().trim().min(1).max(500)).max(100).optional(),
+  /** Cac buoc quy trinh cho trang thai ban dau (v66); bo qua khi tinh nang tat. */
+  flow_steps: z.array(z.string().trim().min(1).max(500)).max(50).optional(),
 });
 export type CreateTaskInput = z.infer<typeof createTaskInputSchema>;
 

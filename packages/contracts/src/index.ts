@@ -160,6 +160,69 @@ export const CARD_STATUSES = [
 ] as const;
 export type CardStatus = (typeof CARD_STATUSES)[number];
 
+/**
+ * Quy trinh theo trang thai (v66): danh sach buoc cua MOT cong viec trong MOT
+ * trang thai, lam lan luot. 'done' khong co quy trinh — khong con gi de lam.
+ */
+export const FLOW_STATUSES = CARD_STATUSES.filter(
+  (status): status is Exclude<CardStatus, 'done'> => status !== 'done'
+);
+export type FlowStatus = Exclude<CardStatus, 'done'>;
+
+/** Khi cong viec vao mot trang thai: hoi nguoi dung, tu ap mau, hay khong lam gi. */
+export const FLOW_ASK_MODES = ['always', 'auto', 'never'] as const;
+export type FlowAskMode = (typeof FLOW_ASK_MODES)[number];
+
+export interface FlowTemplate {
+  steps: string[];
+  /** Trang thai tu chuyen toi khi xong buoc cuoi. */
+  next_status: CardStatus;
+  ask: FlowAskMode;
+}
+
+export interface TaskFlowSettings {
+  enabled: boolean;
+  templates: Record<FlowStatus, FlowTemplate>;
+}
+
+/** Mac dinh da duoc nguoi dung duyet (docs/PLAN-QUY-TRINH-TRANG-THAI.md, muc 9). */
+export const DEFAULT_FLOW_TEMPLATES: Record<FlowStatus, FlowTemplate> = {
+  todo: { steps: [], next_status: 'doing', ask: 'never' },
+  doing: { steps: [], next_status: 'review', ask: 'always' },
+  waiting_customer: { steps: [], next_status: 'doing', ask: 'never' },
+  blocked: { steps: [], next_status: 'doing', ask: 'never' },
+  review: { steps: [], next_status: 'done', ask: 'always' },
+};
+
+export interface CardFlowStep {
+  id: number;
+  flow_id: number;
+  content: string;
+  position: number;
+  done_at: string | null;
+  done_by_contact_id: number | null;
+}
+
+export interface CardFlow {
+  id: number;
+  card_id: number;
+  status: FlowStatus;
+  from_template: number;
+  created_at: string;
+  completed_at: string | null;
+  skipped_at: string | null;
+  steps: CardFlowStep[];
+}
+
+/** Chi tiet loi 409 khi roi mot trang thai ma quy trinh chua xong. */
+export interface FlowIncompleteDetails {
+  code: 'FLOW_INCOMPLETE';
+  status: FlowStatus;
+  total: number;
+  done: number;
+  remaining: string[];
+}
+
 /** Kenh da dung de nhac mot nguoi phu trach. */
 export const NUDGE_CHANNELS = ['zalo', 'email', 'call', 'meeting', 'other'] as const;
 export type NudgeChannel = (typeof NUDGE_CHANNELS)[number];

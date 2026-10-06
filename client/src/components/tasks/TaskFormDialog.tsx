@@ -13,7 +13,18 @@ import { AssigneePicker, useAssignees } from './AssigneePicker';
 import { ReminderField } from './ReminderField';
 import { CustomerForm } from '../crm/CustomerForm';
 import { DealForm } from '../crm/DealForm';
-import type { Board, BoardFull, Card, Contact, Customer, Deal, Priority } from '../../types';
+import type {
+  Board,
+  BoardFull,
+  Card,
+  CardStatus,
+  Contact,
+  Customer,
+  Deal,
+  Priority,
+} from '../../types';
+import { FLOW_STATUSES, type FlowStatus } from '@workflow/contracts';
+import { parseSteps, useTaskFlowSettings } from '../taskFlow/taskFlowApi';
 
 /** Cac khoa lien ket mot cong viec co the mang, theo thu tu tu tong quat den cu the. */
 const LINK_KEYS = TASK_LINK_KEYS;
@@ -38,7 +49,7 @@ interface TaskContextResponse {
   };
   suggested_list_id: number | null;
   boards: { id: number; name: string; customer_id: number | null }[];
-  lists: { id: number; name: string; board_id: number }[];
+  lists: { id: number; name: string; board_id: number; status_mapping: CardStatus | null }[];
   contacts: { id: number; full_name: string; title: string | null }[];
   deals: { id: number; title: string; stage: string }[];
   contracts: { id: number; name: string; number: string | null; status: string }[];
@@ -80,6 +91,9 @@ export function TaskFormDialog() {
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [listId, setListId] = useState<number | ''>('');
   const [checklistText, setChecklistText] = useState('');
+  /** Quy trình cho trạng thái ban đầu (v66): bật/tắt và các bước người dùng đã sửa. */
+  const [flowOn, setFlowOn] = useState(false);
+  const [flowText, setFlowText] = useState<string | null>(null);
   const [aiSource, setAiSource] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState<TaskAssistResult | null>(null);
   const [aiSelection, setAiSelection] = useState<string[]>([]);
@@ -146,6 +160,8 @@ export function TaskFormDialog() {
     setDueDate(draft?.dueDate ?? null);
     setRemindAt(draft?.remindAt ?? null);
     setChecklistText(draft?.checklist?.join('\n') ?? '');
+    setFlowOn(false);
+    setFlowText(null);
     setAiSource('');
     setAiSuggestion(null);
     setAiSelection([]);
@@ -221,6 +237,20 @@ export function TaskFormDialog() {
     () => context?.lists.find((l) => l.id === shownListId)?.board_id ?? '',
     [context?.lists, shownListId]
   );
+
+  /* Trạng thái ban đầu = trạng thái của cột sẽ nhận việc; máy chủ suy y như vậy. */
+  const { settings: flowSettings, enabled: flowEnabled } = useTaskFlowSettings();
+  const initialStatus: CardStatus =
+    context?.lists.find((l) => l.id === shownListId)?.status_mapping ?? 'todo';
+  const flowStatus: FlowStatus | null = (FLOW_STATUSES as readonly string[]).includes(initialStatus)
+    ? (initialStatus as FlowStatus)
+    : null;
+  const flowTemplate = flowStatus ? flowSettings?.templates[flowStatus] : undefined;
+  /* Người dùng chưa sửa thì ô bước đi theo mẫu của trạng thái đang chọn — đổi cột
+     sang trạng thái khác thì mẫu đổi theo. */
+  const shownFlowText = flowText ?? flowTemplate?.steps.join('\n') ?? '';
+  const flowAuto = flowTemplate?.ask === 'auto' && (flowTemplate.steps.length ?? 0) > 0;
+  const flowSteps = flowEnabled && flowStatus && flowOn ? parseSteps(shownFlowText) : [];
 
   /**
    * Doi mot khoa thi phai bo cac khoa cu the hon: chung thuoc ve thuc the cu va
@@ -351,6 +381,8 @@ export function TaskFormDialog() {
           .split('\n')
           .map((line) => line.trim())
           .filter(Boolean),
+        // Bỏ trống thì máy chủ tự áp mẫu nếu mẫu đặt "Tự áp mẫu".
+        flow_steps: flowSteps.length > 0 ? flowSteps : undefined,
       });
       if (remindAt) {
         // Viec da tao: nhac loi thi bao rieng, khong bo luon viec vua tao.
@@ -609,7 +641,12 @@ export function TaskFormDialog() {
                     const full = await api.get<BoardFull>(`/api/boards/${nextBoard}/full`);
                     const firstList = full.lists[0];
                     if (firstList)
-                      first = { id: firstList.id, name: firstList.name, board_id: nextBoard };
+                      first = {
+                        id: firstList.id,
+                        name: firstList.name,
+                        board_id: nextBoard,
+                        status_mapping: firstList.status_mapping,
+                      };
                   } catch {
                     /* giu list rong, nguoi dung tu chon */
                   }
@@ -847,6 +884,38 @@ export function TaskFormDialog() {
             />
           </Field>
         </div>
+
+        {flowEnabled && flowStatus && (
+          <div className="sm:col-span-2">
+            <Field
+              label={`Quy trình · ${t.cardStatus[flowStatus]}`}
+              hint={
+                flowAuto && !flowOn
+                  ? `Mẫu ${flowTemplate?.steps.length} bước sẽ được áp tự động. Bật để sửa các bước.`
+                  : 'Các bước làm lần lượt; xong bước cuối thì công việc tự chuyển trạng thái.'
+              }
+            >
+              <label className="mb-2 flex items-center gap-2 text-sm text-tr-text">
+                <input
+                  type="checkbox"
+                  checked={flowOn}
+                  onChange={(e) => setFlowOn(e.target.checked)}
+                  className="h-4 w-4 rounded border-tr-border"
+                />
+                Thêm quy trình cho trạng thái “{t.cardStatus[flowStatus]}”
+              </label>
+              {flowOn && (
+                <Textarea
+                  rows={Math.min(8, Math.max(3, parseSteps(shownFlowText).length + 1))}
+                  value={shownFlowText}
+                  onChange={(e) => setFlowText(e.target.value)}
+                  placeholder={'Mỗi dòng một bước, theo thứ tự làm\nKhảo sát\nCấu hình\nKiểm thử'}
+                  aria-label="Các bước của quy trình"
+                />
+              )}
+            </Field>
+          </div>
+        )}
       </div>
 
       <CustomerForm

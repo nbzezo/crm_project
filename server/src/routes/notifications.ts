@@ -5,6 +5,7 @@ import { db } from '../db/connection.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
 import { HttpError, parseBody, required } from '../lib/validate.ts';
 import { setCardStatus } from '../services/cardService.ts';
+import { guardLeaveStatus } from '../services/taskFlowService.ts';
 
 const router = Router();
 const localDateTime = z
@@ -283,6 +284,7 @@ router.post('/:key/complete', (req, res) => {
     z.object({
       done: z.boolean(),
       restore_status: z.enum(CARD_STATUSES).optional(),
+      skip_flow: z.boolean().optional(),
     }),
     req
   );
@@ -303,7 +305,10 @@ router.post('/:key/complete', (req, res) => {
       'Khong tim thay cong viec'
     ) as { status: CardStatus };
     previousStatus = card.status;
-    setCardStatus(parsed.id, body.done ? 'done' : (body.restore_status ?? 'todo'));
+    const next = body.done ? 'done' : (body.restore_status ?? 'todo');
+    const actor = actorContactId(req);
+    guardLeaveStatus(parsed.id, card.status, next, { skip: body.skip_flow, actorContactId: actor });
+    setCardStatus(parsed.id, next, { actorContactId: actor });
   } else {
     throw new HttpError(400, 'Canh bao CRM/he thong khong co hanh dong hoan thanh');
   }

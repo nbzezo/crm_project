@@ -1,3 +1,5 @@
+import { flowIncompleteOf, flowPromptOf, useTaskFlowStore } from '../stores/taskFlowStore';
+
 /**
  * Lỗi API kèm nguyên vẹn phần dữ liệu server gửi thêm.
  *
@@ -30,7 +32,53 @@ function fallbackMessage(status: number): string {
   }
 }
 
+/**
+ * Đổi trạng thái công việc đi qua Quy trình (v66) ở MỘT chỗ duy nhất.
+ *
+ * Máy chủ trả 409 `FLOW_INCOMPLETE` khi rời một trạng thái có quy trình đang dở:
+ * hỏi người dùng rồi gửi lại với `skip_flow: true`. Phản hồi thành công mang
+ * `flow_prompt` khi việc vừa vào trạng thái cần hỏi quy trình: đẩy vào hàng đợi
+ * để `TaskFlowDialogs` hỏi. Đặt ở đây để mọi chỗ đổi trạng thái — kể cả những
+ * chỗ thêm sau này — tự có hành vi đúng.
+ */
+const FLOW_GUARDED = /^\/api\/(cards\/\d+(\/move)?|notifications\/[^/]+\/complete)$/;
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  const guarded =
+    (method === 'PATCH' || method === 'POST') &&
+    FLOW_GUARDED.test(url) &&
+    body !== null &&
+    typeof body === 'object' &&
+    !(typeof FormData !== 'undefined' && body instanceof FormData);
+  try {
+    const data = await send<T>(method, url, body);
+    notifyFlowPrompt(data);
+    return data;
+  } catch (error) {
+    if (!guarded || !(error instanceof ApiError) || error.status !== 409) throw error;
+    const details = flowIncompleteOf(error.details);
+    if (!details) throw error;
+    const skip = await useTaskFlowStore.getState().askSkip(details);
+    if (!skip) {
+      throw new ApiError(409, 'Đã giữ nguyên trạng thái', { ...error.details, cancelled: true });
+    }
+    const data = await send<T>(method, url, { ...(body as object), skip_flow: true });
+    notifyFlowPrompt(data);
+    return data;
+  }
+}
+
+/** Người dùng tự chọn "Giữ nguyên trạng thái" — không phải lỗi, đừng báo đỏ. */
+export function isUserCancelled(error: unknown): boolean {
+  return error instanceof ApiError && error.details.cancelled === true;
+}
+
+function notifyFlowPrompt(data: unknown): void {
+  const prompt = flowPromptOf(data);
+  if (prompt) useTaskFlowStore.getState().pushPrompt(prompt);
+}
+
+async function send<T>(method: string, url: string, body?: unknown): Promise<T> {
   /* FormData: de trinh duyet tu dat Content-Type kem boundary — tu dat se hong tep tai len. */
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   const res = await fetch(url, {

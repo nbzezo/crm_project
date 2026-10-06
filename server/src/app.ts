@@ -44,6 +44,7 @@ import calendarEvents from './routes/calendarEvents.ts';
 import views from './routes/views.ts';
 import scoring from './routes/scoring.ts';
 import settings from './routes/settings.ts';
+import taskFlows from './routes/taskFlows.ts';
 import crmConfig from './routes/crmConfig.ts';
 import system from './routes/system.ts';
 import ai from './routes/ai.ts';
@@ -154,6 +155,7 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/lists', requireResource('boards'), lists);
   app.use('/api/cards', requireResource('tasks'), cards);
   app.use('/api/checklist', requireResource('tasks'), checklist);
+  app.use('/api/task-flows', requireResource('tasks'), taskFlows);
   app.use('/api/card-fields', requireResource('boards'), cardFields);
   app.use('/api/comments', requireResource('tasks'), comments);
   app.use('/api/labels', labels);

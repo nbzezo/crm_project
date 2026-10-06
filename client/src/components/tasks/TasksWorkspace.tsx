@@ -357,6 +357,15 @@ function ActivityFeed() {
     if (item.action === 'commented') return 'đã bình luận';
     if (item.action === 'watched')
       return item.new_value === 'true' ? 'đã theo dõi' : 'đã bỏ theo dõi';
+    /* Quy trinh (v66) ghi bang action 'updated' + field rieng: bang task_activity
+       co CHECK tren `action`, mo rong no nghia la dung lai bang. */
+    const flowStatus = t.cardStatus[item.old_value ?? ''] ?? item.old_value;
+    if (item.field === 'flow_step_done') return `đã xong bước “${item.new_value}” (${flowStatus})`;
+    if (item.field === 'flow_step_undone') return `đã bỏ đánh dấu bước “${item.new_value}”`;
+    if (item.field === 'flow_completed')
+      return `đã xong quy trình “${t.cardStatus[item.new_value ?? ''] ?? item.new_value}”`;
+    if (item.field === 'flow_skipped')
+      return `đã bỏ qua quy trình “${flowStatus}” ở bước ${item.new_value}`;
     return `đã cập nhật ${item.field ?? 'công việc'}`;
   };
   if (isLoading) return <SkeletonRows rows={8} cols={3} />;

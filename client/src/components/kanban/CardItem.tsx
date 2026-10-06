@@ -1,7 +1,15 @@
 import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlignLeft, Building2, CheckSquare, Clock, ListTree, Paperclip } from 'lucide-react';
+import {
+  AlignLeft,
+  Building2,
+  CheckSquare,
+  Clock,
+  ListOrdered,
+  ListTree,
+  Paperclip,
+} from 'lucide-react';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import { contrastInk, formatDateShort, isOverdue, todayStr } from '../../lib/format';
 import { useUiStore } from '../../stores/uiStore';
@@ -154,6 +162,17 @@ export function CardBody({ card, labels, dragging }: Props) {
             >
               <ListTree size={12} aria-hidden="true" />
               {card.subtask_done}/{card.subtask_total}
+            </span>
+          )}
+          {(card.flow_total ?? 0) > 0 && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-compact px-1 py-0.5 ${
+                card.flow_done === card.flow_total ? 'tr-badge-done' : ''
+              }`}
+              title={`Quy trình “${t.cardStatus[card.status]}”: bước ${card.flow_done}/${card.flow_total}`}
+            >
+              <ListOrdered size={12} aria-hidden="true" />
+              {card.flow_done}/{card.flow_total}
             </span>
           )}
           {card.checklist_total > 0 && (

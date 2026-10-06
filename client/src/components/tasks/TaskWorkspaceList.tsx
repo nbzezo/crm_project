@@ -136,12 +136,18 @@ function nestTasks(
 }
 
 function ProgressCell({ task }: { task: TaskRow }) {
-  const total = task.subtask_total ?? 0;
-  const done = task.subtask_done ?? 0;
+  /* Quy trình đang chạy (v66) nói đúng tiến độ của trạng thái hiện tại hơn việc
+     con, nên ưu tiên; không có thì lấy việc con như trước. */
+  const byFlow = (task.flow_total ?? 0) > 0;
+  const total = byFlow ? (task.flow_total ?? 0) : (task.subtask_total ?? 0);
+  const done = byFlow ? (task.flow_done ?? 0) : (task.subtask_done ?? 0);
   if (total === 0) return <span className="text-tr-muted">—</span>;
   const percent = Math.round((done / total) * 100);
   return (
-    <span className="flex min-w-24 items-center gap-2 text-xs text-tr-subtle">
+    <span
+      className="flex min-w-24 items-center gap-2 text-xs text-tr-subtle"
+      title={byFlow ? `Quy trình: bước ${done}/${total}` : `Việc con: ${done}/${total}`}
+    >
       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-tr-hover-strong">
         <span
           className="block h-full rounded-full bg-tr-success"

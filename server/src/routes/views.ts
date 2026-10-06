@@ -10,6 +10,7 @@ import { getScoringSettings } from '../lib/scoring.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 import { cacheResponse } from '../lib/responseCache.ts';
+import { FLOW_PROGRESS_COLUMNS } from '../services/taskFlowService.ts';
 
 const router = Router();
 
@@ -25,6 +26,7 @@ const TASK_SELECT = `
          (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
          (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
          (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
+         ${FLOW_PROGRESS_COLUMNS},
          l.name AS list_name, b.id AS board_id, b.name AS board_name, b.color AS board_color,
          k.customer_id, c.name AS customer_name, k.deal_id, d.title AS deal_title,
          k.assignee_contact_id, k.assignee_org_id, ac.full_name AS assignee_name,
@@ -622,12 +624,15 @@ router.get('/timeline', (req, res) => {
       assignee_name: k.assignee_name,
       assignee_org_kind: k.assignee_org_kind,
       slip_count: k.slip_count,
+      // Quy trinh dang chay (v66) noi dung tien do that hon checklist, nen uu tien.
       progress:
-        Number(k.checklist_total) > 0
-          ? Math.round((Number(k.checklist_done) / Number(k.checklist_total)) * 100)
-          : Number(k.subtask_total) > 0
-            ? Math.round((Number(k.subtask_done) / Number(k.subtask_total)) * 100)
-            : null,
+        Number(k.flow_total) > 0
+          ? Math.round((Number(k.flow_done) / Number(k.flow_total)) * 100)
+          : Number(k.checklist_total) > 0
+            ? Math.round((Number(k.checklist_done) / Number(k.checklist_total)) * 100)
+            : Number(k.subtask_total) > 0
+              ? Math.round((Number(k.subtask_done) / Number(k.subtask_total)) * 100)
+              : null,
       board_name: k.board_name,
       customer_name: k.customer_name,
       group_id: groupByList
@@ -1430,6 +1435,11 @@ router.get('/performance', requirePermission('report.tasks', 'read'), (req, res)
                                 THEN k.spent_hours END), 0) AS spent_hours,
               SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @prevFrom AND @prevTo
                        THEN 1 ELSE 0 END) AS prev_completed,
+              /* v66: hoan thanh nhung da xac nhan bo qua mot quy trinh dang do. */
+              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN @from AND @to
+                        AND EXISTS (SELECT 1 FROM card_flows f
+                                     WHERE f.card_id = k.id AND f.skipped_at IS NOT NULL)
+                       THEN 1 ELSE 0 END) AS flow_skipped,
               SUM(CASE WHEN date(k.created_at) BETWEEN @from AND @to THEN 1 ELSE 0 END) AS received,
               SUM(CASE WHEN k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0
                        THEN 1 ELSE 0 END) AS open_count,
@@ -1460,6 +1470,7 @@ router.get('/performance', requirePermission('report.tasks', 'read'), (req, res)
     'cycle_days_sum',
     'spent_hours',
     'prev_completed',
+    'flow_skipped',
     'received',
     'open_count',
     'overdue_count',

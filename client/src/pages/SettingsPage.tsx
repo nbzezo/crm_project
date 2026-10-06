@@ -9,6 +9,7 @@ import {
   HardDriveDownload,
   Info,
   ListChecks,
+  ListOrdered,
   Mail,
   Network,
   PackageOpen,
@@ -35,6 +36,7 @@ import { useUiStore } from '../stores/uiStore';
 import { AiSettings } from '../components/ai/AiSettings';
 import { TelegramSettings } from '../components/settings/TelegramSettings';
 import { HandoverSettings } from '../components/settings/HandoverSettings';
+import { TaskFlowSettings } from '../components/settings/TaskFlowSettings';
 import { PicklistSettings } from '../components/settings/PicklistSettings';
 import { PipelineSettings } from '../components/settings/PipelineSettings';
 import { ConfigProfileSettings } from '../components/settings/ConfigProfileSettings';
@@ -74,6 +76,7 @@ type SettingsTab =
   | 'scoring'
   | 'handover'
   | 'delivery'
+  | 'taskFlow'
   | 'email'
   | 'telegram'
   | 'ai'
@@ -166,6 +169,14 @@ const SETTINGS_TABS: {
     key: 'delivery',
     label: t.settings.tabDelivery,
     icon: GanttChartSquare,
+    group: t.settings.groupProcess,
+    permission: 'settings.app:read',
+  },
+  {
+    /* Quy trinh theo trang thai cua cong viec (v66). */
+    key: 'taskFlow',
+    label: t.settings.tabTaskFlow,
+    icon: ListOrdered,
     group: t.settings.groupProcess,
     permission: 'settings.app:read',
   },
@@ -432,6 +443,7 @@ export default function SettingsPage() {
         {activeTab === 'pipeline' && <PipelineSettings />}
         {activeTab === 'picklists' && <PicklistSettings />}
         {activeTab === 'handover' && <HandoverSettings />}
+        {activeTab === 'taskFlow' && <TaskFlowSettings />}
         {activeTab === 'delivery' && <DeliverySettings />}
         {activeTab === 'ai' && <AiSettings />}
         {activeTab === 'telegram' && <TelegramSettings />}

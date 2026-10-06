@@ -25,7 +25,7 @@ import { ListColumn, type SortBy } from './ListColumn';
 import { CardBody } from './CardItem';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Button, focusRing } from '../common/ui';
-import { api } from '../../api/client';
+import { api, isUserCancelled } from '../../api/client';
 import { t } from '../../i18n/vi';
 import { addDays, todayStr } from '../../lib/format';
 import { useUiStore, type BoardFilters } from '../../stores/uiStore';
@@ -132,7 +132,9 @@ export function BoardView({
    */
   const revertWithToast = useCallback(
     (error: unknown) => {
-      pushToast(error instanceof Error ? error.message : t.common.saveError);
+      if (!isUserCancelled(error)) {
+        pushToast(error instanceof Error ? error.message : t.common.saveError);
+      }
       restoreDragSnapshot();
       refetchBoard();
     },

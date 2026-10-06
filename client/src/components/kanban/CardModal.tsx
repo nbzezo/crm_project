@@ -15,6 +15,7 @@ import {
   FolderKanban,
   Image,
   Link2,
+  ListOrdered,
   ListTree,
   MessageSquare,
   MoreHorizontal,
@@ -42,6 +43,8 @@ import {
 } from '../common/ui';
 import { AttachmentSection } from './AttachmentSection';
 import { ChecklistSection } from './ChecklistSection';
+import { FlowSection } from '../taskFlow/FlowSection';
+import { useTaskFlowSettings } from '../taskFlow/taskFlowApi';
 import { CustomFieldsSection } from './CustomFieldsSection';
 import { LabelsPopover, ListPopover } from './CardModalPopovers';
 import { SubtaskSection } from './SubtaskSection';
@@ -103,6 +106,7 @@ export function CardModal() {
     queryFn: () => api.get<CardDetail>(`/api/cards/${cardId}`),
     enabled: cardId !== null,
   });
+  const { enabled: flowEnabled } = useTaskFlowSettings();
 
   /* O tieu de la <textarea> tu gian theo noi dung (mockup 1d/2c): tieu de dai
      xuong dong thay vi bi cat ngang nhu <input>. Do lai khi doi chu va doi the. */
@@ -726,6 +730,20 @@ export function CardModal() {
                 <SubtaskSection cardId={card.id} subtasks={card.subtasks ?? []} />
               </CardSection>
 
+              {/* Quy trinh cua trang thai hien tai (v66) — dat tren checklist vi no
+                  quyet dinh khi nao cong viec duoc chuyen trang thai. */}
+              {flowEnabled && (
+                <CardSection
+                  id={SECTION_IDS.flow}
+                  icon={<ListOrdered size={16} className="text-tr-subtle" />}
+                  title={`Quy trình · ${t.cardStatus[card.status] ?? ''}`}
+                  hint="Các bước làm lần lượt; xong bước cuối thì công việc tự chuyển trạng thái."
+                  count={card.flow_total ?? 0}
+                >
+                  <FlowSection card={card} />
+                </CardSection>
+              )}
+
               {/* Viec can lam — danh sach kiem */}
               <CardSection
                 id={SECTION_IDS.checklist}
@@ -998,6 +1016,7 @@ function handoff(from: Pop, to: Pop): void {
 
 /** Neo cuon toi tung khoi khi chon muc tuong ung trong menu "Thêm vào thẻ". */
 const SECTION_IDS = {
+  flow: 'card-sec-flow',
   fields: 'card-sec-fields',
   subtasks: 'card-sec-subtasks',
   checklist: 'card-sec-checklist',

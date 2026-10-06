@@ -6,6 +6,7 @@ import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { CARD_STATUSES } from '@workflow/contracts';
 import { setCardStatus } from '../services/cardService.ts';
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
+import { copyFlows } from '../services/taskFlowService.ts';
 
 const router = Router();
 
@@ -71,6 +72,8 @@ router.patch('/:id', (req, res) => {
             WHERE list_id = ? AND is_archived = 0 AND (is_done = 0 OR ? = 'done')`
         )
         .all(id, body.status_mapping) as { id: number }[];
+      /* Khong chan quy trinh dang do (v66): day la quan tri cau hinh lai cot,
+         khong phai nguoi dung doi trang thai tung viec. */
       for (const card of cards) {
         setCardStatus(card.id, body.status_mapping, { moveToMappedList: false });
       }
@@ -173,6 +176,7 @@ router.post('/:id/copy', (req, res) => {
         .all(card.id as number) as Record<string, unknown>[];
       for (const item of items)
         insertItem.run(newCardId, item.content, item.is_done, item.position);
+      copyFlows(card.id as number, newCardId);
     }
     return listId;
   })();

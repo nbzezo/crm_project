@@ -28,6 +28,12 @@ import {
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import { notifyAssigneeChangeTelegram } from '../services/telegram/telegramNotifier.ts';
 import { logTaskActivity } from '../services/taskActivity.ts';
+import {
+  copyFlows,
+  flowPromptFor,
+  guardLeaveStatus,
+  listCardFlows,
+} from '../services/taskFlowService.ts';
 
 const router = Router();
 
@@ -234,6 +240,7 @@ router.get('/:id', (req, res) => {
     fields,
     dependencies: listDependencies(id),
     due_changes: dueChanges,
+    flows: listCardFlows(id),
   });
 });
 
@@ -331,6 +338,8 @@ router.patch('/:id', (req, res) => {
       list_id: z.number().int().optional(),
       parent_id: z.number().int().nullable().optional(),
       cover_color: z.string().nullable().optional(),
+      /* Xac nhan bo qua quy trinh dang do cua trang thai cu (v66). */
+      skip_flow: z.boolean().optional(),
     }),
     req
   );
@@ -433,6 +442,36 @@ router.patch('/:id', (req, res) => {
   }
 
   assertListProjectCustomer(db, targetListId, derived.customer_id, 'Công việc');
+
+  /*
+   * Chan quy trinh dang do (v66) — TRUOC moi lenh ghi ben duoi, ke ca dong
+   * card_due_changes, de 409 khong de lai the da sua mot nua.
+   *
+   * Trang thai dich suy theo DUNG chuoi if/else o cuoi ham; doi chuoi do thi phai
+   * doi ca day.
+   */
+  const listMoved =
+    (body.list_id !== undefined || body.project_id !== undefined) &&
+    !autoCategorized &&
+    targetListId !== card.list_id;
+  const nextStatus: CardStatus | null =
+    body.status ??
+    (body.is_done !== undefined && body.is_done !== Boolean(card.is_done)
+      ? body.is_done
+        ? 'done'
+        : 'todo'
+      : listMoved
+        ? ((
+            db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(targetListId) as
+              { status_mapping: CardStatus | null } | undefined
+          )?.status_mapping ?? null)
+        : null);
+  if (nextStatus) {
+    guardLeaveStatus(id, card.status, nextStatus, {
+      skip: body.skip_flow,
+      actorContactId: actorContactId(req),
+    });
+  }
 
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -558,19 +597,19 @@ router.patch('/:id', (req, res) => {
    * `is_done` van nhan duoc de khong pha cac lo goi cu (checkbox tren bang tinh,
    * thao tac hang loat) — no chi la loi tat cua hai trang thai dau va cuoi.
    */
+  const actor = actorContactId(req);
   if (body.status !== undefined) {
-    setCardStatus(id, body.status, { blockedReason: body.blocked_reason ?? null });
+    setCardStatus(id, body.status, {
+      blockedReason: body.blocked_reason ?? null,
+      actorContactId: actor,
+    });
   } else if (body.is_done !== undefined && body.is_done !== Boolean(card.is_done)) {
     /* Chi doi khi gia tri THUC SU khac: `is_done: false` gui len mot the dang
        'doing' khong duoc lam no tut ve 'todo'. */
-    setCardStatus(id, body.is_done ? 'done' : 'todo');
+    setCardStatus(id, body.is_done ? 'done' : 'todo', { actorContactId: actor });
   } else if (body.blocked_reason !== undefined && card.status === 'blocked') {
     setCardStatus(id, 'blocked', { blockedReason: body.blocked_reason });
-  } else if (
-    (body.list_id !== undefined || body.project_id !== undefined) &&
-    !autoCategorized &&
-    targetListId !== card.list_id
-  ) {
+  } else if (listMoved) {
     /*
      * Doi danh sach ma khong noi ro trang thai: cot dich quyet dinh (v19).
      *
@@ -580,7 +619,7 @@ router.patch('/:id', (req, res) => {
     const mapped = db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(targetListId) as
       { status_mapping: CardStatus | null } | undefined;
     if (mapped?.status_mapping) {
-      setCardStatus(id, mapped.status_mapping, { moveToMappedList: false });
+      setCardStatus(id, mapped.status_mapping, { moveToMappedList: false, actorContactId: actor });
     }
   }
 
@@ -621,7 +660,7 @@ router.patch('/:id', (req, res) => {
     });
   }
 
-  res.json(updated);
+  res.json({ ...updated, flow_prompt: flowPromptFor(id, card.status) });
 });
 
 router.patch('/:id/move', (req, res) => {
@@ -631,16 +670,18 @@ router.patch('/:id/move', (req, res) => {
       list_id: z.number().int(),
       beforeId: z.number().int().nullable().optional(),
       afterId: z.number().int().nullable().optional(),
+      skip_flow: z.boolean().optional(),
     }),
     req
   );
   const before = required(
-    db.prepare(`SELECT list_id FROM cards WHERE id = ?`).get(id),
+    db.prepare(`SELECT list_id, status FROM cards WHERE id = ?`).get(id),
     'Khong tim thay the'
   ) as {
     list_id: number;
+    status: CardStatus;
   };
-  const result = moveCard(id, body);
+  const result = moveCard(id, body, { actorContactId: actorContactId(req) });
   if (before.list_id !== body.list_id) {
     logTaskActivity({
       cardId: id,
@@ -651,7 +692,7 @@ router.patch('/:id/move', (req, res) => {
       newValue: body.list_id,
     });
   }
-  res.json(result);
+  res.json({ ...result, flow_prompt: flowPromptFor(id, before.status) });
 });
 
 router.delete('/:id', (req, res) => {
@@ -794,6 +835,7 @@ router.post('/:id/copy', (req, res) => {
       `INSERT INTO checklist_items (card_id, content, is_done, position) VALUES (?, ?, ?, ?)`
     );
     for (const item of items) insertItem.run(cardId, item.content, item.is_done, item.position);
+    copyFlows(id, cardId);
 
     logTaskActivity({
       cardId,

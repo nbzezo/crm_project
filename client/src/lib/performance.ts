@@ -14,6 +14,8 @@ export const PERF_METRICS = [
   'cycle_days_sum',
   'spent_hours',
   'prev_completed',
+  /** Hoàn thành trong kỳ nhưng đã xác nhận bỏ qua một quy trình đang dở (v66). */
+  'flow_skipped',
   'received',
   'open_count',
   'overdue_count',

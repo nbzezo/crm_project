@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/client';
+import { api, isUserCancelled } from '../../api/client';
 import { invalidateCalendar, invalidateCardViews, invalidateCrmViews } from '../../lib/queryKeys';
 import { useUiStore } from '../../stores/uiStore';
 import type { AgendaItem } from './focusTypes';
@@ -74,7 +74,11 @@ export function useFocusActions() {
         },
       });
     },
-    onError: (error) => pushToast(error instanceof Error ? error.message : 'Không cập nhật được'),
+    onError: (error) => {
+      if (!isUserCancelled(error)) {
+        pushToast(error instanceof Error ? error.message : 'Không cập nhật được');
+      }
+    },
   });
 
   return {

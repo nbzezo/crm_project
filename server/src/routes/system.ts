@@ -64,6 +64,9 @@ export const EXPORT_TABLES = [
   'task_watchers',
   'task_activity',
   'checklist_items',
+  // v66 — quy trinh theo trang thai (cha truoc con)
+  'card_flows',
+  'card_flow_steps',
   'labels',
   // card_labels la VIEW tu v9 (chi cac lien ket loai 'card'); label_links moi la bang goc
   'card_labels',
