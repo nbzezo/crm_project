@@ -88,7 +88,7 @@ export default function FollowUpPage() {
           tu gui tin, chi soan san noi dung de copy) da chuyen xuong empty state
           — dung luc nguoi dung can biet, thay vi chan dau moi lan vao trang. */}
       <PageHeader
-        description={`Việc của người khác hoặc chưa giao quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn — gom theo người phụ trách.`}
+        description={`Việc giao cho người khác hoặc chưa giao: quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày, hoặc đang bị chặn — gom theo người phụ trách.`}
       />
 
       {isLoading ? (
@@ -100,7 +100,7 @@ export default function FollowUpPage() {
       ) : groups.length === 0 ? (
         <EmptyState
           message="Không có việc nào cần nhắc."
-          hint={`Không có việc của người khác/chưa giao nào quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày hoặc bị chặn. Khi có việc cần nhắc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
+          hint={`Không có việc giao cho người khác hoặc chưa giao nào quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày hay bị chặn. Việc của chính bạn xem ở màn Công việc. Khi có việc cần nhắc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
