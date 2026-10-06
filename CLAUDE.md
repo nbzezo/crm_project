@@ -56,3 +56,14 @@ Việc chỉ vài dòng thì tự làm, giao còn chậm hơn.
 4. Khi người dùng báo đóng phiên: `pwsh scripts/codex.ps1 clean` dọn worktree, nhánh và log Codex
    **của phiên này**. Việc còn thay đổi chưa apply thì bị bỏ qua và báo lại; chỉ thêm `-Force` khi
    người dùng đồng ý bỏ. Không dùng `-AllSessions` khi các phiên khác còn chạy.
+
+### Gỡ bỏ quy trình Codex (khi thấy không hiệu quả)
+
+1. Dọn mọi việc Codex còn lại (đóng các phiên đang dùng Codex trước):
+   `pwsh scripts/codex.ps1 clean -AllSessions -Force`, rồi xóa thư mục `.codex-worktrees/` ở gốc repo chính.
+2. Xóa `scripts/codex.ps1`, `AGENTS.md`, mục "Giao việc cho Codex" (cả phần gỡ bỏ này) trong `CLAUDE.md`
+   và dòng `.codex-worktrees/` trong `.gitignore`. Phát hành bản vá như mọi lần đẩy `main`.
+3. Xóa bộ nhớ của Claude: file `codex-delegation-workflow.md` và dòng tương ứng trong `MEMORY.md` ở
+   `C:\Users\tuand\.claude\projects\C--X1-Gen7---Document-Clone-Trello\memory\`.
+   (Hoặc chỉ cần nói với Claude "gỡ quy trình Codex", Claude làm cả ba bước.)
+Không cần gỡ Codex CLI; quy trình này không đổi cấu hình nào của Codex (`~/.codex`).

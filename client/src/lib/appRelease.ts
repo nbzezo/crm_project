@@ -18,6 +18,14 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.29.2',
+    date: '2026-10-06',
+    title: 'Công cụ nội bộ: giao việc cho Codex',
+    changes: [
+      'Không đổi gì trên giao diện: thêm công cụ cho nhóm phát triển giao các việc lặp lại cho Codex CLI chạy trên máy, có duyệt trước khi đưa vào mã nguồn.',
+    ],
+  },
+  {
     version: '1.29.1',
     date: '2026-10-06',
     title: 'Chỉnh định dạng mã nguồn của Quy trình',
