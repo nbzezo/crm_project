@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-10-06';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.31.2',
+    date: '2026-10-06',
+    title: 'Nút "Tạo" luôn nằm giữa thanh dưới trên điện thoại',
+    changes: [
+      'Nút "Tạo" ở thanh điều hướng dưới cùng trên điện thoại luôn nằm chính giữa. Trước đây khi không có việc cần nhắc (tab "Nhắc" ẩn), thanh chỉ còn 4 mục và nút "Tạo" bị lệch hẳn sang phải.',
+      'Số đếm trên tab (ví dụ "9+" ở Công việc) gắn sát góc biểu tượng thay vì mép ô.',
+    ],
+  },
+  {
     version: '1.31.1',
     date: '2026-10-06',
     title: 'Tổng quan trên điện thoại gọn và không còn tràn ngang',

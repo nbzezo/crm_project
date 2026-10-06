@@ -56,50 +56,64 @@ export function MobileTabBar() {
     tone?: 'primary' | 'danger';
   }>;
 
+  // Nút "Tạo" luôn nằm giữa thanh: các tab trước và sau nó chia đều hai nửa còn lại,
+  // nên khi tab "Nhắc" ẩn (chỉ còn 4 mục) nút không bị đẩy lệch sang phải.
+  const createIndex = tabs.findIndex((tab) => tab.label === 'Tạo');
+  const leftTabs = tabs.slice(0, createIndex);
+  const createTab = tabs[createIndex];
+  const rightTabs = tabs.slice(createIndex + 1);
+
+  const renderTab = (tab: (typeof tabs)[number]) => {
+    const Icon = tab.icon;
+    if (tab.to) {
+      return (
+        <NavLink
+          key={tab.label}
+          to={tab.to}
+          end={tab.end}
+          className={({ isActive }) =>
+            `relative flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${isActive ? 'font-semibold text-tr-primary' : 'text-tr-muted'}`
+          }
+        >
+          <span className="relative">
+            <Icon size={20} aria-hidden="true" />
+            <Badge count={tab.badge ?? 0} tone={tab.tone} />
+          </span>
+          <span className="truncate">{tab.label}</span>
+        </NavLink>
+      );
+    }
+    const isCreate = tab === createTab;
+    return (
+      <button
+        key={tab.label}
+        type="button"
+        onClick={tab.action}
+        className={`relative flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 text-xs ${isCreate ? 'w-1/5 shrink-0 text-tr-primary' : 'flex-1 text-tr-muted'}`}
+      >
+        <span
+          className={
+            isCreate
+              ? 'flex h-10 w-12 items-center justify-center rounded-panel bg-tr-primary text-tr-on-primary'
+              : ''
+          }
+        >
+          <Icon size={20} aria-hidden="true" />
+        </span>
+        <span className="truncate">{tab.label}</span>
+      </button>
+    );
+  };
+
   return (
     <>
       <nav
         aria-label="Điều hướng chính"
         className="fixed inset-x-0 bottom-0 z-sticky flex border-t border-tr-border bg-tr-panel pb-[var(--tr-safe-bottom)] md:hidden [html[data-keyboard-open]_&]:hidden"
       >
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          if (tab.to) {
-            return (
-              <NavLink
-                key={tab.label}
-                to={tab.to}
-                end={tab.end}
-                className={({ isActive }) =>
-                  `relative flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${isActive ? 'font-semibold text-tr-primary' : 'text-tr-muted'}`
-                }
-              >
-                <Icon size={20} aria-hidden="true" />
-                <span>{tab.label}</span>
-                <Badge count={tab.badge ?? 0} tone={tab.tone} />
-              </NavLink>
-            );
-          }
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              onClick={tab.action}
-              className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${tab.label === 'Tạo' ? 'text-tr-primary' : 'text-tr-muted'}`}
-            >
-              <span
-                className={
-                  tab.label === 'Tạo'
-                    ? 'flex h-10 w-12 items-center justify-center rounded-panel bg-tr-primary text-tr-on-primary'
-                    : ''
-                }
-              >
-                <Icon size={20} aria-hidden="true" />
-              </span>
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+        <div className="flex min-w-0 flex-1">{leftTabs.map(renderTab)}</div>
+        {createTab ? renderTab(createTab) : null}
+        <div className="flex min-w-0 flex-1">{rightTabs.map(renderTab)}</div>
       </nav>
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
     </>
