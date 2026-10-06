@@ -93,7 +93,7 @@ switch ($Command) {
     "Log: $log"; "Kết quả: $result"
     if (Test-Path $result) { Get-Content $result }
     "== Thay đổi =="
-    git -C $dir add -A -- . ':!node_modules' ':!client/node_modules' ':!server/node_modules'
+    git -C $dir add -A
     git -C $dir diff --cached --stat
   }
 
@@ -111,11 +111,13 @@ switch ($Command) {
     Assert-Slug
     $dir = Get-TaskDir $Slug
     if (-not (Test-Path $dir)) { throw "Không thấy $dir." }
-    git -C $dir add -A -- . ':!node_modules' ':!client/node_modules' ':!server/node_modules'
+    git -C $dir add -A
     $patch = Join-Path $logs "$session--$Slug.patch"
-    git -C $dir diff --cached --binary | Set-Content -Path $patch -NoNewline -Encoding utf8NoBOM
+    # Để git tự ghi file: đi qua pipe của PowerShell sẽ làm hỏng xuống dòng và dữ liệu nhị phân.
+    git -C $dir diff --cached --binary --output="$patch"
     if ((Get-Item $patch).Length -eq 0) { 'Codex không thay đổi gì.'; break }
     git -C $here apply --3way --index $patch
+    if ($LASTEXITCODE -ne 0) { throw "git apply lỗi; worktree Codex vẫn giữ nguyên. Patch: $patch" }
     "Đã đưa thay đổi vào $here (đã stage, chưa commit). Patch: $patch"
   }
 
