@@ -138,7 +138,9 @@ switch ($Command) {
     # Chốt 1: file cấm (xem AGENTS.md) — đụng vào là từ chối, không cần đọc diff.
     $bad = $files | Where-Object { $f = $_; $forbidden | Where-Object { $f -like $_ } }
     if ($bad) { throw "Codex sửa file cấm, không apply: $($bad -join ', ')" }
-    # Chốt 2: phạm vi được giao (-Allow), nếu có.
+    # Chốt 2: phạm vi được giao (-Allow), nếu có. Gọi qua `pwsh -File` thì mảng đến dưới dạng
+    # một chuỗi "a,b,c", nên tách lại theo dấu phẩy.
+    $Allow = @($Allow | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim(" '`"") } | Where-Object { $_ })
     if ($Allow) {
       $out = $files | Where-Object { $f = $_; -not ($Allow | Where-Object { $f -like $_ }) }
       if ($out) { throw "Codex sửa ngoài phạm vi -Allow, không apply: $($out -join ', ')" }
