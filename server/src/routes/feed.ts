@@ -1501,6 +1501,20 @@ router.get('/groups/:id/mention-candidates', (req, res) => {
   );
 });
 
+/** Nhan su dang lam viec — de them vao nhom tu lap / nhom. Ai dang nhap cung can danh sach nay. */
+router.get('/people', (req, res) => {
+  const q = fold(String(req.query.q ?? '').trim());
+  const rows = db
+    .prepare(
+      `SELECT c.id, c.full_name AS name, u.name AS unit FROM contacts c
+         JOIN users us ON us.contact_id = c.id AND us.is_active = 1
+         LEFT JOIN org_units u ON u.id = c.org_unit_id
+        ORDER BY c.full_name COLLATE NOCASE`
+    )
+    .all() as { id: number; name: string; unit: string | null }[];
+  res.json(rows.filter((row) => !q || fold(row.name).includes(q)).slice(0, 30));
+});
+
 /** Tim ban ghi CRM de gan vao bai — chi trong pham vi nguoi dang. */
 router.get('/link-search', (req, res) => {
   const type = String(req.query.type) as LinkType;

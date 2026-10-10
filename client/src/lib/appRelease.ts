@@ -14,9 +14,24 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-07';
+export const APP_UPDATED_AT = '2026-10-10';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.33.0',
+    date: '2026-10-10',
+    title: 'Bảng tin nhóm: trao đổi trong công ty, phòng ban, dự án',
+    changes: [
+      'Mục mới "Bảng tin" ở cột trái. Bấm vào sẽ mở thêm một cột menu riêng cạnh cột chính, giống trang Cài đặt: trang chủ bảng tin, thông báo cần xác nhận, bài nhắc đến bạn, bài đã lưu, khám phá nhóm và danh sách nhóm của bạn kèm số bài chưa đọc.',
+      'Nhóm tự có sẵn: Toàn công ty, mỗi phòng ban (theo sơ đồ tổ chức, khối thấy cả các phòng bên dưới) và mỗi dự án (chủ dự án và người được giao việc). Chuyển phòng hay nhận việc là tự vào đúng nhóm, không ai phải thêm tay.',
+      'Tạo nhóm tự lập theo chủ đề: công khai (ai cũng tìm thấy và tự tham gia) hoặc kín (chỉ người được mời thấy). Quản trị nhóm thêm người, đặt vai trò kiểm duyệt, chỉ cho quản trị đăng bài, hoặc bật duyệt bài trước khi hiện.',
+      'Đăng bài viết, thông báo (tự ghim, có nút "Tôi đã đọc" và danh sách ai chưa đọc), khảo sát, hỏi đáp (người hỏi chọn câu trả lời đúng) và sự kiện (trả lời Tham gia/Có thể, thêm vào Lịch của bạn). Gõ @ để nhắc tên đồng nghiệp.',
+      'Đính kèm tài liệu từ ba nguồn: tài liệu của tôi, tài liệu chung, hoặc tải tệp mới. Tệp cá nhân mặc định "chỉ xem qua bài viết": tệp vẫn thuộc về bạn, thành viên nhóm mở được qua bài, gỡ khỏi bài là thu hồi quyền; hoặc chọn sao chép vào tài liệu của nhóm.',
+      'Tài liệu chung giữ nguyên quyền gốc: ai không có quyền thấy "Tệp bị giới hạn", trừ tệp đặt mức Công khai. Tệp tải lên nhóm hiện trong trang Tài liệu của mọi thành viên (chỉ xem, không sửa được tệp của người khác).',
+      'Gắn thẻ khách hàng, cơ hội, hợp đồng, dự án, công việc vào bài; người không có quyền với bản ghi đó chỉ thấy "Nội dung bị giới hạn". Từ một bài viết có thể tạo công việc (giao người, đặt hạn), xem lại ở tab "Công việc từ bài viết".',
+      'Mỗi nhóm có các mục Thảo luận, Thông báo, Tài liệu (lọc chung, cá nhân, của tôi), Sự kiện, Thành viên; quản trị có thêm Bài chờ duyệt và Cài đặt nhóm. Có thể tắt thông báo hoặc chỉ nhận khi được nhắc tên.',
+    ],
+  },
   {
     version: '1.32.0',
     date: '2026-10-07',

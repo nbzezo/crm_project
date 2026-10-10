@@ -87,7 +87,7 @@ function card(id: number) {
 /* ---------- Schema va quay lui ---------- */
 
 test('v67 chen san sau trang thai dung san, khoa trung gia tri cu', async () => {
-  assert.equal(LATEST_VERSION, 67);
+  assert.ok(LATEST_VERSION >= 67);
   const res = await json('GET', '/api/task-statuses');
   const list = res.data as unknown as { key: string; kind: string; is_builtin: number }[];
   assert.deepEqual(

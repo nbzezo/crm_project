@@ -35,6 +35,7 @@ const MyContactsPage = lazy(() => import('./pages/MyContactsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
 const PublicSharePage = lazy(() => import('./pages/PublicSharePage'));
+const FeedPage = lazy(() => import('./pages/FeedPage'));
 
 /* /notes da gop vao tab "Trang tài liệu" cua /documents. Giu duong dan cu (va
    tham so `open`) de link da chia se, bookmark va lich su trinh duyet khong hong. */
@@ -73,6 +74,20 @@ const router = createBrowserRouter([
         element: <DashboardPage />,
         handle: { title: t.nav.dashboard, visibleHeading: true },
       },
+      /* Bang tin nhom (1.33.0): moi nguoi dang nhap deu co — ranh gioi la thanh vien
+         nhom, may chu tu kiem. Cung mot trang cho moi duong con; trang tu doc tham so.
+         `visibleHeading`: cot menu da co <h1>/<h2> rieng. */
+      ...[
+        'feed',
+        'feed/:section',
+        'feed/groups/:groupId',
+        'feed/groups/:groupId/:tab',
+        'feed/posts/:postId',
+      ].map((path) => ({
+        path,
+        element: <FeedPage />,
+        handle: { title: t.nav.feed, visibleHeading: false },
+      })),
       {
         path: 'boards',
         element: <BoardsPage />,

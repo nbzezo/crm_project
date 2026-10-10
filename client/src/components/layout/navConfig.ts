@@ -14,6 +14,7 @@ import {
   HeartPulse,
   LayoutDashboard,
   ListChecks,
+  MessagesSquare,
   Settings,
   Target,
   Trello,
@@ -78,6 +79,8 @@ export const NAV_GROUPS: { id: NavGroupId; label: string; items: NavItem[] }[] =
     id: 'daily',
     label: t.nav.groupDaily,
     items: [
+      /* Bang tin nhom (1.33.0): ai dang nhap cung co, khong dat quyen. */
+      { to: '/feed', label: t.nav.feed, icon: MessagesSquare },
       { to: '/tasks', label: t.nav.tasks, icon: ListChecks, permission: 'tasks:read' },
       { to: '/follow-up', label: t.nav.followUp, icon: BellRing, permission: 'tasks:read' },
       { to: '/calendar', label: t.nav.calendar, icon: CalendarDays, permission: 'tasks:read' },
@@ -197,14 +200,22 @@ export function isGroupDefaultOrder(groupId: NavGroupId, order: NavOrder): boole
 
 /** Shared React Query keys let the sidebar and mobile sheet reuse badge requests. */
 export function useNavBadges(): Record<string, number> {
-  const { data: feed } = useQuery({
+  const { data: notifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<NotificationFeed>('/api/notifications'),
     refetchInterval: 60_000,
   });
   const { data: counts } = useTaskCounts({ staleTime: 60_000 });
+  /* Cung khoa voi trang Bang tin (lib/feed.ts feedKeys.nav) de dung chung mot request. */
+  const { data: feed } = useQuery({
+    queryKey: ['feed', 'nav'],
+    queryFn: () => api.get<{ counts: { unread: number; ack_pending: number } }>('/api/feed/nav'),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
   return {
-    '/tasks': feed?.counts.task ?? 0,
+    '/feed': (feed?.counts.unread ?? 0) + (feed?.counts.ack_pending ?? 0),
+    '/tasks': notifications?.counts.task ?? 0,
     '/follow-up': counts?.nudge ?? 0,
   };
 }

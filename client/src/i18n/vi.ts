@@ -20,6 +20,7 @@ export const t = {
   },
   nav: {
     dashboard: 'Tổng quan',
+    feed: 'Bảng tin',
     boards: 'Bảng – Luồng việc',
     projects: 'Dự án',
     customers: 'Khách hàng',
