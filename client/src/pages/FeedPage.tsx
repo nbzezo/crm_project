@@ -12,6 +12,7 @@ import { FeedGroupNav, FeedHomeNav, type GroupTab } from '../components/feed/Fee
 import { Composer } from '../components/feed/Composer';
 import { PostCard } from '../components/feed/PostCard';
 import { GroupIcon } from '../components/feed/FeedBits';
+import { GroupStatsView, StatsOverview } from '../components/feed/FeedStats';
 import {
   CreateGroupDialog,
   DiscoverGroups,
@@ -30,7 +31,14 @@ import {
  * kieu cot muc cua Cai dat) | noi dung | cot phu (man rong).
  */
 
-const HOME_SECTIONS = ['announcements', 'mentions', 'saved', 'explore', 'menu'] as const;
+const HOME_SECTIONS = [
+  'announcements',
+  'mentions',
+  'saved',
+  'explore',
+  'insights',
+  'menu',
+] as const;
 type HomeSection = (typeof HOME_SECTIONS)[number];
 const GROUP_TABS: GroupTab[] = [
   'posts',
@@ -40,6 +48,7 @@ const GROUP_TABS: GroupTab[] = [
   'members',
   'tasks',
   'pending',
+  'stats',
   'settings',
 ];
 
@@ -113,6 +122,14 @@ export default function FeedPage() {
               ) : (
                 <GroupView group={group.data} tab={tab} />
               )
+            ) : section === 'insights' ? (
+              <>
+                <PageTitle
+                  title="Thống kê nhóm"
+                  description="Mức tương tác của các nhóm bạn quản trị."
+                />
+                <StatsOverview />
+              </>
             ) : section === 'explore' ? (
               <>
                 <PageTitle title="Khám phá nhóm" />
@@ -335,7 +352,20 @@ function PostList({ filter, groupId }: { filter: FeedFilter; groupId?: number })
 }
 
 function SinglePost({ postId }: { postId: number }) {
+  const queryClient = useQueryClient();
   const post = useQuery({ queryKey: feedKeys.post(postId), queryFn: () => feedApi.post(postId) });
+  const loaded = Boolean(post.data);
+  /* Mo bai = da xem: thong bao ve bai nay (chuong, cot trai) thanh da doc. */
+  useEffect(() => {
+    if (!loaded) return;
+    void feedApi
+      .seen(postId)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        void queryClient.invalidateQueries({ queryKey: feedKeys.nav });
+      })
+      .catch(() => undefined);
+  }, [loaded, postId, queryClient]);
   if (post.isLoading) return <p className="text-sm text-tr-muted">Đang tải bài viết…</p>;
   if (post.error || !post.data)
     return (
@@ -367,6 +397,7 @@ const TAB_TITLE: Record<GroupTab, string> = {
   members: 'Thành viên',
   tasks: 'Công việc từ bài viết',
   pending: 'Bài chờ duyệt',
+  stats: 'Thống kê tương tác',
   settings: 'Cài đặt nhóm',
 };
 
@@ -378,9 +409,10 @@ function GroupView({ group, tab }: { group: GroupDetail; tab: GroupTab }) {
   /* Mo nhom = da xem: xoa so bai chua doc. */
   useEffect(() => {
     if (!group.is_member) return;
-    void feedApi
-      .visit(group.id)
-      .then(() => queryClient.invalidateQueries({ queryKey: feedKeys.nav }));
+    void feedApi.visit(group.id).then(() => {
+      void queryClient.invalidateQueries({ queryKey: feedKeys.nav });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    });
   }, [group.id, group.is_member, queryClient]);
 
   const membership = useMutation({
@@ -390,7 +422,10 @@ function GroupView({ group, tab }: { group: GroupDetail; tab: GroupTab }) {
   });
 
   const moderator = group.role === 'admin' || group.role === 'moderator';
-  if ((tab === 'pending' && !moderator) || (tab === 'settings' && group.role !== 'admin')) {
+  if (
+    ((tab === 'pending' || tab === 'stats') && !moderator) ||
+    (tab === 'settings' && group.role !== 'admin')
+  ) {
     return <Navigate to={`/feed/groups/${group.id}`} replace />;
   }
 
@@ -431,7 +466,7 @@ function GroupView({ group, tab }: { group: GroupDetail; tab: GroupTab }) {
               }
             >
               <option value="all">Mọi bài mới</option>
-              <option value="mentions">Chỉ khi nhắc tên</option>
+              <option value="mentions">Chỉ thông báo & nhắc tên</option>
               <option value="none">Tắt thông báo</option>
             </Select>
           </label>
@@ -466,6 +501,7 @@ function GroupView({ group, tab }: { group: GroupDetail; tab: GroupTab }) {
       {tab === 'members' && <GroupMembers group={group} />}
       {tab === 'tasks' && <GroupTasks groupId={group.id} />}
       {tab === 'settings' && <GroupSettings group={group} />}
+      {tab === 'stats' && <GroupStatsView groupId={group.id} />}
     </div>
   );
 }

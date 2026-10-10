@@ -19,6 +19,7 @@ interface Draft {
   notifyDueDates: boolean;
   notifyReminders: boolean;
   notifyAssignee: boolean;
+  notifyFeed: boolean;
 }
 
 function draftOf(config: TelegramConfig): Draft {
@@ -29,6 +30,7 @@ function draftOf(config: TelegramConfig): Draft {
     notifyDueDates: config.notify_due_dates,
     notifyReminders: config.notify_reminders,
     notifyAssignee: config.notify_assignee,
+    notifyFeed: config.notify_feed,
   };
 }
 
@@ -70,6 +72,7 @@ export function TelegramSettings({ onOpen }: { onOpen?: (tab: SettingsTab) => vo
         notify_due_dates: next.notifyDueDates,
         notify_reminders: next.notifyReminders,
         notify_assignee: next.notifyAssignee,
+        notify_feed: next.notifyFeed,
       }),
     onSuccess: () => {
       void refresh();
@@ -215,6 +218,13 @@ export function TelegramSettings({ onOpen }: { onOpen?: (tab: SettingsTab) => vo
             disabled={!canEdit}
             label="Khi được giao việc mới"
             description="Gửi ngay khi có người giao việc."
+          />
+          <Toggle
+            checked={draft.notifyFeed}
+            onChange={(value) => set('notifyFeed', value)}
+            disabled={!canEdit}
+            label="Bảng tin nhóm"
+            description="Khi được nhắc tên, có thông báo mới, có bình luận vào bài của bạn hoặc bài chờ bạn duyệt."
           />
         </div>
         {onOpen && (

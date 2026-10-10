@@ -598,3 +598,152 @@ test('so bai chua doc giam khi da xem nhom; tat thong bao thi khong dem', async 
   nav = await call('GET', '/api/feed/nav');
   assert.equal(nav.data.groups.find((g: Json) => g.id === it).unread, 0);
 });
+
+/* ---------- 1.34.0: thong bao, tim kiem, thong ke ---------- */
+
+async function bell() {
+  const res = await call('GET', '/api/notifications');
+  assert.equal(res.status, 200);
+  return (res.data.items as Json[]).filter((item) => item.kind === 'feed');
+}
+
+test('thong bao: nhac ten, bai moi, binh luan, tra loi — dung nguoi, khong bao chinh minh', async () => {
+  await signIn(BINH);
+  const it = await groupIdOf('unit', 'Phòng IT');
+  const before = (await bell()).length;
+
+  await signIn(AN);
+  const before_an = (await bell()).length;
+  const post = await call('POST', '/api/feed/posts', {
+    group_id: it,
+    body: 'Nhờ @Trần Thị Bình xem giúp',
+    mention_ids: [binh],
+  });
+  assert.equal((await bell()).length, before_an, 'tac gia khong tu nhan thong bao');
+
+  await signIn(BINH);
+  const items = await bell();
+  assert.equal(items.length, before + 1, 'mot thong bao duy nhat (nhac ten thang bai moi)');
+  const mention = items.find((i: Json) => i.link === `/feed/posts/${post.data.id}`);
+  assert.match(mention.title, /Nguyễn Văn An nhắc đến bạn trong Phòng IT/);
+  assert.equal(mention.is_read, false);
+  const unreadMentions = (await call('GET', '/api/feed/nav')).data.counts.mentions;
+  assert.ok(unreadMentions >= 1);
+
+  /* Chi khong thuoc nhom: khong nhan, va khong doc/sua duoc thong bao cua Binh. */
+  await signIn(CHI);
+  assert.ok(!(await bell()).some((i: Json) => i.key === mention.key));
+  assert.equal(
+    (await call('PATCH', `/api/notifications/${mention.key}/state`, { is_read: true })).status,
+    404
+  );
+
+  /* Binh mo bai => da doc. */
+  await signIn(BINH);
+  await call('POST', `/api/feed/posts/${post.data.id}/seen`);
+  assert.equal((await bell()).find((i: Json) => i.key === mention.key).is_read, true);
+  assert.equal((await call('GET', '/api/feed/nav')).data.counts.mentions, unreadMentions - 1);
+
+  /* Binh binh luan => An (tac gia) nhan "binh luan"; An tra loi => Binh nhan "tra loi". */
+  const comment = await call('POST', `/api/feed/posts/${post.data.id}/comments`, { body: 'Ok' });
+  await signIn(AN);
+  assert.ok(
+    (await bell()).some((i: Json) => /Trần Thị Bình bình luận bài viết của bạn/.test(i.title))
+  );
+  await call('POST', `/api/feed/posts/${post.data.id}/comments`, {
+    body: 'Cảm ơn',
+    parent_id: comment.data.id,
+  });
+  await signIn(BINH);
+  assert.ok(
+    (await bell()).some((i: Json) => /Nguyễn Văn An trả lời bình luận của bạn/.test(i.title))
+  );
+});
+
+test('thong bao: nhom Toan cong ty mac dinh chi bao thong bao va nhac ten; tat thong bao thi im', async () => {
+  await signIn(BINH);
+  const company = await groupIdOf('company');
+  const it = await groupIdOf('unit', 'Phòng IT');
+  const before = (await bell()).length;
+
+  await signIn(AN);
+  await call('POST', '/api/feed/posts', { group_id: company, body: 'Chào cả công ty' });
+  await signIn(BINH);
+  assert.equal((await bell()).length, before, 'bai thuong o Toan cong ty khong bao');
+
+  await signIn(ADMIN);
+  await call('POST', '/api/feed/posts', {
+    group_id: company,
+    kind: 'announcement',
+    requires_ack: true,
+    body: 'Lịch nghỉ lễ',
+  });
+  await signIn(BINH);
+  const after = await bell();
+  assert.equal(after.length, before + 1);
+  assert.equal(after[0].severity, 'warning', 'thong bao chua xac nhan noi bat');
+
+  await call('PUT', `/api/feed/groups/${it}/visit`, { notify: 'none' });
+  await signIn(AN);
+  await call('POST', '/api/feed/posts', { group_id: it, body: 'Tin phòng' });
+  await signIn(BINH);
+  assert.equal((await bell()).length, before + 1, 'nhom da tat thong bao');
+  await call('PUT', `/api/feed/groups/${it}/visit`, { notify: 'all' });
+});
+
+test('thong bao: bai cho duyet bao quan tri; duoc duyet bao tac gia', async () => {
+  await signIn(CHI);
+  const group = await call('POST', '/api/feed/groups', {
+    name: 'Nhóm duyệt bài',
+    visibility: 'public',
+    require_approval: true,
+  });
+  await signIn(BINH);
+  await call('POST', `/api/feed/groups/${group.data.id}/join`);
+  const post = await call('POST', '/api/feed/posts', {
+    group_id: group.data.id,
+    body: 'Xin duyệt',
+  });
+  assert.equal(post.data.status, 'pending');
+
+  await signIn(CHI);
+  assert.ok((await bell()).some((i: Json) => /gửi bài chờ duyệt/.test(i.title)));
+  await call('POST', `/api/feed/posts/${post.data.id}/moderate`, { action: 'approve' });
+  await signIn(BINH);
+  assert.ok((await bell()).some((i: Json) => /Lê Minh Chi đã duyệt bài của bạn/.test(i.title)));
+});
+
+test('Ctrl+K tim thay bai viet cua nhom minh, khong lo bai nhom khac', async () => {
+  await signIn(CHI);
+  const sales = await groupIdOf('unit', 'Phòng Kinh doanh');
+  await call('POST', '/api/feed/posts', { group_id: sales, body: 'Báo giá Zebra mật' });
+
+  const mine = await call('GET', '/api/search?q=zebra');
+  assert.equal(mine.data.posts.length, 1);
+  assert.equal(mine.data.posts[0].group_name, 'Phòng Kinh doanh');
+
+  await signIn(BINH);
+  assert.equal((await call('GET', '/api/search?q=zebra')).data.posts.length, 0);
+});
+
+test('thong ke tuong tac: quan tri nhom xem duoc, thanh vien thuong thi khong', async () => {
+  await signIn(BINH);
+  const it = await groupIdOf('unit', 'Phòng IT');
+  assert.equal((await call('GET', `/api/feed/groups/${it}/stats`)).status, 403);
+  assert.equal((await call('GET', '/api/feed/stats')).data.groups.length >= 0, true);
+
+  await signIn(ADMIN);
+  const stats = await call('GET', `/api/feed/groups/${it}/stats?days=30`);
+  assert.equal(stats.status, 200);
+  assert.equal(stats.data.series.length, 30);
+  assert.ok(stats.data.current.posts > 0);
+  assert.ok(stats.data.current.comments > 0);
+  assert.ok(stats.data.current.active >= 2);
+  assert.ok(stats.data.current.participation > 0 && stats.data.current.participation <= 1);
+  assert.equal(stats.data.contributors[0].full_name, 'Nguyễn Văn An');
+  const total = stats.data.series.reduce((n: number, d: Json) => n + d.posts, 0);
+  assert.equal(total, stats.data.current.posts);
+
+  const overview = await call('GET', '/api/feed/stats?days=7');
+  assert.ok(overview.data.groups.some((g: Json) => g.group.id === it));
+});

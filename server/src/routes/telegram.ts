@@ -28,6 +28,7 @@ const updateSchema = z.object({
   notify_due_dates: z.boolean().optional(),
   notify_reminders: z.boolean().optional(),
   notify_assignee: z.boolean().optional(),
+  notify_feed: z.boolean().optional(),
   backup_enabled: z.boolean().optional(),
   // Toi thieu 1 gio, toi da 30 ngay.
   backup_interval_hours: z.number().int().min(1).max(720).optional(),
@@ -47,6 +48,7 @@ router.put('/config', (req, res) => {
     notifyDueDates: body.notify_due_dates,
     notifyReminders: body.notify_reminders,
     notifyAssignee: body.notify_assignee,
+    notifyFeed: body.notify_feed,
     backupEnabled: body.backup_enabled,
     backupIntervalHours: body.backup_interval_hours,
   });

@@ -12,6 +12,7 @@ import {
   Settings2,
   ShieldAlert,
   UserRoundSearch,
+  MessagesSquare,
 } from 'lucide-react';
 import {
   addDays,
@@ -32,7 +33,7 @@ import type { CardStatus, NotificationFeed, NotificationItem } from '../../types
 import { Popover, usePopover } from '../common/Popover';
 
 type Tab = 'unread' | 'read';
-type Category = 'schedule' | 'task' | 'crm' | 'system';
+type Category = 'schedule' | 'task' | 'feed' | 'crm' | 'system';
 type Filter = 'all' | Category;
 
 interface Preferences {
@@ -42,7 +43,7 @@ interface Preferences {
 
 const PREF_KEY = 'workflow.notification-preferences.v1';
 const DEFAULT_PREFS: Preferences = {
-  enabled: { schedule: true, task: true, crm: true, system: true },
+  enabled: { schedule: true, task: true, feed: true, crm: true, system: true },
   desktop: false,
 };
 
@@ -50,6 +51,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
   { value: 'schedule', label: 'Nhắc & lịch' },
   { value: 'task', label: 'Công việc' },
+  { value: 'feed', label: 'Bảng tin' },
   { value: 'crm', label: 'CRM' },
   { value: 'system', label: 'Hệ thống' },
 ];
@@ -57,6 +59,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 const CATEGORY_LABEL: Record<Category, string> = {
   schedule: 'Nhắc hẹn và lịch',
   task: 'Công việc đến hạn',
+  feed: 'Bảng tin nhóm (nhắc tên, thông báo, bình luận)',
   crm: 'Cảnh báo CRM',
   system: 'Hệ thống và tự động hóa',
 };
@@ -64,7 +67,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
 const EMPTY_FEED: NotificationFeed = {
   items: [],
   unread_count: 0,
-  counts: { reminder: 0, event: 0, task: 0, crm: 0, system: 0 },
+  counts: { reminder: 0, event: 0, task: 0, crm: 0, system: 0, feed: 0 },
 };
 
 function loadPreferences(): Preferences {
@@ -89,6 +92,7 @@ function itemLabel(item: NotificationItem): string {
   if (item.kind === 'event') return 'Lịch';
   if (item.kind === 'task') return 'Công việc';
   if (item.kind === 'crm') return 'CRM';
+  if (item.kind === 'feed') return 'Bảng tin';
   return 'Hệ thống';
 }
 
@@ -601,11 +605,13 @@ function NotificationRow({
   const Icon =
     item.kind === 'task'
       ? ListTodo
-      : item.kind === 'crm'
-        ? UserRoundSearch
-        : item.kind === 'system'
-          ? Bot
-          : CalendarClock;
+      : item.kind === 'feed'
+        ? MessagesSquare
+        : item.kind === 'crm'
+          ? UserRoundSearch
+          : item.kind === 'system'
+            ? Bot
+            : CalendarClock;
   const urgent = item.severity === 'critical';
 
   return (

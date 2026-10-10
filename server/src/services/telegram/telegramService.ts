@@ -14,6 +14,7 @@ interface TelegramSettingsRow {
   notify_due_dates: number;
   notify_reminders: number;
   notify_assignee: number;
+  notify_feed: number;
   backup_enabled: number;
   backup_interval_hours: number;
   last_backup_sent_at: string | null;
@@ -31,6 +32,7 @@ interface TelegramConfig {
   notify_due_dates: boolean;
   notify_reminders: boolean;
   notify_assignee: boolean;
+  notify_feed: boolean;
   backup_enabled: boolean;
   backup_interval_hours: number;
   last_backup_sent_at: string | null;
@@ -47,6 +49,7 @@ interface TelegramConfigUpdate {
   notifyDueDates?: boolean;
   notifyReminders?: boolean;
   notifyAssignee?: boolean;
+  notifyFeed?: boolean;
   backupEnabled?: boolean;
   backupIntervalHours?: number;
 }
@@ -79,6 +82,7 @@ export function getTelegramConfig(db: Database): TelegramConfig {
     notify_due_dates: Boolean(config.notify_due_dates),
     notify_reminders: Boolean(config.notify_reminders),
     notify_assignee: Boolean(config.notify_assignee),
+    notify_feed: Boolean(config.notify_feed),
     backup_enabled: Boolean(config.backup_enabled),
     backup_interval_hours: config.backup_interval_hours,
     last_backup_sent_at: config.last_backup_sent_at,
@@ -117,7 +121,7 @@ export function updateTelegramConfig(db: Database, update: TelegramConfigUpdate)
   db.prepare(
     `UPDATE telegram_settings
         SET enabled = ?, chat_id = ?, bot_token_ciphertext = ?, bot_token_iv = ?, bot_token_tag = ?,
-            notify_due_dates = ?, notify_reminders = ?, notify_assignee = ?,
+            notify_due_dates = ?, notify_reminders = ?, notify_assignee = ?, notify_feed = ?,
             backup_enabled = ?, backup_interval_hours = ?,
             next_backup_at = CASE WHEN ? = 1
               THEN datetime('now','localtime','+' || ? || ' hours')
@@ -137,6 +141,7 @@ export function updateTelegramConfig(db: Database, update: TelegramConfigUpdate)
         ? 1
         : 0,
     update.notifyAssignee === undefined ? current.notify_assignee : update.notifyAssignee ? 1 : 0,
+    update.notifyFeed === undefined ? current.notify_feed : update.notifyFeed ? 1 : 0,
     backupEnabled,
     backupIntervalHours,
     resetSchedule,

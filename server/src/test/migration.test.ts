@@ -714,3 +714,31 @@ test('v68: bang tin nhom, tep tai len nhom van con trong kho sau khi quay lui', 
   assert.ok(scratch.prepare(`SELECT 1 FROM documents WHERE id = ?`).get(doc), 'tep van con');
   scratch.close();
 });
+
+test('v69: thong bao bang tin theo tung nguoi, cong tac Telegram, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 69);
+  const settings = scratch
+    .prepare(`SELECT notify_feed FROM telegram_settings WHERE id = 1`)
+    .get() as {
+    notify_feed: number;
+  };
+  assert.equal(settings.notify_feed, 1);
+  assert.throws(() =>
+    scratch
+      .prepare(`INSERT INTO feed_notifications (contact_id, kind, post_id) VALUES (1, 'khac', 1)`)
+      .run()
+  );
+  scratch.prepare(`INSERT INTO notification_states (notification_key) VALUES ('feed-1')`).run();
+  scratch.prepare(`INSERT INTO notification_states (notification_key) VALUES ('task-1')`).run();
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v69-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'feed_notifications'`).get(),
+    undefined
+  );
+  assert.deepEqual(scratch.prepare(`SELECT notification_key FROM notification_states`).all(), [
+    { notification_key: 'task-1' },
+  ]);
+  scratch.close();
+});

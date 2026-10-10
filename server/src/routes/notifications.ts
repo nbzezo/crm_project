@@ -6,13 +6,14 @@ import { actorContactId } from '../middleware/currentUser.ts';
 import { HttpError, parseBody, required } from '../lib/validate.ts';
 import { setCardStatus } from '../services/cardService.ts';
 import { guardLeaveStatus } from '../services/taskFlowService.ts';
+import { feedNotificationsFor } from '../services/feedNotify.ts';
 
 const router = Router();
 const localDateTime = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm');
 
-type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system';
+type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system' | 'feed';
 type Severity = 'info' | 'warning' | 'critical';
 
 interface SourceRow {
@@ -51,16 +52,28 @@ const prefixTable = {
   event: 'calendar_events',
   task: 'cards',
   ai: 'ai_notifications',
+  /* v69: thong bao Bang tin — moi dong thuoc MOT nguoi nhan, xem services/feedNotify.ts. */
+  feed: 'feed_notifications',
 } as const;
 
 function parseKey(key: string): { prefix: keyof typeof prefixTable; id: number } {
-  const match = /^(reminder|event|task|ai)-(\d+)$/.exec(key);
+  const match = /^(reminder|event|task|ai|feed)-(\d+)$/.exec(key);
   if (!match) throw new HttpError(400, 'Khoa thong bao khong hop le');
   return { prefix: match[1] as keyof typeof prefixTable, id: Number(match[2]) };
 }
 
-function ensureSource(key: string) {
+function ensureSource(key: string, contactId: number | null = null) {
   const parsed = parseKey(key);
+  if (parsed.prefix === 'feed') {
+    /* Thong bao Bang tin cua nguoi khac phai nhu khong ton tai. */
+    required(
+      db
+        .prepare(`SELECT id FROM feed_notifications WHERE id = ? AND contact_id = ?`)
+        .get(parsed.id, contactId ?? 0),
+      'Thong bao khong con ton tai'
+    );
+    return parsed;
+  }
   required(
     db.prepare(`SELECT id FROM ${prefixTable[parsed.prefix]} WHERE id = ?`).get(parsed.id),
     'Thong bao khong con ton tai'
@@ -89,7 +102,7 @@ function upsertState(key: string, isRead: boolean, snoozedUntil: string | null |
   );
 }
 
-function notificationLink(row: SourceRow, source: 'reminder' | 'event' | 'task' | 'ai') {
+function notificationLink(row: SourceRow, source: 'reminder' | 'event' | 'task' | 'ai' | 'feed') {
   if (row.card_id) return null;
   if (row.deal_id) return `/deals/${row.deal_id}`;
   if (row.customer_id) return `/customers/${row.customer_id}`;
@@ -176,6 +189,25 @@ router.get('/', (req, res) => {
     )
     .all() as SourceRow[];
 
+  const me = actorContactId(req);
+  const feed: SourceRow[] =
+    me == null
+      ? []
+      : feedNotificationsFor(me).map((n) => ({
+          id: n.id,
+          title: n.title,
+          body: n.body,
+          due_at: null,
+          created_at: n.created_at,
+          link: `/feed/posts/${n.post_id}`,
+          card_id: null,
+          customer_id: null,
+          deal_id: null,
+          severity: n.severity,
+          previous_is_read: n.is_read,
+          source_can_undo: 0,
+        }));
+
   const states = new Map(
     (
       db
@@ -188,7 +220,7 @@ router.get('/', (req, res) => {
   };
   const items: NotificationItem[] = [];
 
-  const append = (rows: SourceRow[], source: 'reminder' | 'event' | 'task' | 'ai') => {
+  const append = (rows: SourceRow[], source: 'reminder' | 'event' | 'task' | 'ai' | 'feed') => {
     for (const row of rows) {
       const key = `${source}-${row.id}`;
       const state = states.get(key);
@@ -197,7 +229,8 @@ router.get('/', (req, res) => {
         row.link?.startsWith('/deals/') ||
         row.link?.startsWith('/customers/') ||
         row.link?.startsWith('/contracts');
-      const kind: NotificationKind = source === 'ai' ? (crmLink ? 'crm' : 'system') : source;
+      const kind: NotificationKind =
+        source === 'ai' ? (crmLink ? 'crm' : 'system') : source === 'feed' ? 'feed' : source;
       const { previous_is_read: previousIsRead, source_can_undo: sourceCanUndo, ...itemRow } = row;
       items.push({
         ...itemRow,
@@ -207,8 +240,8 @@ router.get('/', (req, res) => {
         link: notificationLink(row, source),
         is_read: state ? state.is_read === 1 : previousIsRead === 1,
         snoozed_until: state?.snoozed_until ?? null,
-        can_complete: source !== 'ai',
-        can_undo: source !== 'ai' && sourceCanUndo === 1,
+        can_complete: source !== 'ai' && source !== 'feed',
+        can_undo: source !== 'ai' && source !== 'feed' && sourceCanUndo === 1,
       });
     }
   };
@@ -217,6 +250,7 @@ router.get('/', (req, res) => {
   append(events, 'event');
   append(tasks, 'task');
   append(ai, 'ai');
+  append(feed, 'feed');
   items.sort((a, b) => {
     if (a.due_at && b.due_at) return a.due_at.localeCompare(b.due_at);
     if (a.due_at) return -1;
@@ -230,6 +264,7 @@ router.get('/', (req, res) => {
     task: 0,
     crm: 0,
     system: 0,
+    feed: 0,
   };
   for (const item of items) counts[item.kind] += 1;
   res.json({ items, unread_count: items.filter((item) => !item.is_read).length, counts });
@@ -237,7 +272,7 @@ router.get('/', (req, res) => {
 
 router.patch('/:key/state', (req, res) => {
   const key = req.params.key ?? '';
-  const parsed = ensureSource(key);
+  const parsed = ensureSource(key, actorContactId(req));
   const body = parseBody(
     z
       .object({
@@ -254,8 +289,8 @@ router.patch('/:key/state', (req, res) => {
     .get(key) as { is_read: number } | undefined;
   const isRead = body.is_read ?? current?.is_read === 1;
   upsertState(key, isRead, body.snoozed_until);
-  if (parsed.prefix === 'ai' && body.is_read !== undefined) {
-    db.prepare(`UPDATE ai_notifications SET is_read = ? WHERE id = ?`).run(
+  if ((parsed.prefix === 'ai' || parsed.prefix === 'feed') && body.is_read !== undefined) {
+    db.prepare(`UPDATE ${prefixTable[parsed.prefix]} SET is_read = ? WHERE id = ?`).run(
       isRead ? 1 : 0,
       parsed.id
     );
@@ -267,10 +302,12 @@ router.post('/read-all', (req, res) => {
   const { keys } = parseBody(z.object({ keys: z.array(z.string()).min(1).max(250) }), req);
   db.transaction(() => {
     for (const key of [...new Set(keys)]) {
-      const parsed = ensureSource(key);
+      const parsed = ensureSource(key, actorContactId(req));
       upsertState(key, true, undefined);
-      if (parsed.prefix === 'ai') {
-        db.prepare(`UPDATE ai_notifications SET is_read = 1 WHERE id = ?`).run(parsed.id);
+      if (parsed.prefix === 'ai' || parsed.prefix === 'feed') {
+        db.prepare(`UPDATE ${prefixTable[parsed.prefix]} SET is_read = 1 WHERE id = ?`).run(
+          parsed.id
+        );
       }
     }
   })();

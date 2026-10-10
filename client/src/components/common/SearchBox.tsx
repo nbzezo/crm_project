@@ -39,6 +39,15 @@ interface SearchResults {
   }[];
   documents: { id: number; name: string; doc_type: string; customer_name: string | null }[];
   quickNotes: { id: number; title: string; updated_at: string }[];
+  /* Bang tin (1.34.0) — may chu chi tra bai cua nhom minh xem duoc. */
+  posts?: {
+    id: number;
+    excerpt: string;
+    kind: string;
+    created_at: string;
+    group_name: string;
+    author_name: string | null;
+  }[];
 }
 
 interface RecentResult {
@@ -129,7 +138,8 @@ export function SearchBox() {
         .slice(0, 4)
     : [];
   const total =
-    (data ? Object.values(data).reduce((n, list) => n + list.length, 0) : 0) + settingsHits.length;
+    (data ? Object.values(data).reduce((n, list) => n + (list?.length ?? 0), 0) : 0) +
+    settingsHits.length;
 
   return (
     <>
@@ -386,6 +396,31 @@ export function SearchBox() {
                         .join(' · ')}
                     />
                   ))}
+                </Group>
+              )}
+
+              {data && (data.posts?.length ?? 0) > 0 && (
+                <Group title="Bảng tin">
+                  {data.posts!.map((p) => {
+                    const title = p.excerpt.split('\n')[0] || 'Bài viết';
+                    return (
+                      <Row
+                        key={p.id}
+                        onClick={() => {
+                          remember({
+                            kind: 'path',
+                            id: `/feed/posts/${p.id}`,
+                            title,
+                            meta: 'Bảng tin',
+                          });
+                          navigate(`/feed/posts/${p.id}`);
+                          close();
+                        }}
+                        primary={title}
+                        secondary={[p.group_name, p.author_name].filter(Boolean).join(' · ')}
+                      />
+                    );
+                  })}
                 </Group>
               )}
 

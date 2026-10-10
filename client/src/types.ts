@@ -829,7 +829,7 @@ export interface Reminder {
   deal_title?: string | null;
 }
 
-type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system';
+type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system' | 'feed';
 type NotificationSeverity = 'info' | 'warning' | 'critical';
 
 /** Mot muc da duoc hop nhat tu nhac hen, lich, task hoac canh bao AI/CRM. */
@@ -866,6 +866,7 @@ export interface TelegramConfig {
   notify_due_dates: boolean;
   notify_reminders: boolean;
   notify_assignee: boolean;
+  notify_feed: boolean;
   backup_enabled: boolean;
   backup_interval_hours: number;
   last_backup_sent_at: string | null;

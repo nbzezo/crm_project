@@ -18,6 +18,19 @@ export const APP_UPDATED_AT = '2026-10-10';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.34.0',
+    date: '2026-10-10',
+    title: 'Bảng tin: thông báo, tìm bằng Ctrl+K, thống kê tương tác',
+    changes: [
+      'Chuông thông báo có thêm mục "Bảng tin": khi bạn được nhắc tên, nhóm có thông báo mới, có người bình luận bài của bạn hoặc trả lời bình luận của bạn, có bài chờ bạn duyệt, hoặc bài của bạn vừa được duyệt. Mở bài hoặc mở nhóm là thông báo tự chuyển sang đã đọc.',
+      'Nhóm Toàn công ty mặc định chỉ báo thông báo và nhắc tên (không báo mọi bài); các nhóm khác báo mọi bài mới. Đổi ở ô thông báo đầu trang nhóm: Mọi bài mới · Chỉ thông báo & nhắc tên · Tắt thông báo.',
+      'Telegram: công tắc mới "Bảng tin nhóm" trong Cài đặt → Telegram gửi ngay khi bạn được nhắc tên, có thông báo, có bình luận vào bài của bạn hoặc bài chờ duyệt (không gửi mọi bài mới).',
+      'Ctrl+K tìm được bài viết Bảng tin — chỉ bài của nhóm bạn thuộc về và nhóm công khai.',
+      'Thống kê tương tác cho quản trị và kiểm duyệt nhóm: tỷ lệ thành viên hoạt động, số bài, bình luận, cảm xúc, tệp chia sẻ so với kỳ trước; biểu đồ hoạt động theo ngày (kèm bảng số liệu); người đóng góp nhiều nhất; bài được quan tâm nhất; tỷ lệ đã đọc từng thông báo; câu hỏi chưa có trả lời. Chọn 7, 30 hoặc 90 ngày.',
+      'Trang "Thống kê nhóm" trong cột menu Bảng tin so sánh mọi nhóm bạn quản trị, xếp theo mức hoạt động.',
+    ],
+  },
+  {
     version: '1.33.0',
     date: '2026-10-10',
     title: 'Bảng tin nhóm: trao đổi trong công ty, phòng ban, dự án',

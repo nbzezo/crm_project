@@ -32,6 +32,17 @@ import {
   type LinkType,
   type PostRow,
 } from '../services/feedPosts.ts';
+import {
+  defaultNotifyLevel,
+  markGroupNotificationsRead,
+  markPostNotificationsRead,
+  notifyApproved,
+  notifyComment,
+  notifyNewMentions,
+  notifyPendingPost,
+  notifyPostPublished,
+  NOTIFY_LEVEL_SQL,
+} from '../services/feedNotify.ts';
 
 /*
  * Bang tin nhom (v68). Ai dang nhap cung dung duoc — ranh gioi du lieu la THANH
@@ -135,14 +146,21 @@ function assertParticipant(req: Request, group: GroupRow): number {
 }
 
 /** Chi giu nhung nguoi duoc nhac ma THAY duoc bai (thanh vien nhom). */
-function saveMentions(group: GroupRow, postId: number, commentId: number | null, ids: number[]) {
+function saveMentions(
+  group: GroupRow,
+  postId: number,
+  commentId: number | null,
+  ids: number[]
+): number[] {
   const unique = [...new Set(ids)].slice(0, 50);
-  if (unique.length === 0) return;
+  if (unique.length === 0) return [];
   const members = new Set(groupMembers(group).map((m) => m.contact_id));
   const insert = db.prepare(
     `INSERT INTO feed_mentions (post_id, comment_id, contact_id) VALUES (?, ?, ?)`
   );
-  for (const id of unique) if (members.has(id)) insert.run(postId, commentId, id);
+  const saved = unique.filter((id) => members.has(id));
+  for (const id of saved) insert.run(postId, commentId, id);
+  return saved;
 }
 
 function respondPost(req: Request, id: number) {
@@ -165,7 +183,7 @@ router.get('/nav', (req, res) => {
   const rows = db
     .prepare(
       `SELECT g.id, g.kind, g.name, g.color, g.visibility, g.org_unit_id, g.project_id,
-              v.last_seen_at, COALESCE(v.notify, 'all') AS notify,
+              v.last_seen_at, ${NOTIFY_LEVEL_SQL} AS notify,
               (SELECT COUNT(*) FROM feed_posts p
                 WHERE p.group_id = g.id AND p.status = 'published' AND p.deleted_at IS NULL
                   AND (p.author_contact_id IS NULL OR p.author_contact_id <> ?)
@@ -200,10 +218,8 @@ router.get('/nav', (req, res) => {
     ? (
         db
           .prepare(
-            `SELECT COUNT(*) AS n FROM feed_mentions m JOIN feed_posts p ON p.id = m.post_id
-              LEFT JOIN feed_visits v ON v.group_id = p.group_id AND v.contact_id = m.contact_id
-              WHERE m.contact_id = ? AND p.deleted_at IS NULL
-                AND m.created_at > COALESCE(v.last_seen_at, '0000')`
+            `SELECT COUNT(*) AS n FROM feed_notifications n JOIN feed_posts p ON p.id = n.post_id
+              WHERE n.contact_id = ? AND n.kind = 'mention' AND n.is_read = 0 AND p.deleted_at IS NULL`
           )
           .get(me) as { n: number }
       ).n
@@ -354,7 +370,7 @@ function groupDetail(req: Request, group: GroupRow) {
     created_at: group.created_at,
     role,
     is_member: member,
-    notify: visit?.notify ?? 'all',
+    notify: visit?.notify ?? defaultNotifyLevel(group),
     member_count: members.length,
     admins: members
       .filter((m) => m.role === 'admin')
@@ -531,11 +547,12 @@ router.put('/groups/:id/visit', (req, res) => {
   );
   db.prepare(
     `INSERT INTO feed_visits (group_id, contact_id, last_seen_at, notify)
-     VALUES (?, ?, datetime('now','localtime'), COALESCE(?, 'all'))
+     VALUES (?, ?, datetime('now','localtime'), COALESCE(?, ?))
      ON CONFLICT(group_id, contact_id) DO UPDATE SET
        last_seen_at = datetime('now','localtime'),
        notify = COALESCE(?, feed_visits.notify)`
-  ).run(group.id, me, body.notify ?? null, body.notify ?? null);
+  ).run(group.id, me, body.notify ?? null, defaultNotifyLevel(group), body.notify ?? null);
+  markGroupNotificationsRead(me, group.id);
   res.json({ ok: true });
 });
 
@@ -848,6 +865,8 @@ router.post('/posts', (req, res) => {
     attachDocuments(req, postId, group, me, body.attachments);
     attachLinks(req, postId, body.links);
     saveMentions(group, postId, null, body.mention_ids);
+    if (status === 'published') notifyPostPublished(group, postId);
+    else notifyPendingPost(group, postId, me);
     return postId;
   })();
   res.status(201).json(respondPost(req, id));
@@ -905,12 +924,13 @@ router.patch('/posts/:id', (req, res) => {
             .all(post.id) as { contact_id: number }[]
         ).map((row) => row.contact_id)
       );
-      saveMentions(
+      const added = saveMentions(
         group,
         post.id,
         null,
         body.mention_ids.filter((id) => !already.has(id))
       );
+      if (post.status === 'published') notifyNewMentions(post.id, me, added);
     }
   })();
   res.json(respondPost(req, post.id));
@@ -955,7 +975,19 @@ router.post('/posts/:id/moderate', (req, res) => {
     body.action === 'approve' ? 'published' : 'rejected',
     post.id
   );
+  if (body.action === 'approve') {
+    notifyApproved(post.id, accessOf(req).contactId);
+    notifyPostPublished(group, post.id);
+  }
   res.json(respondPost(req, post.id));
+});
+
+/** Da xem bai (mo trang bai / mo binh luan): thong bao ve bai do thanh da doc. */
+router.post('/posts/:id/seen', (req, res) => {
+  const me = requireContact(req);
+  const { post } = loadPost(req, intParam(req.params.id));
+  markPostNotificationsRead(me, [post.id]);
+  res.json({ ok: true });
 });
 
 router.post('/posts/:id/pin', (req, res) => {
@@ -1243,7 +1275,8 @@ router.post('/posts/:id/comments', (req, res) => {
       )
       .run(post.id, parentId, me, body.body);
     const commentId = Number(info.lastInsertRowid);
-    saveMentions(group, post.id, commentId, body.mention_ids);
+    const mentioned = saveMentions(group, post.id, commentId, body.mention_ids);
+    notifyComment(post.id, commentId, me, body.parent_id ?? null, mentioned);
     return commentId;
   })();
   res.status(201).json({ id });
@@ -1632,6 +1665,229 @@ router.get('/groups/:id/tasks', (req, res) => {
       )
       .all(group.id)
   );
+});
+
+/* ===================== Thong ke tuong tac ===================== */
+
+/**
+ * So lieu tuong tac cua mot nhom trong `days` ngay gan nhat (va ky lien truoc de so
+ * sanh). Chi quan tri / kiem duyet nhom xem — danh sach "ai dong gop nhieu" khong
+ * phai thu moi thanh vien nen thay ve nhau.
+ */
+function groupStats(group: GroupRow, days: number) {
+  const since = `-${days} days`;
+  const before = `-${days * 2} days`;
+  const members = groupMembers(group);
+  const memberIds = new Set(members.map((m) => m.contact_id));
+  const count = (sql: string, ...params: unknown[]) =>
+    (db.prepare(sql).get(...params) as { n: number }).n;
+  const window = (from: string, to: string | null) => {
+    const range = `>= datetime('now','localtime','${from}')${to ? ` AND {col} < datetime('now','localtime','${to}')` : ''}`;
+    const where = (col: string) => `${col} ${range.replaceAll('{col}', col)}`;
+    return {
+      posts: count(
+        `SELECT COUNT(*) AS n FROM feed_posts p WHERE p.group_id = ? AND p.status = 'published' AND p.deleted_at IS NULL AND ${where('p.created_at')}`,
+        group.id
+      ),
+      comments: count(
+        `SELECT COUNT(*) AS n FROM feed_comments c JOIN feed_posts p ON p.id = c.post_id
+          WHERE p.group_id = ? AND p.deleted_at IS NULL AND c.deleted_at IS NULL AND ${where('c.created_at')}`,
+        group.id
+      ),
+      reactions: count(
+        `SELECT COUNT(*) AS n FROM feed_post_reactions r JOIN feed_posts p ON p.id = r.post_id
+          WHERE p.group_id = ? AND p.deleted_at IS NULL AND ${where('r.created_at')}`,
+        group.id
+      ),
+      active: (
+        db
+          .prepare(
+            `SELECT DISTINCT who FROM (
+               SELECT p.author_contact_id AS who FROM feed_posts p
+                WHERE p.group_id = ? AND p.status = 'published' AND p.deleted_at IS NULL AND ${where('p.created_at')}
+               UNION SELECT c.author_contact_id FROM feed_comments c JOIN feed_posts p ON p.id = c.post_id
+                WHERE p.group_id = ? AND c.deleted_at IS NULL AND ${where('c.created_at')}
+               UNION SELECT r.contact_id FROM feed_post_reactions r JOIN feed_posts p ON p.id = r.post_id
+                WHERE p.group_id = ? AND ${where('r.created_at')}
+               UNION SELECT v.contact_id FROM feed_poll_votes v JOIN feed_poll_options o ON o.id = v.option_id
+                 JOIN feed_posts p ON p.id = o.post_id
+                WHERE p.group_id = ? AND ${where('v.voted_at')}
+               UNION SELECT a.contact_id FROM feed_post_acks a JOIN feed_posts p ON p.id = a.post_id
+                WHERE p.group_id = ? AND ${where('a.acked_at')}
+             ) WHERE who IS NOT NULL`
+          )
+          .all(group.id, group.id, group.id, group.id, group.id) as { who: number }[]
+      ).filter((row) => memberIds.has(row.who)).length,
+    };
+  };
+  const current = window(since, null);
+  const previous = window(before, since);
+
+  /* Hoat dong theo ngay (bai + binh luan), du ca ngay trong. */
+  const daily = new Map(
+    (
+      db
+        .prepare(
+          `SELECT d, SUM(posts) AS posts, SUM(comments) AS comments FROM (
+             SELECT date(created_at) AS d, 1 AS posts, 0 AS comments FROM feed_posts
+              WHERE group_id = ? AND status = 'published' AND deleted_at IS NULL
+                AND created_at >= datetime('now','localtime','${since}')
+             UNION ALL
+             SELECT date(c.created_at), 0, 1 FROM feed_comments c JOIN feed_posts p ON p.id = c.post_id
+              WHERE p.group_id = ? AND p.deleted_at IS NULL AND c.deleted_at IS NULL
+                AND c.created_at >= datetime('now','localtime','${since}')
+           ) GROUP BY d`
+        )
+        .all(group.id, group.id) as { d: string; posts: number; comments: number }[]
+    ).map((row) => [row.d, row])
+  );
+  const today = (db.prepare(`SELECT date('now','localtime') AS d`).get() as { d: string }).d;
+  const series: { date: string; posts: number; comments: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const date = (db.prepare(`SELECT date(?, ?) AS d`).get(today, `-${i} days`) as { d: string }).d;
+    const row = daily.get(date);
+    series.push({ date, posts: row?.posts ?? 0, comments: row?.comments ?? 0 });
+  }
+
+  const announcements = db
+    .prepare(
+      `SELECT p.id, substr(p.body, 1, 100) AS excerpt, p.created_at, p.author_contact_id,
+              (SELECT COUNT(*) FROM feed_post_acks a WHERE a.post_id = p.id) AS acks
+         FROM feed_posts p
+        WHERE p.group_id = ? AND p.requires_ack = 1 AND p.status = 'published' AND p.deleted_at IS NULL
+          AND p.created_at >= datetime('now','localtime','${since}')
+        ORDER BY p.created_at DESC LIMIT 10`
+    )
+    .all(group.id) as {
+    id: number;
+    excerpt: string;
+    created_at: string;
+    author_contact_id: number | null;
+    acks: number;
+  }[];
+
+  const questions = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(EXISTS (SELECT 1 FROM feed_comments c WHERE c.post_id = p.id AND c.is_answer = 1 AND c.deleted_at IS NULL)) AS answered,
+              SUM(NOT EXISTS (SELECT 1 FROM feed_comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL)) AS no_reply
+         FROM feed_posts p
+        WHERE p.group_id = ? AND p.kind = 'question' AND p.status = 'published' AND p.deleted_at IS NULL
+          AND p.created_at >= datetime('now','localtime','${since}')`
+    )
+    .get(group.id) as { total: number; answered: number | null; no_reply: number | null };
+
+  const contributors = db
+    .prepare(
+      `SELECT who AS contact_id, c.full_name, u.name AS unit_name,
+              SUM(posts) AS posts, SUM(comments) AS comments FROM (
+         SELECT author_contact_id AS who, 1 AS posts, 0 AS comments FROM feed_posts
+          WHERE group_id = ? AND status = 'published' AND deleted_at IS NULL
+            AND created_at >= datetime('now','localtime','${since}')
+         UNION ALL
+         SELECT fc.author_contact_id, 0, 1 FROM feed_comments fc JOIN feed_posts p ON p.id = fc.post_id
+          WHERE p.group_id = ? AND p.deleted_at IS NULL AND fc.deleted_at IS NULL
+            AND fc.created_at >= datetime('now','localtime','${since}')
+       ) x JOIN contacts c ON c.id = x.who LEFT JOIN org_units u ON u.id = c.org_unit_id
+       GROUP BY who ORDER BY SUM(posts) * 3 + SUM(comments) DESC, c.full_name LIMIT 5`
+    )
+    .all(group.id, group.id);
+
+  const topPosts = db
+    .prepare(
+      `SELECT p.id, substr(p.body, 1, 100) AS excerpt, p.kind, c.full_name AS author_name,
+              (SELECT COUNT(*) FROM feed_post_reactions r WHERE r.post_id = p.id) AS reactions,
+              (SELECT COUNT(*) FROM feed_comments fc WHERE fc.post_id = p.id AND fc.deleted_at IS NULL) AS comments
+         FROM feed_posts p LEFT JOIN contacts c ON c.id = p.author_contact_id
+        WHERE p.group_id = ? AND p.status = 'published' AND p.deleted_at IS NULL
+          AND p.created_at >= datetime('now','localtime','${since}')
+        ORDER BY reactions + comments * 2 DESC, p.created_at DESC LIMIT 5`
+    )
+    .all(group.id);
+
+  const files = count(
+    `SELECT COUNT(*) AS n FROM feed_post_attachments a JOIN feed_posts p ON p.id = a.post_id
+      WHERE p.group_id = ? AND p.deleted_at IS NULL AND a.created_at >= datetime('now','localtime','${since}')`,
+    group.id
+  );
+
+  const audience = (authorId: number | null) =>
+    Math.max(0, members.length - (authorId != null && memberIds.has(authorId) ? 1 : 0));
+  return {
+    group: { id: group.id, name: group.name, kind: group.kind, color: group.color },
+    days,
+    members: members.length,
+    current: {
+      ...current,
+      participation: members.length ? current.active / members.length : 0,
+      files,
+    },
+    previous: {
+      ...previous,
+      participation: members.length ? previous.active / members.length : 0,
+    },
+    series,
+    announcements: announcements.map((a) => ({
+      id: a.id,
+      excerpt: a.excerpt,
+      created_at: a.created_at,
+      acks: a.acks,
+      audience: audience(a.author_contact_id),
+    })),
+    questions: {
+      total: questions.total,
+      answered: questions.answered ?? 0,
+      no_reply: questions.no_reply ?? 0,
+    },
+    contributors,
+    top_posts: topPosts,
+  };
+}
+
+function statsDays(raw: unknown): number {
+  const value = Number(raw ?? 30);
+  return [7, 30, 90].includes(value) ? value : 30;
+}
+
+router.get('/groups/:id/stats', (req, res) => {
+  const group = loadGroup(intParam(req.params.id));
+  assertCanView(req, group);
+  if (!isModerator(req, group)) {
+    throw new HttpError(403, 'Chỉ quản trị và kiểm duyệt nhóm xem được thống kê');
+  }
+  res.json(groupStats(group, statsDays(req.query.days)));
+});
+
+/** Tong quan moi nhom minh quan tri (quan tri he thong: moi nhom dang hoat dong). */
+router.get('/stats', (req, res) => {
+  ensureAutoGroups();
+  const days = statsDays(req.query.days);
+  const groups = (
+    db.prepare(`SELECT * FROM feed_groups WHERE is_archived = 0 ORDER BY name`).all() as GroupRow[]
+  ).filter((group) => isModerator(req, group));
+  const rows = groups.map((group) => {
+    const stats = groupStats(group, days);
+    return {
+      group: stats.group,
+      members: stats.members,
+      posts: stats.current.posts,
+      comments: stats.current.comments,
+      reactions: stats.current.reactions,
+      active: stats.current.active,
+      participation: stats.current.participation,
+      previous_participation: stats.previous.participation,
+      ack_rate:
+        stats.announcements.length === 0
+          ? null
+          : stats.announcements.reduce((sum, a) => sum + a.acks, 0) /
+            Math.max(
+              1,
+              stats.announcements.reduce((sum, a) => sum + a.audience, 0)
+            ),
+      unanswered: stats.questions.total - stats.questions.answered,
+    };
+  });
+  res.json({ days, groups: rows.sort((a, b) => b.participation - a.participation) });
 });
 
 export default router;

@@ -6,6 +6,7 @@ import { BACKUP_DIR, db } from '../db/connection.ts';
 import { createBackupFile } from '../lib/backup.ts';
 import { HttpError } from '../lib/validate.ts';
 import { accessOf, requirePermission } from '../middleware/currentUser.ts';
+import { isFeedSuperAdmin, memberGroupsSql } from '../services/feedService.ts';
 
 /**
  * Xuat du lieu doi pham vi TOAN CONG TY, khong chi doi co quyen xuat.
@@ -156,6 +157,8 @@ export const EXPORT_TABLES = [
   'feed_poll_options',
   'feed_poll_votes',
   'feed_event_rsvps',
+  // v69 — thong bao bang tin theo tung nguoi nhan
+  'feed_notifications',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
@@ -170,6 +173,7 @@ router.get('/search', (req, res) => {
       contracts: [],
       documents: [],
       quickNotes: [],
+      posts: [],
     });
     return;
   }
@@ -247,7 +251,25 @@ router.get('/search', (req, res) => {
     )
     .all(like);
 
-  res.json({ cards, customers, contacts, deals, contracts, documents, quickNotes });
+  /* Bang tin (1.34.0): chi bai cua nhom minh tham gia, cong voi nhom tu lap cong khai
+     — cung ranh gioi voi trang Bang tin (services/feedService.ts). */
+  const groups = memberGroupsSql(accessOf(req).contactId);
+  const posts = db
+    .prepare(
+      `SELECT p.id, substr(p.body, 1, 160) AS excerpt, p.kind, p.created_at,
+              g.name AS group_name, c.full_name AS author_name
+         FROM feed_posts p
+         JOIN feed_groups g ON g.id = p.group_id
+         LEFT JOIN contacts c ON c.id = p.author_contact_id
+        WHERE p.deleted_at IS NULL AND p.status = 'published' AND p.search_text LIKE ?
+          AND (p.group_id IN (${groups.sql})
+               OR (g.kind = 'custom' AND g.visibility = 'public' AND g.is_archived = 0)
+               ${isFeedSuperAdmin(req) ? 'OR 1' : ''})
+        ORDER BY p.created_at DESC LIMIT 8`
+    )
+    .all(like, ...groups.params);
+
+  res.json({ cards, customers, contacts, deals, contracts, documents, quickNotes, posts });
 });
 
 router.get('/backups', requirePermission('data.export', 'export'), (_req, res) => {

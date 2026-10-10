@@ -228,6 +228,59 @@ export interface PostDraft {
   event?: { start_at: string; end_at?: string | null; location: string };
 }
 
+export interface StatsWindow {
+  posts: number;
+  comments: number;
+  reactions: number;
+  active: number;
+  participation: number;
+}
+
+export interface GroupStats {
+  group: { id: number; name: string; kind: GroupKind; color: string | null };
+  days: number;
+  members: number;
+  current: StatsWindow & { files: number };
+  previous: StatsWindow;
+  series: { date: string; posts: number; comments: number }[];
+  announcements: {
+    id: number;
+    excerpt: string;
+    created_at: string;
+    acks: number;
+    audience: number;
+  }[];
+  questions: { total: number; answered: number; no_reply: number };
+  contributors: {
+    contact_id: number;
+    full_name: string;
+    unit_name: string | null;
+    posts: number;
+    comments: number;
+  }[];
+  top_posts: {
+    id: number;
+    excerpt: string;
+    kind: PostKind;
+    author_name: string | null;
+    reactions: number;
+    comments: number;
+  }[];
+}
+
+export interface StatsOverviewRow {
+  group: { id: number; name: string; kind: GroupKind; color: string | null };
+  members: number;
+  posts: number;
+  comments: number;
+  reactions: number;
+  active: number;
+  participation: number;
+  previous_participation: number;
+  ack_rate: number | null;
+  unanswered: number;
+}
+
 export const feedKeys = {
   all: ['feed'] as const,
   nav: ['feed', 'nav'] as const,
@@ -241,6 +294,8 @@ export const feedKeys = {
   events: (groupId?: number) => ['feed', 'events', groupId ?? 0] as const,
   tasks: (groupId: number) => ['feed', 'tasks', groupId] as const,
   discover: ['feed', 'discover'] as const,
+  stats: (groupId: number, days: number) => ['feed', 'stats', groupId, days] as const,
+  overview: (days: number) => ['feed', 'stats', 'all', days] as const,
 };
 
 export const feedApi = {
@@ -260,6 +315,7 @@ export const feedApi = {
   react: (id: number, reaction: Reaction | null) =>
     api.put<FeedPost>(`/api/feed/posts/${id}/reaction`, { reaction }),
   ack: (id: number) => api.post<FeedPost>(`/api/feed/posts/${id}/ack`),
+  seen: (id: number) => api.post<{ ok: true }>(`/api/feed/posts/${id}/seen`),
   acks: (id: number) =>
     api.get<
       { contact_id: number; full_name: string; unit_name: string | null; acked_at: string | null }[]
@@ -337,6 +393,10 @@ export const feedApi = {
   join: (id: number) => api.post<GroupDetail>(`/api/feed/groups/${id}/join`),
   leave: (id: number) => api.post(`/api/feed/groups/${id}/leave`),
   discover: () => api.get<DiscoverGroup[]>('/api/feed/groups/discover'),
+  groupStats: (id: number, days: number) =>
+    api.get<GroupStats>(`/api/feed/groups/${id}/stats${qs({ days })}`),
+  statsOverview: (days: number) =>
+    api.get<{ days: number; groups: StatsOverviewRow[] }>(`/api/feed/stats${qs({ days })}`),
   events: (groupId?: number) =>
     api.get<FeedEvent[]>(`/api/feed/events${qs({ group_id: groupId })}`),
   tasks: (groupId: number) => api.get<GroupTask[]>(`/api/feed/groups/${groupId}/tasks`),

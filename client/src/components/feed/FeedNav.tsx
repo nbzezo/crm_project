@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router';
 import {
+  BarChart3,
   Bell,
   Bookmark,
   CalendarDays,
@@ -96,6 +97,12 @@ export function FeedHomeNav({
       <NavLink to="/feed/explore" className={linkClass}>
         <Compass size={16} aria-hidden="true" /> Khám phá nhóm
       </NavLink>
+      {(nav?.can_admin ||
+        nav?.groups.some((g) => g.role === 'admin' || g.role === 'moderator')) && (
+        <NavLink to="/feed/insights" className={linkClass}>
+          <BarChart3 size={16} aria-hidden="true" /> Thống kê nhóm
+        </NavLink>
+      )}
 
       {SECTIONS.map((section) => {
         const items = groups.filter((g) => g.kind === section.kind);
@@ -136,7 +143,15 @@ function GroupLink({ group }: { group: NavGroup }) {
 }
 
 export type GroupTab =
-  'posts' | 'announcements' | 'files' | 'events' | 'members' | 'tasks' | 'pending' | 'settings';
+  | 'posts'
+  | 'announcements'
+  | 'files'
+  | 'events'
+  | 'members'
+  | 'tasks'
+  | 'pending'
+  | 'stats'
+  | 'settings';
 
 export function FeedGroupNav({ group }: { group: GroupDetail }) {
   const base = `/feed/groups/${group.id}`;
@@ -189,6 +204,9 @@ export function FeedGroupNav({ group }: { group: GroupDetail }) {
           <NavLink to={`${base}/pending`} className={linkClass}>
             <ShieldCheck size={16} aria-hidden="true" /> Bài chờ duyệt
             <Count value={group.counts.pending} tone="warning" />
+          </NavLink>
+          <NavLink to={`${base}/stats`} className={linkClass}>
+            <BarChart3 size={16} aria-hidden="true" /> Thống kê tương tác
           </NavLink>
           {group.role === 'admin' && (
             <NavLink to={`${base}/settings`} className={linkClass}>
