@@ -43,6 +43,7 @@ import {
   notifyPostPublished,
   NOTIFY_LEVEL_SQL,
 } from '../services/feedNotify.ts';
+import { publishPost } from '../services/feedPublish.ts';
 
 /*
  * Bang tin nhom (v68). Ai dang nhap cung dung duoc — ranh gioi du lieu la THANH
@@ -111,7 +112,13 @@ function assertAdmin(req: Request, group: GroupRow): void {
 /** Bai hien voi nguoi xem: da dang, hoac cua chinh ho, hoac dang cho duyet ma ho duyet duoc. */
 function postVisibility(req: Request, alias = 'p'): { sql: string; params: unknown[] } {
   const me = accessOf(req).contactId;
-  if (isFeedSuperAdmin(req)) return { sql: `${alias}.deleted_at IS NULL`, params: [] };
+  /* Bai nhap / hen gio (v70) chi tac gia thay — ke ca quan tri he thong. */
+  if (isFeedSuperAdmin(req)) {
+    return {
+      sql: `${alias}.deleted_at IS NULL AND (${alias}.status NOT IN ('draft','scheduled') OR ${alias}.author_contact_id = ?)`,
+      params: [me ?? 0],
+    };
+  }
   return {
     sql: `${alias}.deleted_at IS NULL AND (${alias}.status = 'published' OR ${alias}.author_contact_id = ?
           OR (${alias}.status = 'pending' AND ${alias}.group_id IN (
@@ -133,6 +140,11 @@ function loadPost(req: Request, id: number): { post: PostRow; group: GroupRow } 
   const group = loadGroup(post.group_id);
   assertCanView(req, group);
   return { post, group };
+}
+
+/** Bai nhap / hen gio / cho duyet chua the duoc thich, binh chon, xac nhan. */
+function assertPublished(post: PostRow): void {
+  if (post.status !== 'published') throw new HttpError(409, 'Bài viết chưa được đăng');
 }
 
 /** Tuong tac (thich, binh luan, binh chon...) chi danh cho thanh vien. */
@@ -568,6 +580,7 @@ const FEED_FILTERS = [
   'mine',
   'questions',
   'events',
+  'drafts',
 ] as const;
 
 router.get('/posts', (req, res) => {
@@ -586,7 +599,39 @@ router.get('/posts', (req, res) => {
     assertCanView(req, group);
     where.push('p.group_id = ?');
     params.push(group.id);
-  } else if (filter !== 'saved') {
+  } else if (req.query.link_type) {
+    /* Trao doi noi bo cua mot khach hang / co hoi (v70): bai gan the do, tu moi nhom
+       nguoi xem DOC duoc (nhom minh, nhom tu lap cong khai). Nguoi xem phai thay
+       chinh ban ghi — khong dung trang nay de do ban ghi cua nguoi khac. */
+    const type = String(req.query.link_type) as LinkType;
+    if (!['customer', 'deal', 'contract', 'project', 'card'].includes(type)) {
+      throw new HttpError(400, 'Loại liên kết không hợp lệ');
+    }
+    const linkId = intParam(String(req.query.link_id), 'link_id');
+    if (!linkLabels(req, type, [linkId]).get(linkId)?.accessible) {
+      throw new HttpError(404, 'Không tìm thấy bản ghi');
+    }
+    const groups = memberGroupsSql(me);
+    if (!isFeedSuperAdmin(req)) {
+      where.push(`(p.group_id IN (${groups.sql}) OR p.group_id IN (
+        SELECT id FROM feed_groups WHERE kind = 'custom' AND visibility = 'public' AND is_archived = 0))`);
+      params.push(...groups.params);
+    }
+    const branches = [`(l.entity_type = ? AND l.entity_id = ?)`];
+    const linkParams: unknown[] = [type, linkId];
+    /* Trang khach hang gom ca bai gan co hoi / hop dong cua khach do. */
+    if (type === 'customer' && req.query.include_related === '1') {
+      branches.push(
+        `(l.entity_type = 'deal' AND l.entity_id IN (SELECT id FROM deals WHERE customer_id = ?))`,
+        `(l.entity_type = 'contract' AND l.entity_id IN (SELECT id FROM contracts WHERE customer_id = ?))`
+      );
+      linkParams.push(linkId, linkId);
+    }
+    where.push(
+      `EXISTS (SELECT 1 FROM feed_post_links l WHERE l.post_id = p.id AND (${branches.join(' OR ')}))`
+    );
+    params.push(...linkParams);
+  } else if (filter !== 'saved' && filter !== 'drafts') {
     /* Trang chu: chi nhom minh la thanh vien. Bai da luu thi tu nhom nao cung duoc
        (mien con xem duoc nhom) — loc o duoi. */
     const groups = memberGroupsSql(me);
@@ -595,9 +640,15 @@ router.get('/posts', (req, res) => {
   }
 
   if (filter === 'pending') where.push(`p.status = 'pending'`);
-  else {
-    /* Bai cho duyet chi hien o bo loc rieng (va voi tac gia, kem nhan "Chờ duyệt"). */
-    where.push(`(p.status = 'published' OR p.author_contact_id = ?)`);
+  else if (filter === 'drafts') {
+    where.push(`p.status IN ('draft','scheduled') AND p.author_contact_id = ?`);
+    params.push(me ?? 0);
+  } else {
+    /* Bai cho duyet chi hien o bo loc rieng (va voi tac gia, kem nhan "Chờ duyệt").
+       Bai nhap / hen gio chi o bo loc "drafts". */
+    where.push(
+      `(p.status = 'published' OR (p.author_contact_id = ? AND p.status IN ('pending','rejected')))`
+    );
     params.push(me ?? 0);
   }
   if (filter === 'announcements') where.push(`p.kind = 'announcement'`);
@@ -692,6 +743,13 @@ const postInput = z.object({
   attachments: z.array(attachmentInput).max(20).default([]),
   links: z.array(linkInput).max(10).default([]),
   mention_ids: z.array(z.number().int().positive()).max(50).default([]),
+  /* v70: dang ngay, luu nhap, hoac hen gio dang luc `publish_at`. */
+  mode: z.enum(['publish', 'draft', 'schedule']).default('publish'),
+  publish_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thời điểm phải dạng YYYY-MM-DDTHH:mm')
+    .nullable()
+    .optional(),
   poll: z
     .object({
       options: z.array(z.string().trim().min(1).max(200)).min(2).max(10),
@@ -830,15 +888,23 @@ router.post('/posts', (req, res) => {
   ) {
     throw new HttpError(422, 'Bài viết đang trống');
   }
+  if (body.mode === 'schedule') assertFuture(body.publish_at);
   const status =
-    group.require_approval && !(role === 'admin' || role === 'moderator') ? 'pending' : 'published';
+    body.mode === 'draft'
+      ? 'draft'
+      : body.mode === 'schedule'
+        ? 'scheduled'
+        : group.require_approval && !(role === 'admin' || role === 'moderator')
+          ? 'pending'
+          : 'published';
 
   const id = db.transaction(() => {
     const info = db
       .prepare(
         `INSERT INTO feed_posts (group_id, author_contact_id, kind, body, status, is_pinned, requires_ack,
-                                 poll_multi, poll_closes_at, event_start_at, event_end_at, event_location, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                 poll_multi, poll_closes_at, event_start_at, event_end_at, event_location, search_text,
+                                 publish_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         group.id,
@@ -853,7 +919,8 @@ router.post('/posts', (req, res) => {
         body.event?.start_at ?? null,
         body.event?.end_at ?? null,
         body.event?.location ?? '',
-        buildSearchText(body.body, body.event?.location, ...(body.poll?.options ?? []))
+        buildSearchText(body.body, body.event?.location, ...(body.poll?.options ?? [])),
+        status === 'scheduled' ? body.publish_at : null
       );
     const postId = Number(info.lastInsertRowid);
     if (body.poll) {
@@ -866,10 +933,158 @@ router.post('/posts', (req, res) => {
     attachLinks(req, postId, body.links);
     saveMentions(group, postId, null, body.mention_ids);
     if (status === 'published') notifyPostPublished(group, postId);
-    else notifyPendingPost(group, postId, me);
+    else if (status === 'pending') notifyPendingPost(group, postId, me);
     return postId;
   })();
   res.status(201).json(respondPost(req, id));
+});
+
+function assertFuture(value: string | null | undefined): asserts value is string {
+  if (!value) throw new HttpError(422, 'Chọn thời điểm đăng');
+  if (value <= nowLocal()) throw new HttpError(422, 'Thời điểm đăng phải ở tương lai');
+}
+
+/** Bai nhap / hen gio cua chinh minh. */
+function loadOwnUnpublished(req: Request, id: number) {
+  const me = requireContact(req);
+  const { post, group } = loadPost(req, id);
+  if (post.author_contact_id !== me) throw new HttpError(403, 'Chỉ tác giả mới làm được việc này');
+  if (post.status !== 'draft' && post.status !== 'scheduled') {
+    throw new HttpError(409, 'Bài đã đăng');
+  }
+  return { post, group, me };
+}
+
+/** Dang ngay mot bai nhap / hen gio. */
+router.post('/posts/:id/publish', (req, res) => {
+  const { post, group, me } = loadOwnUnpublished(req, intParam(req.params.id));
+  if (group.posting === 'admins' && roleOf(req, group) !== 'admin') {
+    throw new HttpError(403, 'Nhóm này chỉ quản trị viên được đăng bài');
+  }
+  if (!isMember(group, me) && !isFeedSuperAdmin(req))
+    throw new HttpError(403, 'Tham gia nhóm để đăng bài');
+  publishPost(post.id);
+  res.json(respondPost(req, post.id));
+});
+
+/** Hen gio (hoac doi gio) cho bai nhap / hen gio; `publish_at: null` = quay ve nhap. */
+router.post('/posts/:id/schedule', (req, res) => {
+  const { post } = loadOwnUnpublished(req, intParam(req.params.id));
+  const body = parseBody(
+    z.object({
+      publish_at: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+        .nullable(),
+    }),
+    req
+  );
+  if (body.publish_at !== null) assertFuture(body.publish_at);
+  db.prepare(`UPDATE feed_posts SET status = ?, publish_at = ? WHERE id = ?`).run(
+    body.publish_at === null ? 'draft' : 'scheduled',
+    body.publish_at,
+    post.id
+  );
+  res.json(respondPost(req, post.id));
+});
+
+/* ---------- Mau bai (v70) ---------- */
+
+interface TemplateRow {
+  id: number;
+  owner_contact_id: number | null;
+  group_id: number | null;
+  name: string;
+  kind: string;
+  body: string;
+}
+
+router.get('/templates', (req, res) => {
+  const me = requireContact(req);
+  const groupId = req.query.group_id ? intParam(String(req.query.group_id), 'group_id') : null;
+  const rows: (TemplateRow & { scope: 'mine' | 'group' })[] = (
+    db
+      .prepare(
+        `SELECT * FROM feed_post_templates WHERE owner_contact_id = ? AND group_id IS NULL ORDER BY name`
+      )
+      .all(me) as TemplateRow[]
+  ).map((row) => ({ ...row, scope: 'mine' as const }));
+  if (groupId != null) {
+    const group = loadGroup(groupId);
+    if (canViewGroup(req, group)) {
+      rows.push(
+        ...(
+          db
+            .prepare(`SELECT * FROM feed_post_templates WHERE group_id = ? ORDER BY name`)
+            .all(group.id) as TemplateRow[]
+        ).map((row) => ({ ...row, scope: 'group' as const }))
+      );
+    }
+  }
+  res.json(
+    rows.map((row) => ({
+      ...row,
+      can_edit:
+        row.owner_contact_id === me ||
+        (row.group_id != null && isModerator(req, loadGroup(row.group_id))),
+    }))
+  );
+});
+
+const templateInput = z.object({
+  name: z.string().trim().min(1).max(120),
+  kind: z.enum(['post', 'announcement', 'poll', 'question', 'event']).default('post'),
+  body: z.string().max(20000).default(''),
+  group_id: z.number().int().positive().nullable().optional(),
+});
+
+function assertTemplateGroup(req: Request, groupId: number | null | undefined) {
+  if (groupId == null) return;
+  const group = loadGroup(groupId);
+  assertCanView(req, group);
+  if (!isModerator(req, group)) {
+    throw new HttpError(403, 'Chỉ quản trị / kiểm duyệt nhóm mới lưu mẫu dùng chung cho nhóm');
+  }
+}
+
+router.post('/templates', (req, res) => {
+  const me = requireContact(req);
+  const body = parseBody(templateInput, req);
+  assertTemplateGroup(req, body.group_id);
+  const info = db
+    .prepare(
+      `INSERT INTO feed_post_templates (owner_contact_id, group_id, name, kind, body) VALUES (?, ?, ?, ?, ?)`
+    )
+    .run(me, body.group_id ?? null, body.name, body.kind, body.body);
+  res
+    .status(201)
+    .json(db.prepare(`SELECT * FROM feed_post_templates WHERE id = ?`).get(info.lastInsertRowid));
+});
+
+function loadEditableTemplate(req: Request, id: number): TemplateRow {
+  const me = requireContact(req);
+  const row = db.prepare(`SELECT * FROM feed_post_templates WHERE id = ?`).get(id) as
+    TemplateRow | undefined;
+  if (!row) throw new HttpError(404, 'Không tìm thấy mẫu');
+  const groupModerator = row.group_id != null && isModerator(req, loadGroup(row.group_id));
+  if (row.owner_contact_id !== me && !groupModerator)
+    throw new HttpError(404, 'Không tìm thấy mẫu');
+  return row;
+}
+
+router.patch('/templates/:id', (req, res) => {
+  const row = loadEditableTemplate(req, intParam(req.params.id));
+  const body = parseBody(templateInput.partial(), req);
+  db.prepare(
+    `UPDATE feed_post_templates SET name = ?, kind = ?, body = ?, updated_at = datetime('now','localtime') WHERE id = ?`
+  ).run(body.name ?? row.name, body.kind ?? row.kind, body.body ?? row.body, row.id);
+  res.json(db.prepare(`SELECT * FROM feed_post_templates WHERE id = ?`).get(row.id));
+});
+
+router.delete('/templates/:id', (req, res) => {
+  const row = loadEditableTemplate(req, intParam(req.params.id));
+  db.prepare(`DELETE FROM feed_post_templates WHERE id = ?`).run(row.id);
+  res.json({ ok: true });
 });
 
 router.patch('/posts/:id', (req, res) => {
@@ -1001,6 +1216,7 @@ router.post('/posts/:id/pin', (req, res) => {
 router.put('/posts/:id/reaction', (req, res) => {
   const { post, group } = loadPost(req, intParam(req.params.id));
   const me = assertParticipant(req, group);
+  assertPublished(post);
   const body = parseBody(
     z.object({
       reaction: z.enum(['like', 'love', 'haha', 'wow', 'sad', 'celebrate']).nullable(),
@@ -1036,6 +1252,7 @@ router.get('/posts/:id/reactions', (req, res) => {
 router.post('/posts/:id/ack', (req, res) => {
   const { post, group } = loadPost(req, intParam(req.params.id));
   const me = assertParticipant(req, group);
+  assertPublished(post);
   if (!post.requires_ack) throw new HttpError(422, 'Bài viết không cần xác nhận');
   db.prepare(`INSERT OR IGNORE INTO feed_post_acks (post_id, contact_id) VALUES (?, ?)`).run(
     post.id,
@@ -1091,6 +1308,7 @@ router.put('/posts/:id/save', (req, res) => {
 router.put('/posts/:id/vote', (req, res) => {
   const { post, group } = loadPost(req, intParam(req.params.id));
   const me = assertParticipant(req, group);
+  assertPublished(post);
   if (post.kind !== 'poll') throw new HttpError(422, 'Bài viết không phải khảo sát');
   if (post.poll_closes_at && post.poll_closes_at <= nowLocal()) {
     throw new HttpError(409, 'Khảo sát đã đóng');
@@ -1122,6 +1340,7 @@ router.put('/posts/:id/vote', (req, res) => {
 router.put('/posts/:id/rsvp', (req, res) => {
   const { post, group } = loadPost(req, intParam(req.params.id));
   const me = assertParticipant(req, group);
+  assertPublished(post);
   if (post.kind !== 'event') throw new HttpError(422, 'Bài viết không phải sự kiện');
   const body = parseBody(
     z.object({ response: z.enum(['going', 'maybe', 'declined']).nullable() }),

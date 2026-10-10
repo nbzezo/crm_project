@@ -1,6 +1,15 @@
 import { db } from '../db/connection.ts';
 import { getTelegramConfig, sendTelegramMessage } from './telegram/telegramService.ts';
 import { recipientContactId } from './telegram/telegramNotifier.ts';
+import {
+  alreadySent,
+  botActive,
+  hasPersonalLink,
+  markSent,
+  personalTargetFor,
+  sendPersonal,
+  type PersonalTarget,
+} from './telegram/userTelegram.ts';
 import { groupMembers, type GroupRow } from './feedService.ts';
 
 /*
@@ -258,38 +267,49 @@ export function feedNotificationsFor(contactId: number, ids?: number[]): FeedNot
 }
 
 /**
- * Gui Telegram cho nguoi nhan cua bot neu ho nam trong so vua duoc bao. Chay nen —
- * loi mang khong duoc lam hong viec dang bai.
+ * Gui Telegram cho nhung nguoi vua duoc bao: ai da noi Telegram rieng (v70) nhan o
+ * kenh cua ho theo cong tac "Bang tin" cua ho; nguoi nhan cu cua kenh chung (chua
+ * noi rieng) nhan nhu 1.34.0. Chay nen — loi mang khong lam hong viec dang bai.
  */
 function sendTelegram(createdIds: number[]): void {
   if (createdIds.length === 0) return;
-  let recipient: number | null;
+  let legacyRecipient: number | null = null;
   try {
+    if (!botActive(db)) return;
     const config = getTelegramConfig(db);
-    if (!config.enabled || !config.has_token || !config.chat_id || !config.notify_feed) return;
-    recipient = recipientContactId(db);
+    if (config.chat_id && config.notify_feed) {
+      const recipient = recipientContactId(db);
+      if (!hasPersonalLink(db, recipient)) legacyRecipient = recipient;
+    }
   } catch {
     return;
   }
-  if (recipient == null) return;
-  const mine = db
+  const rows = db
     .prepare(
-      `SELECT id FROM feed_notifications
-        WHERE contact_id = ? AND id IN (${createdIds.map(() => '?').join(',')})`
+      `SELECT id, contact_id FROM feed_notifications
+        WHERE id IN (${createdIds.map(() => '?').join(',')})`
     )
-    .all(recipient, ...createdIds) as { id: number }[];
-  if (mine.length === 0) return;
-  const views = feedNotificationsFor(
-    recipient,
-    mine.map((row) => row.id)
-  ).filter((view) => TELEGRAM_KINDS.has(view.kind));
+    .all(...createdIds) as { id: number; contact_id: number }[];
+  const jobs: { view: FeedNotificationView; target: PersonalTarget | null }[] = [];
+  for (const row of rows) {
+    const target = personalTargetFor(db, row.contact_id, 'feed');
+    if (!target && row.contact_id !== legacyRecipient) continue;
+    const [view] = feedNotificationsFor(row.contact_id, [row.id]);
+    if (view && TELEGRAM_KINDS.has(view.kind)) jobs.push({ view, target });
+  }
+  if (jobs.length === 0) return;
   void (async () => {
-    for (const view of views) {
+    for (const { view, target } of jobs) {
+      const text = `💬 ${view.title}\n${view.body}`;
+      if (target) {
+        await sendPersonal(db, target, `feed-${view.id}`, text);
+        continue;
+      }
       const key = `feed-${view.id}`;
       try {
-        if (db.prepare(`SELECT 1 FROM telegram_sent_log WHERE dedupe_key = ?`).get(key)) continue;
-        await sendTelegramMessage(db, `💬 ${view.title}\n${view.body}`);
-        db.prepare(`INSERT OR IGNORE INTO telegram_sent_log (dedupe_key) VALUES (?)`).run(key);
+        if (alreadySent(db, key)) continue;
+        await sendTelegramMessage(db, text);
+        markSent(db, key);
       } catch (error) {
         console.error('[telegram] Gui thong bao bang tin that bai:', view.id, error);
       }

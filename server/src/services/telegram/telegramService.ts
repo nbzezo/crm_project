@@ -149,19 +149,38 @@ export function updateTelegramConfig(db: Database, update: TelegramConfigUpdate)
   );
 }
 
+/** Bot Token da giai ma — chuoi rong khi chua cau hinh. */
+export function getBotToken(db: Database): string {
+  return decryptToken(row(db));
+}
+
 export async function sendTelegramMessage(db: Database, text: string): Promise<void> {
   const config = row(db);
   const token = decryptToken(config);
   if (!token || !config.chat_id) {
     throw new HttpError(400, 'Chưa cấu hình Bot Token hoặc Chat ID cho Telegram');
   }
+  await postTelegramMessage(token, config.chat_id, text);
+}
 
+/**
+ * Gui toi MOT chat cu the bang bot cua cong ty — dung cho Telegram rieng cua tung
+ * nguoi (v70). Bot phai dang bat (`enabled`) va co token.
+ */
+export async function sendTelegramTo(db: Database, chatId: string, text: string): Promise<void> {
+  const config = row(db);
+  const token = decryptToken(config);
+  if (!config.enabled || !token) throw new HttpError(400, 'Bot Telegram của công ty chưa bật');
+  await postTelegramMessage(token, chatId, text);
+}
+
+async function postTelegramMessage(token: string, chatId: string, text: string): Promise<void> {
   let response: Response;
   try {
     response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: config.chat_id, text }),
+      body: JSON.stringify({ chat_id: chatId, text }),
       signal: AbortSignal.timeout(10_000),
     });
   } catch (error) {

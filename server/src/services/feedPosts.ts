@@ -18,7 +18,7 @@ export interface PostRow {
   author_contact_id: number | null;
   kind: 'post' | 'announcement' | 'poll' | 'question' | 'event';
   body: string;
-  status: 'published' | 'pending' | 'rejected';
+  status: 'published' | 'pending' | 'rejected' | 'draft' | 'scheduled';
   is_pinned: number;
   requires_ack: number;
   poll_multi: number;
@@ -30,6 +30,7 @@ export interface PostRow {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  publish_at: string | null;
 }
 
 export type LinkType = 'customer' | 'deal' | 'contract' | 'project' | 'card';
@@ -365,6 +366,7 @@ export function serializePosts(req: Request, rows: PostRow[]) {
       status: row.status,
       is_pinned: Boolean(row.is_pinned),
       created_at: row.created_at,
+      publish_at: row.publish_at,
       edited_at: row.edited_at,
       task_card_id: row.task_card_id,
       reactions: {

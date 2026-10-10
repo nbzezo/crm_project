@@ -1,6 +1,12 @@
 import type { Database } from 'better-sqlite3';
 import { getTelegramConfig, sendTelegramMessage } from './telegramService.ts';
 import { runFocusDigests } from './focusDigest.ts';
+import {
+  hasPersonalLink,
+  personalTargetFor,
+  personalTargets,
+  sendPersonal,
+} from './userTelegram.ts';
 
 interface DueCardRow {
   id: number;
@@ -138,13 +144,81 @@ async function notifyDueQuickNotes(db: Database): Promise<void> {
   }
 }
 
-async function runDueTelegramChecks(db: Database): Promise<void> {
+/**
+ * Tin rieng (v70): moi nguoi da noi Telegram nhan viec den han, nhac hen, ghi chu
+ * nhanh CUA CHINH HO, theo cong tac cua ho.
+ */
+async function notifyPersonalDue(db: Database): Promise<void> {
+  for (const target of personalTargets(db, 'tasks')) {
+    const cards = db
+      .prepare(
+        `SELECT id, title, due_date FROM cards
+          WHERE is_done = 0 AND is_archived = 0 AND due_date IS NOT NULL
+            AND due_date <= date('now','localtime') AND assignee_contact_id = ?
+          ORDER BY due_date LIMIT 50`
+      )
+      .all(target.contact_id) as DueCardRow[];
+    for (const card of cards) {
+      await sendPersonal(
+        db,
+        target,
+        `task-${card.id}-${card.due_date}`,
+        `⏰ Việc đến hạn: ${card.title}\nHạn: ${card.due_date}`
+      );
+    }
+  }
+  for (const target of personalTargets(db, 'reminders')) {
+    const reminders = db
+      .prepare(
+        `SELECT id, title, note, due_at FROM reminders
+          WHERE is_done = 0 AND owner_contact_id = ?
+            AND due_at BETWEEN strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-5 minutes'))
+                            AND strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+15 minutes'))
+          ORDER BY due_at LIMIT 50`
+      )
+      .all(target.contact_id) as DueReminderRow[];
+    for (const reminder of reminders) {
+      const body = reminder.note ? `\n${reminder.note}` : '';
+      await sendPersonal(
+        db,
+        target,
+        `reminder-${reminder.id}-${reminder.due_at}`,
+        `🔔 Nhắc hẹn: ${reminder.title}${body}\nGiờ: ${reminder.due_at.replace('T', ' ')}`
+      );
+    }
+    const notes = db
+      .prepare(
+        `SELECT id, title, reminder_at FROM quick_notes
+          WHERE deleted_at IS NULL AND reminder_status = 'pending' AND owner_contact_id = ?
+            AND reminder_at BETWEEN strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-5 minutes'))
+                                 AND strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+15 minutes'))
+          ORDER BY reminder_at LIMIT 50`
+      )
+      .all(target.contact_id) as DueQuickNoteRow[];
+    for (const note of notes) {
+      await sendPersonal(
+        db,
+        target,
+        `quick-note-${note.id}-${note.reminder_at}`,
+        `📝 Nhắc ghi chú nhanh: ${note.title || 'Ghi chú không tiêu đề'}`
+      );
+    }
+  }
+}
+
+export async function runDueTelegramChecks(db: Database): Promise<void> {
   const config = getTelegramConfig(db);
-  if (!config.enabled || !config.has_token || !config.chat_id) return;
-  if (config.notify_due_dates) await notifyDueCards(db);
-  if (config.notify_reminders) {
-    await notifyDueReminders(db);
-    await notifyDueQuickNotes(db);
+  if (!config.enabled || !config.has_token) return;
+  await notifyPersonalDue(db);
+  if (!config.chat_id) return;
+  /* Kenh chung (Chat ID cua quan tri) giu nguyen nhu truoc cho nguoi nhan cu — tru
+     khi nguoi do da noi Telegram rieng, luc ay tin cua ho di qua kenh rieng, khong trung. */
+  if (!hasPersonalLink(db, recipientContactId(db))) {
+    if (config.notify_due_dates) await notifyDueCards(db);
+    if (config.notify_reminders) {
+      await notifyDueReminders(db);
+      await notifyDueQuickNotes(db);
+    }
   }
   // Ban tin Trong tam co cong tac rieng trong app_settings (focus.digest).
   await runFocusDigests(db, recipientContactId(db));
@@ -154,16 +228,23 @@ export function notifyAssigneeChangeTelegram(db: Database, cardId: number): void
   void (async () => {
     try {
       const config = getTelegramConfig(db);
-      if (!config.enabled || !config.has_token || !config.chat_id || !config.notify_assignee) {
+      if (!config.enabled || !config.has_token) return;
+      const card = db
+        .prepare(`SELECT title, assignee_contact_id, updated_at FROM cards WHERE id = ?`)
+        .get(cardId) as
+        { title: string; assignee_contact_id: number | null; updated_at: string } | undefined;
+      if (!card || card.assignee_contact_id == null) return;
+      const text = `📌 Bạn vừa được giao việc: ${card.title}`;
+      /* Nguoi duoc giao da noi Telegram rieng: gui thang cho ho. */
+      const personal = personalTargetFor(db, card.assignee_contact_id, 'assignee');
+      if (personal) {
+        await sendPersonal(db, personal, `assign-${cardId}-${card.updated_at}`, text);
         return;
       }
       const recipient = recipientContactId(db);
-      if (recipient == null) return;
-      const card = db
-        .prepare(`SELECT title, assignee_contact_id FROM cards WHERE id = ?`)
-        .get(cardId) as { title: string; assignee_contact_id: number | null } | undefined;
-      if (!card || card.assignee_contact_id !== recipient) return;
-      await sendTelegramMessage(db, `📌 Bạn vừa được giao việc: ${card.title}`);
+      if (!config.chat_id || !config.notify_assignee || recipient == null) return;
+      if (card.assignee_contact_id !== recipient || hasPersonalLink(db, recipient)) return;
+      await sendTelegramMessage(db, text);
     } catch (error) {
       console.error('[telegram] Gui thong bao giao viec that bai:', cardId, error);
     }

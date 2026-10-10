@@ -742,3 +742,54 @@ test('v69: thong bao bang tin theo tung nguoi, cong tac Telegram, quay lui duoc'
   ]);
   scratch.close();
 });
+
+test('v70: bai nhap / hen gio, mau bai, Telegram tung nguoi — quay lui xoa bai chua dang, giu bai da dang', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 70);
+  const group = Number(
+    scratch.prepare(`INSERT INTO feed_groups (kind, name) VALUES ('custom', 'G')`).run()
+      .lastInsertRowid
+  );
+  const post = (status: string) =>
+    Number(
+      scratch
+        .prepare(`INSERT INTO feed_posts (group_id, body, status) VALUES (?, 'x', ?)`)
+        .run(group, status).lastInsertRowid
+    );
+  const published = post('published');
+  const draft = post('draft');
+  post('scheduled');
+  assert.throws(() => post('khac'));
+  const customer = scratch
+    .prepare(`INSERT INTO customers (name) VALUES ('C')`)
+    .run().lastInsertRowid;
+  const contact = scratch
+    .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (?, 'N')`)
+    .run(customer).lastInsertRowid;
+  scratch
+    .prepare(`INSERT INTO feed_post_saves (post_id, contact_id) VALUES (?, ?)`)
+    .run(draft, contact);
+  /* Khoa ngoai cua bang con van tro dung bang feed_posts sau khi dung lai. */
+  assert.throws(() =>
+    scratch
+      .prepare(`INSERT INTO feed_post_saves (post_id, contact_id) VALUES (9999, ?)`)
+      .run(contact)
+  );
+
+  scratch.pragma('foreign_keys = OFF');
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v70-rollback.sql', import.meta.url), 'utf8'));
+  scratch.pragma('foreign_keys = ON');
+  assert.deepEqual(scratch.pragma('foreign_key_check'), []);
+  assert.deepEqual(scratch.prepare(`SELECT id FROM feed_posts`).all(), [{ id: published }]);
+  assert.throws(() => post('draft'), 'CHECK cu da tro lai');
+  assert.equal(
+    scratch
+      .prepare(
+        `SELECT name FROM sqlite_master WHERE name IN ('user_telegram','feed_post_templates')`
+      )
+      .get(),
+    undefined
+  );
+  scratch.close();
+});

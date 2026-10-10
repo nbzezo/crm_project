@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 69;
+export const LATEST_VERSION = 70;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -1371,5 +1371,33 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v69 (thong bao bang tin)');
     current = 69;
+  }
+
+  if (current === 69 && targetVersion >= 70) {
+    /* Dung lai feed_posts (mo rong CHECK cua status) — nhieu bang con tro toi no
+       nen tat khoa ngoai trong luc doi, cung khuon v67. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v70.sql'));
+        const check = /CHECK \(status IN \('published','pending','rejected'\)\)/;
+        rebuildTable(db, 'feed_posts', (sql) => {
+          if (!check.test(sql)) throw new Error('v70: khong tim thay CHECK cua feed_posts.status');
+          return sql.replace(
+            check,
+            "CHECK (status IN ('published','pending','rejected','draft','scheduled'))"
+          );
+        });
+        db.pragma('user_version = 70');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v70:', broken.length, 'dong');
+    console.log(
+      '[db] Da nang cap schema len v70 (bai nhap, hen gio, mau bai, Telegram tung nguoi)'
+    );
+    current = 70;
   }
 }

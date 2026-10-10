@@ -11,6 +11,8 @@ import { startDriveBackupScheduler } from './services/backup/driveBackup.ts';
 import { startGoogleContactsScheduler } from './services/contacts/googleContacts.ts';
 import { startBackupTelegramScheduler } from './services/telegram/telegramBackup.ts';
 import { startTelegramNotifierScheduler } from './services/telegram/telegramNotifier.ts';
+import { startUserTelegramPoller } from './services/telegram/userTelegram.ts';
+import { startFeedScheduler } from './services/feedPublish.ts';
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -19,6 +21,8 @@ await ensureAdminUser();
 const app = createApp();
 startAiAutomationScheduler(db);
 startTelegramNotifierScheduler(db);
+startUserTelegramPoller(db);
+startFeedScheduler();
 startBackupTelegramScheduler(db);
 startDriveBackupScheduler(db);
 startGoogleContactsScheduler(db);

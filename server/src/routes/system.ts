@@ -159,6 +159,8 @@ export const EXPORT_TABLES = [
   'feed_event_rsvps',
   // v69 — thong bao bang tin theo tung nguoi nhan
   'feed_notifications',
+  // v70 — mau bai viet
+  'feed_post_templates',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
