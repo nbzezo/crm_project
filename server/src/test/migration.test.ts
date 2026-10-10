@@ -668,3 +668,49 @@ test('v61: dem viec dang mo theo cot chi doc chi muc, quay lui duoc', () => {
   );
   scratch.close();
 });
+
+test('v68: bang tin nhom, tep tai len nhom van con trong kho sau khi quay lui', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 68);
+  const group = Number(
+    scratch.prepare(`INSERT INTO feed_groups (kind, name) VALUES ('custom', 'Nhóm thử')`).run()
+      .lastInsertRowid
+  );
+  /* Hai nhom tu lap thi duoc, hai nhom Toan cong ty thi khong. */
+  scratch.prepare(`INSERT INTO feed_groups (kind, name) VALUES ('company', 'A')`).run();
+  assert.throws(() =>
+    scratch.prepare(`INSERT INTO feed_groups (kind, name) VALUES ('company', 'B')`).run()
+  );
+  /* Nhom don vi bat buoc co don vi. */
+  assert.throws(() =>
+    scratch.prepare(`INSERT INTO feed_groups (kind, name) VALUES ('unit', 'X')`).run()
+  );
+  const doc = Number(
+    scratch
+      .prepare(
+        `INSERT INTO documents (name, file_name, stored_name, group_id) VALUES ('a', 'a.txt', 's.txt', ?)`
+      )
+      .run(group).lastInsertRowid
+  );
+  const post = Number(
+    scratch.prepare(`INSERT INTO feed_posts (group_id, body) VALUES (?, 'xin chào')`).run(group)
+      .lastInsertRowid
+  );
+  scratch
+    .prepare(
+      `INSERT INTO feed_post_attachments (post_id, document_id, mode) VALUES (?, ?, 'library')`
+    )
+    .run(post, doc);
+
+  scratch.pragma('foreign_keys = OFF');
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v68-rollback.sql', import.meta.url), 'utf8'));
+  scratch.pragma('foreign_keys = ON');
+  assert.deepEqual(scratch.pragma('foreign_key_check'), []);
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name LIKE 'feed_%'`).get(),
+    undefined
+  );
+  assert.ok(scratch.prepare(`SELECT 1 FROM documents WHERE id = ?`).get(doc), 'tep van con');
+  scratch.close();
+});

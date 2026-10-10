@@ -6,6 +6,7 @@ import { HttpError } from './validate.ts';
 import { scopeWhere, type ScopeClause } from './scope.ts';
 import { anyOf, linkedBranch, taskBranch } from './linkedScope.ts';
 import { meetingNoteScope } from './meetingNoteScope.ts';
+import { memberGroupsSql } from '../services/feedService.ts';
 
 /*
  * Pham vi du lieu cua kho tep (bang documents) — 1.28.2.
@@ -46,7 +47,15 @@ export function documentScope(req: Request, action: PermissionAction, alias = 'd
     (column) => `${alias}.${column} IS NULL`
   ).join(' AND ')})`;
   const pages = meetingNoteScope(req, action, 'mn');
+  /* 4. (v68) tep cua nhom minh tham gia o Bang tin — CHI de doc. Sua/xoa van theo
+        nguoi tai len; thanh vien nhom khong sua duoc tep cua nguoi khac. */
+  const groups = memberGroupsSql(accessOf(req).contactId);
+  const groupBranch: ScopeClause =
+    action === 'read'
+      ? { sql: `${alias}.group_id IN (${groups.sql})`, params: groups.params }
+      : { sql: '1 = 0', params: [] };
   return anyOf([
+    groupBranch,
     own,
     { sql: legacy, params: [] },
     linkedBranch(req, `${alias}.customer_id`, 'customer', action),

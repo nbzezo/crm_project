@@ -69,6 +69,9 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     // Link nhac yeu thich (v59): so thich ca nhan cua tung tai khoan (`users` nam ngoai
     // goi sao luu), khong phai du lieu nghiep vu.
     'user_music_links',
+    // Bang tin nhom (v68): lan xem cuoi va muc thong bao cua tung nguoi voi tung nhom —
+    // trang thai giao dien ca nhan (dem bai chua doc), khong phai du lieu nghiep vu.
+    'feed_visits',
   ]);
   const exportSet = new Set<string>(EXPORT_TABLES);
   const missing = tables

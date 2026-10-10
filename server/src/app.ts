@@ -54,6 +54,7 @@ import notifications from './routes/notifications.ts';
 import telegram from './routes/telegram.ts';
 import shares from './routes/shares.ts';
 import publicShare from './routes/publicShare.ts';
+import feed from './routes/feed.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(here, '../../client/dist');
@@ -185,6 +186,9 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/lock-screen', lockScreen);
   /* Link nhac yeu thich: rieng tung tai khoan, ai dang nhap cung co. */
   app.use('/api/music-links', musicLinks);
+  /* Bang tin nhom (v68): ai dang nhap cung co — ranh gioi la thanh vien nhom, kiem
+     trong services/feedService.ts; tep va ban ghi CRM gan vao bai van theo quyen rieng. */
+  app.use('/api/feed', feed);
   app.use('/api/nudges', requireResource('tasks'), nudges);
   app.use('/api/projects', requireResource('projects'), projects);
   app.use('/api/calendar', requireResource('tasks'), calendarEvents);

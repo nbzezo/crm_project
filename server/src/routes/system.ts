@@ -141,6 +141,21 @@ export const EXPORT_TABLES = [
   // v64 — pipeline va giai doan co hoi
   'pipelines',
   'pipeline_stages',
+  // v68 — bang tin nhom (cha truoc con)
+  'feed_groups',
+  'feed_group_members',
+  'feed_posts',
+  'feed_post_attachments',
+  'feed_post_links',
+  'feed_post_reactions',
+  'feed_comments',
+  'feed_comment_likes',
+  'feed_mentions',
+  'feed_post_acks',
+  'feed_post_saves',
+  'feed_poll_options',
+  'feed_poll_votes',
+  'feed_event_rsvps',
 ] as const;
 
 /** FR-SRC-01: tim Account, Contact, Opportunity, Contract, Document (khong dau). */
