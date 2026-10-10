@@ -6,6 +6,7 @@ import {
   LogOut,
   MonitorPause,
   Palette,
+  Send,
   UserCog,
 } from 'lucide-react';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
@@ -19,6 +20,9 @@ import { useMusicStore } from '../../stores/musicStore';
 
 const AccountSettings = lazy(() =>
   import('../settings/AccountSettings').then((m) => ({ default: m.AccountSettings }))
+);
+const MyTelegramSettings = lazy(() =>
+  import('../settings/MyTelegramSettings').then((m) => ({ default: m.MyTelegramSettings }))
 );
 const LockSettings = lazy(() =>
   import('../lock/LockSettings').then((m) => ({ default: m.LockSettings }))
@@ -51,6 +55,7 @@ export function AccountMenu() {
   const pop = usePopover();
   const [accountOpen, setAccountOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
+  const [telegramOpen, setTelegramOpen] = useState(false);
   const lock = useLockStore((s) => s.lock);
   const openMusic = useMusicStore((s) => s.setPanelOpen);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -131,6 +136,15 @@ export function AccountMenu() {
           )}
         </div>
         <PopoverItem
+          icon={<Send size={15} />}
+          onClick={() => {
+            pop.close();
+            setTelegramOpen(true);
+          }}
+        >
+          Telegram của tôi
+        </PopoverItem>
+        <PopoverItem
           icon={<MonitorPause size={15} />}
           onClick={() => {
             pop.close();
@@ -175,6 +189,12 @@ export function AccountMenu() {
       <Modal open={accountOpen} onClose={() => setAccountOpen(false)} title={t.account.title}>
         <Suspense fallback={<p className="p-4 text-sm text-tr-muted">{t.common.loading}</p>}>
           <AccountSettings />
+        </Suspense>
+      </Modal>
+
+      <Modal open={telegramOpen} onClose={() => setTelegramOpen(false)} title="Telegram của tôi">
+        <Suspense fallback={<p className="p-4 text-sm text-tr-muted">{t.common.loading}</p>}>
+          <MyTelegramSettings />
         </Suspense>
       </Modal>
 

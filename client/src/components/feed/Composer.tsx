@@ -3,6 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart3,
   CalendarDays,
+  ChevronDown,
+  Clock,
+  LayoutTemplate,
+  Save,
+  Trash2,
   FileText,
   HelpCircle,
   Image as ImageIcon,
@@ -23,6 +28,7 @@ import {
   type LinkType,
   type NavGroup,
   type PostKind,
+  BUILTIN_TEMPLATES,
 } from '../../lib/feed';
 import { AttachPicker, type PickedAttachment } from './AttachPicker';
 import { Avatar, FileTypeIcon, MentionTextarea, SourceBadge } from './FeedBits';
@@ -35,7 +41,7 @@ const KIND_LABEL: Record<PostKind, string> = {
   event: 'Sự kiện',
 };
 
-interface PickedLink {
+export interface PickedLink {
   type: LinkType;
   id: number;
   label: string;
@@ -46,10 +52,15 @@ interface PickedLink {
 export function Composer({
   groups,
   fixedGroupId,
+  initialLinks,
+  collapsedLabel,
 }: {
   /** Nhom co the dang (trang chu). Bo qua khi `fixedGroupId` co gia tri. */
   groups: NavGroup[];
   fixedGroupId?: number;
+  /** The CRM gan san (trang Khach hang / Co hoi) — giu lai sau moi lan dang. */
+  initialLinks?: PickedLink[];
+  collapsedLabel?: string;
 }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
@@ -60,7 +71,12 @@ export function Composer({
   const [body, setBody] = useState('');
   const [mentionIds, setMentionIds] = useState<number[]>([]);
   const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
-  const [links, setLinks] = useState<PickedLink[]>([]);
+  const [links, setLinks] = useState<PickedLink[]>(initialLinks ?? []);
+  const [scheduleAt, setScheduleAt] = useState('');
+  const submitMenu = usePopover();
+  const templateMenu = usePopover();
+  const [templateName, setTemplateName] = useState('');
+  const [templateShared, setTemplateShared] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollMulti, setPollMulti] = useState(false);
   const [pollCloses, setPollCloses] = useState('');
@@ -94,7 +110,8 @@ export function Composer({
     setBody('');
     setMentionIds([]);
     setAttachments([]);
-    setLinks([]);
+    setLinks(initialLinks ?? []);
+    setScheduleAt('');
     setKind('post');
     setPollOptions(['', '']);
     setPollMulti(false);
@@ -107,8 +124,10 @@ export function Composer({
   };
 
   const create = useMutation({
-    mutationFn: () =>
+    mutationFn: (submit: { mode: 'publish' | 'draft' | 'schedule'; publish_at?: string }) =>
       feedApi.createPost({
+        mode: submit.mode,
+        publish_at: submit.publish_at ?? null,
         group_id: groupId!,
         kind,
         body: body.trim(),
@@ -133,7 +152,13 @@ export function Composer({
       reset();
       void queryClient.invalidateQueries({ queryKey: feedKeys.all });
       pushToast(
-        post.status === 'pending' ? 'Đã gửi bài — đang chờ quản trị nhóm duyệt' : 'Đã đăng bài',
+        post.status === 'pending'
+          ? 'Đã gửi bài — đang chờ quản trị nhóm duyệt'
+          : post.status === 'draft'
+            ? 'Đã lưu bản nháp — xem ở "Bài nháp & hẹn giờ"'
+            : post.status === 'scheduled'
+              ? `Đã hẹn đăng lúc ${post.publish_at?.replace('T', ' ')}`
+              : 'Đã đăng bài',
         'success'
       );
     },
@@ -190,7 +215,7 @@ export function Composer({
             onClick={() => setExpanded(true)}
             className={`min-h-11 flex-1 rounded-full border border-tr-border bg-tr-surface px-4 text-left text-sm text-tr-muted hover:bg-tr-hover ${focusRing}`}
           >
-            {fixedGroupId ? `Chia sẻ với ${groupName}…` : 'Chia sẻ với nhóm…'}
+            {collapsedLabel ?? (fixedGroupId ? `Chia sẻ với ${groupName}…` : 'Chia sẻ với nhóm…')}
           </button>
         </div>
         <div className="mt-2 flex flex-wrap gap-1 border-t border-tr-border pt-2">
@@ -306,7 +331,38 @@ export function Composer({
               </PopoverItem>
             ))}
         </Popover>
-        <IconButton label="Thu gọn" className="ml-auto" onClick={reset}>
+        <button
+          type="button"
+          onClick={templateMenu.toggle}
+          aria-haspopup="menu"
+          aria-expanded={templateMenu.open}
+          className={`ml-auto inline-flex min-h-9 items-center gap-1 rounded-control px-2.5 text-sm text-tr-subtle hover:bg-tr-hover hover:text-tr-text ${focusRing}`}
+        >
+          <LayoutTemplate size={15} aria-hidden="true" /> Mẫu
+        </button>
+        <Popover
+          open={templateMenu.open}
+          onClose={templateMenu.close}
+          anchor={templateMenu.anchor}
+          title="Mẫu bài viết"
+          width={320}
+        >
+          <TemplateMenu
+            groupId={groupId}
+            canShare={group.data?.role === 'admin' || group.data?.role === 'moderator'}
+            name={templateName}
+            setName={setTemplateName}
+            shared={templateShared}
+            setShared={setTemplateShared}
+            current={{ kind, body }}
+            onPick={(template) => {
+              templateMenu.close();
+              if (template.kind !== 'announcement' || isAdmin) setKind(template.kind);
+              setBody(template.body);
+            }}
+          />
+        </Popover>
+        <IconButton label="Thu gọn" onClick={reset}>
           <X size={16} aria-hidden="true" />
         </IconButton>
       </div>
@@ -334,7 +390,7 @@ export function Composer({
         rows={kind === 'post' ? 4 : 3}
         autoFocus
         ariaLabel="Nội dung bài viết"
-        onSubmitShortcut={() => ready && create.mutate()}
+        onSubmitShortcut={() => ready && create.mutate({ mode: 'publish' })}
         placeholder={
           kind === 'question'
             ? 'Bạn muốn hỏi gì? Gõ @ để nhắc tên đồng nghiệp…'
@@ -599,14 +655,66 @@ export function Composer({
             onClick={() => setKind('announcement')}
           />
         )}
-        <Button
-          variant="primary"
-          className="ml-auto"
-          disabled={!ready}
-          onClick={() => create.mutate()}
+        <div className="ml-auto flex">
+          <Button
+            variant="primary"
+            className="rounded-r-none"
+            disabled={!ready}
+            onClick={() => create.mutate({ mode: 'publish' })}
+          >
+            {create.isPending ? 'Đang lưu…' : 'Đăng'}
+          </Button>
+          <Button
+            variant="primary"
+            className="rounded-l-none border-l border-tr-on-primary/30 px-2"
+            disabled={!ready}
+            aria-label="Lưu nháp hoặc hẹn giờ đăng"
+            aria-haspopup="menu"
+            aria-expanded={submitMenu.open}
+            onClick={submitMenu.toggle}
+          >
+            <ChevronDown size={16} aria-hidden="true" />
+          </Button>
+        </div>
+        <Popover
+          open={submitMenu.open}
+          onClose={submitMenu.close}
+          anchor={submitMenu.anchor}
+          title="Cách đăng"
+          width={300}
         >
-          {create.isPending ? 'Đang đăng…' : 'Đăng'}
-        </Button>
+          <PopoverItem
+            icon={<Save size={16} aria-hidden="true" />}
+            onClick={() => {
+              submitMenu.close();
+              create.mutate({ mode: 'draft' });
+            }}
+          >
+            Lưu nháp (chỉ mình bạn thấy)
+          </PopoverItem>
+          <div className="mt-2 border-t border-tr-border pt-2">
+            <label className="block text-xs font-semibold text-tr-subtle">
+              Hẹn giờ đăng
+              <input
+                type="datetime-local"
+                value={scheduleAt}
+                min={nowLocalInput()}
+                onChange={(event) => setScheduleAt(event.target.value)}
+                className={`mt-1 block min-h-10 w-full rounded-control border border-tr-border bg-tr-card px-2 text-sm font-normal text-tr-text ${focusRing}`}
+              />
+            </label>
+            <Button
+              className="mt-2 w-full"
+              disabled={!scheduleAt || scheduleAt <= nowLocalInput()}
+              onClick={() => {
+                submitMenu.close();
+                create.mutate({ mode: 'schedule', publish_at: scheduleAt });
+              }}
+            >
+              <Clock size={15} aria-hidden="true" /> Hẹn giờ
+            </Button>
+          </div>
+        </Popover>
       </div>
       {create.error && (
         <p role="alert" className="text-sm text-tr-danger">
@@ -723,6 +831,150 @@ function LinkSearch({
           </li>
         )}
       </ul>
+    </div>
+  );
+}
+
+function nowLocalInput(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/** Danh sach mau (co san, cua toi, cua nhom) + luu noi dung dang soan thanh mau. */
+function TemplateMenu({
+  groupId,
+  canShare,
+  name,
+  setName,
+  shared,
+  setShared,
+  current,
+  onPick,
+}: {
+  groupId: number | null;
+  canShare: boolean;
+  name: string;
+  setName: (value: string) => void;
+  shared: boolean;
+  setShared: (value: boolean) => void;
+  current: { kind: PostKind; body: string };
+  onPick: (template: { kind: PostKind; body: string }) => void;
+}) {
+  const queryClient = useQueryClient();
+  const pushToast = useUiStore((s) => s.pushToast);
+  const templates = useQuery({
+    queryKey: ['feed', 'templates', groupId ?? 0],
+    queryFn: () => feedApi.templates(groupId),
+  });
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['feed', 'templates'] });
+  const save = useMutation({
+    mutationFn: () =>
+      feedApi.saveTemplate({
+        name: name.trim(),
+        kind: current.kind,
+        body: current.body,
+        group_id: shared && canShare ? groupId : null,
+      }),
+    onSuccess: () => {
+      setName('');
+      refresh();
+      pushToast('Đã lưu mẫu', 'success');
+    },
+    onError: (error) => pushToast(error instanceof Error ? error.message : 'Không lưu được mẫu'),
+  });
+  const remove = useMutation({
+    mutationFn: (id: number) => feedApi.deleteTemplate(id),
+    onSuccess: refresh,
+  });
+  const saved = templates.data ?? [];
+  const section = (label: string) => (
+    <div className="px-0 pt-2 pb-1 text-xs font-semibold text-tr-muted">{label}</div>
+  );
+  return (
+    <div>
+      {section('Mẫu có sẵn')}
+      {BUILTIN_TEMPLATES.map((template) => (
+        <PopoverItem key={template.name} onClick={() => onPick(template)}>
+          {template.name}
+        </PopoverItem>
+      ))}
+      {saved.filter((t) => t.scope === 'group').length > 0 && section('Mẫu của nhóm')}
+      {saved
+        .filter((t) => t.scope === 'group')
+        .map((template) => (
+          <TemplateRow
+            key={template.id}
+            template={template}
+            onPick={onPick}
+            onDelete={() => remove.mutate(template.id)}
+          />
+        ))}
+      {saved.filter((t) => t.scope === 'mine').length > 0 && section('Mẫu của tôi')}
+      {saved
+        .filter((t) => t.scope === 'mine')
+        .map((template) => (
+          <TemplateRow
+            key={template.id}
+            template={template}
+            onPick={onPick}
+            onDelete={() => remove.mutate(template.id)}
+          />
+        ))}
+      <div className="mt-2 space-y-1.5 border-t border-tr-border pt-2">
+        <div className="text-xs font-semibold text-tr-subtle">Lưu nội dung đang soạn làm mẫu</div>
+        <Input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Tên mẫu"
+          aria-label="Tên mẫu"
+          maxLength={120}
+        />
+        {canShare && groupId && (
+          <label className="flex items-center gap-2 text-xs text-tr-text">
+            <input
+              type="checkbox"
+              checked={shared}
+              onChange={(event) => setShared(event.target.checked)}
+              className="h-4 w-4 accent-tr-primary"
+            />
+            Dùng chung cho cả nhóm
+          </label>
+        )}
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={!name.trim() || !current.body.trim() || save.isPending}
+          onClick={() => save.mutate()}
+        >
+          Lưu mẫu
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TemplateRow({
+  template,
+  onPick,
+  onDelete,
+}: {
+  template: { name: string; kind: PostKind; body: string; can_edit: boolean };
+  onPick: (template: { kind: PostKind; body: string }) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex items-center">
+      <div className="min-w-0 flex-1">
+        <PopoverItem onClick={() => onPick(template)}>
+          <span className="truncate">{template.name}</span>
+        </PopoverItem>
+      </div>
+      {template.can_edit && (
+        <IconButton label={`Xóa mẫu ${template.name}`} tone="danger" onClick={onDelete}>
+          <Trash2 size={14} aria-hidden="true" />
+        </IconButton>
+      )}
     </div>
   );
 }

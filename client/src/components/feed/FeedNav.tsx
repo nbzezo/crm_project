@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronLeft,
   Compass,
+  FilePen,
   FileText,
   Home,
   ListChecks,
@@ -93,6 +94,9 @@ export function FeedHomeNav({
       </NavLink>
       <NavLink to="/feed/saved" className={linkClass}>
         <Bookmark size={16} aria-hidden="true" /> Bài viết đã lưu
+      </NavLink>
+      <NavLink to="/feed/drafts" className={linkClass}>
+        <FilePen size={16} aria-hidden="true" /> Bài nháp & hẹn giờ
       </NavLink>
       <NavLink to="/feed/explore" className={linkClass}>
         <Compass size={16} aria-hidden="true" /> Khám phá nhóm

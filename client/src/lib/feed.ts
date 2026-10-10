@@ -16,7 +16,8 @@ export type FeedFilter =
   | 'pending'
   | 'mine'
   | 'questions'
-  | 'events';
+  | 'events'
+  | 'drafts';
 export type LinkType = 'customer' | 'deal' | 'contract' | 'project' | 'card';
 
 export interface NavGroup {
@@ -90,7 +91,9 @@ export interface FeedPost {
   author: { id: number; name: string; title: string | null; unit: string | null } | null;
   kind: PostKind;
   body: string;
-  status: 'published' | 'pending' | 'rejected';
+  status: 'published' | 'pending' | 'rejected' | 'draft' | 'scheduled';
+  /** Gio hen dang (bai hen gio) — 'YYYY-MM-DDTHH:mm'. */
+  publish_at: string | null;
   is_pinned: boolean;
   created_at: string;
   edited_at: string | null;
@@ -216,6 +219,41 @@ export interface DiscoverGroup {
   post_count: number;
 }
 
+export interface PostTemplate {
+  id: number;
+  owner_contact_id: number | null;
+  group_id: number | null;
+  name: string;
+  kind: PostKind;
+  body: string;
+  scope: 'mine' | 'group';
+  can_edit: boolean;
+}
+
+/** Mau co san — dung ngay khong can ai luu. */
+export const BUILTIN_TEMPLATES: { name: string; kind: PostKind; body: string }[] = [
+  {
+    name: 'Báo cáo tuần',
+    kind: 'post',
+    body: 'Báo cáo tuần [từ ngày – đến ngày]\n\nĐã xong:\n- \n\nĐang làm:\n- \n\nVướng mắc / cần hỗ trợ:\n- \n\nKế hoạch tuần tới:\n- ',
+  },
+  {
+    name: 'Biên bản họp',
+    kind: 'post',
+    body: 'Biên bản họp [chủ đề] — [ngày giờ]\n\nThành phần: \n\nNội dung chính:\n1. \n\nKết luận:\n- \n\nViệc cần làm (ai — hạn):\n- ',
+  },
+  {
+    name: 'Thông báo nội bộ',
+    kind: 'announcement',
+    body: '[Tiêu đề thông báo]\n\nNội dung: \nÁp dụng từ: \nĐầu mối liên hệ: ',
+  },
+  {
+    name: 'Bàn giao ca / công việc',
+    kind: 'post',
+    body: 'Bàn giao [công việc / ca] cho @\n\nTình trạng hiện tại:\n- \n\nViệc còn dở:\n- \n\nLưu ý:\n- ',
+  },
+];
+
 export interface PostDraft {
   group_id: number;
   kind: PostKind;
@@ -226,6 +264,8 @@ export interface PostDraft {
   mention_ids: number[];
   poll?: { options: string[]; multi: boolean; closes_at?: string | null };
   event?: { start_at: string; end_at?: string | null; location: string };
+  mode?: 'publish' | 'draft' | 'schedule';
+  publish_at?: string | null;
 }
 
 export interface StatsWindow {
@@ -301,7 +341,16 @@ export const feedKeys = {
 export const feedApi = {
   nav: () => api.get<FeedNav>('/api/feed/nav'),
   group: (id: number) => api.get<GroupDetail>(`/api/feed/groups/${id}`),
-  posts: (params: { group_id?: number; filter: FeedFilter; q?: string; cursor?: string | null }) =>
+  posts: (params: {
+    group_id?: number;
+    filter: FeedFilter;
+    q?: string;
+    cursor?: string | null;
+    /* Trao doi noi bo cua mot ban ghi CRM (v70). */
+    link_type?: LinkType;
+    link_id?: number;
+    include_related?: 1;
+  }) =>
     api.get<{ items: FeedPost[]; next_cursor: string | null }>(
       `/api/feed/posts${qs({ ...params, limit: 15 })}`
     ),
@@ -315,6 +364,14 @@ export const feedApi = {
   react: (id: number, reaction: Reaction | null) =>
     api.put<FeedPost>(`/api/feed/posts/${id}/reaction`, { reaction }),
   ack: (id: number) => api.post<FeedPost>(`/api/feed/posts/${id}/ack`),
+  publishNow: (id: number) => api.post<FeedPost>(`/api/feed/posts/${id}/publish`),
+  schedule: (id: number, publishAt: string | null) =>
+    api.post<FeedPost>(`/api/feed/posts/${id}/schedule`, { publish_at: publishAt }),
+  templates: (groupId?: number | null) =>
+    api.get<PostTemplate[]>(`/api/feed/templates${qs({ group_id: groupId ?? undefined })}`),
+  saveTemplate: (body: { name: string; kind: PostKind; body: string; group_id?: number | null }) =>
+    api.post<PostTemplate>('/api/feed/templates', body),
+  deleteTemplate: (id: number) => api.del(`/api/feed/templates/${id}`),
   seen: (id: number) => api.post<{ ok: true }>(`/api/feed/posts/${id}/seen`),
   acks: (id: number) =>
     api.get<

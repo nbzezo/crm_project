@@ -5,6 +5,7 @@ import {
   Bookmark,
   BookmarkCheck,
   CalendarPlus,
+  Clock,
   Check,
   ChevronDown,
   Download,
@@ -162,6 +163,16 @@ export function PostCard({
           {post.status === 'rejected' && (
             <span className="rounded-compact bg-tr-danger/15 px-2 py-0.5 text-tr-danger">
               Bị từ chối
+            </span>
+          )}
+          {post.status === 'draft' && (
+            <span className="rounded-compact bg-tr-hover-strong px-2 py-0.5 text-tr-text">
+              Bản nháp · chỉ bạn thấy
+            </span>
+          )}
+          {post.status === 'scheduled' && (
+            <span className="inline-flex items-center gap-1 rounded-compact bg-tr-primary/10 px-2 py-0.5 text-tr-primary">
+              <Clock size={12} aria-hidden="true" /> Hẹn đăng {post.publish_at?.replace('T', ' ')}
             </span>
           )}
         </div>
@@ -539,6 +550,10 @@ export function PostCard({
             )
           )}
         </div>
+      )}
+
+      {(post.status === 'draft' || post.status === 'scheduled') && post.can_edit && (
+        <UnpublishedActions post={post} onDone={patch} />
       )}
 
       {post.status === 'pending' && post.can_moderate && (
@@ -1069,5 +1084,71 @@ function AcksDialog({ postId, onClose }: { postId: number; onClose: () => void }
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Bai nhap / hen gio cua chinh minh: dang ngay, hen (lai) gio, ve nhap. */
+function UnpublishedActions({
+  post,
+  onDone,
+}: {
+  post: FeedPost;
+  onDone: (post: FeedPost) => void;
+}) {
+  const queryClient = useQueryClient();
+  const pushToast = useUiStore((s) => s.pushToast);
+  const [at, setAt] = useState(post.publish_at ?? '');
+  const run = useMutation({
+    mutationFn: (fn: () => Promise<FeedPost>) => fn(),
+    onSuccess: (updated) => {
+      onDone(updated);
+      void queryClient.invalidateQueries({ queryKey: ['feed'] });
+      pushToast(
+        updated.status === 'published'
+          ? 'Đã đăng bài'
+          : updated.status === 'pending'
+            ? 'Đã gửi bài — đang chờ duyệt'
+            : updated.status === 'scheduled'
+              ? `Đã hẹn đăng lúc ${updated.publish_at?.replace('T', ' ')}`
+              : 'Đã chuyển về bản nháp',
+        'success'
+      );
+    },
+    onError: (error) => pushToast(error instanceof Error ? error.message : 'Không thực hiện được'),
+  });
+  return (
+    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-panel border border-dashed border-tr-border p-3">
+      <label className="text-xs font-semibold text-tr-subtle">
+        Giờ đăng
+        <input
+          type="datetime-local"
+          value={at}
+          onChange={(event) => setAt(event.target.value)}
+          className={`mt-1 block min-h-9 rounded-control border border-tr-border bg-tr-card px-2 text-sm font-normal text-tr-text ${focusRing}`}
+        />
+      </label>
+      <Button
+        disabled={!at || run.isPending}
+        onClick={() => run.mutate(() => feedApi.schedule(post.id, at))}
+      >
+        <Clock size={14} aria-hidden="true" /> {post.status === 'scheduled' ? 'Đổi giờ' : 'Hẹn giờ'}
+      </Button>
+      {post.status === 'scheduled' && (
+        <Button
+          disabled={run.isPending}
+          onClick={() => run.mutate(() => feedApi.schedule(post.id, null))}
+        >
+          Về bản nháp
+        </Button>
+      )}
+      <Button
+        variant="primary"
+        className="ml-auto"
+        disabled={run.isPending}
+        onClick={() => run.mutate(() => feedApi.publishNow(post.id))}
+      >
+        Đăng ngay
+      </Button>
+    </div>
   );
 }

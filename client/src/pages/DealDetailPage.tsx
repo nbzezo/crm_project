@@ -26,6 +26,7 @@ import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPa
 import { AiBrief } from '../components/ai/AiBrief';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import { Tabs } from '../components/common/Tabs';
+import { LinkedDiscussion } from '../components/feed/LinkedDiscussion';
 import {
   Button,
   ColorBadge,
@@ -50,7 +51,7 @@ import type {
 } from '../types';
 import { isEarlyStage, pickLabel, stageCategory } from '../lib/crmConfig';
 
-type Tab = 'info' | 'score' | 'committee' | 'notes' | 'handover';
+type Tab = 'info' | 'score' | 'committee' | 'notes' | 'handover' | 'discussion';
 
 interface DealFull extends Deal {
   activities: Interaction[];
@@ -134,6 +135,7 @@ export default function DealDetailPage() {
     { key: 'info', label: 'Thông tin' },
     { key: 'notes', label: 'Trang tài liệu' },
     { key: 'handover', label: 'Bàn giao' },
+    { key: 'discussion', label: 'Trao đổi nội bộ' },
   ];
 
   const pendingHandover = stageCategory(deal.stage) === 'won' && !deal.handover_ready;
@@ -335,6 +337,7 @@ export default function DealDetailPage() {
                 </div>
               </div>
             )}
+            {tab === 'discussion' && <LinkedDiscussion type="deal" id={id} label={deal.title} />}
           </Tabs>
         </div>
 

@@ -107,7 +107,6 @@ async function call(method: string, pathname: string, body?: unknown) {
   return { status: res.status, data };
 }
 
-
 async function signIn(login: string) {
   cookie = '';
   const password = login === 'admin@congty.vn' ? 'admin-password-1' : `${login}-password`;

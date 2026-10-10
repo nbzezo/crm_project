@@ -18,6 +18,18 @@ export const APP_UPDATED_AT = '2026-10-10';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.35.0',
+    date: '2026-10-10',
+    title: 'Telegram riêng cho từng người, trao đổi nội bộ theo khách hàng, bài nháp và hẹn giờ',
+    changes: [
+      'Mỗi người tự kết nối Telegram của mình: menu tài khoản → "Telegram của tôi" → "Mở Telegram để kết nối" → bấm Start trong bot là xong (hoặc nhập Chat ID thủ công). Bạn chỉ nhận thông báo của chính mình: việc của bạn đến hạn, nhắc hẹn và ghi chú nhanh của bạn, khi được giao việc, và Bảng tin (nhắc tên, thông báo, bình luận bài của bạn, bài chờ duyệt). Bật/tắt từng loại, gửi thử, ngắt kết nối bất cứ lúc nào.',
+      'Bot vẫn là bot của công ty do quản trị cấu hình một lần ở Cài đặt → Telegram. Người đã kết nối riêng không nhận trùng tin qua Chat ID chung.',
+      'Trang Khách hàng và Cơ hội có tab mới "Trao đổi nội bộ": mọi bài Bảng tin gắn thẻ khách hàng / cơ hội đó (trang khách hàng gom cả bài về các cơ hội, hợp đồng của khách), kèm ô đăng bài gắn sẵn thẻ — sales, kỹ thuật, kế toán bàn về một khách tại một chỗ. Ai không có quyền xem bản ghi thì không mở được tab này.',
+      'Lưu nháp và hẹn giờ đăng: nút mũi tên cạnh "Đăng" có "Lưu nháp" và "Hẹn giờ đăng". Mục mới "Bài nháp & hẹn giờ" trong cột menu Bảng tin để sửa, đổi giờ, đăng ngay. Bài hẹn giờ tự đăng đúng giờ (nhóm bật duyệt bài thì vào hàng chờ duyệt) và lúc đó mới báo thông báo cho cả nhóm.',
+      'Mẫu bài viết: nút "Mẫu" trong ô đăng bài có sẵn Báo cáo tuần, Biên bản họp, Thông báo nội bộ, Bàn giao công việc; lưu nội dung đang soạn thành mẫu của riêng bạn, hoặc mẫu dùng chung cho cả nhóm (quản trị / kiểm duyệt nhóm).',
+    ],
+  },
+  {
     version: '1.34.0',
     date: '2026-10-10',
     title: 'Bảng tin: thông báo, tìm bằng Ctrl+K, thống kê tương tác',

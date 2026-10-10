@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, LayoutList, Search } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bell, BellOff, LayoutList } from 'lucide-react';
 import { Button, EmptyState, ErrorState, Select, focusRing } from '../components/common/ui';
 import { Tabs } from '../components/common/Tabs';
-import { LoadMoreSentinel } from '../components/common/LoadMoreSentinel';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useUiStore } from '../stores/uiStore';
 import { feedApi, feedKeys, type FeedFilter, type GroupDetail } from '../lib/feed';
 import { FeedGroupNav, FeedHomeNav, type GroupTab } from '../components/feed/FeedNav';
 import { Composer } from '../components/feed/Composer';
 import { PostCard } from '../components/feed/PostCard';
+import { PostList } from '../components/feed/PostList';
 import { GroupIcon } from '../components/feed/FeedBits';
 import { GroupStatsView, StatsOverview } from '../components/feed/FeedStats';
 import {
@@ -37,6 +37,7 @@ const HOME_SECTIONS = [
   'saved',
   'explore',
   'insights',
+  'drafts',
   'menu',
 ] as const;
 type HomeSection = (typeof HOME_SECTIONS)[number];
@@ -170,6 +171,16 @@ function HomeView({ section }: { section: HomeSection | null }) {
   const nav = useQuery({ queryKey: feedKeys.nav, queryFn: feedApi.nav });
   const [filter, setFilter] = useState<FeedFilter>('all');
 
+  if (section === 'drafts')
+    return (
+      <>
+        <PageTitle
+          title="Bài nháp & hẹn giờ"
+          description="Chỉ mình bạn thấy. Bài hẹn giờ tự đăng đúng giờ; bấm Đăng ngay để đăng sớm."
+        />
+        <PostList filter="drafts" />
+      </>
+    );
   if (section === 'saved')
     return (
       <>
@@ -282,74 +293,6 @@ function RightRail({ groupId }: { groupId?: number }) {
 }
 
 /* ---------------- Danh sach bai ---------------- */
-
-function PostList({ filter, groupId }: { filter: FeedFilter; groupId?: number }) {
-  const [query, setQuery] = useState('');
-  const [debounced, setDebounced] = useState('');
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(query.trim()), 300);
-    return () => window.clearTimeout(timer);
-  }, [query]);
-  const posts = useInfiniteQuery({
-    queryKey: feedKeys.posts(String(groupId ?? 'home'), filter, debounced),
-    queryFn: ({ pageParam }) =>
-      feedApi.posts({ group_id: groupId, filter, q: debounced || undefined, cursor: pageParam }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => last.next_cursor,
-  });
-  const items = posts.data?.pages.flatMap((page) => page.items) ?? [];
-  return (
-    <div className="space-y-4">
-      <label className="flex h-10 items-center gap-2 rounded-control border border-tr-border bg-tr-card px-3 focus-within:outline-2 focus-within:outline-tr-primary">
-        <Search size={15} className="text-tr-muted" aria-hidden="true" />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Tìm trong bài viết…"
-          aria-label="Tìm trong bài viết"
-          className="min-w-0 flex-1 bg-transparent text-sm text-tr-text outline-none placeholder:text-tr-muted"
-        />
-      </label>
-      {posts.isLoading ? (
-        <p role="status" className="text-sm text-tr-muted">
-          Đang tải bài viết…
-        </p>
-      ) : posts.error ? (
-        <ErrorState onRetry={() => void posts.refetch()} />
-      ) : items.length === 0 ? (
-        <EmptyState
-          message={
-            debounced
-              ? 'Không có bài viết nào khớp'
-              : filter === 'saved'
-                ? 'Bạn chưa lưu bài viết nào'
-                : filter === 'mentions'
-                  ? 'Chưa ai nhắc đến bạn'
-                  : filter === 'pending'
-                    ? 'Không có bài nào chờ duyệt'
-                    : 'Chưa có bài viết nào'
-          }
-          hint={filter === 'all' && !debounced ? 'Hãy là người mở đầu cuộc trò chuyện.' : undefined}
-        />
-      ) : (
-        <>
-          {items.map((post) => (
-            <PostCard key={post.id} post={post} showGroup={groupId === undefined} />
-          ))}
-          {posts.hasNextPage && (
-            <LoadMoreSentinel
-              hasMore
-              onLoadMore={() => void posts.fetchNextPage()}
-              loading={posts.isFetchingNextPage}
-              label="Tải thêm bài viết"
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 function SinglePost({ postId }: { postId: number }) {
   const queryClient = useQueryClient();

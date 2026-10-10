@@ -30,6 +30,7 @@ import { TaskTree } from '../components/tasks/TaskTree';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import { Modal } from '../components/common/Modal';
 import { Tabs } from '../components/common/Tabs';
+import { LinkedDiscussion } from '../components/feed/LinkedDiscussion';
 import {
   Button,
   ColorBadge,
@@ -60,7 +61,8 @@ type Tab =
   | 'services'
   | 'documents'
   | 'interactions'
-  | 'tasks';
+  | 'tasks'
+  | 'discussion';
 
 export default function CustomerDetailPage() {
   const { customerId } = useParams();
@@ -144,6 +146,7 @@ export default function CustomerDetailPage() {
     { key: 'documents', label: 'Tài liệu', count: customer.documents?.length ?? 0 },
     { key: 'interactions', label: t.customer.interactions },
     { key: 'tasks', label: t.customer.tasks, count: customer.tasks.length },
+    { key: 'discussion', label: 'Trao đổi nội bộ' },
   ];
 
   return (
@@ -570,6 +573,9 @@ export default function CustomerDetailPage() {
               onChanged={() => queryClient.invalidateQueries({ queryKey: ['customer', id] })}
             />
           </div>
+        )}
+        {tab === 'discussion' && (
+          <LinkedDiscussion type="customer" id={id} label={customer.name} includeRelated />
         )}
       </Tabs>
 

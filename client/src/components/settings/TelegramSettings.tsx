@@ -226,6 +226,11 @@ export function TelegramSettings({ onOpen }: { onOpen?: (tab: SettingsTab) => vo
             label="Bảng tin nhóm"
             description="Khi được nhắc tên, có thông báo mới, có bình luận vào bài của bạn hoặc bài chờ bạn duyệt."
           />
+          <p className="text-xs text-tr-subtle">
+            Các công tắc này áp dụng cho Chat ID ở trên (người nhận là tài khoản quản trị đầu tiên).
+            Từ 1.35.0 mỗi nhân viên tự kết nối Telegram riêng ở menu tài khoản → “Telegram của tôi”
+            và nhận thông báo của chính mình; bot vẫn dùng Bot Token cấu hình tại đây.
+          </p>
         </div>
         {onOpen && (
           <p className="mt-3 text-xs text-tr-muted">
