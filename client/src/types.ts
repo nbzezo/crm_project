@@ -1489,13 +1489,7 @@ export type QuickQuestion =
   | 'future';
 export type QuickAnswer = 'yes' | 'unsure' | 'no';
 export type QuickVerdict =
-  | 'not_started'
-  | 'go'
-  | 'clarify'
-  | 'build_edge'
-  | 'keep_warm'
-  | 'stop_no_need'
-  | 'stop_not_worth';
+  'not_started' | 'go' | 'clarify' | 'build_edge' | 'keep_warm' | 'stop_no_need' | 'stop_not_worth';
 
 export interface QuickAssessmentItem {
   question: QuickQuestion;
