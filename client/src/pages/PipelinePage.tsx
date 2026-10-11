@@ -75,7 +75,7 @@ export default function PipelinePage() {
   });
   /** FR-TAG-21/22: lọc pipeline theo nhãn, mặc định không lọc gì. */
   const [labelFilter, setLabelFilter] = useState<LabelFilterState>(EMPTY_LABEL_FILTER);
-  /** v23: chỉ hiện cơ hội đã thắng nhưng hồ sơ bàn giao chưa đủ. */
+  /** v23: chỉ hiện cơ hội đã chốt thành công nhưng hồ sơ bàn giao chưa đủ. */
   const [pendingHandoverOnly, setPendingHandoverOnly] = useState(false);
   const [view, setView] = useState<'board' | 'list'>(() => {
     try {

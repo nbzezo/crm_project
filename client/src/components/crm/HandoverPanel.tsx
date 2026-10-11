@@ -94,7 +94,8 @@ export function HandoverPanel({ dealId }: { dealId: number }) {
               {data.handover_ready ? 'Hồ sơ đã đủ' : `Còn ${requiredLeft} mục bắt buộc`}
             </span>
             <span className="text-xs text-tr-muted">
-              {doneCount}/{data.items.length} mục · SLA {data.sla_days} ngày kể từ khi thắng
+              {doneCount}/{data.items.length} mục · SLA {data.sla_days} ngày kể từ khi chốt thành
+              công
             </span>
           </div>
 

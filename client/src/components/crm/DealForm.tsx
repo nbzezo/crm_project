@@ -479,7 +479,7 @@ export function DealForm({
 
         {/*
           Cầu nối sang triển khai. Đặt cuối biểu mẫu vì phần lớn cơ hội chưa cần
-          tới nó — chỉ cơ hội sắp thắng hoặc đã thắng mới dùng đến.
+          tới nó — chỉ cơ hội sắp chốt hoặc đã chốt thành công mới dùng đến.
         */}
         <div className="sm:col-span-2 grid grid-cols-1 gap-3 border-t border-tr-border pt-3 sm:grid-cols-2">
           <Field

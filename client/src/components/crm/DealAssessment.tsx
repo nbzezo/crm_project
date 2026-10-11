@@ -218,7 +218,7 @@ function VerdictPanel({
           <dd className="text-right font-semibold tabular-nums text-tr-text">
             {data.bant_total}/12
           </dd>
-          <dt className="text-tr-muted">Thắng được? (4P)</dt>
+          <dt className="text-tr-muted">Có lợi thế? (4P)</dt>
           <dd className="text-right font-semibold tabular-nums text-tr-text">{data.p4_total}/12</dd>
           <dt className="text-tr-muted">Đáng đầu tư?</dt>
           <dd className="text-right font-semibold tabular-nums text-tr-text">

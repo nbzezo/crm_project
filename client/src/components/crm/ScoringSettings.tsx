@@ -112,7 +112,7 @@ export function ScoringSettings() {
         </Field>
 
         <Field
-          label="Số deal tối thiểu cho báo cáo thắng/thua"
+          label="Số deal tối thiểu cho báo cáo thành công/thất bại"
           hint="Dưới ngưỡng này, báo cáo chỉ hiện số đếm, không gợi ý hiệu chỉnh ngưỡng"
         >
           <Input

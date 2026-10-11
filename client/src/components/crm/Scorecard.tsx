@@ -105,7 +105,7 @@ export function Scorecard({
         <p className="flex items-center gap-2 rounded-panel border border-tr-border bg-tr-hover px-3 py-2 text-sm text-tr-subtle">
           <Lock size={14} aria-hidden="true" />
           Cơ hội đã chốt nên điểm được khóa, chỉ đọc. Điểm lúc chốt đã được lưu lại để phân tích
-          thắng/thua.
+          thành công/thất bại.
         </p>
       )}
 

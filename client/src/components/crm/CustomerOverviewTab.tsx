@@ -468,11 +468,11 @@ function RevenueCard({ data }: { data: CustomerOverviewData }) {
       }
     >
       {rows.length === 0 ? (
-        <p className="text-sm text-tr-muted">Chưa có doanh thu dịch vụ hay cơ hội thắng.</p>
+        <p className="text-sm text-tr-muted">Chưa có doanh thu dịch vụ hay cơ hội thành công.</p>
       ) : (
         <table className="w-full text-sm">
           <caption className="sr-only">
-            Doanh thu dịch vụ, đã thu và giá trị cơ hội thắng theo năm
+            Doanh thu dịch vụ, đã thu và giá trị cơ hội thành công theo năm
           </caption>
           <thead className="text-xs text-tr-muted">
             <tr>
@@ -483,7 +483,7 @@ function RevenueCard({ data }: { data: CustomerOverviewData }) {
                 Doanh thu dịch vụ
               </th>
               <th scope="col" className="pb-1 text-right font-medium">
-                Cơ hội thắng
+                Cơ hội thành công
               </th>
             </tr>
           </thead>
@@ -491,7 +491,7 @@ function RevenueCard({ data }: { data: CustomerOverviewData }) {
             {rows.map((r) => (
               <tr
                 key={r.year}
-                title={`${r.year}: doanh thu ${formatVND(r.revenue)}, đã thu ${formatVND(r.paid)}, cơ hội thắng ${formatVND(r.won)}`}
+                title={`${r.year}: doanh thu ${formatVND(r.revenue)}, đã thu ${formatVND(r.paid)}, cơ hội thành công ${formatVND(r.won)}`}
               >
                 <th
                   scope="row"

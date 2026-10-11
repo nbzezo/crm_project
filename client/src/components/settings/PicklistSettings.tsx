@@ -27,7 +27,7 @@ export const PICKLIST_META: { key: PicklistKey; title: string; hint: string }[] 
   {
     key: 'lost_reason',
     title: 'Lý do thất bại',
-    hint: 'Bắt buộc chọn khi chuyển cơ hội sang Thất bại; dùng cho thống kê thắng/thua.',
+    hint: 'Bắt buộc chọn khi chuyển cơ hội sang Thất bại; dùng cho thống kê thành công/thất bại.',
   },
   {
     key: 'interaction_type',

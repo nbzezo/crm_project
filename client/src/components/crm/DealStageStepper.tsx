@@ -1,7 +1,7 @@
 /**
  * Statusbar giai đoạn kiểu Odoo cho trang chi tiết cơ hội — bấm thẳng vào một
  * bước để chuyển, thay vì chỉ đọc badge tĩnh. Dùng lại nguyên `useDealStageMove`
- * (cổng điểm BANT + ghi đè, bắt buộc lý do khi thua, form chốt thắng) nên mọi
+ * (cổng điểm BANT + ghi đè, bắt buộc lý do khi thua, form chốt thành công) nên mọi
  * quy tắc nghiệp vụ giống hệt kéo-thả trên bảng Kanban.
  *
  * `lost` không nằm trong hàng bước tuyến tính — nó là một lối thoát riêng, có

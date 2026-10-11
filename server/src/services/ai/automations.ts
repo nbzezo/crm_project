@@ -132,7 +132,7 @@ function scan(db: Database, automation: AutomationRow): NotificationInput[] {
       severity: deal.days_waiting >= slaDays * 2 ? 'critical' : 'warning',
       title: `Chờ bàn giao quá hạn: ${deal.title}`,
       body:
-        `${deal.customer_name} · đã thắng ${deal.days_waiting} ngày (SLA ${slaDays} ngày)` +
+        `${deal.customer_name} · đã chốt thành công ${deal.days_waiting} ngày (SLA ${slaDays} ngày)` +
         (deal.pending_required > 0
           ? ` · còn ${deal.pending_required} mục hồ sơ bắt buộc chưa xong.`
           : ' · chưa lập checklist bàn giao.'),

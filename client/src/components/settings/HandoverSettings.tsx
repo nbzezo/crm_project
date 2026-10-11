@@ -81,7 +81,7 @@ export function HandoverSettings() {
       <Panel title="Thời hạn bàn giao">
         <Field
           label="SLA (ngày)"
-          hint="Cơ hội đã thắng quá số ngày này mà hồ sơ chưa đủ sẽ bị automation cảnh báo. Đếm từ ngày chốt thương mại."
+          hint="Cơ hội đã chốt thành công quá số ngày này mà hồ sơ chưa đủ sẽ bị automation cảnh báo. Đếm từ ngày chốt thương mại."
         >
           <Input
             type="number"

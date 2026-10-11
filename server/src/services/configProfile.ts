@@ -377,9 +377,13 @@ function applyPipeline(db: Database, profile: ConfigProfile, report: ImportRepor
   const won = incoming.stages.filter((stage) => stage.category === 'won');
   const lost = incoming.stages.filter((stage) => stage.category === 'lost');
   if (won.length !== 1 || lost.length !== 1) {
-    throw new HttpError(422, 'Pipeline trong hồ sơ phải có đúng một giai đoạn Thắng và một Thua', {
-      code: 'PROFILE_INVALID',
-    });
+    throw new HttpError(
+      422,
+      'Pipeline trong hồ sơ phải có đúng một giai đoạn Thành công và một Thất bại',
+      {
+        code: 'PROFILE_INVALID',
+      }
+    );
   }
   let pipeline = defaultPipeline(db);
   if (incoming.name && incoming.name !== pipeline.name) {

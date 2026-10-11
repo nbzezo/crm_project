@@ -346,7 +346,7 @@ export function RetroPanel({ data }: { data: FocusData }) {
           previous={previous.interactions}
         />
         <RetroRow
-          label="Cơ hội thắng"
+          label="Cơ hội thành công"
           current={current.deals_won}
           previous={previous.deals_won}
           format={(value) =>

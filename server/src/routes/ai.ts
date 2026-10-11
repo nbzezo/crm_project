@@ -476,7 +476,7 @@ router.post('/assist/interaction', async (req, res) => {
 /** Mo ta ngan 9 tieu chi bo sung cho mo hinh — ban day du nam o i18n/assessment.ts. */
 const ASSESSMENT_CRITERIA_BRIEF: Record<string, string> = {
   profit: 'Lợi nhuận: biên lợi nhuận sau chiết khấu có đạt ngưỡng của mình không',
-  follow_on: 'Cơ hội tiếp nối: thắng deal này mở ra doanh thu gì trong 1 năm và 3 năm tới',
+  follow_on: 'Cơ hội tiếp nối: ký được hợp đồng này mở ra doanh thu gì trong 1 năm và 3 năm tới',
   strategic:
     'Giá trị chiến lược: khách hàng tham chiếu, mở ngành/phòng ban mới, cải thiện sản phẩm',
   resources:
@@ -488,7 +488,7 @@ const ASSESSMENT_CRITERIA_BRIEF: Record<string, string> = {
     'Giá trị khác biệt: kết quả kinh doanh đo được mà chỉ ta mang lại, khách đã công nhận',
   exec_relationship: 'Quan hệ lãnh đạo: ta có quan hệ tin cậy với lãnh đạo cao nhất liên quan',
   informal_decision:
-    'Quyết định không chính thức: ta hiểu quyết định thực sự được đưa ra thế nào, ai muốn ta thắng',
+    'Quyết định không chính thức: ta hiểu quyết định thực sự được đưa ra thế nào, ai muốn chọn ta',
 };
 
 const assessmentReviewSchema = z.object({
@@ -549,7 +549,7 @@ router.post('/assist/deal/:id/assessment', async (req, res) => {
         maxOutputTokens: 2500,
         system:
           'Bạn là chuyên gia bán hàng B2B, đánh giá cơ hội theo khung Opportunity Assessment: 4 câu hỏi ' +
-          '(1. Khách có nhu cầu THẬT? 2. Ta CẠNH TRANH được? 3. Ta CHỐT được? 4. Có ĐÁNG ĐẦU TƯ — thắng rồi ta được gì?), ' +
+          '(1. Khách có nhu cầu THẬT? 2. Ta có LỢI THẾ hơn đối thủ? 3. Ta có KÝ ĐƯỢC hợp đồng? 4. Có ĐÁNG ĐẦU TƯ — ký được hợp đồng thì ta được gì?), ' +
           'mỗi câu 5 tiêu chí, tổng 20 ô. Chấm 0–3: 0 = chưa biết, 1 = yếu, 2 = khá, 3 = mạnh. ' +
           'CHỈ dựa vào dữ liệu được cung cấp; thiếu dữ liệu thì chấm 0 và đưa vào danh sách điều chưa biết kèm câu hỏi nên hỏi khách. ' +
           'Nói thẳng, kể cả khi kết luận là nên rút. Viết tiếng Việt có dấu, ngắn gọn.',

@@ -311,7 +311,7 @@ export function startStageKey(): string {
   return openStageKeys()[0] ?? 'lead';
 }
 
-/** Khoá giai đoạn Thắng / Thua của pipeline mặc định. */
+/** Khoá giai đoạn Thành công / Thất bại của pipeline mặc định. */
 export function closedStageKey(category: Exclude<StageCategory, 'open'>): string {
   return pipelineIn(state()).stages.find((stage) => stage.category === category)?.key ?? category;
 }

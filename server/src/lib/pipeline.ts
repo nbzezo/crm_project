@@ -221,7 +221,7 @@ function applyPatch(db: Database, stage: PipelineStage, patch: StagePatch): void
   if (patch.color !== undefined) put('color', patch.color);
   if (patch.probability !== undefined) {
     if (stage.category !== 'open') {
-      throw new HttpError(422, 'Xác suất của giai đoạn Thắng/Thua cố định 100% / 0%', {
+      throw new HttpError(422, 'Xác suất của giai đoạn Thành công/Thất bại cố định 100% / 0%', {
         code: 'STAGE_PROBABILITY_FIXED',
       });
     }

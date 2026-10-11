@@ -909,7 +909,7 @@ export const t = {
     wonByMonth: 'Doanh thu chốt thành công theo tháng',
     interactionsByType: 'Tương tác theo loại',
     topCustomers: 'Khách hàng đóng góp nhiều nhất',
-    winRate: 'Tỷ lệ thắng',
+    winRate: 'Tỷ lệ thành công',
     openPipeline: 'Pipeline đang mở',
     dueThisWeek: 'Đến hạn tuần này',
   },

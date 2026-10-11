@@ -132,7 +132,7 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   {
     key: 'scoring',
     label: 'Chấm điểm cơ hội',
-    description: 'Ngưỡng của bộ chấm điểm BANT + 4P và báo cáo thắng/thua.',
+    description: 'Ngưỡng của bộ chấm điểm BANT + 4P và báo cáo thành công/thất bại.',
     keywords: 'bant 4p điểm forecast phản biện quá hạn',
     icon: Target,
     group: SETTINGS_GROUPS.sales,
@@ -141,7 +141,7 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   {
     key: 'handover',
     label: 'Bàn giao',
-    description: 'Hồ sơ cần đủ trước khi chuyển cơ hội đã thắng cho đội triển khai.',
+    description: 'Hồ sơ cần đủ trước khi chuyển cơ hội đã chốt thành công cho đội triển khai.',
     keywords: 'checklist sla bàn giao hồ sơ delivery',
     icon: PackageOpen,
     group: SETTINGS_GROUPS.sales,

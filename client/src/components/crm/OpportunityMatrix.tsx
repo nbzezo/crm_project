@@ -1,7 +1,7 @@
 /**
  * F-02 — Ma trận cơ hội: toàn bộ pipeline trên hai trục.
  *
- * Trục X là 4P (ta có thắng được không), trục Y là BANT (đây có phải cơ hội thật không).
+ * Trục X là 4P (ta có lợi thế hơn đối thủ không), trục Y là BANT (đây có phải cơ hội thật không).
  * Kích thước điểm theo giá trị deal, viền đỏ khi có veto chặn forecast — bất kể nằm ở ô nào.
  */
 import { useNavigate } from 'react-router';
@@ -110,7 +110,7 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
               ticks={[0, 3, 6, 9, 12]}
               tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
               label={{
-                value: '4P — ta có khả năng thắng không',
+                value: '4P — ta có lợi thế hơn đối thủ không',
                 position: 'bottom',
                 offset: 8,
                 style: { fontSize: 11, fill: 'var(--color-tr-muted)' },

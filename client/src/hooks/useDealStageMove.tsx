@@ -6,7 +6,7 @@
  *  - F-04: cổng giai đoạn chặn khi điểm BANT chưa đủ, ghi đè được nhưng bắt
  *    buộc nhập lý do (lưu vào lịch sử điểm).
  *  - BR-03: chuyển sang "Thua" bắt buộc chọn lý do trước khi máy chủ chấp nhận.
- *  - FR-OPP-06: chuyển sang "Thắng" mở form nhập giá trị chốt thật, tuỳ chọn
+ *  - FR-OPP-06: chuyển sang "Thành công" mở form nhập giá trị chốt thật, tuỳ chọn
  *    tạo luôn hợp đồng.
  *
  * Chỉ có MỘT endpoint chạy đủ 3 luồng trên: `PATCH /api/deals/:id/move` —
@@ -393,8 +393,9 @@ function WonDialog({
         {!makeContract && (deal?.contract_count ?? 0) === 0 && (
           <div className="rounded-control border border-tr-warning/40 bg-tr-warning/10 px-3 py-2 text-xs text-tr-text sm:col-span-2">
             <span className="font-semibold">Chưa có hợp đồng hay PO nào gắn với cơ hội này.</span>{' '}
-            Cơ hội vẫn được ghi nhận là Thắng, nhưng sẽ nằm ở diện <b>chờ bàn giao</b> cho tới khi
-            hồ sơ đủ — đánh dấu &ldquo;Hồ sơ bàn giao đã đủ&rdquo; trong biểu mẫu cơ hội khi xong.
+            Cơ hội vẫn được ghi nhận là Thành công, nhưng sẽ nằm ở diện <b>chờ bàn giao</b> cho tới
+            khi hồ sơ đủ — đánh dấu &ldquo;Hồ sơ bàn giao đã đủ&rdquo; trong biểu mẫu cơ hội khi
+            xong.
           </div>
         )}
 

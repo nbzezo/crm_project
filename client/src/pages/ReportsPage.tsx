@@ -79,7 +79,7 @@ interface ReportsData {
   win_rate: { won: number; lost: number; rate: number };
   top_customers: { id: number; name: string; won_vnd: number; won_count: number }[];
   summary: { overdue_count: number; due_week_count: number; open_pipeline_vnd: number };
-  /** F-10 + F-16 — đối chiếu điểm lúc chốt với kết quả thắng/thua. */
+  /** F-10 + F-16 — đối chiếu điểm lúc chốt với kết quả thành công/thất bại. */
   score_winloss: {
     by_quadrant: Record<Quadrant, { won: number; lost: number }>;
     lost_reason_by_factor: Record<string, Record<string, number>>;
@@ -243,7 +243,7 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
               hint={
                 winTotal === 0
                   ? undefined
-                  : `${data.win_rate.won} thắng / ${data.win_rate.lost} thua`
+                  : `${data.win_rate.won} thành công / ${data.win_rate.lost} thất bại`
               }
             />
           </>
@@ -616,7 +616,7 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
 
   return (
     <Panel
-      title="Thắng/thua theo điểm lúc chốt"
+      title="Thành công/thất bại theo điểm lúc chốt"
       action={
         <span className="text-xs text-tr-muted">
           {data.scored_closed_count} cơ hội đã chốt có điểm
@@ -654,7 +654,7 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
                     {total === 0 ? '—' : formatPercent(row.won / total)}
                   </p>
                   <p className="text-xs text-tr-muted">
-                    {row.won} thắng / {row.lost} thua
+                    {row.won} thành công / {row.lost} thất bại
                   </p>
                 </div>
               );

@@ -21,7 +21,7 @@ export const FACTOR_LABELS: Record<Factor, string> = {
 /** Câu hỏi cốt lõi của mỗi trục — nhắc người chấm đang trả lời câu hỏi nào. */
 export const AXIS_LABELS = {
   bant: { name: 'BANT', question: 'Đây có phải cơ hội thật không?' },
-  p4: { name: '4P', question: 'Nếu là thật, ta có khả năng thắng không?' },
+  p4: { name: '4P', question: 'Nếu là thật, ta có lợi thế hơn đối thủ không?' },
 } as const;
 
 /** Rubric 0–3 cho từng yếu tố — chép nguyên văn Mục 3.2 và 3.3 của spec. */
@@ -160,7 +160,7 @@ export const QUADRANT_COLORS: Record<Quadrant, string> = {
 export const QUADRANT_ACTIONS: Record<Quadrant, string> = {
   pursue: 'Dồn nguồn lực, đẩy nhanh tiến độ. Được phép đưa vào forecast.',
   reshape:
-    'Deal thật nhưng ta không ở vị thế thắng. Chỉ theo nếu tái định hình được tiêu chí, bắt tay đối tác, hoặc tấn công điểm yếu đối thủ. Nếu không — rút, tránh làm quân xanh.',
+    'Deal thật nhưng ta không có lợi thế. Chỉ theo nếu tái định hình được tiêu chí, bắt tay đối tác, hoặc tấn công điểm yếu đối thủ. Nếu không — rút, tránh làm quân xanh.',
   nurture:
     'Có quan hệ và phù hợp nhưng khách chưa sẵn sàng. Chuyển sang chuỗi nuôi dưỡng, gỡ khỏi forecast kỳ hiện tại.',
   disqualify: 'Chuyển sang danh sách marketing tự động, không tiêu tốn giờ sales.',

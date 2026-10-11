@@ -24,20 +24,20 @@ export const QUESTION_INFO: Record<
   },
   compete: {
     no: 2,
-    title: 'Cạnh tranh',
-    question: 'Ta có CẠNH TRANH được không?',
-    pass: 'Ta vượt được đối thủ',
+    title: 'Lợi thế',
+    question: 'Ta có LỢI THẾ hơn đối thủ không?',
+    pass: 'Ta có lợi thế rõ ràng',
   },
   close: {
     no: 3,
-    title: 'Chốt được',
-    question: 'Ta có CHỐT được không?',
-    pass: 'Người có quyền muốn ta thắng',
+    title: 'Ký được',
+    question: 'Ta có KÝ ĐƯỢC hợp đồng không?',
+    pass: 'Người có quyền muốn chọn ta',
   },
   worth: {
     no: 4,
     title: 'Đáng đầu tư',
-    question: 'Thắng rồi ta được gì — có ĐÁNG bỏ công không?',
+    question: 'Ký được hợp đồng thì ta được gì — có ĐÁNG bỏ công không?',
     pass: 'Rủi ro chấp nhận được, lợi ích xứng đáng',
   },
 };
@@ -87,7 +87,7 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     label: 'Nguồn lực bỏ ra',
     questions: [
       'Đội bán cần đầu tư bao nhiêu thời gian cho cơ hội này?',
-      'Cần thêm nguồn lực nội bộ hoặc bên ngoài nào để thắng?',
+      'Cần thêm nguồn lực nội bộ hoặc bên ngoài nào để giành được hợp đồng?',
       'Chi phí bán hàng dự kiến? Theo deal này thì ta bỏ lỡ deal nào (chi phí cơ hội)?',
     ],
   },
@@ -141,21 +141,21 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     questions: [
       'Quyết định thực sự sẽ được đưa ra thế nào? Yếu tố chủ quan nào có thể chi phối?',
       'Những vấn đề nào không được nói ra? Ý kiến riêng của ai ta biết, ý kiến nào có trọng lượng?',
-      'Người ủng hộ nội bộ nói gì? Ai muốn ta thắng?',
+      'Người ủng hộ nội bộ nói gì? Ai muốn chọn ta?',
     ],
   },
   14: {
     label: 'Quan hệ sẵn có',
     questions: [
       'Ta đã từng làm ăn với khách này chưa?',
-      'Ai trong tổ chức muốn ta thắng? Họ đã làm gì để thể hiện điều đó?',
+      'Ai trong tổ chức muốn chọn ta? Họ đã làm gì để thể hiện điều đó?',
       'Họ có sẵn lòng và đủ khả năng hành động thay ta không?',
     ],
   },
   15: {
     label: 'Kết nối người có ảnh hưởng',
     questions: [
-      'Ai là người có quyền lực nhất trong quyết định này? Họ có muốn ta thắng, vì sao?',
+      'Ai là người có quyền lực nhất trong quyết định này? Họ có muốn chọn ta không, vì sao?',
       'Họ có thể thay đổi tiêu chí quyết định không? Có tạo được sự cấp bách không?',
       'Nếu chưa gặp được, ta có quen ai nối được tới họ không?',
     ],
@@ -176,10 +176,10 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     ],
   },
   18: {
-    label: 'Khả năng thắng',
+    label: 'Khả năng được chọn',
     questions: [
       'Ta có uy tín với lãnh đạo không? Giải pháp của ta có độc đáo không?',
-      'Họ có muốn ta thắng không?',
+      'Họ có muốn chọn ta không?',
     ],
   },
   19: {
@@ -203,10 +203,11 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
 /** Ô suy ra từ dữ liệu: giải thích cách tính để người dùng biết sửa ở đâu. */
 export const DERIVED_INFO: Record<string, string> = {
   existing_relationship:
-    'Tự tính từ lịch sử mua: chưa từng mua = yếu; đã có 1 cơ hội thắng hoặc hợp đồng = khá; từ 2 trở lên = mạnh.',
+    'Tự tính từ lịch sử mua: chưa từng mua = yếu; đã có 1 cơ hội thành công hoặc hợp đồng = khá; từ 2 trở lên = mạnh.',
   influence:
     'Tự tính từ tab Nhóm quyết định: có người ảnh hưởng 4–5/5 đang Ủng hộ/Mentor = mạnh; vẫn còn người ảnh hưởng lớn chống lại = khá; chưa có ai ảnh hưởng lớn ủng hộ = yếu.',
-  win_likelihood: 'Tự tính từ điểm 4P: dưới 7 = yếu; 7–8 = khá; từ 9 trở lên = mạnh.',
+  win_likelihood:
+    'Tự tính từ điểm 4P (lợi thế so với đối thủ): dưới 7 = yếu; 7–8 = khá; từ 9 trở lên = mạnh.',
 };
 
 export const CRITERION_LABELS: Record<AssessmentCriterion, string> = {
@@ -275,7 +276,7 @@ export const CRITERION_RUBRICS: Record<AssessmentCriterion, [string, string, str
     'Không biết quyết định thật sự diễn ra thế nào.',
     'Biết sơ bộ, chưa biết ý kiến riêng của người có trọng lượng.',
     'Biết ai thật sự quyết và yếu tố chủ quan nào quan trọng.',
-    'Nắm rõ; người có trọng lượng muốn ta thắng và báo tin cho ta.',
+    'Nắm rõ; người có trọng lượng muốn chọn ta và báo tin cho ta.',
   ],
 };
 
@@ -294,11 +295,11 @@ export const VERDICT_INFO: Record<
 > = {
   pursue: {
     label: 'Theo đuổi',
-    advice: 'Có thật, thắng được và đáng làm. Dồn nguồn lực, đẩy nhanh tiến độ.',
+    advice: 'Nhu cầu thật, ta có lợi thế và đáng làm. Dồn nguồn lực, đẩy nhanh tiến độ.',
     tone: 'success',
   },
   win_not_worth: {
-    label: 'Thắng được nhưng chưa đáng',
+    label: 'Có lợi thế nhưng chưa đáng làm',
     advice:
       'Cân nhắc đàm phán lại điều kiện (giá, phạm vi, thanh toán) hoặc rút để giữ nguồn lực cho deal tốt hơn.',
     tone: 'warning',
@@ -306,18 +307,18 @@ export const VERDICT_INFO: Record<
   reshape: {
     label: 'Tái định hình',
     advice:
-      'Deal thật nhưng ta chưa ở thế thắng. Chỉ theo nếu đổi được tiêu chí, bắt tay đối tác hoặc đánh vào điểm yếu đối thủ.',
+      'Nhu cầu thật nhưng ta chưa có lợi thế. Chỉ theo nếu đổi được tiêu chí, bắt tay đối tác hoặc đánh vào điểm yếu đối thủ.',
     tone: 'warning',
   },
   reshape_invest: {
-    label: 'Đáng đầu tư để lật thế',
+    label: 'Đáng đầu tư để giành lợi thế',
     advice:
-      'Deal thật và rất đáng giá nhưng ta chưa ở thế thắng. Đáng bỏ công đổi tiêu chí, nâng quan hệ lãnh đạo, tìm đối tác.',
+      'Nhu cầu thật và rất đáng giá nhưng ta chưa có lợi thế. Đáng bỏ công đổi tiêu chí, nâng quan hệ lãnh đạo, tìm đối tác.',
     tone: 'warning',
   },
   withdraw: {
     label: 'Nên rút',
-    advice: 'Ta không ở thế thắng và thắng cũng không đáng. Rút sớm, tránh làm quân xanh.',
+    advice: 'Ta không có lợi thế, mà ký được cũng không đáng. Rút sớm, tránh làm quân xanh.',
     tone: 'danger',
   },
   nurture: {
@@ -339,7 +340,7 @@ export const VERDICT_INFO: Record<
   },
   disqualify: {
     label: 'Loại',
-    advice: 'Chưa thấy nhu cầu thật lẫn khả năng thắng. Đưa về danh sách marketing.',
+    advice: 'Chưa thấy nhu cầu thật lẫn lợi thế của ta. Đưa về danh sách marketing.',
     tone: 'danger',
   },
 };
