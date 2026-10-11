@@ -857,7 +857,7 @@ function attentionItems(data: DashboardData): AttentionItem[] {
   add(data.attention.no_next_action, { label: 'Chưa có hành động tiếp theo', group: 'immediate' });
   add(data.attention.close_overdue, { label: 'Quá ngày dự kiến chốt', group: 'immediate' });
   add(data.attention.stale, { label: 'Không tương tác >14 ngày', group: 'immediate' });
-  add(data.attention.score_veto, { label: 'Bị chặn khỏi forecast', group: 'quality' });
+  add(data.attention.score_veto, { label: 'Chưa tính vào dự báo doanh thu', group: 'quality' });
   add(data.attention.score_stale, { label: 'Điểm quá hạn', group: 'quality' });
   add(data.attention.score_reshape, { label: 'Cần tái định hình', group: 'quality' });
   add(data.attention.event_near, { label: 'Sự kiện bắt buộc sắp tới', group: 'quality' });

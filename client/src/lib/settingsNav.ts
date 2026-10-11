@@ -133,7 +133,7 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
     key: 'scoring',
     label: 'Chấm điểm cơ hội',
     description: 'Ngưỡng của bộ chấm điểm BANT + 4P và báo cáo thành công/thất bại.',
-    keywords: 'bant 4p điểm forecast phản biện quá hạn',
+    keywords: 'bant 4p điểm forecast dự báo doanh thu phản biện quá hạn',
     icon: Target,
     group: SETTINGS_GROUPS.sales,
     permission: 'settings.app:read',

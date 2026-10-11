@@ -63,7 +63,7 @@ export function getCustomerHealth(customer: Customer): CustomerHealth {
     };
   }
   if ((customer.overdue_next_action_count ?? 0) > 0) {
-    return { level: 'risk', label: 'Rủi ro', reason: 'Next Action đã quá hạn' };
+    return { level: 'risk', label: 'Rủi ro', reason: 'Việc tiếp theo đã quá hạn' };
   }
   if (inactiveDays > 30) {
     return {
@@ -104,7 +104,7 @@ export function getCustomerHealth(customer: Customer): CustomerHealth {
     return {
       level: 'attention',
       label: 'Cần chú ý',
-      reason: `${missingActions} cơ hội chưa có Next Action`,
+      reason: `${missingActions} cơ hội chưa có việc tiếp theo`,
     };
   }
   if (inactiveDays >= 14) {
