@@ -67,8 +67,9 @@ export const QUICK_VERDICT_INFO: Record<
     tone: 'warning',
   },
   keep_warm: {
-    label: 'Mình có lợi thế, khách chưa sẵn sàng',
-    advice: 'Giữ liên hệ và giúp khách chuẩn bị đến lúc có thể quyết định.',
+    label: 'Mình có lợi thế, nhưng chưa chắc khách sẵn sàng mua',
+    advice:
+      'Xác nhận lại tiền, hạn chót và gặp người duyệt chi trước khi dồn sức; trong lúc đó giữ liên lạc đều.',
     tone: 'neutral',
   },
   stop_no_need: {

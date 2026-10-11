@@ -122,7 +122,7 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     ],
   },
   11: {
-    label: 'Người ủng hộ / mentor',
+    label: 'Người ủng hộ chính',
     questions: [
       'Ta có người ủng hộ chính trong khách hàng không? Họ có nói thay ta khi ta vắng mặt?',
       'Họ có bảo vệ ta trước đối thủ? Có uy tín trong tổ chức? Có báo tin cho ta?',

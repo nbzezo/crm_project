@@ -6,9 +6,14 @@
 import type { ReactNode } from 'react';
 import { FileText, Gauge, PackageOpen, Users } from 'lucide-react';
 import { focusRing } from '../common/ui';
-import type { CommitteeResponse, HandoverState, Scorecard as ScorecardData } from '../../types';
+import type {
+  CommitteeResponse,
+  HandoverState,
+  QuickAssessment,
+  Scorecard as ScorecardData,
+} from '../../types';
 
-type DealTab = 'score' | 'committee' | 'info' | 'handover';
+type DealTab = 'overview' | 'score' | 'committee' | 'info' | 'handover';
 
 export function DealSmartButtons({
   documentCount,
@@ -17,6 +22,7 @@ export function DealSmartButtons({
   handover,
   pendingHandover,
   onNavigate,
+  quick,
 }: {
   documentCount: number;
   scorecard: ScorecardData | undefined;
@@ -24,24 +30,37 @@ export function DealSmartButtons({
   handover: HandoverState | undefined;
   pendingHandover: boolean;
   onNavigate: (tab: DealTab) => void;
+  /** Che do Co ban: o dau tien la ket qua danh gia nhanh thay cho diem BANT/4P. */
+  quick?: QuickAssessment;
 }) {
   const handoverDone = handover?.items.filter((i) => i.is_done).length ?? 0;
   const handoverTotal = handover?.items.length ?? 0;
 
   return (
     <div className="flex flex-wrap gap-2">
-      <SmartButton
-        icon={<Gauge size={14} aria-hidden="true" />}
-        label="Chấm điểm"
-        value={
-          scorecard ? `Có thật ${scorecard.bant_total}/12 · Lợi thế ${scorecard.p4_total}/12` : '—'
-        }
-        onClick={() => onNavigate('score')}
-      />
+      {quick ? (
+        <SmartButton
+          icon={<Gauge size={14} aria-hidden="true" />}
+          label="Đánh giá nhanh"
+          value={`${quick.counts.yes} Có · ${quick.counts.unsure} Chưa rõ · ${quick.counts.no} Không`}
+          onClick={() => onNavigate('overview')}
+        />
+      ) : (
+        <SmartButton
+          icon={<Gauge size={14} aria-hidden="true" />}
+          label="Chấm điểm"
+          value={
+            scorecard
+              ? `Có thật ${scorecard.bant_total}/12 · Lợi thế ${scorecard.p4_total}/12`
+              : '—'
+          }
+          onClick={() => onNavigate('score')}
+        />
+      )}
       <SmartButton
         icon={<Users size={14} aria-hidden="true" />}
-        label="Nhóm quyết định"
-        value={committee ? `${committee.members.length} thành viên` : '—'}
+        label={quick ? 'Người liên quan' : 'Nhóm quyết định'}
+        value={committee ? `${committee.members.length} người` : '—'}
         onClick={() => onNavigate('committee')}
       />
       <SmartButton

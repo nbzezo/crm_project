@@ -277,8 +277,8 @@ function VerdictPanel({
         </span>
         {data.worth_level === 'unknown' && (
           <span>
-            "Đáng đầu tư" cần chấm ít nhất 3/5 tiêu chí: Lợi nhuận, Tiếp nối, Chiến lược, Nguồn lực,
-            Mức an toàn khi triển khai (đang có {data.worth_scored}).
+            "Đáng đầu tư" cần chấm ít nhất 3/5 tiêu chí: Lợi nhuận, Tiếp nối, Chiến lược, Công sức
+            hợp lý, Mức an toàn khi triển khai (đang có {data.worth_scored}).
           </span>
         )}
         {canUseAi && (

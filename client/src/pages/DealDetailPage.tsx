@@ -271,6 +271,7 @@ export default function DealDetailPage() {
           handover={handover}
           pendingHandover={pendingHandover}
           onNavigate={setTab}
+          quick={mode === 'basic' ? quick : undefined}
         />
       </div>
 

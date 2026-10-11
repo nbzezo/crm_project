@@ -25,7 +25,8 @@ export function DealOverview({ deal, onStart }: { deal: Deal; onStart: () => voi
   });
   if (isLoading || !quick) return <Skeleton className="h-80 rounded-panel" />;
   const verdict = QUICK_VERDICT_INFO[quick.verdict];
-  const hasAnswers = quick.items.some((item) => item.answer !== null);
+  /* Goi y suy tu danh gia chi tiet khong tinh la "da tu danh gia". */
+  const hasAnswers = quick.answered_at !== null;
   // decisions xep moi nhat truoc
   const latestDecision = assessment?.decisions.find((d) => d.author_kind !== 'ai');
   const vetoed = Boolean(
@@ -51,7 +52,11 @@ export function DealOverview({ deal, onStart }: { deal: Deal; onStart: () => voi
               {quick.answered_at ? formatDate(quick.answered_at.slice(0, 10)) : 'chưa rõ'}
             </span>
           ) : (
-            <span className="text-sm text-tr-muted">Chưa có câu trả lời</span>
+            <span className="text-sm text-tr-muted">
+              {quick.items.some((item) => item.source === 'derived')
+                ? 'Chưa tự đánh giá — kết luận đang dựa trên đánh giá chi tiết.'
+                : 'Chưa có câu trả lời.'}
+            </span>
           )}
           <Button variant="primary" onClick={onStart}>
             {hasAnswers ? 'Đánh giá lại' : 'Bắt đầu đánh giá (2 phút)'} <ArrowRight size={15} />
