@@ -481,9 +481,9 @@ const ASSESSMENT_CRITERIA_BRIEF: Record<string, string> = {
   strategic:
     'Giá trị chiến lược: khách hàng tham chiếu, mở ngành/phòng ban mới, cải thiện sản phẩm',
   resources:
-    'Nguồn lực bỏ ra: công sức đội bán/kỹ thuật và chi phí bán hàng có tương xứng, có làm hụt deal khác không (3 = rất tương xứng)',
+    'Công sức hợp lý: công sức đội bán/kỹ thuật và chi phí bán hàng có tương xứng, có làm hụt deal khác không (3 = rất tương xứng)',
   delivery_risk:
-    'Rủi ro triển khai: khả năng dự án thất bại do ta hoặc do khách và hậu quả với uy tín (3 = rủi ro thấp)',
+    'Mức an toàn khi triển khai: khả năng dự án thất bại do ta hoặc do khách và hậu quả với uy tín (3 = rất an toàn)',
   financial_health: 'Sức khỏe tài chính của khách: doanh thu, lợi nhuận, khả năng thanh toán',
   unique_value:
     'Giá trị khác biệt: kết quả kinh doanh đo được mà chỉ ta mang lại, khách đã công nhận',
