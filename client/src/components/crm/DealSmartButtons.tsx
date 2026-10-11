@@ -33,7 +33,9 @@ export function DealSmartButtons({
       <SmartButton
         icon={<Gauge size={14} aria-hidden="true" />}
         label="Chấm điểm"
-        value={scorecard ? `BANT ${scorecard.bant_total}/12 · 4P ${scorecard.p4_total}/12` : '—'}
+        value={
+          scorecard ? `Có thật ${scorecard.bant_total}/12 · Lợi thế ${scorecard.p4_total}/12` : '—'
+        }
         onClick={() => onNavigate('score')}
       />
       <SmartButton

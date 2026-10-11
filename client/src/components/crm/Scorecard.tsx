@@ -23,16 +23,13 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { EvidencePicker, evidenceFrom } from './EvidencePicker';
-import { Button, ColorBadge, FormError, Panel, Skeleton, Textarea, focusRing } from '../common/ui';
+import { Button, FormError, Panel, Skeleton, Textarea, focusRing } from '../common/ui';
 import {
   AXIS_LABELS,
   BLOCKED_REASONS,
   CHALLENGE_PROMPTS,
   DISCOVERY_QUESTIONS,
   FACTOR_LABELS,
-  QUADRANT_ACTIONS,
-  QUADRANT_COLORS,
-  QUADRANT_LABELS,
   RECOMMENDATION_TEXT,
   RUBRICS,
   VETO_LABELS,
@@ -52,10 +49,12 @@ const EVIDENCE_MIN = 20;
 export function Scorecard({
   dealId,
   onGoToCommittee,
+  onGoToAssessment,
   focusFactor,
 }: {
   dealId: number;
   onGoToCommittee: () => void;
+  onGoToAssessment?: () => void;
   /** Yếu tố cần mở sẵn — dùng khi nhảy từ dải chấm điểm sau hoạt động (F-12). */
   focusFactor?: Factor | null;
 }) {
@@ -99,6 +98,7 @@ export function Scorecard({
         card={data}
         history={history}
         onSetNextAction={data.locked ? undefined : (text) => setNextAction.mutate(text)}
+        onGoToAssessment={onGoToAssessment}
       />
 
       {data.locked && (
@@ -143,10 +143,12 @@ function ScoreSummary({
   card,
   history,
   onSetNextAction,
+  onGoToAssessment,
 }: {
   card: ScorecardData;
   history?: ScoreHistoryEntry[];
   onSetNextAction?: (text: string) => void;
+  onGoToAssessment?: () => void;
 }) {
   const boundaryHint = (distance: number) =>
     distance >= 0
@@ -175,12 +177,12 @@ function ScoreSummary({
         />
 
         <div className="min-w-0 flex-1">
-          <ColorBadge color={QUADRANT_COLORS[card.quadrant]}>
-            {QUADRANT_LABELS[card.quadrant]}
-          </ColorBadge>
-          <p className="mt-1.5 text-xs leading-relaxed text-tr-muted">
-            {QUADRANT_ACTIONS[card.quadrant]}
-          </p>
+          <p className="text-sm text-tr-muted">Kết luận và lời khuyên nằm ở tab Đánh giá.</p>
+          {onGoToAssessment && (
+            <Button size="sm" className="mt-1.5" onClick={onGoToAssessment}>
+              Mở tab Đánh giá
+            </Button>
+          )}
         </div>
 
         <div className="text-right text-xs text-tr-muted">
@@ -215,7 +217,7 @@ function ScoreSummary({
           <Info size={15} className="mt-0.5 shrink-0 text-tr-muted" aria-hidden="true" />
           <span className="text-tr-subtle">
             Cơ hội này <strong className="text-tr-text">chưa được chấm điểm</strong>, nên chưa đủ dữ
-            liệu để đưa vào forecast. Chấm BANT/4P bên dưới để hệ thống đánh giá.
+            liệu để đưa vào dự báo doanh thu. Chấm BANT/4P bên dưới để hệ thống đánh giá.
           </span>
         </div>
       )}
@@ -248,7 +250,7 @@ function ScoreSummary({
                 <strong>{VETO_LABELS[flag.code].title}</strong> — {VETO_LABELS[flag.code].message}
                 {!flag.blocking && (
                   <em className="ml-1 text-xs text-tr-muted">
-                    (cảnh báo, không chặn forecast — trục 4P đã đo vị thế cạnh tranh)
+                    (cảnh báo, không chặn dự báo doanh thu — trục 4P đã đo vị thế cạnh tranh)
                   </em>
                 )}
               </span>
@@ -258,13 +260,15 @@ function ScoreSummary({
       )}
 
       <p className="mt-3 text-xs text-tr-muted">
-        Forecast:{' '}
+        Dự báo doanh thu:{' '}
         {card.forecast_eligible ? (
-          <strong className="text-tr-success">được tính vào forecast đã lọc</strong>
+          <strong className="text-tr-success">được tính vào dự báo doanh thu đã lọc</strong>
         ) : softTone ? (
-          <strong className="text-tr-subtle">chưa tính vào forecast — chưa chấm điểm</strong>
+          <strong className="text-tr-subtle">
+            chưa tính vào dự báo doanh thu — chưa chấm điểm
+          </strong>
         ) : (
-          <strong className="text-tr-danger">bị loại khỏi forecast đã lọc</strong>
+          <strong className="text-tr-danger">bị loại khỏi dự báo doanh thu đã lọc</strong>
         )}
       </p>
 
@@ -298,7 +302,7 @@ function ScoreSummary({
                       onClick={() => onSetNextAction(text)}
                       className={`inline-flex min-h-11 shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-tr-primary hover:bg-tr-hover fine:min-h-0 ${focusRing}`}
                     >
-                      Đặt làm Next Action
+                      Đặt làm việc tiếp theo
                     </button>
                   )}
                 </li>
@@ -365,8 +369,8 @@ function ScoreTrend({ history }: { history: ScoreHistoryEntry[] }) {
         />
       </svg>
       <p className="text-xs text-tr-muted">
-        Diễn biến qua {series.length} lần chấm · <span className="text-tr-primary">BANT</span> /{' '}
-        <span className="text-tr-success">4P</span> ·{' '}
+        Diễn biến qua {series.length} lần chấm · <span className="text-tr-primary">Có thật</span> /{' '}
+        <span className="text-tr-success">Lợi thế</span> ·{' '}
         <strong className={delta < 0 ? 'text-tr-warning' : 'text-tr-text'}>
           {delta >= 0 ? '+' : ''}
           {delta} điểm
@@ -434,6 +438,7 @@ function AxisPanel({
       action={<span className="text-sm font-semibold tabular-nums text-tr-text">{total}/12</span>}
     >
       <ul className="space-y-1.5">
+        <li className="text-xs text-tr-muted">0 Chưa có · 1 Yếu · 2 Khá · 3 Tốt</li>
         {items.map((item) => (
           <FactorRow
             key={item.factor}
@@ -568,14 +573,18 @@ function FactorRow({
         <p className="flex items-start gap-1.5 border-t border-tr-border px-2.5 py-1.5 text-xs text-tr-warning">
           <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            {blocked.text}
-            {blocked.tab === 'committee' && (
+            Muốn chấm cao hơn {item.max_allowed} điểm cần: {blocked.text}{' '}
+            {blocked.tab === 'committee' ? (
               <button
                 type="button"
                 onClick={onGoToCommittee}
                 className={`ml-1 underline ${focusRing}`}
               >
-                Mở tab Nhóm quyết định
+                Làm ngay
+              </button>
+            ) : (
+              <button type="button" onClick={onToggle} className={`ml-1 underline ${focusRing}`}>
+                Làm ngay
               </button>
             )}
           </span>

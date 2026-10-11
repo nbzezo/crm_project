@@ -102,7 +102,7 @@ export default function PipelineHealthPage() {
   return (
     <div className="space-y-4 p-6">
       <PageHeader
-        description="Forecast sau khi loại các cơ hội chưa đủ điều kiện."
+        description="Dự báo doanh thu sau khi loại các cơ hội chưa đủ điều kiện."
         actions={<ReviewSession />}
         align="center"
       />
@@ -115,19 +115,19 @@ export default function PipelineHealthPage() {
       {/* Ba con số: truyền thống, đã lọc, và chênh lệch */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Panel>
-          <p className="text-xs font-semibold text-tr-subtle">Forecast theo giai đoạn</p>
+          <p className="text-xs font-semibold text-tr-subtle">Dự báo doanh thu theo giai đoạn</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-tr-text">
             {formatVNDShort(health.stage_weighted_vnd)}
           </p>
           <p className="text-xs text-tr-muted">Σ giá trị × xác suất theo giai đoạn</p>
         </Panel>
         <Panel>
-          <p className="text-xs font-semibold text-tr-subtle">Forecast đã lọc</p>
+          <p className="text-xs font-semibold text-tr-subtle">Dự báo doanh thu đã lọc</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-tr-success">
             {formatVNDShort(health.filtered_weighted_vnd)}
           </p>
           <p className="text-xs text-tr-muted">
-            Bỏ deal có veto hoặc điểm quá {health.settings.stale_days} ngày
+            Bỏ cơ hội có điều kiện còn thiếu hoặc điểm quá {health.settings.stale_days} ngày
           </p>
         </Panel>
         <Panel className="border-tr-warning/50">
@@ -216,11 +216,11 @@ export default function PipelineHealthPage() {
       </Panel>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Bị loại khỏi forecast đã lọc">
+        <Panel title="Bị loại khỏi dự báo doanh thu đã lọc">
           {health.excluded.length === 0 ? (
             <EmptyState
               message="Không có cơ hội nào bị loại."
-              hint="Mọi cơ hội đang mở đều đã qua điều kiện veto và còn hạn chấm điểm."
+              hint="Mọi cơ hội đang mở đều đã qua các điều kiện còn thiếu và còn hạn chấm điểm."
             />
           ) : (
             <ul className="space-y-1.5">

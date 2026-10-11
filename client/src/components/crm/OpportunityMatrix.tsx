@@ -110,7 +110,7 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
               ticks={[0, 3, 6, 9, 12]}
               tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
               label={{
-                value: '4P — ta có lợi thế hơn đối thủ không',
+                value: 'Lợi thế (4P) — ta có lợi thế hơn đối thủ không',
                 position: 'bottom',
                 offset: 8,
                 style: { fontSize: 11, fill: 'var(--color-tr-muted)' },
@@ -123,7 +123,7 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
               ticks={[0, 3, 6, 9, 12]}
               tick={{ fontSize: 11, fill: 'var(--color-tr-muted)' }}
               label={{
-                value: 'BANT — đây có phải cơ hội thật không',
+                value: 'Có thật không (BANT) — đây có phải cơ hội thật không',
                 angle: -90,
                 position: 'insideLeft',
                 style: { fontSize: 11, fill: 'var(--color-tr-muted)' },
@@ -149,7 +149,9 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
                     <p className="text-tr-muted">
                       {stageLabel(deal.stage)} · {formatVND(deal.value_vnd)}
                     </p>
-                    {vetoed && <p className="mt-1 text-tr-danger">Đang bị chặn khỏi forecast</p>}
+                    {vetoed && (
+                      <p className="mt-1 text-tr-danger">Đang bị chặn khỏi dự báo doanh thu</p>
+                    )}
                   </div>
                 );
               }}
@@ -183,14 +185,16 @@ export function OpportunityMatrix({ deals }: { deals: MatrixDeal[] }) {
           Dung `bant_total`/`p4_total` chu khong phai `x`/`y`: hai cai sau da bi
           lam lech mot chut de cac diem trung toa do khong de len nhau. */}
       <ChartDataTable
-        caption="Ma trận cơ hội — điểm BANT và 4P của từng cơ hội"
-        valueLabel="Phân loại · BANT · 4P · Giá trị"
+        caption="Ma trận cơ hội — điểm Có thật không và Lợi thế của từng cơ hội"
+        valueLabel="Phân loại · Có thật không · Lợi thế · Giá trị"
         rows={points.map((point) => ({
           name: point.title,
           value:
             `${QUADRANT_LABELS[point.quadrant]} · BANT ${point.bant_total}/12 · ` +
             `4P ${point.p4_total}/12 · ${formatVND(point.value_vnd)}` +
-            (point.v1_no_event || point.v2_no_economic ? ' · đang bị chặn khỏi forecast' : ''),
+            (point.v1_no_event || point.v2_no_economic
+              ? ' · đang bị chặn khỏi dự báo doanh thu'
+              : ''),
         }))}
       />
     </div>

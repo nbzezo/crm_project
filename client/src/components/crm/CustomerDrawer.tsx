@@ -240,7 +240,7 @@ function CustomerOverview({ customer }: { customer: CustomerFull }) {
           ) : (
             <p className="text-sm text-tr-muted">
               {openDeals.length > 0
-                ? 'Cơ hội đang mở chưa có Next Action.'
+                ? 'Cơ hội đang mở chưa có việc tiếp theo.'
                 : 'Chưa có việc tiếp theo.'}
             </p>
           )}

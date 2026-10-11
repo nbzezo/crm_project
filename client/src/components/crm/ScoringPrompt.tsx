@@ -42,7 +42,7 @@ export function ScoringPrompt({
             ))}
           </div>
           <p className="mt-2 text-xs text-tr-muted">
-            Bỏ qua cũng được — nhưng điểm không được cập nhật thì forecast sẽ nói sai.
+            Bỏ qua cũng được — nhưng điểm không được cập nhật thì dự báo doanh thu sẽ nói sai.
           </p>
         </div>
         <button

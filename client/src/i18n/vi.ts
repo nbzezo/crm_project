@@ -599,7 +599,7 @@ export const t = {
   },
   buyingRole: {
     decision_maker: 'Người quyết định',
-    economic_buyer: 'Người duyệt ngân sách',
+    economic_buyer: 'Người duyệt chi',
     influencer: 'Người ảnh hưởng',
     technical: 'Kỹ thuật',
     procurement: 'Mua hàng',
@@ -821,14 +821,14 @@ export const t = {
     list: 'Danh sách',
     /** Chu giai — mo ta tung nguon su kien dang hien tren lich. */
     legendTasks: 'Công việc (màu theo mức ưu tiên)',
-    legendNextAction: 'Next Action của cơ hội',
+    legendNextAction: 'Việc tiếp theo của cơ hội',
     legendDealClose: 'Cơ hội — dự kiến chốt',
     legendContractEnd: 'Hợp đồng — ngày hết hạn',
     moreEvents: 'lịch khác',
     /** Nhan loai cho tung nguon su kien. */
     sourceCard: 'Công việc',
     sourceReminder: 'Nhắc hẹn',
-    sourceNextAction: 'Next Action',
+    sourceNextAction: 'Việc tiếp theo',
     sourceDealClose: 'Cơ hội — dự kiến chốt',
     sourceContractEnd: 'Hợp đồng — hết hạn',
     /** Ngan keo chi tiet. */
@@ -937,7 +937,7 @@ export const t = {
     tabEmail: 'Email',
     tabUsers: 'Người dùng',
     tabAbout: 'Giới thiệu',
-    scoringTitle: 'Chấm điểm cơ hội (BANT + 4P)',
+    scoringTitle: 'Chấm điểm cơ hội (Có thật không + Lợi thế)',
     backup: 'Sao lưu & xuất dữ liệu',
     backupChoiceHint:
       'Chọn tải bản sao lưu về máy hoặc gửi trực tiếp vào nhóm Telegram. Hai nút này chỉ sao lưu cơ sở dữ liệu, không gồm tệp tải lên — tệp được sao lưu bằng mục Google Drive bên dưới.',
@@ -1189,7 +1189,7 @@ export const CATEGORICAL_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '
 /* `CHART_INK` da bi bo: mau luoi/truc/nhan cua recharts nay dat bang token trong
    index.css (khoi `.recharts-*`) de doi theo tung theme. */
 
-/** Co hoi bi veto chan khoi forecast — dung cho ColorBadge o trang chi tiet co hoi. */
+/** Cơ hội bị điều kiện còn thiếu chặn khỏi dự báo doanh thu. */
 export const VETO_BADGE_COLOR = '#e04b3a';
 
 /** Doi thu da tham gia soan tieu chi — canh bao muc vua trong hoi dong mua hang. */

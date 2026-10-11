@@ -957,7 +957,7 @@ function NextActionCell({
       <span
         className={hasOpenDeals ? 'text-xs font-medium text-tr-warning' : 'text-xs text-tr-muted'}
       >
-        {hasOpenDeals ? 'Thiếu Next Action' : 'Chưa có việc tiếp theo'}
+        {hasOpenDeals ? 'Thiếu việc tiếp theo' : 'Chưa có việc tiếp theo'}
       </span>
     );
   return (

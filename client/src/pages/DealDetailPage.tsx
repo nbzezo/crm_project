@@ -315,6 +315,7 @@ export default function DealDetailPage() {
                 dealId={id}
                 focusFactor={focusFactor}
                 onGoToCommittee={() => setTab('committee')}
+                onGoToAssessment={() => setTab('assessment')}
               />
             )}
 
@@ -330,7 +331,7 @@ export default function DealDetailPage() {
                     <Row label="Nguồn" value={deal.source} />
                     <Row label="Người liên hệ chính" value={deal.contact_name ?? null} />
                     <Row label="Nhu cầu khách hàng" value={deal.need} />
-                    <Row label="Next Action" value={deal.next_action} />
+                    <Row label="Việc tiếp theo" value={deal.next_action} />
                     <Row
                       label="Ngày thực hiện"
                       value={deal.next_action_date ? formatDate(deal.next_action_date) : null}

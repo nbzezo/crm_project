@@ -88,14 +88,14 @@ export function ScoringSettings() {
 
         <Field
           label="Đối thủ đã soạn tiêu chí thầu"
-          hint="Trục 4P đã đo vị thế cạnh tranh — chặn thêm forecast là phạt hai lần cho cùng một dữ kiện"
+          hint="Trục Lợi thế đã đo vị thế cạnh tranh — chặn thêm dự báo doanh thu là phạt hai lần cho cùng một dữ kiện"
         >
           <Select
             value={draft.v3Mode}
             onChange={(e) => setDraft({ ...draft, v3Mode: e.target.value as 'warn' | 'veto' })}
           >
-            <option value="warn">Chỉ cảnh báo, vẫn tính vào forecast</option>
-            <option value="veto">Chặn khỏi forecast (siết chặt)</option>
+            <option value="warn">Chỉ cảnh báo, vẫn tính vào dự báo doanh thu</option>
+            <option value="veto">Chặn khỏi dự báo doanh thu (siết chặt)</option>
           </Select>
         </Field>
 

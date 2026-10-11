@@ -84,7 +84,7 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     ],
   },
   6: {
-    label: 'Nguồn lực bỏ ra',
+    label: 'Công sức hợp lý',
     questions: [
       'Đội bán cần đầu tư bao nhiêu thời gian cho cơ hội này?',
       'Cần thêm nguồn lực nội bộ hoặc bên ngoài nào để giành được hợp đồng?',
@@ -124,7 +124,7 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
   11: {
     label: 'Người ủng hộ / mentor',
     questions: [
-      'Ta có champion trong khách hàng không? Họ có nói thay ta khi ta vắng mặt?',
+      'Ta có người ủng hộ chính trong khách hàng không? Họ có nói thay ta khi ta vắng mặt?',
       'Họ có bảo vệ ta trước đối thủ? Có uy tín trong tổ chức? Có báo tin cho ta?',
     ],
   },
@@ -183,7 +183,7 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     ],
   },
   19: {
-    label: 'Rủi ro triển khai',
+    label: 'Mức an toàn khi triển khai',
     questions: [
       'Ta có thể làm giải pháp thất bại theo cách nào? Phụ thuộc quan trọng nào?',
       'Khách có thể làm giải pháp thất bại theo cách nào?',
@@ -214,8 +214,8 @@ export const CRITERION_LABELS: Record<AssessmentCriterion, string> = {
   profit: 'Lợi nhuận',
   follow_on: 'Cơ hội tiếp nối',
   strategic: 'Giá trị chiến lược',
-  resources: 'Nguồn lực bỏ ra',
-  delivery_risk: 'Rủi ro triển khai',
+  resources: 'Công sức hợp lý',
+  delivery_risk: 'Mức an toàn khi triển khai',
   financial_health: 'Sức khỏe tài chính khách',
   unique_value: 'Giá trị khác biệt',
   exec_relationship: 'Quan hệ lãnh đạo',
@@ -256,7 +256,7 @@ export const CRITERION_RUBRICS: Record<AssessmentCriterion, [string, string, str
   ],
   financial_health: [
     'Chưa tìm hiểu.',
-    'Tài chính yếu: thua lỗ, nợ đọng, hay trả chậm.',
+    'Tài chính yếu: làm ăn thua lỗ, nợ đọng, hay trả chậm.',
     'Ổn định.',
     'Mạnh, đang tăng trưởng, thanh toán tốt.',
   ],

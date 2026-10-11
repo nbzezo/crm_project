@@ -149,7 +149,7 @@ function MembersBlock({
           />
         )}
         {Boolean(deal.v2_no_economic) && (
-          <Warning text="Chưa xác định người duyệt ngân sách (economic buyer) — đây là điều kiện chặn forecast." />
+          <Warning text="Chưa xác định người duyệt chi — đây là điều kiện còn thiếu để đưa vào dự báo doanh thu." />
         )}
       </div>
 
@@ -415,7 +415,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
     <Panel title="Sự kiện bắt buộc">
       <p className="mb-2 text-xs text-tr-muted">
         Ràng buộc <strong>của khách</strong> — dời được thì không phải sự kiện bắt buộc. Khác với
-        Next Action, vốn là việc của ta.
+        Việc tiếp theo, vốn là việc của ta.
       </p>
 
       {closeAfterEvent && (

@@ -229,7 +229,7 @@ export function InteractionTimeline({
           </div>
 
           {/* FR-ACT-04: tạo ngay việc tiếp theo sau khi ghi nhận tương tác */}
-          <Field label="Next Action" hint="Ghi ở đây sẽ cập nhật Next Action của cơ hội">
+          <Field label="Việc tiếp theo" hint="Ghi ở đây sẽ cập nhật việc tiếp theo của cơ hội">
             <Input
               list="interaction-next-actions"
               value={nextAction}

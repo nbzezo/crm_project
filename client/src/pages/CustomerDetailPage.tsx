@@ -287,7 +287,7 @@ export default function CustomerDetailPage() {
               'Xác suất',
               'Giá trị',
               'Dự kiến chốt',
-              'Next Action',
+              'Việc tiếp theo',
               '',
             ]}
             mobileChildren={customer.deals.map((deal) => (
@@ -301,7 +301,7 @@ export default function CustomerDetailPage() {
                   ['Giá trị', formatVND(deal.value_vnd)],
                   ['Xác suất', `${deal.probability}%`],
                   ['Dự kiến chốt', formatDate(deal.expected_close_date) || '—'],
-                  ['Next Action', deal.next_action || '—'],
+                  ['Việc tiếp theo', deal.next_action || '—'],
                 ]}
                 actions={
                   <IconButton

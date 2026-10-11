@@ -20,8 +20,8 @@ export const FACTOR_LABELS: Record<Factor, string> = {
 
 /** Câu hỏi cốt lõi của mỗi trục — nhắc người chấm đang trả lời câu hỏi nào. */
 export const AXIS_LABELS = {
-  bant: { name: 'BANT', question: 'Đây có phải cơ hội thật không?' },
-  p4: { name: '4P', question: 'Nếu là thật, ta có lợi thế hơn đối thủ không?' },
+  bant: { name: 'Có thật không (BANT)', question: 'Đây có phải cơ hội thật không?' },
+  p4: { name: 'Lợi thế (4P)', question: 'Nếu là thật, ta có lợi thế hơn đối thủ không?' },
 } as const;
 
 /** Rubric 0–3 cho từng yếu tố — chép nguyên văn Mục 3.2 và 3.3 của spec. */
@@ -29,26 +29,26 @@ export const RUBRICS: Record<Factor, [string, string, string, string]> = {
   budget: [
     'Không rõ ngân sách, hoặc khách né mọi con số.',
     'Có nêu khoảng ngân sách nhưng chưa được phê duyệt, hoặc thuộc năm tài chính sau.',
-    'Ngân sách đã duyệt, biết thuộc CAPEX/OPEX, nhưng giải pháp của ta lệch >20% so với ngân sách.',
+    'Ngân sách đã duyệt, biết thuộc vốn đầu tư / chi phí vận hành, nhưng giải pháp của ta lệch >20% so với ngân sách.',
     'Ngân sách đã duyệt, đủ chi trả, biết rõ người kiểm soát ngân sách và đã trao đổi với người đó.',
   ],
   authority: [
     'Chỉ tiếp xúc một liên hệ, không biết ai duyệt.',
     'Biết tên người ký nhưng chưa tiếp xúc; chưa nắm quy trình phê duyệt.',
     'Đã lập bản đồ ≥3 vai trò trong nhóm ra quyết định, đã gặp ít nhất một người có quyền.',
-    'Đã gặp economic buyer, có champion xác định được, hiểu rõ các bước phê duyệt và ngưỡng thẩm quyền.',
+    'Đã gặp người duyệt chi, có người ủng hộ chính xác định được, hiểu rõ các bước phê duyệt và ngưỡng thẩm quyền.',
   ],
   need: [
-    'Chỉ là *interest*; khách không mô tả được vấn đề.',
-    'Mức *want*: có nhu cầu nhưng "có thì tốt", không có hậu quả nếu bỏ qua.',
-    'Mức *pain*: khách nêu rõ vấn đề và hậu quả, nhưng chưa lượng hóa được bằng số.',
-    'Pain đã lượng hóa (chi phí/tháng, giờ công, rủi ro tuân thủ) và khách tự thừa nhận con số đó.',
+    'Khách mới chỉ quan tâm; chưa mô tả được vấn đề.',
+    'Khách có mong muốn nhưng "có thì tốt", không có hậu quả nếu bỏ qua.',
+    'Khách nêu rõ nỗi đau và hậu quả, nhưng chưa lượng hóa được bằng số.',
+    'Nỗi đau đã được lượng hóa (chi phí/tháng, giờ công, rủi ro tuân thủ) và khách tự thừa nhận con số đó.',
   ],
   timeline: [
     'Không có mốc thời gian, hoặc "khi nào tiện".',
     'Có mong muốn thời gian chung chung ("trong năm nay") do sales suy đoán.',
-    'Có compelling event được nêu nhưng chưa xác nhận ngày cụ thể.',
-    'Compelling event có ngày cụ thể, khách xác nhận, và lịch triển khai ngược đã được thống nhất.',
+    'Có sự kiện bắt buộc được nêu nhưng chưa xác nhận ngày cụ thể.',
+    'Sự kiện bắt buộc có ngày cụ thể, khách xác nhận, và lịch triển khai ngược đã được thống nhất.',
   ],
   price: [
     'Giá ta cao hơn đáng kể mặt bằng và không có khác biệt biện minh được; hoặc hoàn toàn không biết mặt bằng.',
@@ -57,16 +57,16 @@ export const RUBRICS: Record<Factor, [string, string, string, string]> = {
     'Giá cạnh tranh và khách đã chuyển trọng tâm thảo luận từ giá sang giá trị/ROI.',
   ],
   relationship: [
-    'Single-threaded qua một đầu mối, không rõ thái độ.',
+    'Chỉ liên hệ qua một người, không rõ thái độ.',
     'Có 2–3 liên hệ nhưng chưa ai chủ động vận động cho ta.',
-    'Có champion tự nguyện chia sẻ thông tin nội bộ; phủ được ≥50% nhóm ra quyết định.',
-    'Champion chủ động vận động thay ta khi ta không có mặt; có quan hệ ở cả cấp thực thi và cấp quyết định; không có blocker nghiêm trọng.',
+    'Có người ủng hộ chính tự nguyện chia sẻ thông tin nội bộ; phủ được ≥50% nhóm ra quyết định.',
+    'Người ủng hộ chính chủ động vận động thay ta khi ta không có mặt; có quan hệ ở cả cấp thực thi và cấp quyết định; không có người cản trở nghiêm trọng.',
   ],
   fit: [
     'Yêu cầu cốt lõi nằm ngoài năng lực, cần phát triển mới.',
     'Đáp ứng được nhưng cần tùy chỉnh nặng, rủi ro triển khai cao, biên lợi nhuận bị bào mòn.',
-    'Đáp ứng phần lớn out-of-the-box, tùy chỉnh ở mức chấp nhận được.',
-    'Phù hợp tự nhiên; đã có case tương đương cùng ngành/quy mô để tham chiếu.',
+    'Đáp ứng phần lớn, dùng ngay không cần sửa; tùy chỉnh ở mức chấp nhận được.',
+    'Phù hợp tự nhiên; đã có dự án mẫu tương đương cùng ngành/quy mô để tham chiếu.',
   ],
   process: [
     'Không biết quy trình mua; hoặc phát hiện tiêu chí thầu do đối thủ soạn.',
@@ -131,7 +131,8 @@ export const DISCOVERY_QUESTIONS: Record<Factor, string[]> = {
 /** Câu phản biện bắt buộc cho trục 4P ở deal lớn (F-13). */
 export const CHALLENGE_PROMPTS: Record<Factor, string> = {
   price: 'Nếu đối thủ giảm 15%, khách có còn chọn ta không? Căn cứ nào cho câu trả lời đó?',
-  relationship: 'Champion đã nói gì với ai khi ta không có mặt? Làm sao ta biết điều đó là thật?',
+  relationship:
+    'Người ủng hộ chính đã nói gì với ai khi ta không có mặt? Làm sao ta biết điều đó là thật?',
   fit: 'Yêu cầu nào ta đang cho là "đáp ứng được" mà thật ra chưa ai kiểm chứng?',
   process: 'Nếu tiêu chí chấm được viết lại ngày mai, ta còn ở vị trí này không? Ai đang giữ bút?',
   budget: '',
@@ -158,11 +159,11 @@ export const QUADRANT_COLORS: Record<Quadrant, string> = {
 };
 
 export const QUADRANT_ACTIONS: Record<Quadrant, string> = {
-  pursue: 'Dồn nguồn lực, đẩy nhanh tiến độ. Được phép đưa vào forecast.',
+  pursue: 'Dồn nguồn lực, đẩy nhanh tiến độ. Được phép đưa vào dự báo doanh thu.',
   reshape:
-    'Deal thật nhưng ta không có lợi thế. Chỉ theo nếu tái định hình được tiêu chí, bắt tay đối tác, hoặc tấn công điểm yếu đối thủ. Nếu không — rút, tránh làm quân xanh.',
+    'Cơ hội có thật nhưng ta không có lợi thế. Chỉ theo nếu tái định hình được tiêu chí, bắt tay đối tác, hoặc tấn công điểm yếu đối thủ. Nếu không — rút.',
   nurture:
-    'Có quan hệ và phù hợp nhưng khách chưa sẵn sàng. Chuyển sang chuỗi nuôi dưỡng, gỡ khỏi forecast kỳ hiện tại.',
+    'Có quan hệ và phù hợp nhưng khách chưa sẵn sàng. Chuyển sang chuỗi nuôi dưỡng, gỡ khỏi dự báo doanh thu kỳ hiện tại.',
   disqualify: 'Chuyển sang danh sách marketing tự động, không tiêu tốn giờ sales.',
 };
 
@@ -171,7 +172,7 @@ export const QUADRANT_ACTIONS: Record<Quadrant, string> = {
 export const VETO_LABELS: Record<VetoCode, { title: string; message: string }> = {
   V1_NO_COMPELLING_EVENT: {
     title: 'Không có sự kiện bắt buộc',
-    message: 'Deal sẽ trượt kỳ. Không đưa vào forecast.',
+    message: 'Cơ hội sẽ trượt kỳ. Không đưa vào dự báo doanh thu.',
   },
   V2_NO_ECONOMIC_BUYER: {
     title: 'Chưa tiếp cận người có quyền chi tiền',
@@ -197,7 +198,7 @@ export const BLOCKED_REASONS: Record<string, { text: string; tab: 'committee' | 
     tab: 'committee',
   },
   economic_buyer_missing: {
-    text: 'Chưa gặp người duyệt ngân sách — tối đa 2 điểm.',
+    text: 'Chưa gặp người duyệt chi.',
     tab: 'committee',
   },
   committee_thin: {
@@ -205,11 +206,11 @@ export const BLOCKED_REASONS: Record<string, { text: string; tab: 'committee' | 
     tab: 'committee',
   },
   single_threaded: {
-    text: 'Đang single-threaded qua một đầu mối. Thêm người vào nhóm ra quyết định.',
+    text: 'Chỉ liên hệ qua một người. Thêm người vào nhóm ra quyết định.',
     tab: 'committee',
   },
   champion_missing: {
-    text: 'Chưa có champion nào ở trạng thái ủng hộ — tối đa 1 điểm.',
+    text: 'Chưa có người ủng hộ chính ở trạng thái ủng hộ.',
     tab: 'committee',
   },
   coverage_thin: {
@@ -316,7 +317,7 @@ export const PRICE_POSITION_LABELS: Record<string, string> = {
 };
 
 export const RECOMMENDATION_TEXT = {
-  veto: (title: string) => `Gỡ điều kiện chặn forecast: ${title.toLowerCase()}.`,
+  veto: (title: string) => `Gỡ điều kiện chặn dự báo doanh thu: ${title.toLowerCase()}.`,
   lift_factor: (factor: Factor) =>
     `Nâng điểm ${FACTOR_LABELS[factor]} — đây là yếu tố có đòn bẩy lớn nhất hiện nay.`,
   reverify: (factor: Factor) => `Xác thực lại ${FACTOR_LABELS[factor]} bằng một hoạt động có thật.`,

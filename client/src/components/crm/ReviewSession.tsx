@@ -127,7 +127,7 @@ export function ReviewSession() {
         {queue.length === 0 && (
           <p className="text-sm text-tr-subtle">
             Không có cơ hội nào cần rà soát — mọi deal đang mở đều có điểm còn hạn và không bị chặn
-            khỏi forecast.
+            khỏi dự báo doanh thu.
           </p>
         )}
 
@@ -138,8 +138,8 @@ export function ReviewSession() {
               <li>Đã xem: {queue.length} cơ hội</li>
               <li>Giữ nguyên: {kept}</li>
               <li>
-                Chuyển sang Thất bại: {dropped} — gỡ {formatVND(droppedVnd)} khỏi forecast theo giai
-                đoạn
+                Chuyển sang Thất bại: {dropped} — gỡ {formatVND(droppedVnd)} khỏi dự báo doanh thu
+                theo giai đoạn
               </li>
             </ul>
           </div>
@@ -171,7 +171,7 @@ export function ReviewSession() {
                 {QUADRANT_LABELS[current.quadrant]}
               </ColorBadge>
               <span className="text-tr-subtle">
-                BANT {current.bant_total}/12 · 4P {current.p4_total}/12
+                Có thật không {current.bant_total}/12 · Lợi thế {current.p4_total}/12
               </span>
             </div>
 
@@ -185,7 +185,7 @@ export function ReviewSession() {
               ))}
             </ul>
 
-            <Field label="Lý do thua (nếu chuyển sang Thất bại)">
+            <Field label="Lý do thất bại (nếu chuyển sang Thất bại)">
               <Select value={lostReason} onChange={(e) => setLostReason(e.target.value)}>
                 <option value="">— chọn khi cần —</option>
                 {pickOptions('lost_reason', lostReason).map(({ item_key: reason }) => (

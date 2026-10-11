@@ -346,7 +346,7 @@ export function DealForm({
           <DateInput value={expected} onChange={setExpected} />
         </Field>
 
-        <Field label="Next Action" hint="Việc tiếp theo phải làm để cơ hội không dừng lại">
+        <Field label="Việc tiếp theo" hint="Việc cần làm để cơ hội không dừng lại">
           <Input
             list="next-action-suggestions"
             value={nextAction}

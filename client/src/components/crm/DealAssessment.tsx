@@ -188,6 +188,18 @@ function VerdictPanel({
       api.post<{ assessment: AssessmentData }>(`/api/ai/assist/deal/${dealId}/assessment`),
     onSuccess: (result) => onUpdate(result.assessment),
   });
+  const applyAll = useMutation({
+    mutationFn: async () => {
+      let latest = data;
+      for (const row of data.criteria.filter((item) => item.status === 'suggested')) {
+        latest = await api.post<AssessmentData>(
+          `/api/deals/${dealId}/assessment/${row.criterion}/confirm`
+        );
+      }
+      return latest;
+    },
+    onSuccess: onUpdate,
+  });
 
   /* O ma tran chi co nghia khi DA CHAM ca hai truc: 4P con 0 thi luon ra "Loai" hoac
      "Tai dinh hinh" — noi vay voi mot co hoi moi cham BANT la sai. */
@@ -217,11 +229,11 @@ function VerdictPanel({
         </div>
 
         <dl className="grid min-w-[14rem] grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-          <dt className="text-tr-muted">Thật không? (BANT)</dt>
+          <dt className="text-tr-muted">Có thật không (BANT)</dt>
           <dd className="text-right font-semibold tabular-nums text-tr-text">
             {data.bant_total}/12
           </dd>
-          <dt className="text-tr-muted">Có lợi thế? (4P)</dt>
+          <dt className="text-tr-muted">Lợi thế (4P)</dt>
           <dd className="text-right font-semibold tabular-nums text-tr-text">{data.p4_total}/12</dd>
           <dt className="text-tr-muted">Đáng đầu tư?</dt>
           <dd className="text-right font-semibold tabular-nums text-tr-text">
@@ -230,6 +242,24 @@ function VerdictPanel({
               ({WORTH_LEVEL_LABELS[data.worth_level]})
             </span>
           </dd>
+        </dl>
+      </div>
+
+      <details className="mt-3 rounded-control border border-tr-border px-3 py-2">
+        <summary className={`cursor-pointer text-xs font-semibold text-tr-subtle ${focusRing}`}>
+          Xem chi tiết
+        </summary>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+          <dt className="text-tr-muted">Có thật không (BANT)</dt>
+          <dd className="text-right font-semibold tabular-nums text-tr-text">
+            {data.bant_total}/12
+          </dd>
+          <dt className="text-tr-muted">Lợi thế (4P)</dt>
+          <dd className="text-right font-semibold tabular-nums text-tr-text">{data.p4_total}/12</dd>
+          <dt className="text-tr-muted">Đáng đầu tư?</dt>
+          <dd className="text-right font-semibold tabular-nums text-tr-text">
+            {data.worth_total}/15 ({WORTH_LEVEL_LABELS[data.worth_level]})
+          </dd>
           <dt className="text-tr-muted">Ô ma trận</dt>
           <dd className="text-right">
             <ColorBadge color={QUADRANT_COLORS[data.quadrant]} small>
@@ -237,7 +267,7 @@ function VerdictPanel({
             </ColorBadge>
           </dd>
         </dl>
-      </div>
+      </details>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-tr-muted">
         <span>
@@ -248,7 +278,7 @@ function VerdictPanel({
         {data.worth_level === 'unknown' && (
           <span>
             "Đáng đầu tư" cần chấm ít nhất 3/5 tiêu chí: Lợi nhuận, Tiếp nối, Chiến lược, Nguồn lực,
-            Rủi ro triển khai (đang có {data.worth_scored}).
+            Mức an toàn khi triển khai (đang có {data.worth_scored}).
           </span>
         )}
         {canUseAi && (
@@ -263,6 +293,15 @@ function VerdictPanel({
         )}
       </div>
       <FormError error={ai.error} />
+
+      {data.criteria.some((item) => item.status === 'suggested') && (
+        <div className="mt-3">
+          <Button size="sm" disabled={applyAll.isPending} onClick={() => applyAll.mutate()}>
+            Áp dụng tất cả gợi ý của AI
+          </Button>
+          <FormError error={applyAll.error} />
+        </div>
+      )}
 
       {latestAi?.payload && <AiReviewCard entry={latestAi} review={latestAi.payload} deal={deal} />}
     </Panel>
@@ -332,9 +371,7 @@ function AiReviewCard({
                 className="flex flex-wrap items-start gap-1.5"
               >
                 <span className="min-w-0 flex-1 text-tr-text">
-                  <span className="text-xs text-tr-muted">
-                    #{item.cell} {CELL_INFO[item.cell]?.label}:
-                  </span>{' '}
+                  <span className="text-xs text-tr-muted">{CELL_INFO[item.cell]?.label}:</span>{' '}
                   {item.question}
                 </span>
                 <TaskButton
@@ -351,7 +388,7 @@ function AiReviewCard({
       {review.factors.length > 0 && (
         <details className="mt-2">
           <summary className={`cursor-pointer text-xs font-semibold text-tr-subtle ${focusRing}`}>
-            AI tham khảo cho 8 yếu tố BANT/4P (không tự ghi điểm)
+            AI tham khảo cho 8 yếu tố Có thật không/Lợi thế (không tự ghi điểm)
           </summary>
           <ul className="mt-1 space-y-0.5 text-xs text-tr-muted">
             {review.factors.map((factor) => (
@@ -419,7 +456,6 @@ function QuestionColumn({
                 LEVEL_STYLES[cell.level]
               } ${selected === cell.no ? 'ring-2 ring-tr-primary' : ''} ${focusRing}`}
             >
-              <span className="w-6 shrink-0 text-xs tabular-nums text-tr-muted">#{cell.no}</span>
               <span className="min-w-0 flex-1 text-tr-text">{cellLabel(cell)}</span>
               {cell.suggested_score !== null && (
                 <span className="shrink-0 rounded bg-tr-panel px-1 text-xs text-tr-warning">
@@ -467,7 +503,7 @@ function CellDetail({
     <div className="mt-4 rounded-control border border-tr-border p-3">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="min-w-0 flex-1 text-sm font-semibold text-tr-text">
-          #{cell.no} {info?.label}
+          {info?.label}
           <span className="ml-2 text-xs font-normal text-tr-muted">
             {QUESTION_INFO[cell.question].question}
           </span>
@@ -606,6 +642,7 @@ export function CriterionEditor({
           ))}
         </div>
       </div>
+      <p className="mb-1 text-xs text-tr-muted">0 Chưa biết · 1 Yếu · 2 Khá · 3 Tốt</p>
       <p className="rounded bg-tr-hover px-2 py-1.5 text-xs text-tr-subtle">
         <strong>{draft} điểm:</strong> {CRITERION_RUBRICS[criterion][draft]}
       </p>

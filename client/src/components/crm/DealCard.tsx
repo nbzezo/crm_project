@@ -102,7 +102,7 @@ export function DealCardBody({
             chênh lệch giữa chúng chính là mức thổi phồng pipeline (F-08). */}
         {deal.quadrant && (deal.bant_total || deal.p4_total) ? (
           <span
-            title={`BANT ${deal.bant_total}/12 · 4P ${deal.p4_total}/12 — ${QUADRANT_LABELS[deal.quadrant]}`}
+            title={`Có thật ${deal.bant_total}/12 · Lợi thế ${deal.p4_total}/12 — ${QUADRANT_LABELS[deal.quadrant]}`}
             className="inline-flex items-center gap-1 text-xs tabular-nums"
             style={{ color: QUADRANT_COLORS[deal.quadrant] }}
           >
@@ -165,7 +165,7 @@ export function pickDealSignal(deal: Deal): DealSignal | null {
   const closed = isClosedStage(deal.stage);
   const signals: DealSignal[] = [];
   if (!closed && (deal.v1_no_event || deal.v2_no_economic))
-    signals.push({ kind: 'veto', text: 'Loại khỏi dự báo', tone: 'danger', others: [] });
+    signals.push({ kind: 'veto', text: 'Loại khỏi dự báo doanh thu', tone: 'danger', others: [] });
   if (deal.on_hold) signals.push({ kind: 'hold', text: 'Tạm dừng', tone: 'muted', others: [] });
   if (deal.next_action && deal.next_action_date && deal.next_action_date < todayStr())
     signals.push({
