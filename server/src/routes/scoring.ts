@@ -4,21 +4,33 @@
  * Mount tai '/api' va dat TRUOC router system. Cac duong dan deu co >= 2 doan
  * (`/deals/:id/scorecard`…) nen khong dung cham route `/:id` cua router deals.
  */
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { fold } from '../lib/viSearch.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
+import { assertInScope } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import {
+  ASSESSMENT_CRITERIA,
   COMMITTEE_STANCES,
+  DEAL_DECISIONS,
+  CONTACT_DEPTHS,
   EVENT_TYPES,
   EVIDENCE_SOURCE_TYPES,
   PRICE_POSITIONS,
   SCORE_FACTORS,
   SCORE_STATUSES,
+  type AssessmentCriterion,
   type Factor,
 } from '../lib/crm.ts';
+import {
+  addDecision,
+  confirmCriterion,
+  deleteDecision,
+  getAssessment,
+  writeCriterion,
+} from '../services/assessmentService.ts';
 import {
   confirmScore,
   getCommittee,
@@ -120,6 +132,81 @@ router.get('/deals/:id/evidence-sources', (req, res) => {
   res.json(filtered);
 });
 
+/* ---------- Danh gia 4 cau hoi va quyet dinh (v70) ---------- */
+
+/**
+ * Cac route moi kiem pham vi du lieu theo nguoi phu trach co hoi: lanh dao xem duoc
+ * danh gia cua cap duoi, nhan vien chi thay co hoi cua minh.
+ */
+function assertDealScope(req: Request, dealId: number, action: 'read' | 'update'): void {
+  const row = db.prepare(`SELECT owner_contact_id FROM deals WHERE id = ?`).get(dealId) as
+    { owner_contact_id: number | null } | undefined;
+  if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
+  assertInScope(req, 'deals', action, row.owner_contact_id, 'Khong tim thay co hoi');
+}
+
+function criterionParam(value: string | undefined): AssessmentCriterion {
+  if (!ASSESSMENT_CRITERIA.includes(value as AssessmentCriterion))
+    throw new HttpError(400, 'Tieu chi khong hop le');
+  return value as AssessmentCriterion;
+}
+
+router.get('/deals/:id/assessment', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'read');
+  res.json(getAssessment(db, dealId));
+});
+
+const criterionSchema = z.object({
+  score: z.number().int().min(0).max(3),
+  note: z.string().max(2000).optional(),
+});
+
+router.put('/deals/:id/assessment/:criterion', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'update');
+  const criterion = criterionParam(req.params.criterion);
+  res.json(
+    writeCriterion(db, dealId, criterion, parseBody(criterionSchema, req), actorContactId(req))
+  );
+});
+
+router.post('/deals/:id/assessment/:criterion/confirm', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'update');
+  res.json(confirmCriterion(db, dealId, criterionParam(req.params.criterion), actorContactId(req)));
+});
+
+const decisionSchema = z.object({
+  decision: z.enum(DEAL_DECISIONS),
+  reason: z.string().max(4000).optional(),
+  review_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  remind: z.boolean().optional(),
+});
+
+/* Quyet dinh / nhan xet la y kien CUA NGUOI GHI, khong sua co hoi: chi can thay duoc
+   co hoi (pham vi doc) la ghi duoc — lanh dao nhan xet vao co hoi cua cap duoi ma khong
+   can quyen sua no. Quyen chung theo phuong thuc van do requireResource('deals') chan. */
+router.post('/deals/:id/decisions', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'read');
+  res
+    .status(201)
+    .json(addDecision(db, dealId, parseBody(decisionSchema, req), actorContactId(req)));
+});
+
+router.delete('/deals/:id/decisions/:decisionId', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'read');
+  res.json(
+    deleteDecision(db, dealId, intParam(req.params.decisionId, 'decisionId'), actorContactId(req))
+  );
+});
+
 /* ---------- Nhom ra quyet dinh (F-03) ---------- */
 
 router.get('/deals/:id/committee', (req, res) => {
@@ -146,6 +233,7 @@ const memberSchema = z.object({
   stance: z.enum(COMMITTEE_STANCES).optional(),
   is_champion: z.boolean().optional(),
   influence: z.number().int().min(1).max(5).optional(),
+  contact_depth: z.enum(CONTACT_DEPTHS).nullable().optional(),
   note: z.string().max(500).optional(),
 });
 
@@ -171,8 +259,9 @@ router.post('/deals/:id/committee', (req, res) => {
   if (count.n >= 20) throw new HttpError(422, 'Toi da 20 thanh vien trong nhom ra quyet dinh');
 
   db.prepare(
-    `INSERT INTO deal_committee (deal_id, contact_id, role_override, stance, is_champion, influence, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO deal_committee
+       (deal_id, contact_id, role_override, stance, is_champion, influence, contact_depth, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(deal_id, contact_id) DO NOTHING`
   ).run(
     dealId,
@@ -181,6 +270,7 @@ router.post('/deals/:id/committee', (req, res) => {
     body.stance ?? 'unknown',
     body.is_champion ? 1 : 0,
     body.influence ?? 3,
+    body.contact_depth ?? null,
     body.note ?? ''
   );
   res.status(201).json(getCommittee(db, dealId));
@@ -198,7 +288,8 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
   ) as Record<string, unknown>;
 
   db.prepare(
-    `UPDATE deal_committee SET role_override = ?, stance = ?, is_champion = ?, influence = ?, note = ?
+    `UPDATE deal_committee SET role_override = ?, stance = ?, is_champion = ?, influence = ?,
+            contact_depth = ?, note = ?
       WHERE deal_id = ? AND contact_id = ?`
   ).run(
     body.role_override !== undefined
@@ -207,6 +298,9 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
     body.stance ?? (current.stance as string),
     body.is_champion !== undefined ? (body.is_champion ? 1 : 0) : (current.is_champion as number),
     body.influence ?? (current.influence as number),
+    body.contact_depth !== undefined
+      ? body.contact_depth
+      : (current.contact_depth as string | null),
     body.note ?? (current.note as string),
     dealId,
     contactId

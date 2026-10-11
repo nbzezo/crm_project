@@ -21,6 +21,7 @@ import { ChangeLogPanel } from '../components/crm/ChangeLogPanel';
 import { HealthBadge } from '../components/crm/ProjectHealthBadge';
 import { Scorecard } from '../components/crm/Scorecard';
 import { CommitteePanel } from '../components/crm/CommitteePanel';
+import { DealAssessment } from '../components/crm/DealAssessment';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPanel';
 import { AiBrief } from '../components/ai/AiBrief';
@@ -50,7 +51,7 @@ import type {
 } from '../types';
 import { isEarlyStage, pickLabel, stageCategory } from '../lib/crmConfig';
 
-type Tab = 'info' | 'score' | 'committee' | 'notes' | 'handover';
+type Tab = 'assessment' | 'info' | 'score' | 'committee' | 'notes' | 'handover';
 
 interface DealFull extends Deal {
   activities: Interaction[];
@@ -68,7 +69,7 @@ export default function DealDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
 
-  const tab = (params.get('tab') as Tab) ?? 'score';
+  const tab = (params.get('tab') as Tab) ?? 'assessment';
   const focusFactor = (params.get('factor') as Factor) ?? null;
   const setTab = (next: Tab) => {
     const merged = new URLSearchParams(params);
@@ -129,6 +130,7 @@ export default function DealDetailPage() {
     );
 
   const TABS: { key: Tab; label: string }[] = [
+    { key: 'assessment', label: 'Đánh giá' },
     { key: 'score', label: 'Chấm điểm' },
     { key: 'committee', label: 'Nhóm quyết định' },
     { key: 'info', label: 'Thông tin' },
@@ -249,6 +251,20 @@ export default function DealDetailPage() {
             idPrefix="dealtab"
             className="mb-4"
           >
+            {tab === 'assessment' && (
+              <DealAssessment
+                deal={deal}
+                onOpenFactor={(factor) => {
+                  const merged = new URLSearchParams(params);
+                  merged.set('tab', 'score');
+                  if (factor) merged.set('factor', factor);
+                  else merged.delete('factor');
+                  setParams(merged, { replace: true });
+                }}
+                onGoToCommittee={() => setTab('committee')}
+              />
+            )}
+
             {tab === 'score' && (
               <Scorecard
                 dealId={id}

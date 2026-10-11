@@ -5,6 +5,8 @@
  * chúng thì AUTHORITY, RELATIONSHIP, TIMELINE, PRICE và PROCESS đều bị chặn trần điểm.
  *
  * Vai trò mua đọc từ `contacts.buying_role` đã có — không dựng từ điển vai trò thứ hai.
+ * Thái độ 5 bậc kèm việc nên làm (Tận dụng / Thúc đẩy / Trung hòa) và mức tiếp xúc
+ * theo khung Opportunity Assessment (v70).
  * Ngày liên hệ gần nhất tính từ lịch sử tương tác, không lưu thành cột.
  */
 import { useState } from 'react';
@@ -28,13 +30,25 @@ import {
 import { SHAPED_REQUIREMENTS_COLOR, t } from '../../i18n/vi';
 import {
   BLOCKED_REASONS,
+  CONTACT_DEPTH_LABELS,
   EVENT_TYPE_LABELS,
   PRICE_POSITION_LABELS,
+  STANCE_ACTIONS,
   STANCE_COLORS,
+  STANCE_HINTS,
   STANCE_LABELS,
 } from '../../i18n/scoring';
+import { CELL_INFO } from '../../i18n/assessment';
+import { CriterionEditor } from './DealAssessment';
 import { formatDate } from '../../lib/format';
-import type { CommitteeResponse, DealCompetitor, DealEvent, Deal, Scorecard } from '../../types';
+import type {
+  CommitteeResponse,
+  DealAssessment,
+  DealCompetitor,
+  DealEvent,
+  Deal,
+  Scorecard,
+} from '../../types';
 
 export function CommitteePanel({ deal, scorecard }: { deal: Deal; scorecard?: Scorecard }) {
   const dealId = deal.id;
@@ -48,6 +62,7 @@ export function CommitteePanel({ deal, scorecard }: { deal: Deal; scorecard?: Sc
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <MembersBlock deal={deal} scorecard={scorecard} onChange={refresh} />
       <div className="space-y-4">
+        <PoliticsBlock dealId={dealId} />
         <EventsBlock deal={deal} onChange={refresh} />
         <CompetitorsBlock dealId={dealId} onChange={refresh} />
       </div>
@@ -91,7 +106,19 @@ function MembersBlock({
   if (isLoading || !data) return <Skeleton className="h-64 rounded-panel" />;
 
   const { members, candidates } = data;
-  const hasChampion = members.some((m) => m.is_champion === 1 && m.stance === 'supporter');
+  const hasChampion = members.some(
+    (m) => m.is_champion === 1 && (m.stance === 'supporter' || m.stance === 'mentor')
+  );
+  /* Nguoi co anh huong lon ma ta chua tiep xuc chuyen sau — khung goc coi quan he
+     lanh dao la tieu chi quan trong nhat (#12). */
+  const shallowPowerful = members.filter(
+    (m) => m.influence >= 4 && m.contact_depth !== 'in_depth'
+  ).length;
+  const actionCounts = members.reduce<Record<string, number>>((acc, m) => {
+    const action = STANCE_ACTIONS[m.stance]?.label;
+    if (action) acc[action] = (acc[action] ?? 0) + 1;
+    return acc;
+  }, {});
   /*
    * Doc THANG tu ket qua server thay vi tu tinh lai — hai truong hop tung lech
    * server that su:
@@ -117,7 +144,12 @@ function MembersBlock({
     >
       <div className="mb-3 space-y-1.5">
         {relationshipWarning && <Warning text={relationshipWarning} />}
-        {!hasChampion && <Warning text="Chưa có champion nào ở trạng thái ủng hộ." />}
+        {!hasChampion && <Warning text="Chưa có champion nào ở trạng thái Ủng hộ/Mentor." />}
+        {shallowPowerful > 0 && (
+          <Warning
+            text={`${shallowPowerful} người có ảnh hưởng lớn (4–5/5) chưa được tiếp xúc chuyên sâu.`}
+          />
+        )}
         {Boolean(deal.v2_no_economic) && (
           <Warning text="Chưa xác định người duyệt ngân sách (economic buyer) — đây là điều kiện chặn forecast." />
         )}
@@ -128,6 +160,14 @@ function MembersBlock({
           message="Chưa đưa ai vào nhóm ra quyết định."
           hint="Thêm người liên hệ để chấm được Quyền hạn và Thân thiết."
         />
+      )}
+
+      {Object.keys(actionCounts).length > 0 && (
+        <p className="mb-2 text-xs text-tr-muted">
+          {Object.entries(actionCounts)
+            .map(([label, n]) => `${label}: ${n}`)
+            .join(' · ')}
+        </p>
       )}
 
       <ul className="space-y-1.5">
@@ -143,9 +183,19 @@ function MembersBlock({
               {member.is_champion === 1 && (
                 <Crown size={14} className="shrink-0 text-tr-warning" aria-label="Champion" />
               )}
-              <ColorBadge color={STANCE_COLORS[member.stance]} small>
-                {STANCE_LABELS[member.stance]}
-              </ColorBadge>
+              <span title={STANCE_HINTS[member.stance]}>
+                <ColorBadge color={STANCE_COLORS[member.stance]} small>
+                  {STANCE_LABELS[member.stance]}
+                </ColorBadge>
+              </span>
+              {STANCE_ACTIONS[member.stance] && (
+                <span
+                  className="rounded bg-tr-hover px-1.5 py-0.5 text-xs font-medium text-tr-subtle"
+                  title={STANCE_ACTIONS[member.stance]!.tip}
+                >
+                  {STANCE_ACTIONS[member.stance]!.label}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => remove.mutate(member.contact_id)}
@@ -212,6 +262,26 @@ function MembersBlock({
                   ))}
                 </Select>
               </label>
+              <label className="flex items-center gap-1 text-tr-subtle">
+                Tiếp xúc
+                <Select
+                  value={member.contact_depth ?? 'none'}
+                  aria-label={`Mức tiếp xúc với ${member.full_name}`}
+                  onChange={(e) =>
+                    update.mutate({
+                      contactId: member.contact_id,
+                      patch: { contact_depth: e.target.value === 'none' ? null : e.target.value },
+                    })
+                  }
+                  className="min-h-7 w-auto py-0 text-xs"
+                >
+                  {Object.entries(CONTACT_DEPTH_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
             </div>
           </li>
         ))}
@@ -248,6 +318,54 @@ function MembersBlock({
         </div>
       )}
       <FormError error={add.error ?? update.error} />
+    </Panel>
+  );
+}
+
+/* ---------- Chính trị nội bộ: quan hệ lãnh đạo + quyết định không chính thức ---------- */
+
+/**
+ * Hai tiêu chí của câu "Ta có CHỐT được không?" mà dữ liệu nhóm quyết định không tự
+ * nói ra được. Dùng chung dữ liệu và bộ chấm với tab Đánh giá (ô #12, #13).
+ */
+function PoliticsBlock({ dealId }: { dealId: number }) {
+  const queryClient = useQueryClient();
+  const queryKey = ['deal', dealId, 'assessment'];
+  const { data } = useQuery({
+    queryKey,
+    queryFn: () => api.get<DealAssessment>(`/api/deals/${dealId}/assessment`),
+  });
+  if (!data) return <Skeleton className="h-40 rounded-panel" />;
+  const update = (next: DealAssessment) => queryClient.setQueryData(queryKey, next);
+
+  return (
+    <Panel title="Chính trị nội bộ">
+      <div className="space-y-4">
+        {([12, 13] as const).map((no) => (
+          <div key={no}>
+            <details className="mb-1.5">
+              <summary className={`cursor-pointer text-xs text-tr-muted ${focusRing}`}>
+                Câu hỏi gợi ý (#{no} {CELL_INFO[no].label})
+              </summary>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-tr-subtle">
+                {CELL_INFO[no].questions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            </details>
+            <CriterionEditor
+              key={
+                data.criteria.find(
+                  (c) => c.criterion === (no === 12 ? 'exec_relationship' : 'informal_decision')
+                )?.updated_at ?? 'new'
+              }
+              criterion={no === 12 ? 'exec_relationship' : 'informal_decision'}
+              data={data}
+              onUpdate={update}
+            />
+          </div>
+        ))}
+      </div>
     </Panel>
   );
 }

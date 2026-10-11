@@ -1377,12 +1377,101 @@ interface CommitteeMember {
   full_name: string;
   title: string | null;
   role: string | null;
-  stance: 'supporter' | 'neutral' | 'opposed' | 'unknown';
+  /** Thái độ 5 bậc (v70): phe đối thủ < không ủng hộ < trung lập < ủng hộ < mentor. */
+  stance: 'enemy' | 'opposed' | 'neutral' | 'supporter' | 'mentor' | 'unknown';
   is_champion: number;
   influence: number;
+  /** Mức tiếp xúc của ta với người này; null = chưa tiếp xúc. */
+  contact_depth: 'brief' | 'multiple' | 'in_depth' | null;
   note: string;
   /** Tính từ lịch sử tương tác, không lưu trong bảng nhóm quyết định. */
   last_contact_at: string | null;
+}
+
+/* ---------- Đánh giá cơ hội theo 4 câu hỏi (v70) ---------- */
+
+export type AssessmentCriterion =
+  | 'profit'
+  | 'follow_on'
+  | 'strategic'
+  | 'resources'
+  | 'delivery_risk'
+  | 'financial_health'
+  | 'unique_value'
+  | 'exec_relationship'
+  | 'informal_decision';
+
+export type AssessmentQuestion = 'need' | 'compete' | 'close' | 'worth';
+export type DealDecisionKind = 'pursue' | 'pause' | 'withdraw';
+export type WorthLevel = 'unknown' | 'low' | 'medium' | 'high';
+export type AssessmentVerdict =
+  | 'pursue'
+  | 'win_not_worth'
+  | 'reshape'
+  | 'reshape_invest'
+  | 'withdraw'
+  | 'nurture'
+  | 'nurture_strategic'
+  | 'deprioritize'
+  | 'disqualify';
+
+export interface AssessmentCell {
+  no: number;
+  question: AssessmentQuestion;
+  kind: 'factor' | 'criterion' | 'derived';
+  key: string;
+  /** Điểm đã xác nhận hoặc suy ra; null = chưa chấm. */
+  score: number | null;
+  /** Điểm AI đề xuất đang chờ xác nhận. */
+  suggested_score: number | null;
+  level: 'unknown' | 'weak' | 'strong';
+}
+
+export interface AssessmentCriterionRow {
+  criterion: AssessmentCriterion;
+  score: number;
+  status: 'suggested' | 'confirmed';
+  note: string;
+  updated_at: string;
+  updated_by_name: string | null;
+}
+
+export interface AiAssessmentReview {
+  summary: string;
+  recommendation: DealDecisionKind;
+  criteria: { key: string; score: number; reason: string }[];
+  factors: { key: string; score: number; reason: string }[];
+  unknowns: { cell: number; question: string }[];
+  risks: string[];
+  actions: string[];
+}
+
+export interface DealDecisionEntry {
+  id: number;
+  deal_id: number;
+  decision: DealDecisionKind;
+  reason: string;
+  review_date: string | null;
+  author_kind: 'user' | 'ai';
+  author_contact_id: number | null;
+  author_name: string | null;
+  payload: AiAssessmentReview | null;
+  created_at: string;
+}
+
+export interface DealAssessment {
+  deal_id: number;
+  locked: boolean;
+  quadrant: Quadrant;
+  bant_total: number;
+  p4_total: number;
+  criteria: AssessmentCriterionRow[];
+  grid: AssessmentCell[];
+  worth_total: number;
+  worth_scored: number;
+  worth_level: WorthLevel;
+  verdict: AssessmentVerdict;
+  decisions: DealDecisionEntry[];
 }
 
 export interface CommitteeResponse {

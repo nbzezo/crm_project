@@ -194,6 +194,7 @@ interface CommitteeMember {
   stance: string;
   is_champion: number;
   influence: number;
+  contact_depth: string | null;
   note: string;
   /** Tinh tu interactions — khong luu thanh cot de tranh nguon su that thu hai. */
   last_contact_at: string | null;
@@ -202,7 +203,8 @@ interface CommitteeMember {
 export function getCommittee(db: Database, dealId: number): CommitteeMember[] {
   return db
     .prepare(
-      `SELECT m.contact_id, c.full_name, c.title, m.stance, m.is_champion, m.influence, m.note,
+      `SELECT m.contact_id, c.full_name, c.title, m.stance, m.is_champion, m.influence,
+              m.contact_depth, m.note,
               COALESCE(m.role_override, c.buying_role) AS role,
               (SELECT MAX(substr(i.occurred_at, 1, 10)) FROM interactions i
                 WHERE i.contact_id = m.contact_id AND (i.deal_id = ? OR i.deal_id IS NULL))
@@ -316,7 +318,7 @@ function factorCeiling(
 
       const champion = one(
         `SELECT COUNT(*) AS n FROM deal_committee
-          WHERE deal_id = ? AND is_champion = 1 AND stance = 'supporter'`,
+          WHERE deal_id = ? AND is_champion = 1 AND stance IN ('supporter','mentor')`,
         dealId
       );
       if (champion === 0) return { max: 1, blocked_by: 'champion_missing' };
@@ -336,7 +338,7 @@ function factorCeiling(
       // Cham 3 doi khong con nguoi phan doi co anh huong lon
       const blocker = one(
         `SELECT COUNT(*) AS n FROM deal_committee
-          WHERE deal_id = ? AND stance = 'opposed' AND influence >= 4`,
+          WHERE deal_id = ? AND stance IN ('opposed','enemy') AND influence >= 4`,
         dealId
       );
       return blocker > 0 ? { max: 2, blocked_by: 'blocker_present' } : { max: 3, blocked_by: null };

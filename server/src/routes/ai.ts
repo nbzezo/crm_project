@@ -19,6 +19,8 @@ import {
 } from '../services/ai/actions.ts';
 import { getMeetingNote, saveAiSummary } from '../services/meetingNoteService.ts';
 import { runAutomation } from '../services/ai/automations.ts';
+import { ASSESSMENT_GRID, getAssessment, saveAiReview } from '../services/assessmentService.ts';
+import { ASSESSMENT_CRITERIA, DEAL_DECISIONS, SCORE_FACTORS } from '../lib/crm.ts';
 import {
   appendTurn,
   createSession,
@@ -464,6 +466,111 @@ router.post('/assist/interaction', async (req, res) => {
       maxOutputTokens: 1000,
     });
     res.json({ ...interactionAssistResponse.parse(parseAiJson(result.text)), meta: result });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+/* ---------- Nhan dinh co hoi theo 4 cau hoi (v70) ---------- */
+
+/** Mo ta ngan 9 tieu chi bo sung cho mo hinh — ban day du nam o i18n/assessment.ts. */
+const ASSESSMENT_CRITERIA_BRIEF: Record<string, string> = {
+  profit: 'Lợi nhuận: biên lợi nhuận sau chiết khấu có đạt ngưỡng của mình không',
+  follow_on: 'Cơ hội tiếp nối: thắng deal này mở ra doanh thu gì trong 1 năm và 3 năm tới',
+  strategic:
+    'Giá trị chiến lược: khách hàng tham chiếu, mở ngành/phòng ban mới, cải thiện sản phẩm',
+  resources:
+    'Nguồn lực bỏ ra: công sức đội bán/kỹ thuật và chi phí bán hàng có tương xứng, có làm hụt deal khác không (3 = rất tương xứng)',
+  delivery_risk:
+    'Rủi ro triển khai: khả năng dự án thất bại do ta hoặc do khách và hậu quả với uy tín (3 = rủi ro thấp)',
+  financial_health: 'Sức khỏe tài chính của khách: doanh thu, lợi nhuận, khả năng thanh toán',
+  unique_value:
+    'Giá trị khác biệt: kết quả kinh doanh đo được mà chỉ ta mang lại, khách đã công nhận',
+  exec_relationship: 'Quan hệ lãnh đạo: ta có quan hệ tin cậy với lãnh đạo cao nhất liên quan',
+  informal_decision:
+    'Quyết định không chính thức: ta hiểu quyết định thực sự được đưa ra thế nào, ai muốn ta thắng',
+};
+
+const assessmentReviewSchema = z.object({
+  summary: z.string().trim().min(1).max(4000),
+  recommendation: z.enum(DEAL_DECISIONS),
+  criteria: z
+    .array(
+      z.object({
+        key: z.string(),
+        score: z.number().int().min(0).max(3),
+        reason: z.string().max(600).default(''),
+      })
+    )
+    .max(20)
+    .default([]),
+  factors: z
+    .array(
+      z.object({
+        key: z.string(),
+        score: z.number().int().min(0).max(3),
+        reason: z.string().max(600).default(''),
+      })
+    )
+    .max(20)
+    .default([]),
+  unknowns: z
+    .array(z.object({ cell: z.number().int(), question: z.string().trim().min(1).max(400) }))
+    .max(10)
+    .default([]),
+  risks: z.array(z.string().trim().min(1).max(400)).max(6).default([]),
+  actions: z.array(z.string().trim().min(1).max(300)).max(6).default([]),
+});
+
+/**
+ * AI doc ho so co hoi va nhan dinh theo 4 cau hoi. Ket qua luu vao nhat ky quyet dinh
+ * (author_kind = 'ai') va dien diem DE XUAT cho tieu chi chua co diem nguoi cham —
+ * nguoi dung tu xac nhan hoac sua. Khong dong toi diem BANT/4P da xac nhan.
+ */
+router.post('/assist/deal/:id/assessment', async (req, res) => {
+  try {
+    const dealId = intParam(req.params.id);
+    // Chan TRUOC khi gui ho so co hoi cho nha cung cap AI.
+    assertContextInScope(req, 'deal', dealId);
+    const context = buildDealContext(db, dealId);
+    const assessment = getAssessment(db, dealId);
+    const cells = ASSESSMENT_GRID.map((cell) => {
+      const current = assessment.grid.find((g) => g.no === cell.no);
+      return `#${cell.no} [${cell.question}] ${cell.source.kind}:${cell.source.key} = ${current?.score ?? 'chưa chấm'}`;
+    }).join('\n');
+
+    const { data, meta } = await runStructured(
+      db,
+      {
+        task: 'deal_assessment',
+        mode: 'reasoning',
+        contextType: 'deal',
+        contextId: dealId,
+        maxOutputTokens: 2500,
+        system:
+          'Bạn là chuyên gia bán hàng B2B, đánh giá cơ hội theo khung Opportunity Assessment: 4 câu hỏi ' +
+          '(1. Khách có nhu cầu THẬT? 2. Ta CẠNH TRANH được? 3. Ta CHỐT được? 4. Có ĐÁNG ĐẦU TƯ — thắng rồi ta được gì?), ' +
+          'mỗi câu 5 tiêu chí, tổng 20 ô. Chấm 0–3: 0 = chưa biết, 1 = yếu, 2 = khá, 3 = mạnh. ' +
+          'CHỈ dựa vào dữ liệu được cung cấp; thiếu dữ liệu thì chấm 0 và đưa vào danh sách điều chưa biết kèm câu hỏi nên hỏi khách. ' +
+          'Nói thẳng, kể cả khi kết luận là nên rút. Viết tiếng Việt có dấu, ngắn gọn.',
+        prompt:
+          'Trả JSON {"summary":"2–4 câu: theo hay rút, vì sao, rủi ro lớn nhất",' +
+          `"recommendation":"${DEAL_DECISIONS.join('|')}",` +
+          '"criteria":[{"key":"<một trong 9 tiêu chí>","score":0,"reason":"căn cứ ngắn"}],' +
+          '"factors":[{"key":"<một trong 8 yếu tố BANT/4P>","score":0,"reason":"căn cứ ngắn"}],' +
+          '"unknowns":[{"cell":1,"question":"câu hỏi nên hỏi để làm rõ"}],' +
+          '"risks":["rủi ro"],"actions":["việc cụ thể nên làm tuần này"]}.\n' +
+          `9 tiêu chí (key): ${ASSESSMENT_CRITERIA.map((k) => `${k} = ${ASSESSMENT_CRITERIA_BRIEF[k]}`).join('; ')}\n` +
+          `8 yếu tố BANT/4P (key): ${SCORE_FACTORS.join(', ')}\n` +
+          `Hiện trạng 20 ô:\n${cells}\n` +
+          `Ô ma trận hiện tại: ${assessment.quadrant}; BANT ${assessment.bant_total}/12; 4P ${assessment.p4_total}/12.\n` +
+          `Hôm nay: ${new Date().toISOString().slice(0, 10)}.\n` +
+          `Hồ sơ cơ hội:\n${compactJson(context, 30_000)}`,
+      },
+      assessmentReviewSchema
+    );
+
+    res.json({ assessment: saveAiReview(db, dealId, data, actorContactId(req)), meta });
   } catch (error) {
     asHttpError(error);
   }

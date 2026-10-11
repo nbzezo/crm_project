@@ -14,9 +14,24 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-10';
+export const APP_UPDATED_AT = '2026-10-11';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.35.0',
+    date: '2026-10-11',
+    title: 'Đánh giá cơ hội theo 4 câu hỏi: theo hay rút',
+    changes: [
+      'Trang cơ hội có tab mới "Đánh giá" (mở mặc định): 20 tiêu chí xếp theo 4 câu hỏi — Khách có nhu cầu thật không? Ta có cạnh tranh được không? Ta có chốt được không? Thắng rồi ta được gì, có đáng bỏ công không? Mỗi ô có màu xanh (mạnh), đỏ (yếu) hoặc xám (chưa biết).',
+      '8 ô lấy thẳng từ điểm BANT/4P đã chấm nên không phải chấm lại; 3 ô tự tính từ dữ liệu có sẵn (khách đã từng mua chưa, người có ảnh hưởng có ủng hộ không, khả năng thắng theo 4P).',
+      'Trục mới "Đáng đầu tư" với 5 tiêu chí: Lợi nhuận, Cơ hội tiếp nối, Giá trị chiến lược, Nguồn lực bỏ ra, Rủi ro triển khai. Kết luận gợi ý giờ phân biệt được cơ hội "thắng được nhưng chưa đáng" và khách nên giữ vì giá trị chiến lược.',
+      'Bấm vào một ô để xem các câu hỏi cần làm rõ với khách, rồi bấm "Tạo việc tìm hiểu" để giao việc gắn sẵn với cơ hội.',
+      'Nút "AI đánh giá": AI đọc hồ sơ cơ hội, gợi ý điểm cho các tiêu chí còn trống, liệt kê điều chưa biết kèm câu hỏi nên hỏi, rủi ro lớn và việc nên làm. Điểm AI chỉ là đề xuất, bạn xác nhận hoặc sửa; điểm bạn đã chấm không bị ghi đè.',
+      'Ghi quyết định Theo đuổi / Tạm dừng / Rút kèm lý do và ngày xem lại (có thể bật nhắc). Không bắt buộc; lãnh đạo xem được và ghi nhận xét của mình vào cơ hội của cấp dưới.',
+      'Tab Nhóm quyết định: thái độ 5 bậc (Mentor, Ủng hộ, Trung lập, Không ủng hộ, Phe đối thủ) kèm việc nên làm (Tận dụng / Thúc đẩy / Trung hòa), mức tiếp xúc (Sơ lược / Nhiều lần / Chuyên sâu) và cảnh báo người có ảnh hưởng lớn chưa được tiếp xúc sâu.',
+      'Khối mới "Chính trị nội bộ" để đánh giá Quan hệ lãnh đạo và Quyết định không chính thức, kèm câu hỏi gợi ý.',
+    ],
+  },
   {
     version: '1.34.0',
     date: '2026-10-10',

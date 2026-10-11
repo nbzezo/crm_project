@@ -71,7 +71,23 @@ export const EVIDENCE_MIN_LENGTH = 20;
 
 export const SCORE_STATUSES = ['suggested', 'confirmed'] as const;
 export const EVIDENCE_SOURCE_TYPES = ['interaction', 'document', 'manual'] as const;
-export const COMMITTEE_STANCES = ['supporter', 'neutral', 'opposed', 'unknown'] as const;
+/**
+ * Thai do 5 bac (v70): Ke thu (mentor cua doi thu) < Khong ung ho < Trung lap < Ung ho < Mentor.
+ * Khoa 'opposed' giu nghia "Khong ung ho" de du lieu truoc v70 khong phai doi.
+ */
+export const COMMITTEE_STANCES = [
+  'enemy',
+  'opposed',
+  'neutral',
+  'supporter',
+  'mentor',
+  'unknown',
+] as const;
+/** Thai do duoc tinh la dang ve phia ta / chong lai ta. */
+export const SUPPORTIVE_STANCES = ['supporter', 'mentor'] as const;
+export const HOSTILE_STANCES = ['opposed', 'enemy'] as const;
+/** Muc tiep xuc cua ta voi mot nguoi trong nhom ra quyet dinh (v70). */
+export const CONTACT_DEPTHS = ['brief', 'multiple', 'in_depth'] as const;
 export const EVENT_TYPES = [
   'contract_expiry',
   'regulatory',
@@ -93,6 +109,31 @@ export const COMMITTEE_RECENT_DAYS = 30;
  * da do vi the canh tranh roi — xem muc C9 cua ban ra soat.
  */
 export type VetoCode = 'V1_NO_COMPELLING_EVENT' | 'V2_NO_ECONOMIC_BUYER' | 'V3_COMPETITOR_SHAPED';
+
+/* ---------- Danh gia co hoi theo 4 cau hoi (v70) ---------- */
+
+/**
+ * 9 tieu chi bo sung cho 8 yeu to BANT + 4P. Nam tieu chi dau la truc "Dang dau tu"
+ * (thang roi ta duoc gi, co dang bo cong khong); bon tieu chi sau lap cho trong cua
+ * cau "Nhu cau that / Canh tranh / Chot duoc". Cham 0–3, 0 = chua biet.
+ */
+export const ASSESSMENT_CRITERIA = [
+  'profit',
+  'follow_on',
+  'strategic',
+  'resources',
+  'delivery_risk',
+  'financial_health',
+  'unique_value',
+  'exec_relationship',
+  'informal_decision',
+] as const;
+export type AssessmentCriterion = (typeof ASSESSMENT_CRITERIA)[number];
+
+export const WORTH_CRITERIA = ASSESSMENT_CRITERIA.slice(0, 5) as readonly AssessmentCriterion[];
+
+export const DEAL_DECISIONS = ['pursue', 'pause', 'withdraw'] as const;
+export type DealDecision = (typeof DEAL_DECISIONS)[number];
 
 /** Gia tri mac dinh cua cac khoa trong bang app_settings. */
 export const SCORING_DEFAULTS = {

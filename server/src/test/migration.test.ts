@@ -742,3 +742,69 @@ test('v69: thong bao bang tin theo tung nguoi, cong tac Telegram, quay lui duoc'
   ]);
   scratch.close();
 });
+
+test('v70: danh gia 4 cau hoi, thai do 5 bac giu du lieu nhom quyet dinh, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 69);
+  const customerId = Number(
+    scratch.prepare(`INSERT INTO customers (name) VALUES ('Khach v70')`).run().lastInsertRowid
+  );
+  const contactId = Number(
+    scratch
+      .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (?, 'Anh A')`)
+      .run(customerId).lastInsertRowid
+  );
+  const dealId = Number(
+    scratch
+      .prepare(`INSERT INTO deals (customer_id, title, stage) VALUES (?, 'Co hoi v70', 'lead')`)
+      .run(customerId).lastInsertRowid
+  );
+  scratch
+    .prepare(
+      `INSERT INTO deal_committee (deal_id, contact_id, stance, is_champion, influence, note)
+       VALUES (?, ?, 'supporter', 1, 5, 'ghi chu cu')`
+    )
+    .run(dealId, contactId);
+
+  migrate(scratch);
+  const member = scratch
+    .prepare(`SELECT stance, is_champion, influence, note, contact_depth FROM deal_committee`)
+    .get() as Record<string, unknown>;
+  assert.deepEqual(member, {
+    stance: 'supporter',
+    is_champion: 1,
+    influence: 5,
+    note: 'ghi chu cu',
+    contact_depth: null,
+  });
+  scratch.prepare(`UPDATE deal_committee SET stance = 'mentor', contact_depth = 'in_depth'`).run();
+  assert.throws(() => scratch.prepare(`UPDATE deal_committee SET stance = 'khac'`).run());
+  // VIEW deal_scorecard van con va doc duoc sau khi dung lai bang
+  assert.ok(scratch.prepare(`SELECT quadrant FROM deal_scorecard WHERE deal_id = ?`).get(dealId));
+  scratch
+    .prepare(`INSERT INTO deal_assessments (deal_id, criterion, score) VALUES (?, 'profit', 2)`)
+    .run(dealId);
+  assert.throws(() =>
+    scratch
+      .prepare(`INSERT INTO deal_assessments (deal_id, criterion, score) VALUES (?, 'khac', 1)`)
+      .run(dealId)
+  );
+  scratch
+    .prepare(`INSERT INTO deal_decisions (deal_id, decision, reason) VALUES (?, 'pause', 'cho')`)
+    .run(dealId);
+
+  scratch.pragma('foreign_keys = OFF');
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v70-rollback.sql', import.meta.url), 'utf8'));
+  scratch.pragma('foreign_keys = ON');
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'deal_assessments'`).get(),
+    undefined
+  );
+  assert.deepEqual(scratch.prepare(`SELECT stance, note FROM deal_committee`).get(), {
+    stance: 'supporter',
+    note: 'ghi chu cu',
+  });
+  assert.ok(scratch.prepare(`SELECT quadrant FROM deal_scorecard WHERE deal_id = ?`).get(dealId));
+  scratch.close();
+});

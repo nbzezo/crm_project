@@ -7,7 +7,7 @@ import { fold } from '../lib/viSearch.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const LATEST_VERSION = 69;
+export const LATEST_VERSION = 70;
 
 /** v5: viec con — mot the co the la con cua the khac (toi da 1 cap). */
 const V5 = `
@@ -1371,5 +1371,29 @@ export function migrate(db: Database, targetVersion = LATEST_VERSION): void {
     })();
     console.log('[db] Da nang cap schema len v69 (thong bao bang tin)');
     current = 69;
+  }
+
+  if (current === 69 && targetVersion >= 70) {
+    /* Doi CHECK thai do cua deal_committee nen phai dung lai bang — tat khoa ngoai
+       trong luc do, cung khuon voi v52/v62. */
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(readSql('migrate-v70.sql'));
+        rebuildTable(db, 'deal_committee', (sql) =>
+          sql.replace(
+            /CHECK\s*\(\s*stance\s+IN\s*\([^)]*\)\s*\)/i,
+            `CHECK (stance IN ('enemy','opposed','neutral','supporter','mentor','unknown'))`
+          )
+        );
+        db.pragma('user_version = 70');
+      })();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    const broken = db.pragma('foreign_key_check') as unknown[];
+    if (broken.length > 0) console.warn('[db] Canh bao khoa ngoai sau v70:', broken.length, 'dong');
+    console.log('[db] Da nang cap schema len v70 (danh gia co hoi theo 4 cau hoi)');
+    current = 70;
   }
 }

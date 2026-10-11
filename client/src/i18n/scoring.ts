@@ -236,18 +236,67 @@ export const BLOCKED_REASONS: Record<string, { text: string; tab: 'committee' | 
 
 /* ---------- Nhóm ra quyết định ---------- */
 
+/**
+ * Thái độ 5 bậc theo khung Opportunity Assessment (v70), thứ tự từ tốt tới xấu.
+ * Khóa `opposed` giữ nghĩa "Không ủng hộ" để dữ liệu cũ không phải đổi.
+ */
 export const STANCE_LABELS: Record<string, string> = {
+  mentor: 'Mentor',
   supporter: 'Ủng hộ',
   neutral: 'Trung lập',
-  opposed: 'Phản đối',
+  opposed: 'Không ủng hộ',
+  enemy: 'Phe đối thủ',
   unknown: 'Chưa rõ',
 };
 
+export const STANCE_HINTS: Record<string, string> = {
+  mentor: 'Mua vì tin ta, chủ động vận động cho ta và báo tin nội bộ.',
+  supporter: 'Đứng về phía ta.',
+  neutral: 'Chưa thấy ta mang lại giá trị gì.',
+  opposed: 'Không thích giải pháp hoặc cách làm của ta.',
+  enemy: 'Là mentor của đối thủ — sẽ vận động chống lại ta.',
+  unknown: 'Chưa biết thái độ.',
+};
+
 export const STANCE_COLORS: Record<string, string> = {
+  mentor: '#087a08',
   supporter: '#0ca30c',
   neutral: '#8993a4',
-  opposed: '#e04b3a',
+  opposed: '#e0812f',
+  enemy: '#e04b3a',
   unknown: '#5e6c84',
+};
+
+/** Việc nên làm với từng nhóm thái độ: Tận dụng / Thúc đẩy / Trung hòa. */
+export const STANCE_ACTIONS: Record<string, { label: string; tip: string } | null> = {
+  mentor: {
+    label: 'Tận dụng',
+    tip: 'Nhờ báo tin nội bộ, giới thiệu lên lãnh đạo, nói thay ta khi ta vắng mặt.',
+  },
+  supporter: {
+    label: 'Tận dụng',
+    tip: 'Nhờ báo tin nội bộ, giới thiệu lên lãnh đạo, nói thay ta khi ta vắng mặt.',
+  },
+  neutral: {
+    label: 'Thúc đẩy',
+    tip: 'Cho họ thấy giá trị ta đã mang lại ở nơi khác; tìm điều họ thực sự quan tâm.',
+  },
+  opposed: {
+    label: 'Trung hòa',
+    tip: 'Hiểu lý do không ủng hộ, giảm ảnh hưởng của họ, dựa vào người có ảnh hưởng hơn.',
+  },
+  enemy: {
+    label: 'Trung hòa',
+    tip: 'Đừng cố thuyết phục; hạn chế ảnh hưởng của họ bằng người có quyền lớn hơn.',
+  },
+  unknown: null,
+};
+
+export const CONTACT_DEPTH_LABELS: Record<string, string> = {
+  none: 'Chưa tiếp xúc',
+  brief: 'Sơ lược',
+  multiple: 'Nhiều lần',
+  in_depth: 'Chuyên sâu',
 };
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {
