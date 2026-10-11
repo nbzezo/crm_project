@@ -14,9 +14,25 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-11';
+export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.36.0',
+    date: '2026-10-12',
+    title: 'Trang cơ hội có hai chế độ: Cơ bản và Nâng cao',
+    changes: [
+      'Nút "Cơ bản | Nâng cao" ở đầu trang cơ hội. Mỗi người tự chọn, hệ thống nhớ theo tài khoản; mặc định là Cơ bản. Dữ liệu dùng chung, chuyển qua lại không mất gì.',
+      'Chế độ Cơ bản mở vào tab "Tổng quan": một kết luận dễ hiểu (Nên theo, Cần tìm hiểu thêm, Nên dừng…) và 3 việc nên làm tiếp, mỗi việc có nút Tạo việc.',
+      'Đánh giá nhanh trong 2 phút: 10 câu hỏi bằng lời thường, mỗi câu chỉ chọn Có / Chưa rõ / Không, hỏi lần lượt từng câu, nút to dễ bấm trên điện thoại. Câu nào đã có điểm ở đánh giá chi tiết thì được gợi ý sẵn.',
+      '"Kể cho AI": kể vài câu về khách (gõ hoặc bấm micro trên bàn phím điện thoại), AI điền giúp 10 câu; bạn xem lại rồi mới lưu.',
+      'Tab "Người liên quan" gọn hơn: mỗi người một dòng kèm việc nên làm; bấm để sửa thái độ, ảnh hưởng (Thấp / Vừa / Cao), mức tiếp xúc; có sơ đồ ai ủng hộ, ai có ảnh hưởng.',
+      'Chế độ Nâng cao giữ nguyên chức năng, chỉ đổi chữ cho dễ hiểu: "Có thật không (BANT)", "Lợi thế (4P)", "dự báo doanh thu", "Việc tiếp theo", "Người duyệt chi", "điều kiện còn thiếu"; "Champion" gộp vào thái độ "Người ủng hộ chính"; tiêu chí "Nguồn lực bỏ ra" thành "Công sức hợp lý", "Rủi ro triển khai" thành "Mức an toàn khi triển khai". Giữ nguyên từ "PoC".',
+      'Bỏ trùng lặp: đầu trang chỉ còn một nhãn "Đánh giá: …"; tab Chấm điểm không lặp lại kết luận; thang 0–3 có chú giải luôn hiện; ô bị giới hạn điểm nói rõ cần làm gì kèm nút "Làm ngay"; nhận định AI có nút "Áp dụng tất cả gợi ý".',
+      'Ghi quyết định nói rõ "chỉ ghi nhận, không đổi giai đoạn"; chọn "Rút" thì có nút chuyển cơ hội sang Thất bại.',
+      'Mọi thông báo lỗi từ máy chủ nay là tiếng Việt có dấu, câu trọn vẹn, dễ hiểu.',
+    ],
+  },
   {
     version: '1.35.0',
     date: '2026-10-11',

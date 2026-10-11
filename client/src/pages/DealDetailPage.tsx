@@ -30,14 +30,7 @@ import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPa
 import { AiBrief } from '../components/ai/AiBrief';
 import { EntityLabels } from '../components/labels/EntityLabels';
 import { Tabs } from '../components/common/Tabs';
-import {
-  Button,
-  ColorBadge,
-  ErrorState,
-  Panel,
-  Skeleton,
-  focusRing,
-} from '../components/common/ui';
+import { Button, ErrorState, Panel, Skeleton, focusRing } from '../components/common/ui';
 import { t } from '../i18n/vi';
 import { VERDICT_INFO } from '../i18n/assessment';
 import { QUICK_VERDICT_INFO } from '../i18n/quickAssessment';
@@ -155,14 +148,15 @@ export default function DealDetailPage() {
         : assessment
           ? VERDICT_INFO[assessment.verdict]
           : { label: 'Chưa đủ dữ liệu', tone: 'neutral' as const };
+  /* Nen dam du tuong phan voi chu trang (>= 4.5:1) vi nhan chu nho. */
   const verdictColor =
     verdictLabel.tone === 'success'
       ? '#087a08'
       : verdictLabel.tone === 'warning'
-        ? '#b7791f'
+        ? '#8a5a00'
         : verdictLabel.tone === 'danger'
-          ? '#d03b3b'
-          : '#8993a4';
+          ? '#b42318'
+          : '#5e6c84';
 
   return (
     <div className="p-4 md:p-6">
@@ -185,7 +179,13 @@ export default function DealDetailPage() {
         title={deal.title}
         badges={
           <>
-            <ColorBadge color={verdictColor}>Đánh giá: {verdictLabel.label}</ColorBadge>
+            {/* Khong dung ColorBadge (nowrap): nhan ket luan dai phai xuong dong tren dien thoai. */}
+            <span
+              className="inline-flex max-w-full rounded-2xl px-2 py-0.5 text-xs font-medium"
+              style={{ backgroundColor: verdictColor, color: '#fff' }}
+            >
+              Đánh giá: {verdictLabel.label}
+            </span>
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">
                 <RefreshCw size={12} /> Gia hạn
@@ -251,7 +251,7 @@ export default function DealDetailPage() {
               aria-pressed={mode === value}
               disabled={saving}
               onClick={() => void setMode(value)}
-              className={`min-h-9 rounded px-3 text-sm ${mode === value ? 'bg-tr-primary text-white' : 'text-tr-muted hover:bg-tr-hover'}`}
+              className={`min-h-11 rounded px-3 text-sm fine:min-h-9 ${focusRing} ${mode === value ? 'bg-tr-primary text-white' : 'text-tr-muted hover:bg-tr-hover'}`}
             >
               {value === 'basic' ? 'Cơ bản' : 'Nâng cao'}
             </button>
