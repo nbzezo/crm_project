@@ -767,7 +767,7 @@ test('v70: danh gia 4 cau hoi, thai do 5 bac giu du lieu nhom quyet dinh, quay l
     )
     .run(dealId, contactId);
 
-  migrate(scratch);
+  migrate(scratch, 70);
   const member = scratch
     .prepare(`SELECT stance, is_champion, influence, note, contact_depth FROM deal_committee`)
     .get() as Record<string, unknown>;
@@ -806,5 +806,70 @@ test('v70: danh gia 4 cau hoi, thai do 5 bac giu du lieu nhom quyet dinh, quay l
     note: 'ghi chu cu',
   });
   assert.ok(scratch.prepare(`SELECT quadrant FROM deal_scorecard WHERE deal_id = ?`).get(dealId));
+  scratch.close();
+});
+
+test('v71: che do xem theo tai khoan, danh gia nhanh, gop Champion vao Nguoi ung ho chinh', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 70);
+  const customerId = Number(
+    scratch.prepare(`INSERT INTO customers (name) VALUES ('Khach v71')`).run().lastInsertRowid
+  );
+  const dealId = Number(
+    scratch
+      .prepare(`INSERT INTO deals (customer_id, title, stage) VALUES (?, 'Co hoi v71', 'lead')`)
+      .run(customerId).lastInsertRowid
+  );
+  const add = (name: string, stance: string, champion: number) => {
+    const contactId = Number(
+      scratch
+        .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (?, ?)`)
+        .run(customerId, name).lastInsertRowid
+    );
+    scratch
+      .prepare(
+        `INSERT INTO deal_committee (deal_id, contact_id, stance, is_champion) VALUES (?, ?, ?, ?)`
+      )
+      .run(dealId, contactId, stance, champion);
+  };
+  add('Champion ung ho', 'supporter', 1);
+  add('Champion chua ro', 'unknown', 1);
+  add('Champion phan doi', 'opposed', 1);
+  add('Mentor khong co co', 'mentor', 0);
+
+  migrate(scratch);
+  const rows = scratch
+    .prepare(
+      `SELECT c.full_name AS name, m.stance, m.is_champion FROM deal_committee m
+         JOIN contacts c ON c.id = m.contact_id ORDER BY c.id`
+    )
+    .all();
+  assert.deepEqual(rows, [
+    { name: 'Champion ung ho', stance: 'mentor', is_champion: 1 },
+    { name: 'Champion chua ro', stance: 'mentor', is_champion: 1 },
+    { name: 'Champion phan doi', stance: 'opposed', is_champion: 0 },
+    { name: 'Mentor khong co co', stance: 'mentor', is_champion: 1 },
+  ]);
+  const modeColumn = (
+    scratch.prepare(`PRAGMA table_info(users)`).all() as { name: string; dflt_value: string }[]
+  ).find((column) => column.name === 'deal_view_mode');
+  assert.equal(modeColumn?.dflt_value, "'basic'");
+  scratch
+    .prepare(`INSERT INTO deal_quick_answers (deal_id, question, answer) VALUES (?, 'need', 'yes')`)
+    .run(dealId);
+  assert.throws(() =>
+    scratch
+      .prepare(
+        `INSERT INTO deal_quick_answers (deal_id, question, answer) VALUES (?, 'budget', 'co')`
+      )
+      .run(dealId)
+  );
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v71-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'deal_quick_answers'`).get(),
+    undefined
+  );
   scratch.close();
 });

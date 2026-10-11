@@ -25,6 +25,11 @@ import {
   type Factor,
 } from '../lib/crm.ts';
 import {
+  QUICK_QUESTIONS,
+  getQuickAssessment,
+  saveQuickAnswers,
+} from '../services/quickAssessmentService.ts';
+import {
   addDecision,
   confirmCriterion,
   deleteDecision,
@@ -207,6 +212,35 @@ router.delete('/deals/:id/decisions/:decisionId', (req, res) => {
   );
 });
 
+/* ---------- Danh gia nhanh 10 cau (che do Co ban, v71) ---------- */
+
+router.get('/deals/:id/quick-assessment', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'read');
+  res.json(getQuickAssessment(db, dealId));
+});
+
+const quickSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        question: z.enum(QUICK_QUESTIONS),
+        answer: z.enum(['yes', 'unsure', 'no']),
+        note: z.string().max(1000).optional(),
+        source: z.enum(['user', 'ai']).optional(),
+      })
+    )
+    .min(1)
+    .max(QUICK_QUESTIONS.length),
+});
+
+router.put('/deals/:id/quick-assessment', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'update');
+  const body = parseBody(quickSchema, req);
+  res.json(saveQuickAnswers(db, dealId, body.answers, actorContactId(req)));
+});
+
 /* ---------- Nhom ra quyet dinh (F-03) ---------- */
 
 router.get('/deals/:id/committee', (req, res) => {
@@ -236,6 +270,22 @@ const memberSchema = z.object({
   contact_depth: z.enum(CONTACT_DEPTHS).nullable().optional(),
   note: z.string().max(500).optional(),
 });
+
+/**
+ * Tu v71 "Champion" chinh la thai do 'mentor' (Nguoi ung ho chinh): is_champion luon suy
+ * tu stance. Client cu con gui is_champion thi quy doi: bat = mentor, tat khi dang la
+ * mentor = ve 'supporter'.
+ */
+function resolveStance(
+  stance: string | undefined,
+  champion: boolean | undefined,
+  current: string
+): string {
+  if (stance) return stance;
+  if (champion === true) return 'mentor';
+  if (champion === false && current === 'mentor') return 'supporter';
+  return current;
+}
 
 router.post('/deals/:id/committee', (req, res) => {
   const dealId = intParam(req.params.id);
@@ -267,8 +317,8 @@ router.post('/deals/:id/committee', (req, res) => {
     dealId,
     contact.id,
     body.role_override ?? null,
-    body.stance ?? 'unknown',
-    body.is_champion ? 1 : 0,
+    resolveStance(body.stance, body.is_champion, 'unknown'),
+    resolveStance(body.stance, body.is_champion, 'unknown') === 'mentor' ? 1 : 0,
     body.influence ?? 3,
     body.contact_depth ?? null,
     body.note ?? ''
@@ -287,6 +337,7 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
     'Khong tim thay thanh vien'
   ) as Record<string, unknown>;
 
+  const stance = resolveStance(body.stance, body.is_champion, current.stance as string);
   db.prepare(
     `UPDATE deal_committee SET role_override = ?, stance = ?, is_champion = ?, influence = ?,
             contact_depth = ?, note = ?
@@ -295,8 +346,8 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
     body.role_override !== undefined
       ? body.role_override
       : (current.role_override as string | null),
-    body.stance ?? (current.stance as string),
-    body.is_champion !== undefined ? (body.is_champion ? 1 : 0) : (current.is_champion as number),
+    stance,
+    stance === 'mentor' ? 1 : 0,
     body.influence ?? (current.influence as number),
     body.contact_depth !== undefined
       ? body.contact_depth

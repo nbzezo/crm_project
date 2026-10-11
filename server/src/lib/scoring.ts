@@ -318,7 +318,7 @@ function factorCeiling(
 
       const champion = one(
         `SELECT COUNT(*) AS n FROM deal_committee
-          WHERE deal_id = ? AND is_champion = 1 AND stance IN ('supporter','mentor')`,
+          WHERE deal_id = ? AND (stance = 'mentor' OR (is_champion = 1 AND stance = 'supporter'))`,
         dealId
       );
       if (champion === 0) return { max: 1, blocked_by: 'champion_missing' };

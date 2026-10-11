@@ -4,6 +4,8 @@ import type { PermissionMap } from '@workflow/contracts';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
+export type DealViewMode = 'basic' | 'advanced';
+
 /** Ho so nguoi dang dang nhap — dung hinh dang voi PublicUser cua may chu. */
 export interface AuthUser {
   id: number;
@@ -36,6 +38,8 @@ export interface AuthUser {
   permissions_version?: number;
   positions?: { id: number; name: string; code: string | null; scope_unit_name: string | null }[];
   org_unit?: { id: number; name: string; kind_name: string | null } | null;
+  /** v71: cách xem trang cơ hội — Cơ bản (đánh giá nhanh) hoặc Nâng cao (20 ô + BANT/4P). */
+  deal_view_mode?: DealViewMode;
 }
 
 interface AuthState {

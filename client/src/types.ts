@@ -1474,6 +1474,57 @@ export interface DealAssessment {
   decisions: DealDecisionEntry[];
 }
 
+/* ---------- Đánh giá nhanh 10 câu — chế độ Cơ bản (v71) ---------- */
+
+export type QuickQuestion =
+  | 'need'
+  | 'budget'
+  | 'deadline'
+  | 'decision_maker'
+  | 'supporter'
+  | 'fit'
+  | 'advantage'
+  | 'process'
+  | 'profit'
+  | 'future';
+export type QuickAnswer = 'yes' | 'unsure' | 'no';
+export type QuickVerdict =
+  | 'not_started'
+  | 'go'
+  | 'clarify'
+  | 'build_edge'
+  | 'keep_warm'
+  | 'stop_no_need'
+  | 'stop_not_worth';
+
+export interface QuickAssessmentItem {
+  question: QuickQuestion;
+  group: 'real' | 'edge' | 'worth';
+  /** null = chưa có câu trả lời và không suy ra được. */
+  answer: QuickAnswer | null;
+  /** 'derived' = gợi ý suy từ đánh giá chi tiết (chế độ Nâng cao), chưa ai trả lời. */
+  source: 'user' | 'ai' | 'derived' | null;
+  note: string;
+  updated_at: string | null;
+  updated_by_name: string | null;
+}
+
+export interface QuickAssessment {
+  deal_id: number;
+  locked: boolean;
+  items: QuickAssessmentItem[];
+  counts: { yes: number; unsure: number; no: number };
+  verdict: QuickVerdict;
+  /** Tối đa 3 câu cần xử lý tiếp, đã xếp theo ưu tiên. */
+  next_actions: { question: QuickQuestion; answer: QuickAnswer | null }[];
+  answered_at: string | null;
+}
+
+/** Kết quả POST /api/ai/assist/deal/:id/quick-assessment — chỉ là gợi ý, chưa lưu. */
+export interface QuickAssistResult {
+  answers: { question: QuickQuestion; answer: QuickAnswer; reason: string }[];
+}
+
 export interface CommitteeResponse {
   members: CommitteeMember[];
   candidates: {

@@ -167,8 +167,29 @@ function sessionUser(userId: number) {
           WHERE u.id = ?`
         )
         .get(userId) ?? null,
+    /* v71: cach xem trang co hoi — Co ban (danh gia nhanh) hoac Nang cao (20 o + BANT/4P). */
+    deal_view_mode:
+      (
+        db.prepare(`SELECT deal_view_mode FROM users WHERE id = ?`).get(userId) as
+          { deal_view_mode: 'basic' | 'advanced' } | undefined
+      )?.deal_view_mode ?? 'basic',
   };
 }
+
+const preferencesSchema = z.object({
+  deal_view_mode: z.enum(['basic', 'advanced']),
+});
+
+/** Tuy chon hien thi cua CHINH tai khoan dang dang nhap — chi nhan dung cac khoa da khai bao. */
+router.patch('/me/preferences', (req, res) => {
+  const userId = req.session?.userId;
+  if (!userId) throw new HttpError(401, 'Chưa đăng nhập');
+  const body = parseBody(preferencesSchema, req);
+  db.prepare(`UPDATE users SET deal_view_mode = ? WHERE id = ?`).run(body.deal_view_mode, userId);
+  const me = sessionUser(userId);
+  if (!me || !me.is_active) throw new HttpError(401, 'Chưa đăng nhập');
+  res.json(me);
+});
 
 router.post('/logout', async (req, res, next) => {
   try {

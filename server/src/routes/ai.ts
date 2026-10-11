@@ -20,6 +20,7 @@ import {
 import { getMeetingNote, saveAiSummary } from '../services/meetingNoteService.ts';
 import { runAutomation } from '../services/ai/automations.ts';
 import { ASSESSMENT_GRID, getAssessment, saveAiReview } from '../services/assessmentService.ts';
+import { QUICK_QUESTIONS, getQuickAssessment } from '../services/quickAssessmentService.ts';
 import { ASSESSMENT_CRITERIA, DEAL_DECISIONS, SCORE_FACTORS } from '../lib/crm.ts';
 import {
   appendTurn,
@@ -571,6 +572,80 @@ router.post('/assist/deal/:id/assessment', async (req, res) => {
     );
 
     res.json({ assessment: saveAiReview(db, dealId, data, actorContactId(req)), meta });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
+/* ---------- Danh gia nhanh: "Ke cho AI" (v71) ---------- */
+
+const QUICK_QUESTION_TEXT: Record<string, string> = {
+  need: 'Khách có vấn đề thật sự cần giải quyết không?',
+  budget: 'Khách đã có (hoặc chắc chắn sẽ có) tiền cho việc này chưa?',
+  deadline: 'Khách có hạn chót buộc phải xong không?',
+  decision_maker: 'Người bán đã nói chuyện trực tiếp với người duyệt chi chưa?',
+  supporter: 'Bên khách có người ủng hộ ta, chịu báo tin cho ta không?',
+  fit: 'Giải pháp của ta đáp ứng được yêu cầu chính của khách không?',
+  advantage: 'Ta có điểm hơn hẳn đối thủ mà khách công nhận không?',
+  process: 'Người bán có biết khách sẽ chọn nhà cung cấp thế nào, ai thật sự quyết không?',
+  profit: 'Ký được hợp đồng này có lãi đủ không?',
+  future: 'Sau hợp đồng này còn việc tiếp theo hoặc lợi ích lâu dài không?',
+};
+
+const quickAssistSchema = z.object({
+  story: z.string().trim().max(4000).optional(),
+});
+
+const quickAssistResponse = z.object({
+  answers: z
+    .array(
+      z.object({
+        question: z.string(),
+        answer: z.enum(['yes', 'unsure', 'no']),
+        reason: z.string().max(400).default(''),
+      })
+    )
+    .max(20)
+    .default([]),
+});
+
+/**
+ * Nguoi ban ke tu do vai cau ve khach (go hoac dung micro ban phim dien thoai); AI doc
+ * kem ho so co hoi va goi y 10 cau tra loi. KHONG luu — giao dien dien san vao trinh hoi
+ * tung cau, nguoi dung xem lai roi tu bam Luu.
+ */
+router.post('/assist/deal/:id/quick-assessment', async (req, res) => {
+  try {
+    const dealId = intParam(req.params.id);
+    assertContextInScope(req, 'deal', dealId);
+    const body = parseBody(quickAssistSchema, req);
+    const context = buildDealContext(db, dealId);
+    const current = getQuickAssessment(db, dealId);
+    const { data, meta } = await runStructured(
+      db,
+      {
+        task: 'deal_quick_assessment',
+        mode: 'fast',
+        contextType: 'deal',
+        contextId: dealId,
+        maxOutputTokens: 1500,
+        system:
+          'Bạn giúp nhân viên kinh doanh trả lời nhanh 10 câu hỏi đánh giá cơ hội. Trả lời "yes" (Có), ' +
+          '"no" (Không) hoặc "unsure" (Chưa rõ). CHỈ dựa vào lời kể và hồ sơ được cung cấp; không đủ căn cứ ' +
+          'thì chọn "unsure". Lý do ngắn, tiếng Việt có dấu, nêu căn cứ cụ thể.',
+        prompt:
+          'Trả JSON {"answers":[{"question":"<key>","answer":"yes|unsure|no","reason":"căn cứ ngắn"}]} cho đủ 10 câu.\n' +
+          `Các câu (key = câu hỏi):\n${QUICK_QUESTIONS.map((q) => `${q} = ${QUICK_QUESTION_TEXT[q]}`).join('\n')}\n` +
+          `Câu trả lời hiện có: ${current.items.map((i) => `${i.question}=${i.answer ?? 'chưa có'}`).join(', ')}\n` +
+          (body.story ? `Lời kể của người bán:\n${body.story}\n` : '') +
+          `Hồ sơ cơ hội:\n${compactJson(context, 25_000)}`,
+      },
+      quickAssistResponse
+    );
+    const answers = data.answers.filter((a) =>
+      (QUICK_QUESTIONS as readonly string[]).includes(a.question)
+    );
+    res.json({ answers, meta });
   } catch (error) {
     asHttpError(error);
   }

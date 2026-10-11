@@ -88,6 +88,8 @@ export const EXPORT_TABLES = [
   // v70 — danh gia 4 cau hoi va nhat ky quyet dinh
   'deal_assessments',
   'deal_decisions',
+  // v71 — danh gia nhanh 10 cau
+  'deal_quick_answers',
   'app_settings',
   // v6 — truong thong tin tuy chinh theo bang
   'card_fields',
