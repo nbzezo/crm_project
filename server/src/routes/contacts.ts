@@ -31,10 +31,10 @@ function assertContactInScope(
           WHERE ct.id = ?`
       )
       .get(contactId),
-    'Khong tim thay nguoi lien he'
+    'Không tìm thấy người liên hệ'
   ) as { customer_id: number; owner_contact_id: number | null };
   if (contactId !== actorContactId(req)) {
-    assertInScope(req, 'contacts', action, row.owner_contact_id, 'Khong tim thay nguoi lien he');
+    assertInScope(req, 'contacts', action, row.owner_contact_id, 'Không tìm thấy người liên hệ');
   }
   return row;
 }
@@ -99,7 +99,7 @@ router.get('/:id/full', (req, res) => {
            JOIN customers c ON c.id = ct.customer_id WHERE ct.id = ?`
       )
       .get(id),
-    'Khong tim thay nguoi lien he'
+    'Không tìm thấy người liên hệ'
   ) as Record<string, unknown>;
 
   const deals = db.prepare(`SELECT * FROM deals WHERE contact_id = ?`).all(id);
@@ -126,7 +126,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(contactSchema, req);
   const current = required(
     db.prepare(`SELECT * FROM contacts WHERE id = ?`).get(id),
-    'Khong tim thay nguoi lien he'
+    'Không tìm thấy người liên hệ'
   ) as Record<string, unknown>;
 
   const merged = { ...current, ...body };

@@ -160,7 +160,7 @@ export function classifyProject(db: Database, projectId: number): Classification
            FROM projects p WHERE p.id = ?`
       )
       .get(projectId),
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   ) as {
     plan_start: string | null;
     plan_end: string | null;
@@ -253,7 +253,7 @@ export function chooseDeliveryModel(
  * viec la mat du lieu that, va khong co man hinh nao hoan tac duoc.
  */
 export function applyBoardTemplate(db: Database, boardId: number, key: string): unknown[] {
-  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Khong tim thay bang');
+  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Không tìm thấy bảng');
 
   const { boardTemplates } = getDeliverySettings(db);
   const template = boardTemplates[key];
@@ -300,7 +300,7 @@ const RISK_SELECT = `
 export function getRisk(db: Database, id: number): unknown {
   return required(
     db.prepare(`${RISK_SELECT} WHERE r.id = ?`).get(id),
-    'Khong tim thay muc trong so rui ro'
+    'Không tìm thấy mục trọng số rủi ro'
   );
 }
 

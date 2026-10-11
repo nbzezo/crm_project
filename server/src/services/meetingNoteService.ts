@@ -77,7 +77,7 @@ function syncAttendees(db: Database, meetingNoteId: number, contactIds: number[]
   for (const contactId of new Set(contactIds)) {
     required(
       db.prepare(`SELECT id FROM contacts WHERE id = ?`).get(contactId),
-      'Khong tim thay nguoi tham du'
+      'Không tìm thấy người tham dự'
     );
     insert.run(meetingNoteId, contactId);
   }
@@ -128,7 +128,7 @@ export function listMeetingNotes(
 }
 
 export function getMeetingNote(db: Database, id: number) {
-  return required(reload(db, id), 'Khong tim thay trang tai lieu');
+  return required(reload(db, id), 'Không tìm thấy trang tài liệu');
 }
 
 export function createMeetingNote(
@@ -169,7 +169,7 @@ export function updateMeetingNote(db: Database, id: number, patch: Partial<Meeti
   const current = required(
     db.prepare(`SELECT * FROM meeting_notes WHERE id = ? AND deleted_at IS NULL`).get(id) as
       MeetingNoteRow | undefined,
-    'Khong tim thay ghi chu hop'
+    'Không tìm thấy ghi chú hop'
   );
   const merged = { ...current, ...patch };
   assertLinks(db, merged);
@@ -206,7 +206,7 @@ export function softDeleteMeetingNote(db: Database, id: number): void {
         WHERE id = ? AND deleted_at IS NULL`
     )
     .run(id);
-  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay trang tai lieu');
+  if (result.changes === 0) throw new HttpError(404, 'Không tìm thấy trang tài liệu');
 }
 
 /** Dung boi route AI (tom tat) de cache ket qua va tranh goi lai model khong can thiet. */
@@ -375,7 +375,7 @@ export function restoreMeetingNote(db: Database, id: number) {
         WHERE id = ? AND deleted_at IS NOT NULL`
     )
     .run(id);
-  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay trang trong thung rac');
+  if (result.changes === 0) throw new HttpError(404, 'Không tìm thấy trang trong thùng rác');
   return getMeetingNote(db, id);
 }
 

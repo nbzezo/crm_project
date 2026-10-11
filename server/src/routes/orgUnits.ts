@@ -48,7 +48,7 @@ router.patch('/kinds/:id', (req, res) => {
   const body = parseBody(kindSchema.partial(), req);
   const current = required(
     db.prepare('SELECT * FROM org_unit_kinds WHERE id = ?').get(id),
-    'Khong tim thay loai don vi'
+    'Không tìm thấy loại đơn vị'
   ) as { name: string; level_order: number };
   db.prepare('UPDATE org_unit_kinds SET name = ?, level_order = ? WHERE id = ?').run(
     body.name ?? current.name,
@@ -100,7 +100,7 @@ router.post('/', (req, res) => {
   if (body.parent_id != null) {
     required(
       db.prepare('SELECT id FROM org_units WHERE id = ?').get(body.parent_id),
-      'Khong tim thay don vi cap tren'
+      'Không tìm thấy đơn vị cấp trên'
     );
   }
   /* Khong dung nextPosition(): no so sanh bang `= ?`, ma `parent_id = NULL` khong
@@ -133,7 +133,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(unitSchema.partial(), req);
   const current = required(
     db.prepare('SELECT * FROM org_units WHERE id = ?').get(id),
-    'Khong tim thay don vi'
+    'Không tìm thấy đơn vị'
   ) as Record<string, unknown>;
 
   const parentId =
@@ -160,7 +160,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare('SELECT id FROM org_units WHERE id = ?').get(id), 'Khong tim thay don vi');
+  required(db.prepare('SELECT id FROM org_units WHERE id = ?').get(id), 'Không tìm thấy đơn vị');
   assertUnitEmpty(id);
   db.prepare('DELETE FROM org_units WHERE id = ?').run(id);
   res.status(204).end();
@@ -243,7 +243,7 @@ router.post('/members', (req, res) => {
   if (body.org_unit_id != null) {
     required(
       db.prepare('SELECT id FROM org_units WHERE id = ?').get(body.org_unit_id),
-      'Khong tim thay don vi'
+      'Không tìm thấy đơn vị'
     );
   }
   const update = db.prepare('UPDATE contacts SET org_unit_id = ? WHERE id = ?');

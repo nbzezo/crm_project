@@ -28,7 +28,7 @@ import {
 const router = Router();
 
 const customerSchema = z.object({
-  name: z.string().trim().min(1, 'Ten khach hang khong duoc de trong'),
+  name: z.string().trim().min(1, 'Tên khách hàng không được để trống'),
   short_name: z.string().nullable().optional(),
   tax_code: z.string().trim().nullable().optional(),
   industry: z.string().nullable().optional(),
@@ -268,7 +268,7 @@ router.get('/:id/full', (req, res) => {
   const id = intParam(req.params.id);
   const customer = required(
     db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   ) as Record<string, unknown>;
   assertInScope(req, 'customers', 'read', customer.owner_contact_id as number | null);
 
@@ -403,7 +403,7 @@ function loadInScope(
            FROM customers WHERE id = ?`
       )
       .get(id),
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   ) as {
     id: number;
     name: string;
@@ -437,7 +437,7 @@ function loadSuggestion(customerId: number, suggestionId: number): SuggestionRow
     db
       .prepare(`SELECT * FROM customer_suggestions WHERE id = ? AND customer_id = ?`)
       .get(suggestionId, customerId),
-    'Khong tim thay goi y'
+    'Không tìm thấy gợi ý'
   ) as SuggestionRow;
   if (row.status !== 'open') throw new HttpError(409, 'Gợi ý này đã được xử lý');
   return row;
@@ -498,7 +498,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(customerSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM customers WHERE id = ?`).get(id),
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   ) as Record<string, string | null>;
   /* Chan danh sach thoi thi chua du: khong co dong nay, doan id la sua duoc ban
      ghi cua nguoi khac. 404 chu khong 403 — ngoai pham vi thi "khong ton tai" va
@@ -583,7 +583,7 @@ router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const current = required(
     db.prepare(`SELECT owner_contact_id FROM customers WHERE id = ?`).get(id),
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   ) as { owner_contact_id: number | null };
   assertInScope(req, 'customers', 'delete', current.owner_contact_id);
   /* Xoa to chuc keo theo moi contact (ON DELETE CASCADE) — voi "cong ty minh" la
@@ -606,7 +606,7 @@ router.delete('/:id', (req, res) => {
 
 /* ---- Contacts thuoc khach hang ---- */
 const contactSchema = z.object({
-  full_name: z.string().trim().min(1, 'Ho ten khong duoc de trong'),
+  full_name: z.string().trim().min(1, 'Họ tên không được để trống'),
   title: z.string().nullable().optional(),
   department: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
@@ -628,7 +628,7 @@ router.post('/:id/contacts', (req, res) => {
   const body = parseBody(contactSchema, req);
   required(
     db.prepare(`SELECT id FROM customers WHERE id = ?`).get(customerId),
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   );
 
   const id = db.transaction(() => {

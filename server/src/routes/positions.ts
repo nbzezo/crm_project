@@ -51,7 +51,7 @@ router.get('/catalog', (_req, res) => {
 
 router.get('/:id/permissions', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare('SELECT id FROM positions WHERE id = ?').get(id), 'Khong tim thay vi tri');
+  required(db.prepare('SELECT id FROM positions WHERE id = ?').get(id), 'Không tìm thấy vị trí');
   res.json(getPositionPermissions(id));
 });
 
@@ -78,7 +78,7 @@ router.post('/', (req, res) => {
     if (body.copy_from_position_id) {
       required(
         db.prepare('SELECT id FROM positions WHERE id = ?').get(body.copy_from_position_id),
-        'Khong tim thay vi tri nguon'
+        'Không tìm thấy vị trí nguon'
       );
       db.prepare(
         `INSERT INTO position_permissions (position_id, resource, action, scope)
@@ -97,7 +97,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(positionSchema.omit({ copy_from_position_id: true }).partial(), req);
   const current = required(
     db.prepare('SELECT * FROM positions WHERE id = ?').get(id),
-    'Khong tim thay vi tri'
+    'Không tìm thấy vị trí'
   ) as { name: string; code: string | null; description: string };
 
   db.prepare('UPDATE positions SET name = ?, code = ?, description = ? WHERE id = ?').run(
@@ -123,7 +123,7 @@ const permissionsSchema = z.object({
 
 router.put('/:id/permissions', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare('SELECT id FROM positions WHERE id = ?').get(id), 'Khong tim thay vi tri');
+  required(db.prepare('SELECT id FROM positions WHERE id = ?').get(id), 'Không tìm thấy vị trí');
   const body = parseBody(permissionsSchema, req);
   setPositionPermissions(id, body.permissions);
   res.json(getPositionPermissions(id));
@@ -131,7 +131,7 @@ router.put('/:id/permissions', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare('SELECT id FROM positions WHERE id = ?').get(id), 'Khong tim thay vi tri');
+  required(db.prepare('SELECT id FROM positions WHERE id = ?').get(id), 'Không tìm thấy vị trí');
   assertNotSystemPosition(id);
   assertPositionUnused(id);
   db.transaction(() => {
@@ -184,7 +184,7 @@ const assignmentSchema = z.object({ positions: positionAssignmentsSchema });
  */
 router.put('/assignments/:userId', (req, res) => {
   const userId = intParam(req.params.userId);
-  required(db.prepare('SELECT id FROM users WHERE id = ?').get(userId), 'Khong tim thay tai khoan');
+  required(db.prepare('SELECT id FROM users WHERE id = ?').get(userId), 'Không tìm thấy tài khoản');
   const body = parseBody(assignmentSchema, req);
 
   setUserPositions(userId, body.positions);

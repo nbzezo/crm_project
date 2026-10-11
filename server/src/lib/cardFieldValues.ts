@@ -26,7 +26,7 @@ export function assertValidFieldValue(
   value: string
 ): void {
   if (!isValidFieldValue(fieldType, optionsJson, value)) {
-    throw new HttpError(400, 'Gia tri khong hop le cho kieu truong nay', {
+    throw new HttpError(400, 'Giá trị không hợp lệ cho kiểu trường này', {
       code: 'FIELD_VALUE_INVALID',
     });
   }

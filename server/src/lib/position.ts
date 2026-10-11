@@ -54,20 +54,20 @@ export function computeMovePosition(
   movingId?: number
 ): number {
   if (beforeId != null && afterId != null && beforeId === afterId) {
-    throw new HttpError(422, 'Hai hang xom cua vi tri moi khong hop le');
+    throw new HttpError(422, 'Hai hàng xóm của vị trí mới không hợp lệ');
   }
   if (movingId != null && (beforeId === movingId || afterId === movingId)) {
-    throw new HttpError(422, 'Phan tu dang di chuyen khong the la hang xom cua chinh no');
+    throw new HttpError(422, 'Phần tử đang di chuyển không thể là hàng xóm của chính nó');
   }
 
   let before = beforeId != null ? positionOf(scope, beforeId) : null;
   let after = afterId != null ? positionOf(scope, afterId) : null;
 
   if (beforeId != null && before === null) {
-    throw new HttpError(422, 'Phan tu phia tren khong thuoc dung danh sach');
+    throw new HttpError(422, 'Phần tử phía trên không thuộc đúng danh sách');
   }
   if (afterId != null && after === null) {
-    throw new HttpError(422, 'Phan tu phia duoi khong thuoc dung danh sach');
+    throw new HttpError(422, 'Phần tử phía dưới không thuộc đúng danh sách');
   }
 
   if (before !== null && after !== null && Math.abs(after - before) < MIN_GAP) {
@@ -77,7 +77,7 @@ export function computeMovePosition(
   }
 
   if (before !== null && after !== null && before >= after) {
-    throw new HttpError(422, 'Thu tu hai hang xom cua vi tri moi khong hop le');
+    throw new HttpError(422, 'Thứ tự hai hàng xóm của vị trí mới không hợp lệ');
   }
 
   if (before === null && after === null) return nextPosition(scope);

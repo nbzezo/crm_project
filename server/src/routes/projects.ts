@@ -22,11 +22,11 @@ const router = Router();
 
 const dateOnly = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngay phai dang YYYY-MM-DD')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
   .nullable();
 
 const projectSchema = z.object({
-  name: z.string().trim().min(1, 'Ten du an khong duoc de trong').max(200),
+  name: z.string().trim().min(1, 'Tên dự án không được để trống').max(200),
   code: z.string().max(50).nullable().optional(),
   customer_id: z.number().int().positive().nullable().optional(),
   owner_contact_id: z.number().int().positive().nullable().optional(),
@@ -130,14 +130,14 @@ router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const projectRow = required(
     db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(id),
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   ) as Record<string, unknown>;
   assertInScope(
     req,
     'projects',
     'read',
     projectRow.owner_contact_id as number | null,
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   );
   const project = decorateProject(projectRow);
 
@@ -222,7 +222,7 @@ router.post('/', (req, res) => {
   if (body.customer_id != null) {
     required(
       db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),
-      'Khong tim thay khach hang'
+      'Không tìm thấy khách hàng'
     );
   }
 
@@ -278,14 +278,14 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(projectSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM projects WHERE id = ?`).get(id),
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   ) as Record<string, unknown>;
 
   if (body.owner_contact_id !== undefined) resolveAssignee(db, body.owner_contact_id);
   if (body.customer_id != null) {
     required(
       db.prepare(`SELECT id FROM customers WHERE id = ?`).get(body.customer_id),
-      'Khong tim thay khach hang'
+      'Không tìm thấy khách hàng'
     );
   }
 
@@ -377,7 +377,7 @@ router.put('/:id/model', (req, res) => {
   );
   const current = required(
     db.prepare(`SELECT delivery_model FROM projects WHERE id = ?`).get(id),
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   ) as Record<string, unknown>;
   const audit = auditFromRequest(req);
 
@@ -390,7 +390,7 @@ router.put('/:id/model', (req, res) => {
 
 const riskSchema = z.object({
   kind: z.enum(RISK_KINDS).optional(),
-  title: z.string().trim().min(1, 'Tieu de khong duoc de trong').max(300),
+  title: z.string().trim().min(1, 'Tiêu đề không được để trống').max(300),
   detail: z.string().max(5000).optional(),
   severity: z.enum(RISK_SEVERITIES).optional(),
   status: z.enum(RISK_STATUSES).optional(),
@@ -406,7 +406,7 @@ router.get('/:id/risks', (req, res) => {
 router.post('/:id/risks', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(riskSchema, req);
-  required(db.prepare(`SELECT id FROM projects WHERE id = ?`).get(id), 'Khong tim thay du an');
+  required(db.prepare(`SELECT id FROM projects WHERE id = ?`).get(id), 'Không tìm thấy dự án');
   if (body.owner_contact_id != null) resolveAssignee(db, body.owner_contact_id);
 
   const info = db
@@ -435,7 +435,7 @@ router.patch('/:id/risks/:riskId', (req, res) => {
   const body = parseBody(riskSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM project_risks WHERE id = ? AND project_id = ?`).get(riskId, id),
-    'Khong tim thay muc trong so rui ro'
+    'Không tìm thấy mục trọng số rủi ro'
   ) as Record<string, unknown>;
   if (body.owner_contact_id != null) resolveAssignee(db, body.owner_contact_id);
 

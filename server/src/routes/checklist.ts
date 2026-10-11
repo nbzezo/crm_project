@@ -22,7 +22,7 @@ router.patch('/:id', (req, res) => {
   );
   const item = required(
     db.prepare(`SELECT * FROM checklist_items WHERE id = ?`).get(id),
-    'Khong tim thay muc viec'
+    'Không tìm thấy mục việc'
   ) as { card_id: number };
 
   db.transaction(() => {
@@ -55,12 +55,12 @@ router.post('/:id/promote', (req, res) => {
   const id = intParam(req.params.id);
   const item = required(
     db.prepare(`SELECT * FROM checklist_items WHERE id = ?`).get(id),
-    'Khong tim thay muc viec'
+    'Không tìm thấy mục việc'
   ) as { card_id: number; content: string; is_done: number };
 
   const parent = required(
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(item.card_id),
-    'Khong tim thay the cha'
+    'Không tìm thấy thẻ cha'
   ) as Record<string, unknown>;
   if (parent.parent_id) throw new HttpError(400, 'Chỉ hỗ trợ một cấp việc con');
 

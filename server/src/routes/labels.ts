@@ -74,7 +74,7 @@ function allLabels(): LabelRow[] {
 function getLabel(id: number): LabelRow {
   return required(
     db.prepare(`SELECT * FROM labels WHERE id = ?`).get(id) as LabelRow | undefined,
-    'Khong tim thay nhan'
+    'Không tìm thấy nhãn'
   );
 }
 
@@ -156,9 +156,9 @@ function assertNameFree(nameNorm: string, parentId: number | null, exceptId?: nu
 function assertValidParent(parentId: number, selfId?: number): LabelRow {
   const parent = getLabel(parentId);
   if (selfId !== undefined && parent.id === selfId)
-    throw new HttpError(400, 'Nhan khong the la nhan cha cua chinh no');
+    throw new HttpError(400, 'Nhãn không thể là nhãn cha của chính nó');
   if (parent.parent_id !== null)
-    throw new HttpError(400, 'Chi ho tro 2 cap nhan — khong tao duoc nhan con ben duoi nhan con');
+    throw new HttpError(400, 'Chỉ hỗ trợ 2 cấp nhãn — không tạo được nhãn con bên dưới nhãn con');
   return parent;
 }
 
@@ -171,14 +171,14 @@ function hasChildren(id: number): number {
 
 function entityTypeParam(value: string | undefined): EntityType {
   if (!ENTITY_TYPES.includes(value as EntityType))
-    throw new HttpError(400, `Loai doi tuong khong hop le: ${value}`);
+    throw new HttpError(400, `Loại đối tượng không hợp lệ: ${value}`);
   return value as EntityType;
 }
 
 function assertEntityExists(type: EntityType, id: number): void {
   required(
     db.prepare(`SELECT id FROM ${ENTITY_TABLES[type]} WHERE id = ?`).get(id),
-    'Khong tim thay ban ghi de gan nhan'
+    'Không tìm thấy bản ghi để gắn nhãn'
   );
 }
 
@@ -352,7 +352,7 @@ router.get('/:id/records', (req, res) => {
 /* ---------- Ghi ---------- */
 
 const createSchema = z.object({
-  name: z.string().trim().min(1, 'Ten nhan khong duoc de trong').max(MAX_NAME_LENGTH),
+  name: z.string().trim().min(1, 'Tên nhãn không được để trống').max(MAX_NAME_LENGTH),
   color: z.string().trim().min(1),
   parent_id: z.number().int().nullable().optional(),
   description: z.string().trim().max(200).optional(),
@@ -401,18 +401,18 @@ router.patch('/:id', (req, res) => {
   const label = getLabel(id);
 
   if (label.is_system === 1 && (body.name !== undefined || body.parent_id !== undefined))
-    throw new HttpError(400, 'Khong doi ten hoac di chuyen duoc nhom he thong');
+    throw new HttpError(400, 'Không đổi tên hoặc di chuyển được nhóm hệ thống');
 
   // FR-TAG-13 / C12: chuyen nhan con sang nhom khac
   let parentId = label.parent_id;
   if (body.parent_id !== undefined) {
     if (body.parent_id === null) {
       if (label.parent_id !== null && labelCount(id) > 0)
-        throw new HttpError(400, 'Nhan dang duoc gan cho ban ghi nen khong the chuyen thanh nhom');
+        throw new HttpError(400, 'Nhãn đang được gắn cho bản ghi nên không thể chuyển thành nhóm');
       parentId = null;
     } else {
       if (hasChildren(id) > 0)
-        throw new HttpError(400, 'Nhom dang co nhan con nen khong the tro thanh nhan con');
+        throw new HttpError(400, 'Nhóm đang có nhãn con nên không thể trở thành nhãn con');
       parentId = assertValidParent(body.parent_id, id).id;
     }
   }
@@ -449,13 +449,13 @@ router.patch('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const label = getLabel(id);
-  if (label.is_system === 1) throw new HttpError(400, 'Khong xoa duoc nhom he thong');
+  if (label.is_system === 1) throw new HttpError(400, 'Không xóa được nhóm hệ thống');
 
   const children = hasChildren(id);
   if (children > 0)
     throw new HttpError(
       409,
-      `Nhom nay con ${children} nhan con. Hay chuyen hoac xoa nhan con truoc.`
+      `Nhóm này còn ${children} nhãn con. Hãy chuyển hoặc xóa nhãn con trước.`
     );
 
   const used = labelCount(id);
@@ -478,11 +478,11 @@ router.post('/:id/merge', (req, res) => {
   const source = getLabel(id);
   const target = getLabel(body.target_id);
 
-  if (source.id === target.id) throw new HttpError(400, 'Khong gop nhan vao chinh no');
-  if (source.is_system === 1) throw new HttpError(400, 'Khong gop duoc nhom he thong');
+  if (source.id === target.id) throw new HttpError(400, 'Không gộp nhãn vào chính nó');
+  if (source.is_system === 1) throw new HttpError(400, 'Không gộp được nhóm hệ thống');
   if ((source.parent_id === null) !== (target.parent_id === null))
-    throw new HttpError(400, 'Chi gop duoc hai nhan cung cap');
-  if (source.parent_id === null) throw new HttpError(400, 'Chua ho tro gop hai nhom nhan');
+    throw new HttpError(400, 'Chỉ gộp được hai nhãn cùng cấp');
+  if (source.parent_id === null) throw new HttpError(400, 'Chưa hỗ trợ gộp hai nhóm nhãn');
 
   const result = db.transaction(() => {
     const moved = db
@@ -542,12 +542,12 @@ router.put('/links/:entityType/:entityId', (req, res) => {
 
   const ids = [...new Set(body.label_ids)];
   if (ids.length > MAX_LABELS_PER_RECORD)
-    throw new HttpError(400, `Moi ban ghi chi gan toi da ${MAX_LABELS_PER_RECORD} nhan`);
+    throw new HttpError(400, `Mỗi bản ghi chỉ gắn tối đa ${MAX_LABELS_PER_RECORD} nhãn`);
 
   for (const labelId of ids) {
     const label = getLabel(labelId);
     if (label.parent_id === null)
-      throw new HttpError(400, `"${label.name}" la nhom nhan nen khong gan truc tiep duoc`);
+      throw new HttpError(400, `"${label.name}" là nhóm nhãn nên không gắn trực tiếp được`);
   }
 
   db.transaction(() => {
@@ -576,7 +576,7 @@ router.post('/bulk', (req, res) => {
   for (const labelId of body.label_ids) {
     const label = getLabel(labelId);
     if (label.parent_id === null)
-      throw new HttpError(400, `"${label.name}" la nhom nhan nen khong gan truc tiep duoc`);
+      throw new HttpError(400, `"${label.name}" là nhóm nhãn nên không gắn trực tiếp được`);
   }
 
   const changed = db.transaction(() => {
@@ -593,7 +593,7 @@ router.post('/bulk', (req, res) => {
         if (current + body.label_ids.length > MAX_LABELS_PER_RECORD)
           throw new HttpError(
             400,
-            `Co ban ghi se vuot qua ${MAX_LABELS_PER_RECORD} nhan — hay bo bot nhan truoc`
+            `Có bản ghi sẽ vượt quá ${MAX_LABELS_PER_RECORD} nhãn — hãy bỏ bớt nhãn trước`
           );
         for (const labelId of body.label_ids)
           count += insert.run(labelId, body.entity_type, entityId).changes;

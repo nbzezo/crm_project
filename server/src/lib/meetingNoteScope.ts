@@ -62,5 +62,5 @@ export function assertMeetingNoteInScope(
           ${scope.sql ? `AND ${scope.sql}` : ''}`
     )
     .get(id, ...scope.params);
-  if (!row) throw new HttpError(404, 'Khong tim thay trang tai lieu');
+  if (!row) throw new HttpError(404, 'Không tìm thấy trang tài liệu');
 }

@@ -19,7 +19,7 @@ export function assertQuickNoteExists(quickNoteId: number | null | undefined): v
   if (quickNoteId == null) return;
   required(
     db.prepare(`SELECT id FROM quick_notes WHERE id = ? AND deleted_at IS NULL`).get(quickNoteId),
-    'Khong tim thay ghi chu nhanh'
+    'Không tìm thấy ghi chú nhanh'
   );
 }
 
@@ -30,7 +30,7 @@ export function assertMeetingNoteExists(meetingNoteId: number | null | undefined
     db
       .prepare(`SELECT id FROM meeting_notes WHERE id = ? AND deleted_at IS NULL`)
       .get(meetingNoteId),
-    'Khong tim thay ghi chu hop'
+    'Không tìm thấy ghi chú hop'
   );
 }
 
@@ -170,7 +170,7 @@ export function permanentlyDeleteDocument(id: number): void {
   const document = required(
     db.prepare(`SELECT stored_name FROM documents WHERE id = ?`).get(id) as
       { stored_name: string } | undefined,
-    'Khong tim thay tai lieu'
+    'Không tìm thấy tài liệu'
   );
   const filePath = path.join(FILES_DIR, document.stored_name);
   const trashPath = path.join(DOCUMENT_TEMP_DIR, `delete-${Date.now()}-${document.stored_name}`);

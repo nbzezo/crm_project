@@ -169,6 +169,6 @@ test('quyet dinh: ghi kem nhac ngay xet lai, chi xoa duoc cua minh, co hoi da ch
 
   db.prepare(`UPDATE deals SET stage = 'won' WHERE id = ?`).run(dealId);
   assert.equal(getAssessment(db, dealId).locked, true);
-  assert.throws(() => writeCriterion(db, dealId, 'profit', { score: 2 }, me), /chi doc/);
-  assert.throws(() => addDecision(db, dealId, { decision: 'pause' }, me), /chi doc/);
+  assert.throws(() => writeCriterion(db, dealId, 'profit', { score: 2 }, me), /chỉ đọc/);
+  assert.throws(() => addDecision(db, dealId, { decision: 'pause' }, me), /chỉ đọc/);
 });

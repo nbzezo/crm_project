@@ -23,7 +23,7 @@ export function assertProjectLink(
 
   const project = required(
     db.prepare(`SELECT id, name, customer_id FROM projects WHERE id = ?`).get(projectId),
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   ) as { id: number; name: string; customer_id: number | null };
 
   const taken = db
@@ -62,7 +62,7 @@ export function evaluateStageGate(
 
   const reason = String(query.reason ?? '').trim();
   if (reason.length < 10) {
-    throw new HttpError(422, 'Ghi de cong giai doan phai co ly do tu 10 ky tu tro len', {
+    throw new HttpError(422, 'Ghi đè cổng giai đoạn phải có lý do từ 10 ký tự trở lên', {
       code: 'OVERRIDE_REASON_REQUIRED',
     });
   }

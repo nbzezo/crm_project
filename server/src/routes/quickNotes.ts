@@ -42,8 +42,8 @@ const router = Router();
 function guard(req: Request, id: number, action: PermissionAction): number {
   const row = db.prepare(`SELECT owner_contact_id FROM quick_notes WHERE id = ?`).get(id) as
     { owner_contact_id: number | null } | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay ghi chu');
-  assertInScope(req, 'notes', action, row.owner_contact_id, 'Khong tim thay ghi chu');
+  if (!row) throw new HttpError(404, 'Không tìm thấy ghi chú');
+  assertInScope(req, 'notes', action, row.owner_contact_id, 'Không tìm thấy ghi chú');
   return id;
 }
 

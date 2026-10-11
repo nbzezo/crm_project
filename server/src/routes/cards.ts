@@ -40,7 +40,7 @@ const router = Router();
 
 const dateOnly = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngay phai dang YYYY-MM-DD')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
   .nullable();
 
 const priorityEnum = z.enum(['low', 'medium', 'high', 'urgent']);
@@ -77,7 +77,7 @@ router.get('/context', (req, res) => {
   const numeric = (value: unknown) => {
     if (value === undefined || value === '') return null;
     const n = Number(value);
-    if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Lien ket khong hop le');
+    if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Liên kết không hợp lệ');
     return n;
   };
   const requested: EntityLinks = {
@@ -166,7 +166,7 @@ function pick(sql: string, id: number | null | undefined, column: string): strin
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  const card = required(reloadCard(id), 'Khong tim thay the') as Record<string, unknown>;
+  const card = required(reloadCard(id), 'Không tìm thấy thẻ') as Record<string, unknown>;
 
   const labels = db
     .prepare(
@@ -273,11 +273,11 @@ router.put('/:id/fields/:fieldId', (req, res) => {
 
   const card = required(
     db.prepare(`SELECT list_id FROM cards WHERE id = ?`).get(id),
-    'Khong tim thay the'
+    'Không tìm thấy thẻ'
   ) as { list_id: number };
   const field = required(
     db.prepare(`SELECT board_id, field_type, options FROM card_fields WHERE id = ?`).get(fieldId),
-    'Khong tim thay truong thong tin'
+    'Không tìm thấy trường thông tin'
   ) as { board_id: number | null; field_type: string; options: string };
 
   /* Truong rieng cua mot bang thi chi duoc ghi cho the THUOC dung bang do — cung
@@ -287,7 +287,7 @@ router.put('/:id/fields/:fieldId', (req, res) => {
       .prepare(`SELECT b.id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`)
       .get(card.list_id) as { id: number } | undefined;
     if (board?.id !== field.board_id) {
-      throw new HttpError(422, 'Truong thong tin nay khong thuoc bang cua the', {
+      throw new HttpError(422, 'Trường thông tin này không thuộc bảng của thẻ', {
         code: 'FIELD_BOARD_MISMATCH',
       });
     }
@@ -351,7 +351,7 @@ router.patch('/:id', (req, res) => {
     db
       .prepare(`SELECT *, COALESCE(status_key, status) AS status_key FROM cards WHERE id = ?`)
       .get(id),
-    'Khong tim thay the'
+    'Không tìm thấy thẻ'
   ) as CardRow;
   if (body.status !== undefined) requireActiveStatus(db, body.status);
   const currentLinks = card as CardRow & Record<string, number | null>;
@@ -402,7 +402,7 @@ router.patch('/:id', (req, res) => {
           `SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`
         )
         .get(card.list_id),
-      'Khong tim thay danh sach'
+      'Không tìm thấy danh sách'
     ) as { project_id: number | null };
 
     if (body.list_id !== undefined) {
@@ -412,7 +412,7 @@ router.patch('/:id', (req, res) => {
             `SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`
           )
           .get(body.list_id),
-        'Khong tim thay danh sach'
+        'Không tìm thấy danh sách'
       ) as { project_id: number | null };
       if (requested.project_id !== body.project_id) {
         throw new HttpError(422, 'Danh sách được chọn không thuộc dự án đích', {
@@ -522,7 +522,7 @@ router.patch('/:id', (req, res) => {
     if (body.parent_id) {
       const parent = required(
         db.prepare(`SELECT parent_id FROM cards WHERE id = ?`).get(body.parent_id),
-        'Khong tim thay viec cha'
+        'Không tìm thấy việc cha'
       ) as { parent_id: number | null };
       if (parent.parent_id) throw new HttpError(400, 'Chỉ hỗ trợ một cấp việc con');
       const hasChildren = db
@@ -564,7 +564,7 @@ router.patch('/:id', (req, res) => {
   ) {
     required(
       db.prepare(`SELECT id FROM lists WHERE id = ?`).get(targetListId),
-      'Khong tim thay danh sach'
+      'Không tìm thấy danh sách'
     );
     assertParentListCompatible(db, id, targetListId);
     set('list_id = ?', targetListId);
@@ -689,7 +689,7 @@ router.patch('/:id/move', (req, res) => {
     db
       .prepare(`SELECT list_id, COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
       .get(id),
-    'Khong tim thay the'
+    'Không tìm thấy thẻ'
   ) as {
     list_id: number;
     status: TaskStatusKey;
@@ -731,8 +731,8 @@ router.get('/:id/comments', (req, res) => {
 
 router.post('/:id/comments', (req, res) => {
   const cardId = intParam(req.params.id);
-  const body = parseBody(z.object({ body: z.string().trim().min(1, 'Noi dung trong') }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Khong tim thay the');
+  const body = parseBody(z.object({ body: z.string().trim().min(1, 'Nội dung trống') }), req);
+  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
   const info = db
     .prepare(`INSERT INTO card_comments (card_id, body) VALUES (?, ?)`)
     .run(cardId, body.body);
@@ -752,9 +752,9 @@ router.post('/:id/comments', (req, res) => {
 router.put('/:id/watch', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ watching: z.boolean() }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Khong tim thay the');
+  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
   const contactId = actorContactId(req);
-  if (contactId == null) throw new HttpError(400, 'Tai khoan chua gan voi nhan su');
+  if (contactId == null) throw new HttpError(400, 'Tài khoản chưa gắn với nhân sự');
 
   if (body.watching) {
     db.prepare(`INSERT OR IGNORE INTO task_watchers (card_id, contact_id) VALUES (?, ?)`).run(
@@ -787,13 +787,13 @@ router.post('/:id/copy', (req, res) => {
   );
   const source = required(
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
-    'Khong tim thay the'
+    'Không tìm thấy thẻ'
   ) as Record<string, unknown>;
   const destinationListId = body.list_id ?? (source.list_id as number);
   assertListProjectCustomer(db, destinationListId, source.customer_id as number | null);
   const destination = required(
     db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(destinationListId),
-    'Khong tim thay danh sach'
+    'Không tìm thấy danh sách'
   ) as { status_mapping: string | null };
   const initialStatus = destination.status_mapping ?? firstStatusOfKind(db, 'todo');
   const initialKind = kindOf(db, initialStatus);
@@ -869,7 +869,7 @@ router.post('/:id/copy', (req, res) => {
 router.post('/:id/checklist', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ content: z.string().trim().min(1) }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Khong tim thay the');
+  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
   const position = nextPosition({
     table: 'checklist_items',
     scopeCol: 'card_id',
@@ -886,7 +886,7 @@ router.post('/:id/checklist', (req, res) => {
 router.put('/:id/labels', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ label_ids: z.array(z.number().int()) }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Khong tim thay the');
+  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
 
   db.transaction(() => {
     db.prepare(`DELETE FROM card_labels WHERE card_id = ?`).run(cardId);

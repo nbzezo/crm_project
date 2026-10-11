@@ -17,7 +17,7 @@ import { getDeliverySettings, saveDeliverySettings } from '../services/deliveryS
 const router = Router();
 
 const templateItemSchema = z.object({
-  content: z.string().trim().min(1, 'Noi dung muc khong duoc de trong').max(500),
+  content: z.string().trim().min(1, 'Nội dung mục không được để trống').max(500),
   required: z.boolean(),
 });
 

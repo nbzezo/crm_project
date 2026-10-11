@@ -17,9 +17,9 @@ const REMINDER_SELECT = `
 const LOCAL_MINUTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 const schema = z.object({
-  title: z.string().trim().min(1, 'Tieu de khong duoc de trong'),
+  title: z.string().trim().min(1, 'Tiêu đề không được để trống'),
   note: z.string().optional(),
-  due_at: z.string().regex(LOCAL_MINUTE, 'Thoi diem phai dang YYYY-MM-DDTHH:mm'),
+  due_at: z.string().regex(LOCAL_MINUTE, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm'),
   card_id: z.number().int().nullable().optional(),
   customer_id: z.number().int().nullable().optional(),
   deal_id: z.number().int().nullable().optional(),
@@ -140,7 +140,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(schema.partial().extend({ is_done: z.boolean().optional() }), req);
   const current = required(
     db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id),
-    'Khong tim thay nhac hen'
+    'Không tìm thấy nhắc hẹn'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {

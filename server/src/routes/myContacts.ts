@@ -151,7 +151,7 @@ const editSchema = z.object({
 router.patch('/:id', (req, res) => {
   const userId = userIdOf(req);
   const id = intParam(req.params.id);
-  const current = required(getOwned(db, userId, id), 'Khong tim thay lien he');
+  const current = required(getOwned(db, userId, id), 'Không tìm thấy liên hệ');
   const body = parseBody(editSchema, req);
   const merged = { ...current, ...body };
   db.prepare(
@@ -203,9 +203,9 @@ router.post('/promote', (req, res) => {
   const body = parseBody(promoteSchema, req);
   const customer = required(
     db.prepare(`SELECT id, owner_contact_id FROM customers WHERE id = ?`).get(body.customer_id),
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   ) as { id: number; owner_contact_id: number | null };
-  assertInScope(req, 'customers', 'read', customer.owner_contact_id, 'Khong tim thay khach hang');
+  assertInScope(req, 'customers', 'read', customer.owner_contact_id, 'Không tìm thấy khách hàng');
 
   const index = buildCrmIndex(db, scopeFragment(req, 'customers', 'read', 'c.owner_contact_id'));
   const insert = db.prepare(
@@ -276,7 +276,7 @@ const linkSchema = z.object({
 router.post('/:id/link', (req, res) => {
   const userId = userIdOf(req);
   const id = intParam(req.params.id);
-  const personal = required(getOwned(db, userId, id), 'Khong tim thay lien he');
+  const personal = required(getOwned(db, userId, id), 'Không tìm thấy liên hệ');
   const body = parseBody(linkSchema, req);
 
   const crm = required(
@@ -286,7 +286,7 @@ router.post('/:id/link', (req, res) => {
            FROM contacts ct JOIN customers c ON c.id = ct.customer_id WHERE ct.id = ?`
       )
       .get(body.contact_id),
-    'Khong tim thay nguoi lien he'
+    'Không tìm thấy người liên hệ'
   ) as {
     id: number;
     title: string | null;
@@ -294,7 +294,7 @@ router.post('/:id/link', (req, res) => {
     email: string | null;
     owner_contact_id: number | null;
   };
-  assertInScope(req, 'contacts', 'read', crm.owner_contact_id, 'Khong tim thay nguoi lien he');
+  assertInScope(req, 'contacts', 'read', crm.owner_contact_id, 'Không tìm thấy người liên hệ');
 
   db.transaction(() => {
     if (body.fill_empty) {
@@ -303,7 +303,7 @@ router.post('/:id/link', (req, res) => {
         'contacts',
         'update',
         crm.owner_contact_id,
-        'Khong tim thay nguoi lien he'
+        'Không tìm thấy người liên hệ'
       );
       db.prepare(`UPDATE contacts SET title = ?, phone = ?, email = ? WHERE id = ?`).run(
         crm.title || personal.title,
@@ -320,7 +320,7 @@ router.post('/:id/link', (req, res) => {
 router.post('/:id/unlink', (req, res) => {
   const userId = userIdOf(req);
   const id = intParam(req.params.id);
-  required(getOwned(db, userId, id), 'Khong tim thay lien he');
+  required(getOwned(db, userId, id), 'Không tìm thấy liên hệ');
   db.prepare(`UPDATE personal_contacts SET linked_contact_id = NULL WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

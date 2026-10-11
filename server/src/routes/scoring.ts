@@ -53,11 +53,11 @@ const router = Router();
 
 /** Moi thao tac deu phai chac chan co hoi ton tai truoc khi ghi bang con. */
 function assertDeal(dealId: number): void {
-  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(dealId), 'Khong tim thay co hoi');
+  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(dealId), 'Không tìm thấy cơ hội');
 }
 
 function factorParam(value: string | undefined): Factor {
-  if (!SCORE_FACTORS.includes(value as Factor)) throw new HttpError(400, 'Yeu to khong hop le');
+  if (!SCORE_FACTORS.includes(value as Factor)) throw new HttpError(400, 'Yếu tố không hợp lệ');
   return value as Factor;
 }
 
@@ -146,13 +146,13 @@ router.get('/deals/:id/evidence-sources', (req, res) => {
 function assertDealScope(req: Request, dealId: number, action: 'read' | 'update'): void {
   const row = db.prepare(`SELECT owner_contact_id FROM deals WHERE id = ?`).get(dealId) as
     { owner_contact_id: number | null } | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
-  assertInScope(req, 'deals', action, row.owner_contact_id, 'Khong tim thay co hoi');
+  if (!row) throw new HttpError(404, 'Không tìm thấy cơ hội');
+  assertInScope(req, 'deals', action, row.owner_contact_id, 'Không tìm thấy cơ hội');
 }
 
 function criterionParam(value: string | undefined): AssessmentCriterion {
   if (!ASSESSMENT_CRITERIA.includes(value as AssessmentCriterion))
-    throw new HttpError(400, 'Tieu chi khong hop le');
+    throw new HttpError(400, 'Tiêu chí không hợp lệ');
   return value as AssessmentCriterion;
 }
 
@@ -299,14 +299,14 @@ router.post('/deals/:id/committee', (req, res) => {
           WHERE c.id = ? AND d.id = ?`
       )
       .get(body.contact_id, dealId),
-    'Nguoi lien he khong thuoc khach hang cua co hoi nay'
+    'Người liên hệ không thuộc khách hàng của cơ hội này'
   ) as { id: number };
 
   // C19: gioi han 20 thanh vien
   const count = db
     .prepare(`SELECT COUNT(*) AS n FROM deal_committee WHERE deal_id = ?`)
     .get(dealId) as { n: number };
-  if (count.n >= 20) throw new HttpError(422, 'Toi da 20 thanh vien trong nhom ra quyet dinh');
+  if (count.n >= 20) throw new HttpError(422, 'Tối đa 20 thành viên trong nhóm ra quyết định');
 
   db.prepare(
     `INSERT INTO deal_committee
@@ -334,7 +334,7 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
     db
       .prepare(`SELECT * FROM deal_committee WHERE deal_id = ? AND contact_id = ?`)
       .get(dealId, contactId),
-    'Khong tim thay thanh vien'
+    'Không tìm thấy thành viên'
   ) as Record<string, unknown>;
 
   const stance = resolveStance(body.stance, body.is_champion, current.stance as string);
@@ -376,7 +376,7 @@ router.get('/deals/:id/events', (req, res) => {
 
 const eventSchema = z.object({
   event_type: z.enum(EVENT_TYPES),
-  description: z.string().min(3, 'Mo ta qua ngan').max(500),
+  description: z.string().min(3, 'Mô tả quá ngắn').max(500),
   event_date: z.string().nullable().optional(),
   confirmed: z.boolean().optional(),
   is_primary: z.boolean().optional(),
@@ -417,7 +417,7 @@ router.patch('/deals/:id/events/:eventId', (req, res) => {
   const body = parseBody(eventSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM deal_events WHERE id = ? AND deal_id = ?`).get(eventId, dealId),
-    'Khong tim thay su kien'
+    'Không tìm thấy sự kiện'
   ) as Record<string, unknown>;
 
   db.prepare(
@@ -501,7 +501,7 @@ router.post('/deals/:id/backward-plan', (req, res) => {
   const dealId = intParam(req.params.id);
   const deal = required(
     db.prepare(`SELECT id, title, customer_id FROM deals WHERE id = ?`).get(dealId),
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   ) as { id: number; title: string; customer_id: number };
   const body = parseBody(planSchema, req);
 
@@ -544,7 +544,7 @@ router.get('/deals/:id/competitors', (req, res) => {
 });
 
 const competitorSchema = z.object({
-  name: z.string().min(1, 'Ten doi thu khong duoc de trong').max(80),
+  name: z.string().min(1, 'Tên đối thủ không được để trống').max(80),
   incumbent: z.boolean().optional(),
   shaped_requirements: z.boolean().optional(),
   price_position: z.enum(PRICE_POSITIONS).optional(),
@@ -558,7 +558,7 @@ router.post('/deals/:id/competitors', (req, res) => {
   const count = db
     .prepare(`SELECT COUNT(*) AS n FROM deal_competitors WHERE deal_id = ?`)
     .get(dealId) as { n: number };
-  if (count.n >= 5) throw new HttpError(422, 'Toi da 5 doi thu cho mot co hoi');
+  if (count.n >= 5) throw new HttpError(422, 'Tối đa 5 đối thủ cho một cơ hội');
 
   db.prepare(
     `INSERT INTO deal_competitors (deal_id, name, name_norm, incumbent, shaped_requirements, price_position, note)
@@ -583,7 +583,7 @@ router.patch('/deals/:id/competitors/:competitorId', (req, res) => {
     db
       .prepare(`SELECT * FROM deal_competitors WHERE id = ? AND deal_id = ?`)
       .get(competitorId, dealId),
-    'Khong tim thay doi thu'
+    'Không tìm thấy đối thủ'
   ) as Record<string, unknown>;
 
   const name = body.name?.trim() ?? (current.name as string);

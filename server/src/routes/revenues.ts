@@ -54,7 +54,7 @@ const lineSchema = z.object({
   revenue_anchor_mode: z.enum(['auto', 'manual', 'base']).optional(),
   revenue_anchor_period: z
     .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM')
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Kỳ phải có dạng YYYY-MM')
     .nullable()
     .optional(),
   /** Chi khi tao dong: TB thang nam truoc cua dong Nen. */
@@ -84,7 +84,7 @@ function assertAnchor(mode: unknown, period: unknown): void {
 }
 
 const revenueSchema = z.object({
-  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM'),
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Kỳ phải có dạng YYYY-MM'),
   amount_vnd: z.number().int().min(0).optional(),
   forecast_vnd: z.number().int().min(0).optional(),
   stage: z.enum(REVENUE_STAGES).optional(),
@@ -413,7 +413,7 @@ router.post('/lines', (req, res) => {
 router.get('/lines/:id', (req, res) => {
   const id = intParam(req.params.id);
   const year = resolveYear(req.query.year);
-  res.json(required(reloadLine(id, year), 'Khong tim thay dong dich vu'));
+  res.json(required(reloadLine(id, year), 'Không tìm thấy dòng dịch vụ'));
 });
 
 router.patch('/lines/:id', (req, res) => {
@@ -421,7 +421,7 @@ router.patch('/lines/:id', (req, res) => {
   const body = parseBody(lineSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM customer_services WHERE id = ?`).get(id),
-    'Khong tim thay dong dich vu'
+    'Không tìm thấy dòng dịch vụ'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
@@ -518,7 +518,7 @@ router.put('/lines/:id/revenue', (req, res) => {
   const body = parseBody(revenueSchema, req);
   required(
     db.prepare(`SELECT id FROM customer_services WHERE id = ?`).get(id),
-    'Khong tim thay dong dich vu'
+    'Không tìm thấy dòng dịch vụ'
   );
 
   const next = mergeRevenueCell(readCell(id, body.period), body);
@@ -532,7 +532,7 @@ router.put('/lines/:id/revenue-bulk', (req, res) => {
   const body = parseBody(z.object({ cells: z.array(revenueSchema).max(24) }), req);
   required(
     db.prepare(`SELECT id FROM customer_services WHERE id = ?`).get(id),
-    'Khong tim thay dong dich vu'
+    'Không tìm thấy dòng dịch vụ'
   );
 
   db.transaction(() => {
@@ -555,7 +555,7 @@ router.put('/lines/:id/revenue-bulk', (req, res) => {
 router.put('/period-stage', (req, res) => {
   const body = parseBody(
     z.object({
-      period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM'),
+      period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Kỳ phải có dạng YYYY-MM'),
       stage: z.enum(REVENUE_STAGES),
       line_ids: z.array(z.number().int()).min(1).max(2000),
     }),
@@ -566,7 +566,7 @@ router.put('/period-stage', (req, res) => {
     .prepare(`SELECT COUNT(*) AS n FROM customer_services WHERE id IN (${placeholders})`)
     .get(...body.line_ids) as { n: number };
   if (existing.n !== new Set(body.line_ids).size)
-    throw new HttpError(422, 'Danh sach dong doanh thu co phan tu khong ton tai');
+    throw new HttpError(422, 'Danh sách dòng doanh thu có phần tử không tồn tại');
   const info = db
     .prepare(
       `UPDATE service_revenues SET stage = ?, updated_at = datetime('now','localtime')
@@ -661,7 +661,7 @@ router.get('/comparison', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const groupParam = req.query.group ?? 'base';
   const only = groupParam === 'all' ? null : parseGroupFilter(groupParam);
-  if (groupParam !== 'all' && !only) throw new HttpError(422, 'Nhom doanh thu khong hop le');
+  if (groupParam !== 'all' && !only) throw new HttpError(422, 'Nhóm doanh thu không hợp lệ');
   const { sql, params } = buildFilters(req);
   const raw = db
     .prepare(`${LINE_SELECT} ${sql} ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE, cs.id`)
@@ -898,7 +898,7 @@ router.put('/kpi-targets', (req, res) => {
   const body = parseBody(
     z.object({
       am_user_id: z.number().int().min(0),
-      period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM'),
+      period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Kỳ phải có dạng YYYY-MM'),
       target_vnd: z.number().int().min(0).nullable(),
     }),
     req
@@ -922,12 +922,12 @@ const anchorSchema = z
     mode: z.enum(['auto', 'manual', 'base']),
     period: z
       .string()
-      .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ky phai co dang YYYY-MM')
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Kỳ phải có dạng YYYY-MM')
       .nullable()
       .optional(),
   })
   .refine((v) => v.mode !== 'manual' || Boolean(v.period), {
-    message: 'Chon thang moc khi sua tay',
+    message: 'Chọn tháng mốc khi sửa tay',
     path: ['period'],
   });
 
@@ -935,7 +935,7 @@ const anchorSchema = z
 function anchorImpact(id: number, next: { mode: AnchorMode; period?: string | null }) {
   const line = required(
     db.prepare(`SELECT * FROM customer_services WHERE id = ?`).get(id),
-    'Khong tim thay dong dich vu'
+    'Không tìm thấy dòng dịch vụ'
   ) as Record<string, unknown>;
   const first = loadFirstPeriods([id]);
   const before = anchorOf(line, first);
@@ -1002,7 +1002,7 @@ router.put('/lines/:id/baseline', (req, res) => {
   );
   required(
     db.prepare(`SELECT id FROM customer_services WHERE id = ?`).get(id),
-    'Khong tim thay dong dich vu'
+    'Không tìm thấy dòng dịch vụ'
   );
   if (body.avg_monthly_vnd === null) {
     db.prepare(`DELETE FROM revenue_baselines WHERE line_id = ? AND year = ?`).run(id, body.year);

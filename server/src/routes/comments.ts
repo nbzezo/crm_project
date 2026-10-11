@@ -10,7 +10,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(z.object({ body: z.string().trim().min(1) }), req);
   required(
     db.prepare(`SELECT id FROM card_comments WHERE id = ?`).get(id),
-    'Khong tim thay nhan xet'
+    'Không tìm thấy nhận xét'
   );
   db.prepare(
     `UPDATE card_comments SET body = ?, updated_at = datetime('now','localtime') WHERE id = ?`

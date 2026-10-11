@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   if (username) {
     const user = findUserByUsername(username);
     if (!user) {
-      console.error(`[auth] Khong tim thay tai khoan "${username}".`);
+      console.error(`[auth] Không tìm thấy tài khoản "${username}".`);
       process.exit(1);
     }
     userId = user.id;

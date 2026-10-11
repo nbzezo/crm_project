@@ -46,7 +46,7 @@ const dateOnly = z
 const dealSchema = z.object({
   customer_id: z.number().int(),
   contact_id: z.number().int().nullable().optional(),
-  title: z.string().trim().min(1, 'Ten co hoi khong duoc de trong'),
+  title: z.string().trim().min(1, 'Tên cơ hội không được để trống'),
   product: z.string().nullable().optional(),
   stage: stageEnum.optional(),
   probability: z.number().int().min(0).max(100).optional(),
@@ -181,7 +181,7 @@ router.post('/', (req, res) => {
   const target = body.stage ? assertStage(db, body.stage) : startStage(db);
   const stage = target.key;
   if (target.category === 'lost' && !body.lost_reason)
-    throw new HttpError(400, 'Phai chon ly do khi chuyen sang Thua'); // BR-03
+    throw new HttpError(400, 'Phải chọn lý do khi chuyển sang Thua'); // BR-03
 
   const position = nextPosition({ table: 'deals', scopeCol: 'stage', scopeVal: stage });
   const probability = body.probability ?? target.probability;
@@ -226,13 +226,13 @@ router.post('/', (req, res) => {
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  const deal = required(reload(id), 'Khong tim thay co hoi') as Record<string, unknown>;
+  const deal = required(reload(id), 'Không tìm thấy cơ hội') as Record<string, unknown>;
   assertInScope(
     req,
     'deals',
     'read',
     deal.owner_contact_id as number | null,
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   );
   const quotations = db
     .prepare(`SELECT * FROM quotations WHERE deal_id = ? ORDER BY version DESC, id DESC`)
@@ -324,14 +324,14 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(dealPatchSchema, req);
   const current = required(
     db.prepare(`SELECT * FROM deals WHERE id = ?`).get(id),
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   ) as Record<string, unknown>;
   assertInScope(
     req,
     'deals',
     'update',
     current.owner_contact_id as number | null,
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   );
 
   /* S08: tam dung phai co ly do va ngay xem xet lai (dac ta 5.2), neu khong no
@@ -370,7 +370,7 @@ router.patch('/:id', (req, res) => {
   const nextStage = body.stage ?? (current.stage as string);
   const nextTarget = assertStage(db, nextStage, current.stage as string);
   if (nextTarget.category === 'lost' && !(body.lost_reason ?? current.lost_reason))
-    throw new HttpError(400, 'Phai chon lý do khi chuyển cơ hội sang Thua');
+    throw new HttpError(400, 'Phải chọn lý do khi chuyển cơ hội sang Thua');
 
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -500,7 +500,7 @@ router.patch('/:id/move', (req, res) => {
   );
   const current = required(
     db.prepare(`SELECT * FROM deals WHERE id = ?`).get(id),
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   ) as Record<string, unknown>;
 
   assertPicklistValue(db, 'lost_reason', body.lost_reason, current.lost_reason as string | null);
@@ -553,7 +553,7 @@ router.patch('/:id/move', (req, res) => {
 function commitHandover(dealId: number, apply: () => void, audit: RecordOptions) {
   const before = required(
     db.prepare(`SELECT handover_ready FROM deals WHERE id = ?`).get(dealId),
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   ) as { handover_ready: number };
 
   db.transaction(() => {
@@ -579,7 +579,7 @@ function commitHandover(dealId: number, apply: () => void, audit: RecordOptions)
 
 router.get('/:id/handover', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(id), 'Khong tim thay co hoi');
+  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(id), 'Không tìm thấy cơ hội');
   res.json(commitHandover(id, () => {}, { note: null, actorContactId: null }));
 });
 
@@ -596,12 +596,12 @@ router.post('/:id/handover', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(
     z.object({
-      content: z.string().trim().min(1, 'Noi dung khong duoc de trong').max(500),
+      content: z.string().trim().min(1, 'Nội dung không được để trống').max(500),
       is_required: z.boolean().optional(),
     }),
     req
   );
-  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(id), 'Khong tim thay co hoi');
+  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(id), 'Không tìm thấy cơ hội');
   const audit = auditFromRequest(req);
 
   res.status(201).json(
@@ -637,7 +637,7 @@ router.patch('/:id/handover/:itemId', (req, res) => {
   );
   const current = required(
     db.prepare(`SELECT * FROM deal_handover_items WHERE id = ? AND deal_id = ?`).get(itemId, id),
-    'Khong tim thay muc ban giao'
+    'Không tìm thấy mục bàn giao'
   ) as Record<string, unknown>;
   const audit = auditFromRequest(req);
 

@@ -26,7 +26,7 @@ function installationKey(): Buffer {
     fs.writeFileSync(INSTALLATION_KEY_FILE, crypto.randomBytes(32), { mode: 0o600, flag: 'wx' });
   }
   const key = fs.readFileSync(INSTALLATION_KEY_FILE);
-  if (key.length !== 32) throw new Error('Khoa ma hoa AI cua he thong khong hop le');
+  if (key.length !== 32) throw new Error('Khóa mã hóa AI của hệ thống không hợp lệ');
   return key;
 }
 

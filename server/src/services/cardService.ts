@@ -82,11 +82,11 @@ export function moveCard(
         `SELECT id, customer_id, COALESCE(status_key, status) AS status FROM cards WHERE id = ?`
       )
       .get(id),
-    'Khong tim thay the'
+    'Không tìm thấy thẻ'
   ) as { id: number; customer_id: number | null; status: TaskStatusKey };
   required(
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(input.list_id),
-    'Khong tim thay danh sach'
+    'Không tìm thấy danh sách'
   );
   assertParentListCompatible(db, id, input.list_id);
   assertListProjectCustomer(db, input.list_id, card.customer_id);
@@ -414,7 +414,7 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
   if (input.parent_id) {
     const parent = required(
       db.prepare(`SELECT * FROM cards WHERE id = ?`).get(input.parent_id),
-      'Khong tim thay viec cha'
+      'Không tìm thấy việc cha'
     ) as Record<string, unknown>;
     if (parent.parent_id) throw new HttpError(400, 'Chỉ hỗ trợ một cấp việc con');
     listId = parent.list_id as number;
@@ -450,7 +450,7 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
   if (!targetList) throw new HttpError(400, 'Thiếu danh sách để thêm công việc');
   required(
     db.prepare(`SELECT id FROM lists WHERE id = ?`).get(targetList),
-    'Khong tim thay danh sach'
+    'Không tìm thấy danh sách'
   );
   /* Tao thang trong mot cot co anh xa thi vong doi phai dung ngay tu dong ghi
      dau tien. Truoc day chi MOVE/PATCH dong bo, con CREATE luon roi ve `todo`. */
@@ -517,7 +517,7 @@ export function createCard(input: CreateTaskInput, options: CreateCardOptions = 
       for (const labelId of input.label_ids) {
         required(
           db.prepare(`SELECT id FROM labels WHERE id = ?`).get(labelId),
-          'Khong tim thay nhan'
+          'Không tìm thấy nhãn'
         );
         insertLabel.run(cardId, labelId);
       }
@@ -562,11 +562,11 @@ export function addDependency(predecessorId: number, successorId: number): void 
   }
   required(
     db.prepare(`SELECT id FROM cards WHERE id = ?`).get(predecessorId),
-    'Khong tim thay viec truoc'
+    'Không tìm thấy việc trước'
   );
   required(
     db.prepare(`SELECT id FROM cards WHERE id = ?`).get(successorId),
-    'Khong tim thay viec sau'
+    'Không tìm thấy việc sau'
   );
 
   if (reaches(successorId, predecessorId)) {
@@ -696,7 +696,7 @@ export function setCardStatus(
 ): void {
   const card = required(
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
-    'Khong tim thay the'
+    'Không tìm thấy thẻ'
   ) as Record<string, unknown>;
   const previous = ((card.status_key ?? card.status) as TaskStatusKey | null) ?? 'todo';
   const previousKind = ((card.status as CardStatus | null) ?? 'todo') as CardStatus;

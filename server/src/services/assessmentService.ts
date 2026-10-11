@@ -149,7 +149,7 @@ function dealOf(db: Database, dealId: number) {
         quadrant: Quadrant;
       }
     | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
+  if (!row) throw new HttpError(404, 'Không tìm thấy cơ hội');
   return row;
 }
 
@@ -327,7 +327,7 @@ export function getAssessment(db: Database, dealId: number): Assessment {
 
 function assertOpen(db: Database, dealId: number): void {
   if (isClosedStage(db, dealOf(db, dealId).stage))
-    throw new HttpError(409, 'Co hoi da chot nen danh gia chi doc', { code: 'ASSESSMENT_LOCKED' });
+    throw new HttpError(409, 'Cơ hội đã chốt nên đánh giá chỉ đọc', { code: 'ASSESSMENT_LOCKED' });
 }
 
 export function writeCriterion(
@@ -363,7 +363,7 @@ export function confirmCriterion(
   actorContactId: number | null
 ): Assessment {
   const row = criteriaOf(db, dealId).get(criterion);
-  if (!row) throw new HttpError(404, 'Tieu chi nay chua duoc cham');
+  if (!row) throw new HttpError(404, 'Tiêu chí này chưa được chấm');
   if (row.status === 'confirmed') return getAssessment(db, dealId);
   return writeCriterion(
     db,
@@ -423,7 +423,7 @@ export function deleteDecision(
     )
     .get(decisionId, dealId) as
     { author_kind: 'user' | 'ai'; author_contact_id: number | null } | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay quyet dinh');
+  if (!row) throw new HttpError(404, 'Không tìm thấy quyết định');
   if (row.author_kind === 'user' && row.author_contact_id !== actorContactId)
     throw new HttpError(403, 'Chỉ xóa được quyết định do chính bạn ghi');
   db.prepare(`DELETE FROM deal_decisions WHERE id = ?`).run(decisionId);

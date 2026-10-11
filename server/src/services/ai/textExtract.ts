@@ -66,7 +66,7 @@ function readZipEntry(buffer: Buffer, wanted: (name: string) => boolean): Buffer
       break;
     }
   }
-  if (eocd < 0) throw new Error('Khong doc duoc muc luc ZIP');
+  if (eocd < 0) throw new Error('Không đọc được mục lục ZIP');
 
   const count = buffer.readUInt16LE(eocd + 10);
   let offset = buffer.readUInt32LE(eocd + 16);

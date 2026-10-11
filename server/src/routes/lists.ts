@@ -31,7 +31,7 @@ router.post('/', (req, res) => {
   );
   required(
     db.prepare(`SELECT id FROM boards WHERE id = ?`).get(body.board_id),
-    'Khong tim thay bang'
+    'Không tìm thấy bảng'
   );
   if (body.status_mapping) requireActiveStatus(db, body.status_mapping);
   const position = nextPosition({ table: 'lists', scopeCol: 'board_id', scopeVal: body.board_id });
@@ -51,7 +51,7 @@ router.patch('/:id', (req, res) => {
     }),
     req
   );
-  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(id), 'Khong tim thay danh sach');
+  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(id), 'Không tìm thấy danh sách');
   if (body.name !== undefined)
     db.prepare(`UPDATE lists SET name = ? WHERE id = ?`).run(body.name, id);
   if (body.is_collapsed !== undefined)
@@ -93,7 +93,7 @@ router.patch('/:id/sort', (req, res) => {
     z.object({ by: z.enum(['created_desc', 'created_asc', 'due', 'title', 'priority']) }),
     req
   );
-  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(id), 'Khong tim thay danh sach');
+  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(id), 'Không tìm thấy danh sách');
 
   const ORDER: Record<string, string> = {
     created_desc: 'created_at DESC, id DESC',
@@ -120,7 +120,7 @@ router.post('/:id/copy', (req, res) => {
   const body = parseBody(z.object({ name: z.string().trim().min(1).optional() }), req);
   const source = required(
     db.prepare(`SELECT * FROM lists WHERE id = ?`).get(id),
-    'Khong tim thay danh sach'
+    'Không tìm thấy danh sách'
   ) as { board_id: number; name: string; status_mapping: string | null };
 
   const newId = db.transaction(() => {
@@ -198,7 +198,7 @@ router.patch('/:id/move', (req, res) => {
   );
   const list = required(
     db.prepare(`SELECT * FROM lists WHERE id = ?`).get(id),
-    'Khong tim thay danh sach'
+    'Không tìm thấy danh sách'
   ) as { board_id: number };
 
   const position = db.transaction(() => {

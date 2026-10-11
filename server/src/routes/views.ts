@@ -172,7 +172,7 @@ router.get('/tasks/saved-views', (req, res) => {
 
 router.post('/tasks/saved-views', (req, res) => {
   const userId = req.session?.userId;
-  if (!userId) throw new HttpError(401, 'Can dang nhap de luu che do xem');
+  if (!userId) throw new HttpError(401, 'Cần đăng nhập để lưu chế độ xem');
   const body = parseBody(
     z.object({
       name: z.string().trim().min(1).max(80),
@@ -195,11 +195,11 @@ router.post('/tasks/saved-views', (req, res) => {
 router.delete('/tasks/saved-views/:id', (req, res) => {
   const id = intParam(req.params.id);
   const userId = req.session?.userId;
-  if (!userId) throw new HttpError(401, 'Can dang nhap de xoa che do xem');
+  if (!userId) throw new HttpError(401, 'Cần đăng nhập để xóa chế độ xem');
   const result = db
     .prepare(`DELETE FROM task_saved_views WHERE id = ? AND owner_user_id = ?`)
     .run(id, userId);
-  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay che do xem');
+  if (result.changes === 0) throw new HttpError(404, 'Không tìm thấy chế độ xem');
   res.json({ ok: true });
 });
 
@@ -341,7 +341,7 @@ function recentDays(raw: unknown): number | null {
   if (raw == null || raw === '') return null;
   const days = Number(raw);
   if (!Number.isInteger(days) || days < 1 || days > 365)
-    throw new HttpError(400, 'So ngay phai tu 1 den 365');
+    throw new HttpError(400, 'Số ngày phải từ 1 đến 365');
   return days;
 }
 

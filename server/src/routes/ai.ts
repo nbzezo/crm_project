@@ -247,11 +247,11 @@ function assertContextInScope(req: Request, type: string, id: number | undefined
   if (type === 'customer') {
     const row = db.prepare('SELECT owner_contact_id FROM customers WHERE id = ?').get(id) as
       { owner_contact_id: number | null } | undefined;
-    assertInScope(req, 'customers', 'read', row?.owner_contact_id, 'Khong tim thay khach hang');
+    assertInScope(req, 'customers', 'read', row?.owner_contact_id, 'Không tìm thấy khách hàng');
   } else if (type === 'deal') {
     const row = db.prepare('SELECT owner_contact_id FROM deals WHERE id = ?').get(id) as
       { owner_contact_id: number | null } | undefined;
-    assertInScope(req, 'deals', 'read', row?.owner_contact_id, 'Khong tim thay co hoi');
+    assertInScope(req, 'deals', 'read', row?.owner_contact_id, 'Không tìm thấy cơ hội');
   }
 }
 
@@ -381,7 +381,7 @@ router.post('/assist/customer-care', async (req, res) => {
       .get(body.customer_id) as
       | { id: number; care_tier: string; care_cadence_days: number | null; created_at: string }
       | undefined;
-    if (!customer) throw new HttpError(404, 'Khong tim thay khach hang');
+    if (!customer) throw new HttpError(404, 'Không tìm thấy khách hàng');
     const contact = body.contact_id
       ? (db
           .prepare(
@@ -1543,14 +1543,14 @@ router.get('/chats/:id', (req, res) => {
   const id = intParam(req.params.id);
   const owner = chatOwner(req);
   const session = getSession(db, id, owner);
-  if (!session) throw new HttpError(404, 'Khong tim thay phien chat');
+  if (!session) throw new HttpError(404, 'Không tìm thấy phiên chat');
   res.json({ ...session, messages: listMessages(db, id) });
 });
 
 router.patch('/chats/:id', (req, res) => {
   const id = intParam(req.params.id);
   const owner = chatOwner(req);
-  if (!getSession(db, id, owner)) throw new HttpError(404, 'Khong tim thay phien chat');
+  if (!getSession(db, id, owner)) throw new HttpError(404, 'Không tìm thấy phiên chat');
   const body = parseBody(z.object({ title: z.string().trim().min(1).max(80) }), req);
   renameSession(db, id, body.title, owner);
   res.json(getSession(db, id, owner));
@@ -1559,7 +1559,7 @@ router.patch('/chats/:id', (req, res) => {
 router.delete('/chats/:id', (req, res) => {
   const id = intParam(req.params.id);
   const owner = chatOwner(req);
-  if (!getSession(db, id, owner)) throw new HttpError(404, 'Khong tim thay phien chat');
+  if (!getSession(db, id, owner)) throw new HttpError(404, 'Không tìm thấy phiên chat');
   deleteSession(db, id, owner);
   res.status(204).end();
 });

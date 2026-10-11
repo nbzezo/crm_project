@@ -21,19 +21,19 @@ export function parseBody<T>(schema: ZodType<T>, req: Request): T {
   const result = schema.safeParse(req.body);
   if (!result.success) {
     const first = result.error.issues[0];
-    throw new HttpError(400, `Du lieu khong hop le: ${first.path.join('.')} — ${first.message}`);
+    throw new HttpError(400, `Dữ liệu không hợp lệ: ${first.path.join('.')} — ${first.message}`);
   }
   return result.data;
 }
 
 export function intParam(value: string | undefined, name = 'id'): number {
   const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, `${name} khong hop le`);
+  if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, `${name} không hợp lệ`);
   return n;
 }
 
 /** Tra ve ban ghi hoac nem 404. */
-export function required<T>(row: T | undefined, message = 'Khong tim thay ban ghi'): T {
+export function required<T>(row: T | undefined, message = 'Không tìm thấy bản ghi'): T {
   if (row === undefined || row === null) throw new HttpError(404, message);
   return row;
 }

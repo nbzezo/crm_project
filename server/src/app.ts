@@ -202,7 +202,7 @@ export function createApp(options: AppOptions = {}): Express {
   app.use('/api/ai', requireResource('ai'), ai);
 
   app.use('/api', (_req, res) => {
-    res.status(404).json({ error: 'Khong tim thay endpoint' });
+    res.status(404).json({ error: 'Không tìm thấy endpoint' });
   });
 
   // Production (Docker): server phuc vu luon ban build cua client tren cung origin,
@@ -216,7 +216,7 @@ export function createApp(options: AppOptions = {}): Express {
   }
 
   app.use((_req, res) => {
-    res.status(404).json({ error: 'Khong tim thay endpoint' });
+    res.status(404).json({ error: 'Không tìm thấy endpoint' });
   });
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
@@ -225,7 +225,7 @@ export function createApp(options: AppOptions = {}): Express {
       return;
     }
     console.error('[api]', err);
-    const message = err instanceof Error ? err.message : 'Loi khong xac dinh';
+    const message = err instanceof Error ? err.message : 'Lỗi không xác định';
     res.status(500).json({ error: message });
   });
 

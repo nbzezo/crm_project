@@ -67,7 +67,7 @@ async function runDueBackupCheck(db: Database): Promise<void> {
     setTelegramLastError(db, null);
   } catch (error) {
     console.error('[telegram] Gui sao luu dinh ky that bai:', error);
-    setTelegramLastError(db, error instanceof Error ? error.message : 'Loi khong xac dinh');
+    setTelegramLastError(db, error instanceof Error ? error.message : 'Lỗi không xác định');
   } finally {
     db.prepare(
       `UPDATE telegram_settings

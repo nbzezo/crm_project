@@ -9,5 +9,5 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     next();
     return;
   }
-  res.status(401).json({ error: 'Chua dang nhap' });
+  res.status(401).json({ error: 'Chưa đăng nhập' });
 }

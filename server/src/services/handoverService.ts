@@ -131,7 +131,7 @@ export function applyHandoverTemplate(
   dealId: number,
   key = 'default'
 ): HandoverItem[] {
-  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(dealId), 'Khong tim thay co hoi');
+  required(db.prepare(`SELECT id FROM deals WHERE id = ?`).get(dealId), 'Không tìm thấy cơ hội');
 
   const existing = db
     .prepare(`SELECT COUNT(*) AS n FROM deal_handover_items WHERE deal_id = ?`)

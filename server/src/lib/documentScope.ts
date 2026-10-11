@@ -101,5 +101,5 @@ export function assertDocumentsInScope(
           ${scope.sql ? `AND ${scope.sql}` : ''}`
     )
     .get(...unique, ...scope.params) as { n: number };
-  if (row.n !== unique.length) throw new HttpError(404, 'Khong tim thay tai lieu');
+  if (row.n !== unique.length) throw new HttpError(404, 'Không tìm thấy tài liệu');
 }

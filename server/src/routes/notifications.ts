@@ -11,7 +11,7 @@ import { feedNotificationsFor } from '../services/feedNotify.ts';
 const router = Router();
 const localDateTime = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm');
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm');
 
 type NotificationKind = 'reminder' | 'event' | 'task' | 'crm' | 'system' | 'feed';
 type Severity = 'info' | 'warning' | 'critical';
@@ -58,7 +58,7 @@ const prefixTable = {
 
 function parseKey(key: string): { prefix: keyof typeof prefixTable; id: number } {
   const match = /^(reminder|event|task|ai|feed)-(\d+)$/.exec(key);
-  if (!match) throw new HttpError(400, 'Khoa thong bao khong hop le');
+  if (!match) throw new HttpError(400, 'Khóa thông báo không hợp lệ');
   return { prefix: match[1] as keyof typeof prefixTable, id: Number(match[2]) };
 }
 
@@ -70,13 +70,13 @@ function ensureSource(key: string, contactId: number | null = null) {
       db
         .prepare(`SELECT id FROM feed_notifications WHERE id = ? AND contact_id = ?`)
         .get(parsed.id, contactId ?? 0),
-      'Thong bao khong con ton tai'
+      'Thông báo không còn tồn tại'
     );
     return parsed;
   }
   required(
     db.prepare(`SELECT id FROM ${prefixTable[parsed.prefix]} WHERE id = ?`).get(parsed.id),
-    'Thong bao khong con ton tai'
+    'Thông báo không còn tồn tại'
   );
   return parsed;
 }
@@ -280,7 +280,7 @@ router.patch('/:key/state', (req, res) => {
         snoozed_until: localDateTime.nullable().optional(),
       })
       .refine((value) => value.is_read !== undefined || value.snoozed_until !== undefined, {
-        message: 'Can it nhat mot trang thai de cap nhat',
+        message: 'Cần ít nhất một trạng thái để cập nhật',
       }),
     req
   );
@@ -342,7 +342,7 @@ router.post('/:key/complete', (req, res) => {
       db
         .prepare(`SELECT COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
         .get(parsed.id),
-      'Khong tim thay cong viec'
+      'Không tìm thấy công việc'
     ) as { status: string };
     previousStatus = card.status;
     const next = body.done
@@ -354,7 +354,7 @@ router.post('/:key/complete', (req, res) => {
     guardLeaveStatus(parsed.id, card.status, next, { skip: body.skip_flow, actorContactId: actor });
     setCardStatus(parsed.id, next, { actorContactId: actor });
   } else {
-    throw new HttpError(400, 'Canh bao CRM/he thong khong co hanh dong hoan thanh');
+    throw new HttpError(400, 'Cảnh báo CRM/hệ thống không có hành động hoàn thành');
   }
 
   upsertState(key, body.done, undefined);

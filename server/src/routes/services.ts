@@ -7,7 +7,7 @@ import { buildSearchText, fold } from '../lib/viSearch.ts';
 const router = Router();
 
 const serviceSchema = z.object({
-  name: z.string().trim().min(1, 'Ten dich vu khong duoc de trong'),
+  name: z.string().trim().min(1, 'Tên dịch vụ không được để trống'),
   code: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
   unit: z.string().nullable().optional(),
@@ -52,7 +52,7 @@ router.post('/', (req, res) => {
   const duplicate = db
     .prepare(`SELECT id FROM services WHERE name = ? COLLATE NOCASE`)
     .get(body.name);
-  if (duplicate) throw new HttpError(400, 'Dich vu nay da co trong danh muc');
+  if (duplicate) throw new HttpError(400, 'Dịch vụ này đã có trong danh mục');
 
   const max = db.prepare(`SELECT MAX(position) AS maxPos FROM services`).get() as {
     maxPos: number | null;
@@ -82,7 +82,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(serviceSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM services WHERE id = ?`).get(id),
-    'Khong tim thay dich vu'
+    'Không tìm thấy dịch vụ'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
 
@@ -90,7 +90,7 @@ router.patch('/:id', (req, res) => {
     const duplicate = db
       .prepare(`SELECT id FROM services WHERE name = ? COLLATE NOCASE AND id <> ?`)
       .get(body.name, id);
-    if (duplicate) throw new HttpError(400, 'Dich vu nay da co trong danh muc');
+    if (duplicate) throw new HttpError(400, 'Dịch vụ này đã có trong danh mục');
   }
 
   db.prepare(
@@ -125,7 +125,7 @@ router.delete('/:id', (req, res) => {
   if (used.n > 0)
     throw new HttpError(
       400,
-      `Dich vu dang duoc dung o ${used.n} dong doanh thu — hay ngung kich hoat thay vi xoa`
+      `Dịch vụ đang được dùng ở ${used.n} dòng doanh thu — hãy ngừng kích hoạt thay vì xóa`
     );
   db.prepare(`DELETE FROM services WHERE id = ?`).run(id);
   res.json({ ok: true });

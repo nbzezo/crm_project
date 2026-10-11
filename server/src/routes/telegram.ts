@@ -72,7 +72,7 @@ router.post('/send-backup', async (_req, res, next) => {
     setTelegramLastError(db, null);
     res.json({ ok: true, ...result });
   } catch (error) {
-    setTelegramLastError(db, error instanceof Error ? error.message : 'Loi khong xac dinh');
+    setTelegramLastError(db, error instanceof Error ? error.message : 'Lỗi không xác định');
     next(error);
   }
 });

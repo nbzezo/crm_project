@@ -93,7 +93,7 @@ export function assertInScope(
   resource: PermissionResource,
   action: PermissionAction,
   ownerContactId: number | null | undefined,
-  message = 'Khong tim thay ban ghi'
+  message = 'Không tìm thấy bản ghi'
 ): void {
   const visible = accessOf(req).visibleContactIds(resource, action);
   if (visible === 'all') return;

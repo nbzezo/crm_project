@@ -15,7 +15,7 @@ function owner(
   return required(
     db.prepare(`SELECT id, customer_id FROM ${table} WHERE id = ?`).get(id) as
       CustomerOwner | undefined,
-    `Khong tim thay ${label}`
+    `Không tìm thấy ${label}`
   );
 }
 
@@ -32,7 +32,7 @@ export function assertEntityLinks(db: Database, links: EntityLinks): void {
   if (links.customer_id != null) {
     required(
       db.prepare(`SELECT id FROM customers WHERE id = ?`).get(links.customer_id),
-      'Khong tim thay khach hang'
+      'Không tìm thấy khách hàng'
     );
     addOwner('khach hang', links.customer_id);
   }
@@ -49,13 +49,13 @@ export function assertEntityLinks(db: Database, links: EntityLinks): void {
   if (links.service_id != null)
     required(
       db.prepare(`SELECT id FROM services WHERE id = ?`).get(links.service_id),
-      'Khong tim thay dich vu'
+      'Không tìm thấy dịch vụ'
     );
 
   const expected = owners[0]?.customerId;
   const mismatch = owners.find((entry) => entry.customerId !== expected);
   if (mismatch) {
-    throw new HttpError(422, `Lien ket ${mismatch.label} khong thuoc cung khach hang`, {
+    throw new HttpError(422, `Liên kết ${mismatch.label} không thuộc cùng khách hàng`, {
       code: 'CROSS_CUSTOMER_LINK',
     });
   }
@@ -72,7 +72,7 @@ export function assertCrmCustomer(db: Database, customerId: number): void {
   const row = required(
     db.prepare(`SELECT id, org_kind FROM customers WHERE id = ?`).get(customerId) as
       { id: number; org_kind: string } | undefined,
-    'Khong tim thay khach hang'
+    'Không tìm thấy khách hàng'
   );
   if (row.org_kind !== 'customer') {
     throw new HttpError(422, 'Chỉ tổ chức loại Khách hàng mới được dùng trong CRM', {
@@ -101,7 +101,7 @@ export function assertProjectCustomerLink(
   const project = required(
     db.prepare(`SELECT id, customer_id FROM projects WHERE id = ?`).get(links.project_id) as
       { id: number; customer_id: number | null } | undefined,
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   );
   if (
     project.customer_id != null &&
@@ -125,7 +125,7 @@ export function assertListProjectCustomer(
     db
       .prepare(`SELECT b.project_id FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`)
       .get(listId) as { project_id: number | null } | undefined,
-    'Khong tim thay danh sach'
+    'Không tìm thấy danh sách'
   );
   assertProjectCustomerLink(db, { project_id: row.project_id, customer_id: customerId }, label);
 }
@@ -216,7 +216,7 @@ export function resolveAssignee(
   const row = required(
     db.prepare(`SELECT id, customer_id, is_active FROM contacts WHERE id = ?`).get(contactId) as
       { id: number; customer_id: number; is_active: number } | undefined,
-    'Khong tim thay nguoi phu trach'
+    'Không tìm thấy người phụ trách'
   );
   if (row.is_active === 0) {
     throw new HttpError(400, 'Người phụ trách đã ngừng hoạt động', { code: 'ASSIGNEE_INACTIVE' });
@@ -235,7 +235,7 @@ function parentLinks(
   return required(
     db.prepare(`SELECT customer_id, deal_id FROM ${table} WHERE id = ?`).get(id) as
       ParentLinks | undefined,
-    `Khong tim thay ${label}`
+    `Không tìm thấy ${label}`
   );
 }
 
@@ -280,7 +280,7 @@ export function deriveTaskLinks(db: Database, links: EntityLinks): EntityLinks {
     const row = required(
       db.prepare(`SELECT customer_id, contact_id FROM deals WHERE id = ?`).get(next.deal_id) as
         { customer_id: number | null; contact_id: number | null } | undefined,
-      'Khong tim thay co hoi'
+      'Không tìm thấy cơ hội'
     );
     fill('customer_id', row.customer_id);
     fill('contact_id', row.contact_id);
@@ -312,9 +312,9 @@ export function assertParentListCompatible(
     .get(targetListId, cardId) as
     | { parent_id: number | null; target_board_id: number; parent_board_id: number | null }
     | undefined;
-  const checked = required(row, 'Khong tim thay cong viec hoac danh sach');
+  const checked = required(row, 'Không tìm thấy công việc hoặc danh sách');
   if (checked.parent_id != null && checked.parent_board_id !== checked.target_board_id) {
-    throw new HttpError(422, 'Viec con phai nam cung bang voi viec cha', {
+    throw new HttpError(422, 'Việc con phải nằm cùng bảng với việc cha', {
       code: 'PARENT_BOARD_MISMATCH',
     });
   }
@@ -333,7 +333,7 @@ export function assertParentListCompatible(
     )
     .get(cardId, checked.target_board_id) as { id: number } | undefined;
   if (mismatchedChild) {
-    throw new HttpError(422, 'Viec cha phai nam cung bang voi viec con', {
+    throw new HttpError(422, 'Việc cha phải nằm cùng bảng với việc con', {
       code: 'PARENT_BOARD_MISMATCH',
     });
   }

@@ -129,7 +129,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(quotationSchema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM quotations WHERE id = ?`).get(id),
-    'Khong tim thay bao gia'
+    'Không tìm thấy báo giá'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {

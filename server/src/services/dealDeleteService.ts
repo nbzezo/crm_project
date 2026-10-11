@@ -85,7 +85,7 @@ interface DealRow {
 function loadDeal(id: number): DealRow {
   return required(
     db.prepare(`SELECT id, title, customer_id, owner_contact_id FROM deals WHERE id = ?`).get(id),
-    'Khong tim thay co hoi'
+    'Không tìm thấy cơ hội'
   ) as DealRow;
 }
 
@@ -103,7 +103,7 @@ function link(kind: DealDeleteLink['kind'], label: string | null): DealDeleteLin
 
 export function dealDeletePreview(req: Request, id: number): DealDeletePreview {
   const deal = loadDeal(id);
-  assertInScope(req, 'deals', 'delete', deal.owner_contact_id, 'Khong tim thay co hoi');
+  assertInScope(req, 'deals', 'delete', deal.owner_contact_id, 'Không tìm thấy cơ hội');
 
   const documents = (
     db
@@ -399,7 +399,7 @@ export function deleteDeal(
   selection: DealDeleteSelection
 ): DealDeleteResult {
   const deal = loadDeal(id);
-  assertInScope(req, 'deals', 'delete', deal.owner_contact_id, 'Khong tim thay co hoi');
+  assertInScope(req, 'deals', 'delete', deal.owner_contact_id, 'Không tìm thấy cơ hội');
 
   const chosen = {} as Record<DealDeleteGroup, number[]>;
   for (const group of DEAL_DELETE_GROUPS) {
@@ -441,7 +441,7 @@ export function deleteDeal(
       service_count: number;
     }[];
     for (const row of rows) {
-      assertInScope(req, 'contracts', 'delete', row.owner_contact_id, 'Khong tim thay hop dong');
+      assertInScope(req, 'contracts', 'delete', row.owner_contact_id, 'Không tìm thấy hợp đồng');
       if (row.service_count > 0) {
         throw new HttpError(
           400,

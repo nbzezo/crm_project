@@ -115,8 +115,8 @@ function reload(db: Database, id: number) {
  * duoc mot ghi chu da xoa mem.
  */
 export function getQuickNote(db: Database, id: number) {
-  const note = required(reload(db, id), 'Khong tim thay ghi chu nhanh');
-  if (note.deleted_at) throw new HttpError(404, 'Khong tim thay ghi chu nhanh');
+  const note = required(reload(db, id), 'Không tìm thấy ghi chú nhanh');
+  if (note.deleted_at) throw new HttpError(404, 'Không tìm thấy ghi chú nhanh');
   return note;
 }
 
@@ -241,7 +241,7 @@ export function updateQuickNote(db: Database, id: number, patch: Partial<QuickNo
   const current = required(
     db.prepare(`SELECT * FROM quick_notes WHERE id = ? AND deleted_at IS NULL`).get(id) as
       QuickNoteRow | undefined,
-    'Khong tim thay ghi chu nhanh'
+    'Không tìm thấy ghi chú nhanh'
   );
   const contentText = patch.content_text ?? current.content_text;
   const title = (patch.title ?? current.title).trim() || deriveTitle(contentText);
@@ -280,7 +280,7 @@ export function softDeleteQuickNote(db: Database, id: number): void {
         WHERE id = ? AND deleted_at IS NULL`
     )
     .run(id);
-  if (result.changes === 0) throw new HttpError(404, 'Khong tim thay ghi chu nhanh');
+  if (result.changes === 0) throw new HttpError(404, 'Không tìm thấy ghi chú nhanh');
 }
 
 export function restoreQuickNote(db: Database, id: number) {
@@ -291,7 +291,7 @@ export function restoreQuickNote(db: Database, id: number) {
     )
     .run(id);
   if (result.changes === 0)
-    throw new HttpError(404, 'Khong tim thay ghi chu nhanh trong thung rac');
+    throw new HttpError(404, 'Không tìm thấy ghi chú nhanh trong thung rac');
   return getQuickNote(db, id);
 }
 
@@ -316,7 +316,7 @@ export function moveQuickNote(db: Database, id: number, input: QuickNoteMoveInpu
   const current = required(
     db.prepare(`SELECT is_pinned FROM quick_notes WHERE id = ? AND deleted_at IS NULL`).get(id) as
       { is_pinned: number } | undefined,
-    'Khong tim thay ghi chu nhanh'
+    'Không tìm thấy ghi chú nhanh'
   );
   const position = computeMovePosition(
     pinnedScope(current.is_pinned as 0 | 1),
@@ -352,7 +352,7 @@ export function syncRelations(db: Database, id: number, relations: QuickNoteRela
       const { table } = RELATION_TABLES[relation.object_type];
       required(
         db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(relation.object_id),
-        `Khong tim thay ${relation.object_type}`
+        `Không tìm thấy ${relation.object_type}`
       );
       insert.run(id, relation.object_type, relation.object_id);
     }

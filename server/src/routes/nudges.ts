@@ -45,7 +45,7 @@ router.post('/', (req, res) => {
   const card = required(
     db.prepare(`SELECT id, assignee_contact_id FROM cards WHERE id = ?`).get(body.card_id) as
       { id: number; assignee_contact_id: number | null } | undefined,
-    'Khong tim thay cong viec'
+    'Không tìm thấy công việc'
   );
 
   const info = db
@@ -78,7 +78,7 @@ router.patch('/:id', (req, res) => {
     }),
     req
   );
-  required(db.prepare(`SELECT id FROM task_nudges WHERE id = ?`).get(id), 'Khong tim thay ban ghi');
+  required(db.prepare(`SELECT id FROM task_nudges WHERE id = ?`).get(id), 'Không tìm thấy bản ghi');
 
   db.prepare(
     `UPDATE task_nudges
@@ -133,7 +133,7 @@ router.post('/:cardId/draft', async (req, res, next) => {
             WHERE k.id = ?`
         )
         .get(cardId),
-      'Khong tim thay cong viec'
+      'Không tìm thấy công việc'
     ) as Record<string, unknown>;
 
     const tone = body.tone ?? 'friendly';

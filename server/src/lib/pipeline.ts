@@ -71,7 +71,7 @@ export function getPipelines(db: Database): Pipeline[] {
 export function defaultPipeline(db: Database): Pipeline {
   const pipelines = load(db);
   const pipeline = pipelines.find((entry) => entry.is_default === 1) ?? pipelines[0];
-  if (!pipeline) throw new Error('Chua co pipeline nao');
+  if (!pipeline) throw new Error('Chưa có pipeline nào');
   return pipeline;
 }
 
@@ -116,7 +116,7 @@ export function startStage(db: Database, pipelineId?: number): PipelineStage {
       ? defaultPipeline(db)
       : (load(db).find((entry) => entry.id === pipelineId) ?? defaultPipeline(db));
   const stage = pipeline.stages.find((entry) => entry.category === 'open' && entry.is_active === 1);
-  if (!stage) throw new Error('Pipeline khong co giai doan mo nao');
+  if (!stage) throw new Error('Pipeline không có giai đoạn mở nào');
   return stage;
 }
 
@@ -136,7 +136,7 @@ export function finalOpenStageKeys(db: Database): string[] {
 /** Giai doan dau tien cua mot loai ('won' / 'lost') trong pipeline mac dinh. */
 export function stageOfCategory(db: Database, category: Exclude<StageCategory, 'open'>) {
   const stage = defaultPipeline(db).stages.find((entry) => entry.category === category);
-  if (!stage) throw new Error(`Pipeline khong co giai doan ${category}`);
+  if (!stage) throw new Error(`Pipeline không có giai đoạn ${category}`);
   return stage;
 }
 

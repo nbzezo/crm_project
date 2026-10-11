@@ -172,7 +172,7 @@ function getDeal(db: Database, dealId: number): DealRow {
          FROM deals WHERE id = ?`
     )
     .get(dealId) as DealRow | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
+  if (!row) throw new HttpError(404, 'Không tìm thấy cơ hội');
   return row;
 }
 
@@ -415,7 +415,7 @@ interface ScorecardViewRow {
 function readScorecardView(db: Database, dealId: number): ScorecardViewRow {
   const row = db.prepare(`SELECT * FROM deal_scorecard WHERE deal_id = ?`).get(dealId) as
     ScorecardViewRow | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay co hoi');
+  if (!row) throw new HttpError(404, 'Không tìm thấy cơ hội');
   return row;
 }
 
@@ -535,22 +535,26 @@ export function writeScore(
   const deal = getDeal(db, dealId);
   // BR-SCR-10: diem cua deal da chot chi doc
   if (isClosedStage(db, deal.stage))
-    throw new HttpError(409, 'Co hoi da chot nen diem chi doc', { code: 'SCORE_LOCKED' });
+    throw new HttpError(409, 'Cơ hội đã chốt nên điểm chỉ đọc', { code: 'SCORE_LOCKED' });
 
   const evidence = (input.evidence ?? '').trim();
   const status = input.status ?? 'confirmed';
 
   if (input.score >= 1 && evidence.length < EVIDENCE_MIN_LENGTH)
-    throw new HttpError(422, `Bang chung phai tu ${EVIDENCE_MIN_LENGTH} ky tu tro len`, {
-      code: 'EVIDENCE_TOO_SHORT',
-      min_length: EVIDENCE_MIN_LENGTH,
-    });
+    throw new HttpError(
+      422,
+      `Bằng chứng cần ít nhất ${EVIDENCE_MIN_LENGTH} ký tự — ghi rõ ai nói, khi nào và con số cụ thể`,
+      {
+        code: 'EVIDENCE_TOO_SHORT',
+        min_length: EVIDENCE_MIN_LENGTH,
+      }
+    );
   if (evidence.length > 1000)
-    throw new HttpError(422, 'Bang chung toi da 1000 ky tu', { code: 'EVIDENCE_TOO_LONG' });
+    throw new HttpError(422, 'Bằng chứng tối đa 1.000 ký tự', { code: 'EVIDENCE_TOO_LONG' });
 
   const ceiling = factorCeiling(db, dealId, factor);
   if (input.score > ceiling.max)
-    throw new HttpError(422, 'Chua du du lieu de cham muc diem nay', {
+    throw new HttpError(422, 'Chưa đủ dữ liệu để chấm mục điểm này', {
       code: 'FACTOR_CEILING',
       factor,
       max_allowed: ceiling.max,
@@ -558,7 +562,7 @@ export function writeScore(
     });
 
   if (needsNumber(factor, input.score, evidence))
-    throw new HttpError(422, 'Cham NEED = 3 thi bang chung phai co con so luong hoa', {
+    throw new HttpError(422, 'Chấm NEED = 3 thì bằng chứng phải có con số định lượng', {
       code: 'NEED_NOT_QUANTIFIED',
       factor,
       max_allowed: 2,
@@ -574,10 +578,14 @@ export function writeScore(
     status === 'confirmed' &&
     challenge.length < EVIDENCE_MIN_LENGTH
   )
-    throw new HttpError(422, 'Deal lon: cham 4P tu 2 diem tro len phai tra loi cau phan bien', {
-      code: 'CHALLENGE_REQUIRED',
-      factor,
-    });
+    throw new HttpError(
+      422,
+      'Deal lớn: khi chấm 4P từ 2 điểm trở lên, phải trả lời câu phản biện',
+      {
+        code: 'CHALLENGE_REQUIRED',
+        factor,
+      }
+    );
 
   const sourceType = input.source_type ?? null;
   const sourceId = input.source_id ?? null;
@@ -614,9 +622,9 @@ function assertSource(db: Database, dealId: number, sourceType: string, sourceId
   const table = sourceType === 'interaction' ? 'interactions' : 'documents';
   const row = db.prepare(`SELECT deal_id FROM ${table} WHERE id = ?`).get(sourceId) as
     { deal_id: number | null } | undefined;
-  if (!row) throw new HttpError(404, 'Khong tim thay nguon bang chung');
+  if (!row) throw new HttpError(404, 'Không tìm thấy nguồn bằng chứng');
   if (row.deal_id !== dealId)
-    throw new HttpError(422, 'Nguon bang chung khong thuoc co hoi nay', {
+    throw new HttpError(422, 'Nguồn bằng chứng không thuộc cơ hội này', {
       code: 'SOURCE_MISMATCH',
     });
 }
@@ -624,7 +632,7 @@ function assertSource(db: Database, dealId: number, sourceType: string, sourceId
 /** Doi diem de xuat thanh diem chinh thuc (FR-SCR-31). */
 export function confirmScore(db: Database, dealId: number, factor: Factor): Scorecard {
   const row = getScoreRows(db, dealId).get(factor);
-  if (!row) throw new HttpError(404, 'Yeu to nay chua duoc cham');
+  if (!row) throw new HttpError(404, 'Yếu tố này chưa được chấm');
   if (row.status === 'confirmed') return getScorecard(db, dealId);
   return writeScore(db, dealId, factor, {
     score: row.score,

@@ -190,7 +190,7 @@ test('AC-SCR-04 bang chung bat buoc voi diem >= 1, diem 0 van duoc ghi bang chun
   const f = setup();
   assert.throws(
     () => writeScore(f.db, f.dealId, 'budget', { score: 2, evidence: 'qua ngan' }),
-    /Bang chung/
+    /Bằng chứng/
   );
   score(f, 'budget', 2);
   // Diem 0 do "thong tin tieu cuc ro rang" — phai ghi duoc bang chung
@@ -204,10 +204,10 @@ test('AC-SCR-04 bang chung bat buoc voi diem >= 1, diem 0 van duoc ghi bang chun
 
 test('AC-SCR-05 BR-SCR-01: TIMELINE = 3 doi su kien bat buoc da xac nhan', () => {
   const f = setup();
-  assert.throws(() => score(f, 'timeline', 3), /Chua du du lieu/);
+  assert.throws(() => score(f, 'timeline', 3), /Chưa đủ dữ liệu/);
 
   unlockTimeline(f, false);
-  assert.throws(() => score(f, 'timeline', 3), /Chua du du lieu/);
+  assert.throws(() => score(f, 'timeline', 3), /Chưa đủ dữ liệu/);
   assert.equal(
     getScorecard(f.db, f.dealId).items.find((i) => i.factor === 'timeline')?.max_allowed,
     2
@@ -234,17 +234,17 @@ test('AC-SCR-06 BR-SCR-06: doi thu soan tieu chi thi PROCESS bi ep ve 0', () => 
   const card = getScorecard(f.db, f.dealId);
   assert.equal(card.items.find((i) => i.factor === 'process')?.max_allowed, 0);
   assert.equal(card.items.find((i) => i.factor === 'process')?.blocked_by, 'competitor_shaped');
-  assert.throws(() => score(f, 'process', 1), /Chua du du lieu/);
+  assert.throws(() => score(f, 'process', 1), /Chưa đủ dữ liệu/);
   f.db.close();
 });
 
 test('BR-SCR-07 va BR-SCR-08: PRICE doi mat bang gia, NEED = 3 doi con so', () => {
   const f = setup();
-  assert.throws(() => score(f, 'price', 1), /Chua du du lieu/);
+  assert.throws(() => score(f, 'price', 1), /Chưa đủ dữ liệu/);
   unlockPrice(f);
   score(f, 'price', 2);
 
-  assert.throws(() => score(f, 'need', 3, 'Khach dau vi quy trinh doi soat thu cong'), /con so/);
+  assert.throws(() => score(f, 'need', 3, 'Khach dau vi quy trinh doi soat thu cong'), /con số/);
   score(f, 'need', 3, 'Doi soat thu cong ton 180 trieu moi thang');
   f.db.close();
 });
@@ -359,7 +359,7 @@ test('nguon bang chung phai thuoc dung co hoi do', () => {
         source_type: 'interaction',
         source_id: foreign,
       }),
-    /khong thuoc co hoi nay/
+    /không thuộc cơ hội này/
   );
   f.db.close();
 });
@@ -444,7 +444,7 @@ test('AC-SCR-11 chot deal thi chup diem va khoa scorecard', () => {
   assert.equal(Object.keys(snapshot.scores).length, 8, 'chup du 8 yeu to');
 
   assert.equal(getScorecard(f.db, f.dealId).locked, true);
-  assert.throws(() => score(f, 'budget', 1), /chi doc/);
+  assert.throws(() => score(f, 'budget', 1), /chỉ đọc/);
   f.db.close();
 });
 
@@ -506,7 +506,7 @@ test('deal lon bat buoc tra loi cau phan bien khi cham 4P >= 2 (F-13)', () => {
   unlockPrice(f);
   f.db.prepare(`UPDATE deals SET value_vnd = 2000000000 WHERE id = ?`).run(f.dealId);
 
-  assert.throws(() => score(f, 'price', 2), /phan bien/);
+  assert.throws(() => score(f, 'price', 2), /phản biện/);
   const card = writeScore(f.db, f.dealId, 'price', {
     score: 2,
     evidence: EV,

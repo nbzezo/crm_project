@@ -14,7 +14,7 @@ import { FLOW_PROGRESS_COLUMNS } from '../services/taskFlowService.ts';
 const router = Router();
 
 const boardCreate = z.object({
-  name: z.string().trim().min(1, 'Ten bang khong duoc de trong'),
+  name: z.string().trim().min(1, 'Tên bảng không được để trống'),
   background: z.string().optional(),
   customer_id: z.number().int().nullable().optional(),
   project_id: z.number().int().nullable().optional(),
@@ -30,7 +30,7 @@ const boardUpdate = z.object({
   /* R-03: han cua giai doan ma bang nay dai dien. null = bang khong phai mot moc. */
   milestone_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngay phai dang YYYY-MM-DD')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
     .nullable()
     .optional(),
 });
@@ -43,7 +43,7 @@ function boardCustomerForProject(
   if (projectId == null) return customerId ?? null;
   const project = required(
     db.prepare(`SELECT id, customer_id FROM projects WHERE id = ?`).get(projectId),
-    'Khong tim thay du an'
+    'Không tìm thấy dự án'
   ) as { id: number; customer_id: number | null };
   assertProjectCustomerLink(db, { project_id: projectId, customer_id: customerId }, 'Bảng');
 
@@ -116,7 +116,7 @@ router.post('/', (req, res) => {
 /** Cong viec da luu tru cua bang — cho de khoi phuc. Moi nhat truoc. */
 router.get('/:id/archived-cards', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(id), 'Khong tim thay bang');
+  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(id), 'Không tìm thấy bảng');
   const rows = db
     .prepare(
       `SELECT k.id, k.title, k.updated_at, l.name AS list_name
@@ -140,7 +140,7 @@ router.get('/:id/full', (req, res) => {
           WHERE b.id = ?`
       )
       .get(id),
-    'Khong tim thay bang'
+    'Không tìm thấy bảng'
   ) as Record<string, unknown>;
 
   const lists = db
@@ -220,7 +220,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(boardUpdate, req);
   const current = required(
     db.prepare(`SELECT * FROM boards WHERE id = ?`).get(id),
-    'Khong tim thay bang'
+    'Không tìm thấy bảng'
   ) as Record<string, unknown>;
   if (body.customer_id !== undefined) assertEntityLinks(db, { customer_id: body.customer_id });
   const mergedProjectId = (body.project_id !== undefined ? body.project_id : current.project_id) as
@@ -303,7 +303,7 @@ router.post('/:id/template', (req, res) => {
 router.post('/:id/lists', (req, res) => {
   const boardId = intParam(req.params.id);
   const body = parseBody(z.object({ name: z.string().trim().min(1) }), req);
-  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Khong tim thay bang');
+  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Không tìm thấy bảng');
   const position = nextPosition({ table: 'lists', scopeCol: 'board_id', scopeVal: boardId });
   const info = db
     .prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`)

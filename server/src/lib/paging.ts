@@ -48,7 +48,7 @@ export function decodeCursor(raw: unknown): PageCursor | null {
   } catch {
     /* roi xuong loi ben duoi */
   }
-  throw new HttpError(400, 'Con tro phan trang khong hop le');
+  throw new HttpError(400, 'Con trỏ phân trang không hợp lệ');
 }
 
 /**

@@ -33,7 +33,7 @@ const dateOnly = z
 const contractSchema = z.object({
   customer_id: z.number().int(),
   deal_id: z.number().int().nullable().optional(),
-  name: z.string().trim().min(1, 'Ten hop dong khong duoc de trong'),
+  name: z.string().trim().min(1, 'Tên hợp đồng không được để trống'),
   number: z.string().nullable().optional(),
   value_vnd: z.number().int().min(0).optional(),
   sign_date: dateOnly.optional(),
@@ -94,9 +94,9 @@ function assertContractInScope(req: Request, id: number, action: 'update' | 'del
           WHERE k.id = ?`
       )
       .get(id),
-    'Khong tim thay hop dong'
+    'Không tìm thấy hợp đồng'
   ) as { owner_contact_id: number | null };
-  assertInScope(req, 'contracts', action, row.owner_contact_id, 'Khong tim thay hop dong');
+  assertInScope(req, 'contracts', action, row.owner_contact_id, 'Không tìm thấy hợp đồng');
 }
 
 router.get('/', (req, res) => {
@@ -295,7 +295,7 @@ router.post('/from-file', contractUpload.single('file'), (req, res) => {
     const parsed = fromFileSchema.safeParse(raw);
     if (!parsed.success) {
       const first = parsed.error.issues[0];
-      throw new HttpError(400, `Du lieu khong hop le: ${first.path.join('.')} — ${first.message}`);
+      throw new HttpError(400, `Dữ liệu không hợp lệ: ${first.path.join('.')} — ${first.message}`);
     }
     const body = parsed.data;
     if (body.new_customer && !accessOf(req).can('customers', 'create')) {
@@ -417,7 +417,7 @@ router.post('/', (req, res) => {
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
-  const contract = required(reload(id), 'Khong tim thay hop dong') as Record<string, unknown>;
+  const contract = required(reload(id), 'Không tìm thấy hợp đồng') as Record<string, unknown>;
   const documents = db
     .prepare(
       `SELECT * FROM documents WHERE contract_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`
@@ -432,7 +432,7 @@ router.patch('/:id', (req, res) => {
   assertContractInScope(req, id, 'update');
   const current = required(
     db.prepare(`SELECT * FROM contracts WHERE id = ?`).get(id),
-    'Khong tim thay hop dong'
+    'Không tìm thấy hợp đồng'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
@@ -504,7 +504,7 @@ router.post('/:id/renew', (req, res) => {
   const id = intParam(req.params.id);
   const contract = required(
     db.prepare(`SELECT * FROM contracts WHERE id = ?`).get(id),
-    'Khong tim thay hop dong'
+    'Không tìm thấy hợp đồng'
   ) as Record<string, unknown>;
 
   const source = contract.deal_id

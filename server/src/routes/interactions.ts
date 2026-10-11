@@ -18,8 +18,8 @@ const schema = z.object({
   contact_id: z.number().int().nullable().optional(),
   deal_id: z.number().int().nullable().optional(),
   type: typeEnum,
-  occurred_at: z.string().min(10, 'Thoi diem khong hop le'),
-  summary: z.string().trim().min(1, 'Noi dung khong duoc de trong'),
+  occurred_at: z.string().min(10, 'Thời điểm không hợp lệ'),
+  summary: z.string().trim().min(1, 'Nội dung không được để trống'),
   result: z.string().nullable().optional(),
   /** FR-ACT-04 + FR-OPP-05: luu ngay hanh dong tiep theo len co hoi va tao Task neu duoc yeu cau. */
   next_action: z.string().nullable().optional(),
@@ -113,7 +113,7 @@ router.patch('/:id', (req, res) => {
   const body = parseBody(schema.partial(), req);
   const current = required(
     db.prepare(`SELECT * FROM interactions WHERE id = ?`).get(id),
-    'Khong tim thay tuong tac'
+    'Không tìm thấy tương tác'
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertPicklistValue(db, 'interaction_type', body.type, current.type as string);

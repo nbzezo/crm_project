@@ -126,11 +126,11 @@ router.post('/login', async (req, res, next) => {
  */
 router.get('/me', (req, res) => {
   const userId = req.session?.userId;
-  if (!userId) throw new HttpError(401, 'Chua dang nhap');
+  if (!userId) throw new HttpError(401, 'Chưa đăng nhập');
   const me = sessionUser(userId);
   /* Phien con song nhung tai khoan da bi xoa hoac khoa giua chung: coi nhu chua
      dang nhap, de client dua ve man dang nhap thay vi hien mot vo rong. */
-  if (!me || !me.is_active) throw new HttpError(401, 'Chua dang nhap');
+  if (!me || !me.is_active) throw new HttpError(401, 'Chưa đăng nhập');
   res.json(me);
 });
 
@@ -211,11 +211,11 @@ const passwordChangeSchema = z.object({
 router.patch('/password', async (req, res, next) => {
   try {
     const userId = req.session?.userId;
-    if (!userId) throw new HttpError(401, 'Chua dang nhap');
+    if (!userId) throw new HttpError(401, 'Chưa đăng nhập');
 
     const body = parseBody(passwordChangeSchema, req);
     const user = findUserById(userId);
-    if (!user) throw new HttpError(401, 'Chua dang nhap');
+    if (!user) throw new HttpError(401, 'Chưa đăng nhập');
     if (!(await verifyPassword(body.current_password, user.password_hash, user.password_salt))) {
       throw new HttpError(400, 'Mật khẩu hiện tại không đúng');
     }

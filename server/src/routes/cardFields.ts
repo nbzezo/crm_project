@@ -11,7 +11,7 @@ const FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox'] as const;
 
 const fieldSchema = z.object({
   board_id: z.number().int().nullable().optional(),
-  name: z.string().trim().min(1, 'Ten truong khong duoc de trong'),
+  name: z.string().trim().min(1, 'Tên trường không được để trống'),
   field_type: z.enum(FIELD_TYPES).optional(),
   options: z.array(z.string().trim().min(1)).optional(),
   show_on_card: z.boolean().optional(),
@@ -25,7 +25,7 @@ function toField(row: Record<string, unknown>): Record<string, unknown> {
 function getField(id: number): Record<string, unknown> {
   return required(
     db.prepare(`SELECT * FROM card_fields WHERE id = ?`).get(id),
-    'Khong tim thay truong thong tin'
+    'Không tìm thấy trường thông tin'
   ) as Record<string, unknown>;
 }
 
@@ -46,7 +46,7 @@ router.post('/', (req, res) => {
   const body = parseBody(fieldSchema, req);
   const boardId = body.board_id ?? null;
   if (boardId != null)
-    required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Khong tim thay bang');
+    required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Không tìm thấy bảng');
   const row = db
     .prepare(
       `SELECT MAX(position) AS maxPos FROM card_fields

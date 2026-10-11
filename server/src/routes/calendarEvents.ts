@@ -17,7 +17,7 @@ const router = Router();
  */
 const localDateTime = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thoi diem phai dang YYYY-MM-DDTHH:mm');
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm');
 
 const eventTypeEnum = z.enum([
   'task',
@@ -31,7 +31,7 @@ const eventTypeEnum = z.enum([
 const statusEnum = z.enum(['pending', 'done', 'cancelled']);
 
 const schema = z.object({
-  title: z.string().trim().min(1, 'Tieu de khong duoc de trong'),
+  title: z.string().trim().min(1, 'Tiêu đề không được để trống'),
   description: z.string().optional(),
   location: z.string().optional(),
   event_type: eventTypeEnum.optional(),
@@ -96,7 +96,7 @@ function normalize(input: EventInput): Required<
   }
 
   if (end <= start) {
-    throw new HttpError(400, 'Thoi gian ket thuc phai sau thoi gian bat dau');
+    throw new HttpError(400, 'Thời gian kết thúc phải sau thời gian bắt đầu');
   }
 
   return {
@@ -173,7 +173,7 @@ router.get('/events', (req, res) => {
 
 router.get('/events/:id', (req, res) => {
   const id = intParam(req.params.id);
-  res.json(required(reload(id), 'Khong tim thay lich'));
+  res.json(required(reload(id), 'Không tìm thấy lịch'));
 });
 
 router.post('/events', (req, res) => {
@@ -212,7 +212,7 @@ router.patch('/events/:id', (req, res) => {
   const id = intParam(req.params.id);
   const current = required(
     db.prepare(`SELECT * FROM calendar_events WHERE id = ?`).get(id),
-    'Khong tim thay lich'
+    'Không tìm thấy lịch'
   ) as Record<string, unknown>;
   const patch = parseBody(schema.partial(), req);
 

@@ -302,9 +302,9 @@ const SAFE_BACKUP_NAME = /^[\w.-]+\.db$/;
 
 router.get('/backups/:name/download', requirePermission('data.export', 'export'), (req, res) => {
   const name = String(req.params.name);
-  if (!SAFE_BACKUP_NAME.test(name)) throw new HttpError(400, 'Ten file khong hop le');
+  if (!SAFE_BACKUP_NAME.test(name)) throw new HttpError(400, 'Tên file không hợp lệ');
   const file = path.join(BACKUP_DIR, name);
-  if (!fs.existsSync(file)) throw new HttpError(404, 'Khong tim thay ban sao luu');
+  if (!fs.existsSync(file)) throw new HttpError(404, 'Không tìm thấy bản sao lưu');
   res.download(file, name);
 });
 
@@ -346,7 +346,7 @@ async function streamExport(res: Response): Promise<void> {
       ? new Database(file, { readonly: true, fileMustExist: true })
       : null;
   const write = async (chunk: string) => {
-    if (res.destroyed) throw new Error('Nguoi dung da huy tai ban xuat');
+    if (res.destroyed) throw new Error('Người dùng đã hủy tải bản xuất');
     if (!res.write(chunk)) {
       await new Promise<void>((resolve, reject) => {
         const onDrain = () => {
@@ -355,7 +355,7 @@ async function streamExport(res: Response): Promise<void> {
         };
         const onClose = () => {
           res.off('drain', onDrain);
-          reject(new Error('Nguoi dung da huy tai ban xuat'));
+          reject(new Error('Người dùng đã hủy tải bản xuất'));
         };
         res.once('drain', onDrain);
         res.once('close', onClose);
@@ -516,7 +516,7 @@ router.get(
   (req, res) => {
     const entity = String(req.params.entity);
     const query = CSV_QUERIES[entity];
-    if (!query) throw new HttpError(404, 'Khong ho tro xuat du lieu nay');
+    if (!query) throw new HttpError(404, 'Không hỗ trợ xuất dữ liệu này');
 
     const rows = db.prepare(query.sql).all() as Record<string, unknown>[];
     const date = new Date().toISOString().slice(0, 10);
