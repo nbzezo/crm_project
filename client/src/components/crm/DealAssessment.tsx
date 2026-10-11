@@ -47,6 +47,8 @@ import { formatDate } from '../../lib/format';
 import { usePermission } from '../../lib/permissions';
 import { useMyContactId } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useDealStageMove } from '../../hooks/useDealStageMove';
+import { closedStageKey } from '../../lib/crmConfig';
 import type {
   AiAssessmentReview,
   AssessmentCell,
@@ -57,6 +59,7 @@ import type {
   DealDecisionEntry,
   DealDecisionKind,
   Factor,
+  Stage,
 } from '../../types';
 
 const QUESTIONS: AssessmentQuestion[] = ['need', 'compete', 'close', 'worth'];
@@ -641,7 +644,7 @@ export function CriterionEditor({
 
 /* ---------- Quyết định ---------- */
 
-function DecisionPanel({
+export function DecisionPanel({
   data,
   dealId,
   onUpdate,
@@ -674,6 +677,14 @@ function DecisionPanel({
   const remove = useMutation({
     mutationFn: (id: number) => api.del<AssessmentData>(`/api/deals/${dealId}/decisions/${id}`),
     onSuccess: onUpdate,
+  });
+  const queryClient = useQueryClient();
+  /* Chuyen sang That bai doi giai doan va khoa danh gia — tai lai ca co hoi lan danh sach. */
+  const { move, dialogs } = useDealStageMove({
+    invalidate: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+    },
   });
 
   return (
@@ -736,6 +747,24 @@ function DecisionPanel({
             </Button>
           </div>
           <FormError error={add.error} />
+          <p className="text-xs text-tr-muted">
+            Chỉ ghi nhận để xem lại, không đổi giai đoạn của cơ hội.
+          </p>
+          {decision === 'withdraw' && (
+            <Button
+              variant="danger"
+              onClick={() =>
+                move({
+                  dealId,
+                  stage: closedStageKey('lost') as Stage,
+                  beforeId: null,
+                  afterId: null,
+                })
+              }
+            >
+              Chuyển cơ hội sang Thất bại
+            </Button>
+          )}
         </div>
       )}
 
@@ -781,6 +810,7 @@ function DecisionPanel({
         </ol>
       )}
       <FormError error={remove.error} />
+      {dialogs}
     </Panel>
   );
 }

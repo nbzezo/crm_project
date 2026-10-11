@@ -241,7 +241,7 @@ export const BLOCKED_REASONS: Record<string, { text: string; tab: 'committee' | 
  * Khóa `opposed` giữ nghĩa "Không ủng hộ" để dữ liệu cũ không phải đổi.
  */
 export const STANCE_LABELS: Record<string, string> = {
-  mentor: 'Mentor',
+  mentor: 'Người ủng hộ chính',
   supporter: 'Ủng hộ',
   neutral: 'Trung lập',
   opposed: 'Không ủng hộ',
@@ -250,7 +250,7 @@ export const STANCE_LABELS: Record<string, string> = {
 };
 
 export const STANCE_HINTS: Record<string, string> = {
-  mentor: 'Mua vì tin ta, chủ động vận động cho ta và báo tin nội bộ.',
+  mentor: 'Ủng hộ mạnh, chủ động vận động cho ta và báo tin nội bộ.',
   supporter: 'Đứng về phía ta.',
   neutral: 'Chưa thấy ta mang lại giá trị gì.',
   opposed: 'Không thích giải pháp hoặc cách làm của ta.',

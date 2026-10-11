@@ -22,6 +22,9 @@ import { HealthBadge } from '../components/crm/ProjectHealthBadge';
 import { Scorecard } from '../components/crm/Scorecard';
 import { CommitteePanel } from '../components/crm/CommitteePanel';
 import { DealAssessment } from '../components/crm/DealAssessment';
+import { DealOverview } from '../components/crm/basic/DealOverview';
+import { QuickAssessmentWizard } from '../components/crm/basic/QuickAssessmentWizard';
+import { CommitteeSimple } from '../components/crm/basic/CommitteeSimple';
 import { DocumentPanel } from '../components/crm/DocumentUpload';
 import { MeetingNotesPanel } from '../components/crm/meetingNotes/MeetingNotesPanel';
 import { AiBrief } from '../components/ai/AiBrief';
@@ -35,8 +38,9 @@ import {
   Skeleton,
   focusRing,
 } from '../components/common/ui';
-import { VETO_BADGE_COLOR, t } from '../i18n/vi';
-import { QUADRANT_COLORS, QUADRANT_LABELS } from '../i18n/scoring';
+import { t } from '../i18n/vi';
+import { VERDICT_INFO } from '../i18n/assessment';
+import { QUICK_VERDICT_INFO } from '../i18n/quickAssessment';
 import { formatDate, formatVND } from '../lib/format';
 import { useUiStore } from '../stores/uiStore';
 import type {
@@ -49,9 +53,11 @@ import type {
   Project,
   Scorecard as ScorecardData,
 } from '../types';
-import { isEarlyStage, pickLabel, stageCategory } from '../lib/crmConfig';
+import { pickLabel, stageCategory } from '../lib/crmConfig';
+import { dealTabsFor, resolveDealTab, useDealViewMode, type DealTab } from '../lib/dealViewMode';
+import type { DealAssessment as AssessmentData, QuickAssessment } from '../types';
 
-type Tab = 'assessment' | 'info' | 'score' | 'committee' | 'notes' | 'handover';
+type Tab = DealTab;
 
 interface DealFull extends Deal {
   activities: Interaction[];
@@ -68,8 +74,9 @@ export default function DealDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const openTaskComposer = useUiStore((s) => s.openTaskComposer);
+  const { mode, setMode, saving } = useDealViewMode();
 
-  const tab = (params.get('tab') as Tab) ?? 'assessment';
+  const tab = resolveDealTab(mode, params.get('tab'));
   const focusFactor = (params.get('factor') as Factor) ?? null;
   const setTab = (next: Tab) => {
     const merged = new URLSearchParams(params);
@@ -109,6 +116,16 @@ export default function DealDetailPage() {
     queryFn: () => api.get<HandoverState>(`/api/deals/${id}/handover`),
     enabled: Number.isFinite(id),
   });
+  const { data: quick } = useQuery({
+    queryKey: ['deal', id, 'quick-assessment'],
+    queryFn: () => api.get<QuickAssessment>(`/api/deals/${id}/quick-assessment`),
+    enabled: Number.isFinite(id),
+  });
+  const { data: assessment } = useQuery({
+    queryKey: ['deal', id, 'assessment'],
+    queryFn: () => api.get<AssessmentData>(`/api/deals/${id}/assessment`),
+    enabled: Number.isFinite(id),
+  });
 
   if (error)
     return (
@@ -129,16 +146,23 @@ export default function DealDetailPage() {
       </div>
     );
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'assessment', label: 'Đánh giá' },
-    { key: 'score', label: 'Chấm điểm' },
-    { key: 'committee', label: 'Nhóm quyết định' },
-    { key: 'info', label: 'Thông tin' },
-    { key: 'notes', label: 'Trang tài liệu' },
-    { key: 'handover', label: 'Bàn giao' },
-  ];
-
   const pendingHandover = stageCategory(deal.stage) === 'won' && !deal.handover_ready;
+  const verdictLabel =
+    mode === 'basic'
+      ? QUICK_VERDICT_INFO[quick?.verdict ?? 'not_started']
+      : assessment && (assessment.bant_total === 0 || assessment.p4_total === 0)
+        ? { label: 'Chưa đủ dữ liệu', tone: 'neutral' as const }
+        : assessment
+          ? VERDICT_INFO[assessment.verdict]
+          : { label: 'Chưa đủ dữ liệu', tone: 'neutral' as const };
+  const verdictColor =
+    verdictLabel.tone === 'success'
+      ? '#087a08'
+      : verdictLabel.tone === 'warning'
+        ? '#b7791f'
+        : verdictLabel.tone === 'danger'
+          ? '#d03b3b'
+          : '#8993a4';
 
   return (
     <div className="p-4 md:p-6">
@@ -161,17 +185,7 @@ export default function DealDetailPage() {
         title={deal.title}
         badges={
           <>
-            {card && (
-              <ColorBadge color={QUADRANT_COLORS[card.quadrant]}>
-                Scoring: {QUADRANT_LABELS[card.quadrant]}
-              </ColorBadge>
-            )}
-            {/* Deal vua tao, chua cham diem nao, con o giai doan dau thi chua phai
-                luc gan nhan do — xem ghi chu `softTone` trong Scorecard.tsx. */}
-            {card?.veto.some((v) => v.blocking) &&
-              !(card.scored_count === 0 && isEarlyStage(card.stage)) && (
-                <ColorBadge color={VETO_BADGE_COLOR}>Ngoài forecast</ColorBadge>
-              )}
+            <ColorBadge color={verdictColor}>Đánh giá: {verdictLabel.label}</ColorBadge>
             {deal.is_renewal === 1 && (
               <span className="flex items-center gap-1 text-xs text-tr-muted">
                 <RefreshCw size={12} /> Gia hạn
@@ -224,6 +238,27 @@ export default function DealDetailPage() {
         ]}
       />
 
+      <div className="mb-4 flex justify-end">
+        <div
+          className="inline-flex rounded-control border border-tr-border bg-tr-panel p-1"
+          role="group"
+          aria-label="Chế độ xem"
+        >
+          {(['basic', 'advanced'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={mode === value}
+              disabled={saving}
+              onClick={() => void setMode(value)}
+              className={`min-h-9 rounded px-3 text-sm ${mode === value ? 'bg-tr-primary text-white' : 'text-tr-muted hover:bg-tr-hover'}`}
+            >
+              {value === 'basic' ? 'Cơ bản' : 'Nâng cao'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-4">
         <DealStageStepper deal={deal} />
       </div>
@@ -246,12 +281,22 @@ export default function DealDetailPage() {
           <Tabs
             value={tab}
             onChange={setTab}
-            items={TABS.map((item) => ({ value: item.key, label: item.label }))}
+            items={dealTabsFor(mode).map((item) => ({ value: item.key, label: item.label }))}
             ariaLabel="Nội dung cơ hội"
             idPrefix="dealtab"
             className="mb-4"
           >
-            {tab === 'assessment' && (
+            {mode === 'basic' && tab === 'overview' && (
+              <DealOverview deal={deal} onStart={() => setTab('assessment')} />
+            )}
+
+            {mode === 'basic' && tab === 'assessment' && (
+              <QuickAssessmentWizard deal={deal} onDone={() => setTab('overview')} />
+            )}
+
+            {mode === 'basic' && tab === 'committee' && <CommitteeSimple deal={deal} />}
+
+            {mode === 'advanced' && tab === 'assessment' && (
               <DealAssessment
                 deal={deal}
                 onOpenFactor={(factor) => {
@@ -265,7 +310,7 @@ export default function DealDetailPage() {
               />
             )}
 
-            {tab === 'score' && (
+            {mode === 'advanced' && tab === 'score' && (
               <Scorecard
                 dealId={id}
                 focusFactor={focusFactor}
@@ -273,7 +318,9 @@ export default function DealDetailPage() {
               />
             )}
 
-            {tab === 'committee' && <CommitteePanel deal={deal} scorecard={card} />}
+            {mode === 'advanced' && tab === 'committee' && (
+              <CommitteePanel deal={deal} scorecard={card} />
+            )}
 
             {tab === 'info' && (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

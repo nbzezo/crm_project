@@ -106,9 +106,7 @@ function MembersBlock({
   if (isLoading || !data) return <Skeleton className="h-64 rounded-panel" />;
 
   const { members, candidates } = data;
-  const hasChampion = members.some(
-    (m) => m.is_champion === 1 && (m.stance === 'supporter' || m.stance === 'mentor')
-  );
+  const hasChampion = members.some((m) => m.stance === 'mentor');
   /* Nguoi co anh huong lon ma ta chua tiep xuc chuyen sau — khung goc coi quan he
      lanh dao la tieu chi quan trong nhat (#12). */
   const shallowPowerful = members.filter(
@@ -144,7 +142,7 @@ function MembersBlock({
     >
       <div className="mb-3 space-y-1.5">
         {relationshipWarning && <Warning text={relationshipWarning} />}
-        {!hasChampion && <Warning text="Chưa có champion nào ở trạng thái Ủng hộ/Mentor." />}
+        {!hasChampion && <Warning text="Chưa có người ủng hộ chính." />}
         {shallowPowerful > 0 && (
           <Warning
             text={`${shallowPowerful} người có ảnh hưởng lớn (4–5/5) chưa được tiếp xúc chuyên sâu.`}
@@ -180,8 +178,12 @@ function MembersBlock({
                   <span className="ml-1 text-xs text-tr-muted">· {member.title}</span>
                 )}
               </span>
-              {member.is_champion === 1 && (
-                <Crown size={14} className="shrink-0 text-tr-warning" aria-label="Champion" />
+              {member.stance === 'mentor' && (
+                <Crown
+                  size={14}
+                  className="shrink-0 text-tr-warning"
+                  aria-label="Người ủng hộ chính"
+                />
               )}
               <span title={STANCE_HINTS[member.stance]}>
                 <ColorBadge color={STANCE_COLORS[member.stance]} small>
@@ -229,19 +231,6 @@ function MembersBlock({
                   </option>
                 ))}
               </Select>
-              <label className="flex items-center gap-1 text-tr-subtle">
-                <input
-                  type="checkbox"
-                  checked={member.is_champion === 1}
-                  onChange={(e) =>
-                    update.mutate({
-                      contactId: member.contact_id,
-                      patch: { is_champion: e.target.checked },
-                    })
-                  }
-                />
-                Champion
-              </label>
               <label className="flex items-center gap-1 text-tr-subtle">
                 Ảnh hưởng
                 <Select

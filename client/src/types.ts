@@ -1372,7 +1372,7 @@ export interface Scorecard {
   recommendations: Recommendation[];
 }
 
-interface CommitteeMember {
+export interface CommitteeMember {
   contact_id: number;
   full_name: string;
   title: string | null;
