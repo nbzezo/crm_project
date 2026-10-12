@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { assertInScope, defaultOwner, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { assertLinkTargetsInScope, assertRootOwner, paramGuard } from '../lib/recordAccess.ts';
 import { computeMovePosition, nextPosition } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { allStages, assertStage, startStage, stageOf } from '../lib/pipeline.ts';
@@ -33,15 +34,13 @@ import {
   type DealDeleteSelection,
 } from '../services/dealDeleteService.ts';
 import { decorateProject, PROJECT_SELECT } from '../services/projectService.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
 /* Giai doan la du lieu cau hinh (v64): kiem bang assertStage sau khi parse. */
 const stageEnum = z.string().trim().min(1).max(60);
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .nullable();
+const dateOnly = z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable();
 
 const dealSchema = z.object({
   customer_id: z.number().int(),
@@ -122,6 +121,18 @@ function reload(id: number) {
   return db.prepare(`${DEAL_SELECT} WHERE d.id = ?`).get(id);
 }
 
+/* Moi route `/:id/...` (chuyen giai doan, ban giao, xem truoc xoa...) kiem pham vi co
+   hoi o day — ban giao va chuyen giai doan tung chi kiem co hoi ton tai. */
+router.param(
+  'id',
+  paramGuard((req, id) => {
+    const row = db.prepare(`SELECT owner_contact_id FROM deals WHERE id = ?`).get(id) as
+      { owner_contact_id: number | null } | undefined;
+    if (!row) throw new HttpError(404, 'Không tìm thấy cơ hội');
+    assertRootOwner(req, 'deals', row.owner_contact_id, 'Không tìm thấy cơ hội');
+  })
+);
+
 router.get('/', (req, res) => {
   const customerId = req.query.customer_id ? Number(req.query.customer_id) : null;
   /* Dieu kien pham vi di vao WHERE NGOAI. DEAL_SELECT co INNER JOIN toi view
@@ -176,6 +187,7 @@ router.post('/', (req, res) => {
   assertPicklistValue(db, 'lost_reason', body.lost_reason);
   body.source = assertPicklistValue(db, 'deal_source', body.source);
   assertEntityLinks(db, body);
+  assertLinkTargetsInScope(req, body);
   assertCrmCustomer(db, body.customer_id);
   assertProjectLink(0, body.project_id, body.customer_id);
   const target = body.stage ? assertStage(db, body.stage) : startStage(db);
@@ -227,13 +239,7 @@ router.post('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const deal = required(reload(id), 'Không tìm thấy cơ hội') as Record<string, unknown>;
-  assertInScope(
-    req,
-    'deals',
-    'read',
-    deal.owner_contact_id as number | null,
-    'Không tìm thấy cơ hội'
-  );
+  /* Pham vi doc da kiem o router.param('id') — cung luat voi danh sach (ban ghi vo chu van mo duoc). */
   const quotations = db
     .prepare(`SELECT * FROM quotations WHERE deal_id = ? ORDER BY version DESC, id DESC`)
     .all(id);
@@ -322,6 +328,7 @@ function applyStageRules(
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(dealPatchSchema, req);
+  assertLinkTargetsInScope(req, body);
   const current = required(
     db.prepare(`SELECT * FROM deals WHERE id = ?`).get(id),
     'Không tìm thấy cơ hội'

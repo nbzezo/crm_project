@@ -4,6 +4,7 @@ import { db } from '../db/connection.ts';
 import { assertPicklistValue, ensurePicklistValue } from '../lib/picklists.ts';
 import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { assertRootOwner, paramGuard } from '../lib/recordAccess.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import { assertOrgKindChange } from '../lib/entityRelations.ts';
@@ -131,6 +132,18 @@ const LIST_SQL = `
            WHERE r.customer_id = c.id AND r.is_done = 0
            ORDER BY r.due_at LIMIT 1) AS next_reminder_due_at
     FROM customers c`;
+
+/* Moi route `/:id/...` cua khach hang (tac dong khi xoa, them nguoi lien he, lich su
+   tuong tac...) kiem pham vi o day; route rieng van co the kiem chat hon. */
+router.param(
+  'id',
+  paramGuard((req, id) => {
+    const row = db.prepare(`SELECT owner_contact_id FROM customers WHERE id = ?`).get(id) as
+      { owner_contact_id: number | null } | undefined;
+    if (!row) throw new HttpError(404, 'Không tìm thấy khách hàng');
+    assertRootOwner(req, 'customers', row.owner_contact_id, 'Không tìm thấy bản ghi');
+  })
+);
 
 router.get('/', (req, res) => {
   const q = fold(String(req.query.q ?? '').trim());
@@ -270,7 +283,7 @@ router.get('/:id/full', (req, res) => {
     db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
     'Không tìm thấy khách hàng'
   ) as Record<string, unknown>;
-  assertInScope(req, 'customers', 'read', customer.owner_contact_id as number | null);
+  /* Pham vi doc da kiem o router.param('id') — cung luat voi danh sach (ban ghi vo chu van mo duoc). */
 
   /* Kem don vi va VI TRI cua tung nguoi.
 
@@ -412,7 +425,8 @@ function loadInScope(
     care_cadence_days: number | null;
     created_at: string;
   };
-  assertInScope(req, 'customers', action, customer.owner_contact_id);
+  /* Doc da kiem o router.param('id'); ghi giu luat chat (vo chu chi quan tri sua). */
+  if (action !== 'read') assertInScope(req, 'customers', action, customer.owner_contact_id);
   return customer;
 }
 

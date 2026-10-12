@@ -246,6 +246,22 @@ router.post('/members', (req, res) => {
       'Không tìm thấy đơn vị'
     );
   }
+  /* Chi nhan su NOI BO (to chuc org_kind = 'own') moi co cho tren so do; xep nham
+     nguoi lien he cua khach hang vao mot don vi se mo rong pham vi cua quan ly don vi
+     do sang du lieu khach hang ma khong ai nhin thay tren so do. */
+  const placeholders = body.contact_ids.map(() => '?').join(',');
+  const outside = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM contacts ct
+         LEFT JOIN customers c ON c.id = ct.customer_id
+        WHERE ct.id IN (${placeholders}) AND (c.id IS NULL OR c.org_kind <> 'own')`
+    )
+    .get(...body.contact_ids) as { n: number };
+  if (outside.n > 0) {
+    throw new HttpError(422, 'Chỉ xếp được nhân sự nội bộ vào đơn vị', {
+      code: 'NOT_INTERNAL_CONTACT',
+    });
+  }
   const update = db.prepare('UPDATE contacts SET org_unit_id = ? WHERE id = ?');
   db.transaction(() => {
     for (const contactId of body.contact_ids) update.run(body.org_unit_id, contactId);

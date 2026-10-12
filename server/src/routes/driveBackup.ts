@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, parseBody } from '../lib/validate.ts';
 import { crmBaseUrl } from '../lib/requestBaseUrl.ts';
-import { requirePermission } from '../middleware/currentUser.ts';
+import { requireFullScope, requirePermission } from '../middleware/currentUser.ts';
 import { getEmailConfig } from '../services/email/emailService.ts';
 import { buildGoogleAuthUrl, exchangeGoogleCode } from '../services/email/googleMail.ts';
 import { DRIVE_FILE_SCOPE, DRIVE_SCOPES } from '../services/backup/driveApi.ts';
@@ -29,6 +29,10 @@ const router = Router();
  * tung route de route them sau nay khong the lot luoi.
  */
 router.use(requirePermission('data.export', 'export'));
+/* Day len Drive la NGUYEN tep CSDL — can pham vi toan cong ty, giong /api/export. */
+router.use(
+  requireFullScope('data.export', 'export', 'Sao lưu lên Google Drive cần phạm vi Toàn công ty')
+);
 
 function redirectUri(req: Request): string {
   return `${crmBaseUrl(db, req)}/api/drive-backup/oauth/callback`;

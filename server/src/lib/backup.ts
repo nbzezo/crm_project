@@ -40,7 +40,12 @@ export function pruneBackups(keep = backupKeepCount()): string[] {
 }
 
 export async function createBackupFile(db: Database): Promise<BackupFileInfo> {
-  const file = path.join(BACKUP_DIR, `app-${timestamp()}.db`);
+  /* Ten theo giay: hai lan bam trong cung mot giay tung ghi de len nhau. */
+  const stamp = timestamp();
+  let file = path.join(BACKUP_DIR, `app-${stamp}.db`);
+  for (let n = 2; fs.existsSync(file); n += 1) {
+    file = path.join(BACKUP_DIR, `app-${stamp}-${n}.db`);
+  }
   await db.backup(file);
   const stat = fs.statSync(file);
   pruneBackups();

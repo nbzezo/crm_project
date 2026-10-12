@@ -3,6 +3,7 @@ import { required } from '../../lib/validate.ts';
 import { fold } from '../../lib/viSearch.ts';
 /* Quy trinh dang chay (v66): AI can biet viec dang o buoc nao, khong chi "chua xong". */
 import { FLOW_NEXT_STEP_COLUMN, FLOW_PROGRESS_COLUMNS } from '../../lib/taskFlowSql.ts';
+import { todayLocal } from '../../lib/dates.ts';
 
 function rows(db: Database, sql: string, params: unknown[] = [], limit = 40): unknown[] {
   return db.prepare(`${sql} LIMIT ${Math.max(1, Math.min(limit, 100))}`).all(...params);
@@ -73,6 +74,9 @@ export function buildSearchContext(db: Database, query: string, scopes: AiScopes
   const contracts = scopeClause(scopes.contracts, 'c.owner_contact_id');
   const notes = scopeClause(scopes.notes, 'n.owner_contact_id');
   const tasks = taskClause(scopes);
+  /* Ghi chu hop doc duoc khong co nghia la doc duoc co hoi no gan vao: ten co hoi
+     ngoai pham vi bi an khoi ngu canh. */
+  const noteDeals = scopeClause(scopes.deals, 'd.owner_contact_id');
 
   return {
     customers: db
@@ -118,14 +122,14 @@ export function buildSearchContext(db: Database, query: string, scopes: AiScopes
     meeting_notes: db
       .prepare(
         `SELECT n.id, n.title, n.meeting_at, n.deal_id, n.project_id,
-                d.title AS deal_title, p.name AS project_name
+                CASE WHEN 1 = 1${noteDeals.sql} THEN d.title END AS deal_title, p.name AS project_name
            FROM meeting_notes n
            LEFT JOIN deals d ON d.id = n.deal_id
            LEFT JOIN projects p ON p.id = n.project_id
           WHERE n.deleted_at IS NULL AND n.search_text LIKE ?${notes.sql}
           ORDER BY n.updated_at DESC LIMIT 8`
       )
-      .all(like, ...notes.params),
+      .all(...noteDeals.params, like, ...notes.params),
   };
 }
 
@@ -237,21 +241,36 @@ export function buildTodayContext(db: Database, scope: AiScope = null) {
   };
 }
 
-export function buildCustomerContext(db: Database, customerId: number) {
+/**
+ * Ho so mot khach hang cho AI. Route da kiem khach hang thuoc pham vi; o day con
+ * phai loc TUNG loai du lieu ben trong theo pham vi rieng cua no — nguoi doc duoc
+ * khach hang nhung khong doc duoc pipeline thi ho so khong duoc chua co hoi.
+ */
+export function buildCustomerContext(
+  db: Database,
+  customerId: number,
+  scopes: AiScopes = OPEN_SCOPES
+) {
+  const deals = scopeClause(scopes.deals, 'd.owner_contact_id');
+  const contracts = scopeClause(
+    scopes.contracts,
+    'COALESCE((SELECT x.owner_contact_id FROM deals x WHERE x.id = k.deal_id), c.owner_contact_id)'
+  );
+  const tasks = taskClause(scopes);
   const customer = required(
     db
       .prepare(
         `SELECT c.id, c.name, c.short_name, c.industry, c.size, c.source, c.status,
                 c.phone, c.email, c.address, c.notes,
                 (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d
-                  WHERE d.customer_id = c.id AND d.stage_category = 'won') AS total_won_vnd,
+                  WHERE d.customer_id = c.id AND d.stage_category = 'won'${deals.sql}) AS total_won_vnd,
                 (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d
-                  WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_pipeline_vnd,
+                  WHERE d.customer_id = c.id AND d.stage_category = 'open'${deals.sql}) AS open_pipeline_vnd,
                 (SELECT COUNT(*) FROM contracts k
-                  WHERE k.customer_id = c.id AND k.status = 'active') AS active_contract_count
+                  WHERE k.customer_id = c.id AND k.status = 'active'${contracts.sql}) AS active_contract_count
            FROM customers c WHERE c.id = ?`
       )
-      .get(customerId),
+      .get(...deals.params, ...deals.params, ...contracts.params, customerId),
     'Không tìm thấy khách hàng'
   );
   return {
@@ -267,8 +286,8 @@ export function buildCustomerContext(db: Database, customerId: number) {
       db,
       `SELECT id, title, product, stage, probability, value_vnd, expected_close_date,
               next_action, next_action_date, bant_total, p4_total, notes
-         FROM deals WHERE customer_id = ? ORDER BY updated_at DESC`,
-      [customerId],
+         FROM deals d WHERE customer_id = ?${deals.sql} ORDER BY updated_at DESC`,
+      [customerId, ...deals.params],
       30
     ),
     interactions: rows(
@@ -284,16 +303,21 @@ export function buildCustomerContext(db: Database, customerId: number) {
     ),
     open_tasks: rows(
       db,
-      `SELECT id, title, priority, due_date FROM cards
-        WHERE customer_id = ? AND is_done = 0 AND is_archived = 0 ORDER BY due_date IS NULL, due_date`,
-      [customerId],
+      `SELECT k.id, k.title, k.priority, k.due_date FROM cards k
+         LEFT JOIN lists l ON l.id = k.list_id
+         LEFT JOIN boards b ON b.id = l.board_id
+        WHERE k.customer_id = ? AND k.is_done = 0 AND k.is_archived = 0${tasks.sql}
+        ORDER BY k.due_date IS NULL, k.due_date`,
+      [customerId, ...tasks.params],
       30
     ),
     contracts: rows(
       db,
-      `SELECT id, name, number, status, value_vnd, start_date, end_date, payment_terms, notes
-         FROM contracts WHERE customer_id = ? ORDER BY end_date DESC`,
-      [customerId],
+      `SELECT k.id, k.name, k.number, k.status, k.value_vnd, k.start_date, k.end_date,
+              k.payment_terms, k.notes
+         FROM contracts k JOIN customers c ON c.id = k.customer_id
+        WHERE k.customer_id = ?${contracts.sql} ORDER BY k.end_date DESC`,
+      [customerId, ...contracts.params],
       20
     ),
     documents: rows(
@@ -309,7 +333,19 @@ export function buildCustomerContext(db: Database, customerId: number) {
   };
 }
 
-export function buildDealContext(db: Database, dealId: number) {
+export function buildDealContext(db: Database, dealId: number, scopes: AiScopes = OPEN_SCOPES) {
+  const tasks = taskClause(scopes);
+  /* Tuong tac va tai lieu cua co hoi di theo KHACH HANG cua no: thay co hoi ma khong
+     thay khach hang (pham vi khach hang hep hon) thi hai phan nay de trong. */
+  const customerScope = scopeClause(scopes.customers, 'c.owner_contact_id');
+  const customerVisible = Boolean(
+    db
+      .prepare(
+        `SELECT 1 FROM deals d JOIN customers c ON c.id = d.customer_id
+          WHERE d.id = ?${customerScope.sql}`
+      )
+      .get(dealId, ...customerScope.params)
+  );
   const deal = required(
     db
       .prepare(
@@ -347,30 +383,37 @@ export function buildDealContext(db: Database, dealId: number) {
       [dealId],
       20
     ),
-    interactions: rows(
-      db,
-      `SELECT i.id, i.type, i.occurred_at, i.summary, i.result, ct.full_name AS contact_name
+    interactions: !customerVisible
+      ? []
+      : rows(
+          db,
+          `SELECT i.id, i.type, i.occurred_at, i.summary, i.result, ct.full_name AS contact_name
          FROM interactions i LEFT JOIN contacts ct ON ct.id = i.contact_id
         WHERE i.deal_id = ? ORDER BY i.occurred_at DESC`,
-      [dealId],
-      30
-    ),
+          [dealId],
+          30
+        ),
     tasks: rows(
       db,
-      `SELECT id, title, priority, due_date, is_done FROM cards
-        WHERE deal_id = ? AND is_archived = 0 ORDER BY is_done, due_date IS NULL, due_date`,
-      [dealId],
+      `SELECT k.id, k.title, k.priority, k.due_date, k.is_done FROM cards k
+         LEFT JOIN lists l ON l.id = k.list_id
+         LEFT JOIN boards b ON b.id = l.board_id
+        WHERE k.deal_id = ? AND k.is_archived = 0${tasks.sql}
+        ORDER BY k.is_done, k.due_date IS NULL, k.due_date`,
+      [dealId, ...tasks.params],
       30
     ),
-    documents: rows(
-      db,
-      `SELECT id, name, doc_type, file_name, description, tags, effective_date, expires_at
+    documents: !customerVisible
+      ? []
+      : rows(
+          db,
+          `SELECT id, name, doc_type, file_name, description, tags, effective_date, expires_at
          FROM documents
         WHERE deal_id = ? AND deleted_at IS NULL AND confidentiality <> 'confidential'
         ORDER BY created_at DESC`,
-      [dealId],
-      20
-    ),
+          [dealId],
+          20
+        ),
     customer_summary: db
       .prepare(`SELECT id, name, industry, size, status, notes FROM customers WHERE id = ?`)
       .get(customerId),
@@ -400,7 +443,7 @@ export function buildTaskAssistContext(
     customerId === null ? [] : rows(db, sql, [customerId], limit);
 
   return {
-    today: new Date().toISOString().slice(0, 10),
+    today: todayLocal(),
     current_links: links,
     customer: customerId
       ? db

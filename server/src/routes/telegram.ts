@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { parseBody } from '../lib/validate.ts';
+import { HttpError, parseBody } from '../lib/validate.ts';
 import { sendBackupToTelegram } from '../services/telegram/telegramBackup.ts';
 import {
   DIGEST_KINDS,
@@ -91,7 +91,12 @@ router.put('/focus-digest', (req, res) => {
 router.post('/focus-digest/test', async (req, res, next) => {
   try {
     const body = parseBody(z.object({ kind: z.enum(DIGEST_KINDS).default('daily') }), req);
-    const text = await sendFocusDigest(db, body.kind, recipientContactId(db), {
+    const recipient = recipientContactId(db);
+    /* Thieu nguoi nhan thi ban tin se tinh tren toan bo du lieu — khong gui. */
+    if (recipient == null) {
+      throw new HttpError(422, 'Chưa có tài khoản nào gắn với nhân sự để nhận bản tin');
+    }
+    const text = await sendFocusDigest(db, body.kind, recipient, {
       ai: getDigestSettings(db).ai,
     });
     res.json({ ok: true, text });

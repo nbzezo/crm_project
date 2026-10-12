@@ -137,7 +137,8 @@ for (const sourceVersion of [1, 4, 7, 9, 10, 14, 18, 35, 37]) {
       }[];
       assert.deepEqual(
         notificationColumns.map((column) => column.name),
-        ['notification_key', 'is_read', 'read_at', 'snoozed_until', 'updated_at']
+        // v72: them contact_id — trang thai doc / hoan la cua tung nguoi.
+        ['contact_id', 'notification_key', 'is_read', 'read_at', 'snoozed_until', 'updated_at']
       );
 
       // v32: Ghi chu nhanh la bang moc doc lap, khong dung lai bang nao cu.
@@ -871,5 +872,109 @@ test('v71: che do xem theo tai khoan, danh gia nhanh, gop Champion vao Nguoi ung
     scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'deal_quick_answers'`).get(),
     undefined
   );
+  scratch.close();
+});
+
+test('v72: trang thai thong bao theo tung nguoi, de xuat AI co chu, quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 71);
+  const orgId = Number(
+    scratch.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Cty', 'own')`).run()
+      .lastInsertRowid
+  );
+  const person = (name: string) => {
+    const contactId = Number(
+      scratch
+        .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (?, ?)`)
+        .run(orgId, name).lastInsertRowid
+    );
+    scratch
+      .prepare(
+        `INSERT INTO users (username, password_hash, password_salt, email, full_name, contact_id)
+         VALUES (?, '', '', ?, ?, ?)`
+      )
+      .run(name, `${name}@x.vn`, name, contactId);
+    return contactId;
+  };
+  const a = person('a');
+  const b = person('b');
+  scratch
+    .prepare(`INSERT INTO notification_states (notification_key, is_read) VALUES ('task-1', 1)`)
+    .run();
+
+  migrate(scratch);
+  /* Trang thai cu duoc chep cho moi nguoi dang co tai khoan — khong ai thay doi gi. */
+  assert.deepEqual(
+    scratch
+      .prepare(`SELECT contact_id, is_read FROM notification_states ORDER BY contact_id`)
+      .all(),
+    [
+      { contact_id: a, is_read: 1 },
+      { contact_id: b, is_read: 1 },
+    ]
+  );
+  /* Tu nay moi nguoi mot dong rieng. */
+  scratch
+    .prepare(
+      `UPDATE notification_states SET is_read = 0 WHERE contact_id = ? AND notification_key = 'task-1'`
+    )
+    .run(b);
+  assert.equal(
+    (
+      scratch.prepare(`SELECT is_read FROM notification_states WHERE contact_id = ?`).get(a) as {
+        is_read: number;
+      }
+    ).is_read,
+    1
+  );
+  scratch
+    .prepare(
+      `INSERT INTO ai_action_proposals (action_type, title, payload_json, owner_contact_id)
+       VALUES ('create_task', 'x', '{}', ?)`
+    )
+    .run(a);
+
+  scratch.pragma('foreign_keys = OFF');
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v72-rollback.sql', import.meta.url), 'utf8'));
+  scratch.pragma('foreign_keys = ON');
+  assert.deepEqual(scratch.pragma('foreign_key_check'), []);
+  assert.equal(
+    (scratch.prepare(`SELECT COUNT(*) AS n FROM notification_states`).get() as { n: number }).n,
+    1
+  );
+  const columns = (
+    scratch.prepare(`PRAGMA table_info(ai_action_proposals)`).all() as { name: string }[]
+  ).map((column) => column.name);
+  assert.equal(columns.includes('owner_contact_id'), false);
+  /* Trigger don dep van chay sau khi quay lui. */
+  scratch.exec(`DELETE FROM cards`);
+  scratch.close();
+});
+
+test('v43, v44: co kich ban quay lui va chay duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch, 44);
+  scratch.pragma('foreign_keys = OFF');
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v44-rollback.sql', import.meta.url), 'utf8'));
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v43-rollback.sql', import.meta.url), 'utf8'));
+  scratch.pragma('foreign_keys = ON');
+  assert.deepEqual(scratch.pragma('foreign_key_check'), []);
+  const cardColumns = (scratch.prepare(`PRAGMA table_info(cards)`).all() as { name: string }[]).map(
+    (column) => column.name
+  );
+  assert.equal(cardColumns.includes('creator_contact_id'), false);
+  const noteColumns = (
+    scratch.prepare(`PRAGMA table_info(meeting_notes)`).all() as { name: string }[]
+  ).map((column) => column.name);
+  assert.equal(noteColumns.includes('purpose_key'), false);
+  assert.equal(
+    scratch.prepare(`SELECT name FROM sqlite_master WHERE name = 'task_watchers'`).get(),
+    undefined
+  );
+  /* Quay lui xong phai nang lai duoc len ban moi nhat. */
+  scratch.pragma('user_version = 42');
+  migrate(scratch);
   scratch.close();
 });

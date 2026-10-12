@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { Database } from 'better-sqlite3';
 import { required } from '../../lib/validate.ts';
 import { getHandoverSettings, listOverdueHandovers } from '../handoverService.ts';
+import { todayLocal } from '../../lib/dates.ts';
 
 interface AutomationRow {
   id: number;
@@ -167,7 +168,7 @@ function scan(db: Database, automation: AutomationRow): NotificationInput[] {
 }
 
 function fingerprint(automation: AutomationRow, item: NotificationInput): string {
-  const day = new Date().toISOString().slice(0, 10);
+  const day = todayLocal();
   return crypto
     .createHash('sha256')
     .update(`${automation.automation_type}|${item.entityKey}|${day}`)

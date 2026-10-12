@@ -18,6 +18,25 @@ export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.37.0',
+    date: '2026-10-12',
+    title: 'Bảo mật: mỗi người chỉ thấy và sửa đúng dữ liệu của mình',
+    changes: [
+      'Rà soát toàn bộ phân quyền theo từng bản ghi: nhân viên phòng này không còn mở, sửa hay xóa được công việc, bảng, danh sách, lịch, nhắc hẹn, báo giá, hợp đồng, dòng doanh thu, dự án, chấm điểm và bàn giao cơ hội của phòng khác bằng đường dẫn trực tiếp. Quản lý vẫn xem được dữ liệu cấp dưới như trước; người được giao việc trên bảng của người khác vẫn làm việc bình thường.',
+      'Lịch cá nhân, nhắc hẹn và chuông thông báo nay là của riêng từng người. Đánh dấu đã đọc hay hoãn một thông báo chỉ áp dụng cho chính bạn.',
+      'Tìm kiếm nhanh (Ctrl + K) chỉ trả về khách hàng, cơ hội, hợp đồng, tài liệu, công việc trong phạm vi của bạn; ghi chú nhanh của người khác không còn hiện ra.',
+      'Không gắn được tài liệu, báo giá, hợp đồng, doanh thu hay nhắc hẹn vào khách hàng / cơ hội ngoài phạm vi của bạn.',
+      'Trợ lý AI: đề xuất hành động thuộc về người đã hỏi; hồ sơ khách hàng gửi cho AI chỉ chứa phần bạn được xem; phân tích tài liệu kiểm quyền đọc tệp; cảnh báo AI chỉ hiện với người xem được bản ghi liên quan.',
+      'Telegram chỉ gửi nhắc hẹn và nhắc ghi chú nhanh của người nhận bot, không còn gửi trùng khi mạng chậm; bản tin Trọng tâm không gửi khi chưa xác định được người nhận.',
+      'Vị trí "Admin doanh thu" (và mọi vị trí không có quyền cơ hội) dùng lại được tìm kiếm, sao lưu và Trợ lý AI. Sao lưu toàn bộ dữ liệu và đẩy lên Google Drive nay cần phạm vi Toàn công ty.',
+      'Liên kết đặt lại mật khẩu chỉ dùng được đúng một lần, kể cả khi bấm gửi hai lần liền.',
+      'Việc lặp hằng tháng có hạn ngày 31 nay rơi đúng ngày cuối tháng sau (ví dụ 31/01 sang 28/02) thay vì nhảy sang tháng 3.',
+      'Ngày không có thật trên lịch (như 30/02) bị từ chối khi nhập. Trợ lý AI tính "hôm nay" theo giờ Việt Nam, không còn lệch sang ngày hôm trước lúc sáng sớm.',
+      'Tải nhiều tệp dạng ZIP không còn làm chậm hệ thống của người khác; liên kết chia sẻ công khai kiểm lại độ mật của tệp ngay lúc tải.',
+      'Thông báo lỗi máy chủ không còn để lộ chi tiết kỹ thuật bên trong.',
+    ],
+  },
+  {
     version: '1.36.0',
     date: '2026-10-12',
     title: 'Trang cơ hội có hai chế độ: Cơ bản và Nâng cao',

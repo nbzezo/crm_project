@@ -92,6 +92,7 @@ router.get('/assignable', (req, res) => {
 /** FR-CON-04: mot nguoi lien he keo theo co hoi, tuong tac va cong viec lien quan. */
 router.get('/:id/full', (req, res) => {
   const id = intParam(req.params.id);
+  assertContactInScope(req, id, 'read');
   const contact = required(
     db
       .prepare(

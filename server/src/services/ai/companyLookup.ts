@@ -11,6 +11,7 @@ import {
   type AiRunResult,
   type WebSource,
 } from './types.ts';
+import { todayLocal } from '../../lib/dates.ts';
 
 /*
  * Goi y dien ho so khach hang tu MA SO THUE hoac TEN.
@@ -237,7 +238,7 @@ function buildPrompt(
   registry: RegistryRecord | null,
   webSearch: boolean
 ) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   return [
     'Hãy điền hồ sơ doanh nghiệp (khách hàng B2B tại Việt Nam) theo JSON:',
     '{"name":"tên pháp lý đầy đủ","short_name":"tên viết tắt / thương hiệu","tax_code":"mã số thuế 10 hoặc 13 số","industry":"ngành nghề chính, ngắn gọn","address":"địa chỉ trụ sở","website":"tên miền","phone":"điện thoại tổng đài","email":"email liên hệ chung","size":"SME | Mid-market | Enterprise","notes":"2-3 câu giới thiệu doanh nghiệp hữu ích cho người bán hàng","confidence":0.0,"rationale":"căn cứ ngắn gọn"}',

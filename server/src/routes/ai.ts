@@ -5,7 +5,7 @@ import { PRIORITIES, type PermissionResource } from '@workflow/contracts';
 import { getPicklist } from '../lib/picklists.ts';
 import { TASK_LINK_KEYS, taskLinksSchema } from '@workflow/contracts/schemas';
 import { db } from '../db/connection.ts';
-import { accessOf, actorContactId } from '../middleware/currentUser.ts';
+import { accessOf, actorContactId, requirePermission } from '../middleware/currentUser.ts';
 import { assertInScope } from '../lib/scope.ts';
 import { deriveTaskLinks } from '../lib/entityRelations.ts';
 import { fold } from '../lib/viSearch.ts';
@@ -13,10 +13,18 @@ import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import {
   approveActionProposal,
   listActionProposals,
+  proposalForCheck,
   proposedActionSchema,
   rejectActionProposal,
   saveActionProposal,
 } from '../services/ai/actions.ts';
+import {
+  assertCardAccess,
+  assertLinkTargetsInScope,
+  assertListPlaceable,
+  ownerInScope,
+} from '../lib/recordAccess.ts';
+import { aiNotificationVisible } from './notifications.ts';
 import { getMeetingNote, saveAiSummary } from '../services/meetingNoteService.ts';
 import { runAutomation } from '../services/ai/automations.ts';
 import { ASSESSMENT_GRID, getAssessment, saveAiReview } from '../services/assessmentService.ts';
@@ -83,8 +91,42 @@ import {
 } from '../services/ai/promptTemplates.ts';
 import { assertMeetingNoteInScope } from '../lib/meetingNoteScope.ts';
 import { assertDocumentsInScope, documentScope } from '../lib/documentScope.ts';
+import { isRealDate, todayLocal } from '../lib/dates.ts';
 
 const router = Router();
+
+/** Ai duoc thay de xuat hanh dong: chinh nguoi hoi; quan tri thay ca de xuat cu vo chu. */
+function proposalViewer(req: Request): 'all' | number | null {
+  if (accessOf(req).visibleContactIds('ai', 'read') === 'all') return 'all';
+  return actorContactId(req);
+}
+
+/**
+ * Duyet mot de xuat = thuc hien hanh dong DUOI TEN nguoi bam. Phai la de xuat cua
+ * minh, va hanh dong phai qua dung cac kiem tra pham vi nhu khi tu lam bang tay —
+ * neu khong, "de xuat AI" la cach sua co hoi / gan viec vao du lieu phong khac.
+ */
+function assertProposalAccess(req: Request, id: number, executing: boolean): void {
+  const proposal = proposalForCheck(db, id);
+  const viewer = proposalViewer(req);
+  if (!proposal || viewer === null || (viewer !== 'all' && proposal.owner_contact_id !== viewer)) {
+    throw new HttpError(404, 'Không tìm thấy đề xuất AI');
+  }
+  if (!executing) return;
+  const payload = proposal.payload;
+  assertLinkTargetsInScope(req, payload);
+  if (typeof payload.card_id === 'number') assertCardAccess(req, payload.card_id, 'read');
+  if (typeof payload.parent_id === 'number') assertCardAccess(req, payload.parent_id, 'read');
+  if (typeof payload.list_id === 'number') assertListPlaceable(req, payload.list_id);
+  if (proposal.action_type === 'update_deal_next_action' && typeof payload.deal_id === 'number') {
+    const deal = db
+      .prepare(`SELECT owner_contact_id FROM deals WHERE id = ?`)
+      .get(payload.deal_id) as { owner_contact_id: number | null } | undefined;
+    if (!deal || !ownerInScope(req, 'deals', 'update', deal.owner_contact_id)) {
+      throw new HttpError(404, 'Không tìm thấy cơ hội');
+    }
+  }
+}
 
 function providerParam(value: string | undefined): AiProviderName {
   if (!AI_PROVIDERS.includes(value as AiProviderName)) {
@@ -266,8 +308,8 @@ router.post('/brief', async (req, res) => {
       body.context_type === 'today'
         ? buildTodayContext(db, aiScope(req))
         : body.context_type === 'customer'
-          ? buildCustomerContext(db, body.context_id!)
-          : buildDealContext(db, body.context_id!);
+          ? buildCustomerContext(db, body.context_id!, aiScopes(req))
+          : buildDealContext(db, body.context_id!, aiScopes(req));
     const result = await runAi(db, {
       task: `brief_${body.context_type}`,
       mode: body.mode,
@@ -393,7 +435,7 @@ router.post('/assist/customer-care', async (req, res) => {
     const care = careStatusOf(db, customer);
     const churn = churnRiskOf(db, customer.id, care);
     const context = {
-      ...buildCustomerContext(db, customer.id),
+      ...buildCustomerContext(db, customer.id, aiScopes(req)),
       care,
       churn_signals: churn,
       expiring: expiringItems(db, customer.id),
@@ -440,11 +482,7 @@ const interactionAssistResponse = z.object({
   summary: z.string().min(1),
   result: z.string().default(''),
   next_action: z.string().default(''),
-  next_action_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .default(null),
+  next_action_date: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().default(null),
   confidence: z.number().min(0).max(1).default(0.5),
 });
 
@@ -453,8 +491,8 @@ router.post('/assist/interaction', async (req, res) => {
     const body = parseBody(interactionAssistSchema, req);
     assertContextInScope(req, body.deal_id ? 'deal' : 'customer', body.deal_id ?? body.customer_id);
     const context = body.deal_id
-      ? buildDealContext(db, body.deal_id)
-      : buildCustomerContext(db, body.customer_id);
+      ? buildDealContext(db, body.deal_id, aiScopes(req))
+      : buildCustomerContext(db, body.customer_id, aiScopes(req));
     const result = await runAi(db, {
       task: 'interaction_assist',
       mode: 'fast',
@@ -463,7 +501,7 @@ router.post('/assist/interaction', async (req, res) => {
       json: true,
       system:
         'Bạn chuẩn hóa ghi chú CRM tiếng Việt. Không thêm sự kiện không có trong ghi chú. Ngày phải YYYY-MM-DD hoặc null. Trả JSON hợp lệ.',
-      prompt: `Từ ghi chú, điền JSON {"summary":"tóm tắt rõ ràng","result":"kết quả","next_action":"hành động cụ thể","next_action_date":null,"confidence":0.0}. Hôm nay: ${new Date().toISOString().slice(0, 10)}. Ghi chú:\n${body.raw_notes}\nNgữ cảnh tham khảo:\n${compactJson(context, 20_000)}`,
+      prompt: `Từ ghi chú, điền JSON {"summary":"tóm tắt rõ ràng","result":"kết quả","next_action":"hành động cụ thể","next_action_date":null,"confidence":0.0}. Hôm nay: ${todayLocal()}. Ghi chú:\n${body.raw_notes}\nNgữ cảnh tham khảo:\n${compactJson(context, 20_000)}`,
       maxOutputTokens: 1000,
     });
     res.json({ ...interactionAssistResponse.parse(parseAiJson(result.text)), meta: result });
@@ -533,7 +571,7 @@ router.post('/assist/deal/:id/assessment', async (req, res) => {
     const dealId = intParam(req.params.id);
     // Chan TRUOC khi gui ho so co hoi cho nha cung cap AI.
     assertContextInScope(req, 'deal', dealId);
-    const context = buildDealContext(db, dealId);
+    const context = buildDealContext(db, dealId, aiScopes(req));
     const assessment = getAssessment(db, dealId);
     const cells = ASSESSMENT_GRID.map((cell) => {
       const current = assessment.grid.find((g) => g.no === cell.no);
@@ -565,7 +603,7 @@ router.post('/assist/deal/:id/assessment', async (req, res) => {
           `8 yếu tố BANT/4P (key): ${SCORE_FACTORS.join(', ')}\n` +
           `Hiện trạng 20 ô:\n${cells}\n` +
           `Ô ma trận hiện tại: ${assessment.quadrant}; BANT ${assessment.bant_total}/12; 4P ${assessment.p4_total}/12.\n` +
-          `Hôm nay: ${new Date().toISOString().slice(0, 10)}.\n` +
+          `Hôm nay: ${todayLocal()}.\n` +
           `Hồ sơ cơ hội:\n${compactJson(context, 30_000)}`,
       },
       assessmentReviewSchema
@@ -619,7 +657,7 @@ router.post('/assist/deal/:id/quick-assessment', async (req, res) => {
     const dealId = intParam(req.params.id);
     assertContextInScope(req, 'deal', dealId);
     const body = parseBody(quickAssistSchema, req);
-    const context = buildDealContext(db, dealId);
+    const context = buildDealContext(db, dealId, aiScopes(req));
     const current = getQuickAssessment(db, dealId);
     const { data, meta } = await runStructured(
       db,
@@ -870,6 +908,7 @@ router.post('/assist/task', async (req, res) => {
     const anchor = deriveTaskLinks(db, body.context ?? {});
     assertContextInScope(req, 'customer', anchor.customer_id ?? undefined);
     assertContextInScope(req, 'deal', anchor.deal_id ?? undefined);
+    assertLinkTargetsInScope(req, { project_id: body.project_id ?? undefined });
     const candidates = taskAssistCandidates(
       req,
       body.draft,
@@ -1027,16 +1066,8 @@ const documentAssistResponse = z.object({
   description: z.string().max(2000).default(''),
   tags: z.string().max(500).default(''),
   owner: z.string().max(200).nullable().default(null),
-  effective_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .default(null),
-  expires_at: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .default(null),
+  effective_date: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().default(null),
+  expires_at: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().default(null),
   confidentiality: z.enum(['public', 'internal', 'confidential']).default('internal'),
   customer_name: z.string().max(300).nullable().default(null),
   confidence: z.number().min(0).max(1).default(0.5),
@@ -1056,6 +1087,8 @@ const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 router.post('/assist/document/:id', async (req, res) => {
   try {
     const id = intParam(req.params.id);
+    /* Noi dung tep duoc gui cho nha cung cap AI — phai la tep nguoi goi doc duoc. */
+    assertDocumentsInScope(req, [id], 'read');
     const { document, text, method, reason } = await readDocumentText(db, id);
     const warnings: string[] = [];
 
@@ -1143,11 +1176,7 @@ const meetingNoteSummarySchema = z.object({
     .array(
       z.object({
         title: z.string().trim().min(1).max(300),
-        due_date: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .nullable()
-          .default(null),
+        due_date: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().default(null),
       })
     )
     .max(20)
@@ -1196,17 +1225,22 @@ router.post('/assist/meeting-note/:id/summarize', async (req, res) => {
 
     saveAiSummary(db, id, data);
     const proposals = data.action_items.map((item) =>
-      saveActionProposal(db, meta.requestId, {
-        type: 'create_task',
-        title: item.title,
-        payload: {
+      saveActionProposal(
+        db,
+        meta.requestId,
+        {
+          type: 'create_task',
           title: item.title,
-          due_date: item.due_date,
-          customer_id: note.customer_id ?? undefined,
-          deal_id: note.deal_id ?? undefined,
-          project_id: note.project_id ?? undefined,
+          payload: {
+            title: item.title,
+            due_date: item.due_date,
+            customer_id: note.customer_id ?? undefined,
+            deal_id: note.deal_id ?? undefined,
+            project_id: note.project_id ?? undefined,
+          },
         },
-      })
+        actorContactId(req)
+      )
     );
     res.json({ summary: data.summary, action_items: data.action_items, proposals, meta });
   } catch (error) {
@@ -1442,7 +1476,10 @@ router.post('/ask', async (req, res) => {
     if (body.context) {
       const { type, id } = body.context;
       assertContextInScope(req, type, id);
-      const data = type === 'customer' ? buildCustomerContext(db, id) : buildDealContext(db, id);
+      const data =
+        type === 'customer'
+          ? buildCustomerContext(db, id, aiScopes(req))
+          : buildDealContext(db, id, aiScopes(req));
       focus = { type, id, label: focusLabel(data, type), data };
     }
     if (body.scope !== 'crm') {
@@ -1490,7 +1527,7 @@ router.post('/ask', async (req, res) => {
         'Chỉ coi dữ liệu trong ngữ cảnh hiện tại là nguồn sự thật; lịch sử hội thoại chỉ giúp hiểu câu hỏi nối tiếp. Nói rõ khi thiếu dữ liệu. ' +
         'Không tự thực thi hành động. Nếu có hành động phù hợp, chỉ đề xuất đúng một action theo schema. Trả JSON hợp lệ.',
       prompt:
-        `Hôm nay: ${new Date().toISOString().slice(0, 10)}\n` +
+        `Hôm nay: ${todayLocal()}\n` +
         (history ? `Lịch sử hội thoại gần nhất:\n${history}\n\n` : '') +
         (focus
           ? `Người dùng đang mở ${focus.type === 'customer' ? 'khách hàng' : 'cơ hội'} "${focus.label}" (id ${focus.id}); hồ sơ đầy đủ nằm ở "focus" trong ngữ cảnh. ` +
@@ -1504,7 +1541,7 @@ router.post('/ask', async (req, res) => {
     });
     const parsed = askResponseSchema.parse(parseAiJson(result.text));
     const proposal = parsed.proposed_action
-      ? saveActionProposal(db, result.requestId, parsed.proposed_action)
+      ? saveActionProposal(db, result.requestId, parsed.proposed_action, actorContactId(req))
       : null;
     const payload = {
       answer: parsed.answer,
@@ -1581,19 +1618,28 @@ router.post('/feedback', (req, res) => {
 
 router.get('/actions', (req, res) => {
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-  res.json(listActionProposals(db, status));
+  res.json(listActionProposals(db, status, proposalViewer(req)));
 });
-router.post('/actions/:id/approve', (req, res) =>
-  res.json(approveActionProposal(db, intParam(req.params.id), actorContactId(req)))
-);
-router.post('/actions/:id/reject', (req, res) =>
-  res.json(rejectActionProposal(db, intParam(req.params.id)))
-);
+router.post('/actions/:id/approve', (req, res) => {
+  const id = intParam(req.params.id);
+  assertProposalAccess(req, id, true);
+  res.json(approveActionProposal(db, id, actorContactId(req)));
+});
+router.post('/actions/:id/reject', (req, res) => {
+  const id = intParam(req.params.id);
+  assertProposalAccess(req, id, false);
+  res.json(rejectActionProposal(db, id));
+});
 
-router.post('/documents/index', async (_req, res) => res.json(await indexAllDocuments(db)));
-router.post('/documents/:id/index', async (req, res) =>
-  res.json(await indexDocument(db, intParam(req.params.id)))
+/* Lap chi muc lai TOAN BO kho tep la thao tac quan tri; tung tep thi theo quyen doc tep. */
+router.post('/documents/index', requirePermission('settings.ai', 'update'), async (_req, res) =>
+  res.json(await indexAllDocuments(db))
 );
+router.post('/documents/:id/index', async (req, res) => {
+  const id = intParam(req.params.id);
+  assertDocumentsInScope(req, [id], 'read');
+  res.json(await indexDocument(db, id));
+});
 router.get('/documents/search', (req, res) => {
   const query = String(req.query.q ?? '').trim();
   res.json(query ? searchDocumentChunks(db, query, 8, documentScope(req, 'read', 'd')) : []);
@@ -1646,8 +1692,9 @@ router.get('/automations', (_req, res) => {
     }))
   );
 });
-router.patch('/automations/:id', (req, res) => {
-  const id = intParam(req.params.id);
+/* Bat / tat / doi chu ky automation la cau hinh chung cua ca he thong. */
+router.patch('/automations/:id', requirePermission('settings.ai', 'update'), (req, res) => {
+  const id = intParam(String(req.params.id));
   const body = parseBody(
     z.object({
       enabled: z.boolean().optional(),
@@ -1678,20 +1725,27 @@ router.post('/automations/:id/run', (req, res) =>
 router.get('/notifications', (req, res) => {
   const unread = req.query.unread === '1';
   res.json(
-    db
-      .prepare(
-        `SELECT * FROM ai_notifications ${unread ? 'WHERE is_read = 0' : ''}
-          ORDER BY created_at DESC LIMIT 100`
-      )
-      .all()
-      .map((item) => ({
-        ...(item as object),
-        is_read: Boolean((item as { is_read: number }).is_read),
-      }))
+    (
+      db
+        .prepare(
+          `SELECT * FROM ai_notifications ${unread ? 'WHERE is_read = 0' : ''}
+            ORDER BY created_at DESC LIMIT 100`
+        )
+        .all() as { link: string | null; is_read: number }[]
+    )
+      /* Cung luat voi chuong thong bao (routes/notifications.ts). */
+      .filter((item) => aiNotificationVisible(req, item.link))
+      .map((item) => ({ ...item, is_read: Boolean(item.is_read) }))
   );
 });
 router.patch('/notifications/:id/read', (req, res) => {
-  db.prepare(`UPDATE ai_notifications SET is_read = 1 WHERE id = ?`).run(intParam(req.params.id));
+  const id = intParam(req.params.id);
+  const row = db.prepare(`SELECT link FROM ai_notifications WHERE id = ?`).get(id) as
+    { link: string | null } | undefined;
+  if (!row || !aiNotificationVisible(req, row.link)) {
+    throw new HttpError(404, 'Không tìm thấy thông báo');
+  }
+  db.prepare(`UPDATE ai_notifications SET is_read = 1 WHERE id = ?`).run(id);
   res.json({ ok: true });
 });
 

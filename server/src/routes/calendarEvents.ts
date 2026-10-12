@@ -1,8 +1,10 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
-import { defaultOwner } from '../lib/scope.ts';
+import { defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
+import { ownerInScope } from '../lib/recordAccess.ts';
+import { isRealLocalMinute } from '../lib/dates.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 
 const router = Router();
@@ -17,7 +19,7 @@ const router = Router();
  */
 const localDateTime = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm');
+  .refine(isRealLocalMinute, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm và là ngày giờ có thật');
 
 const eventTypeEnum = z.enum([
   'task',
@@ -53,6 +55,24 @@ const EVENT_SELECT = `
                             datetime(e.start_at, '-' || e.reminder_minutes || ' minutes'))
          END AS reminder_at
     FROM calendar_events e`;
+
+/**
+ * Lich la du lieu cua nguoi tao (owner_contact_id). Cung luat voi man Lich tong
+ * hop o routes/views.ts: pham vi `tasks` tren cot chu, lich vo chu (truoc v40)
+ * van hien.
+ */
+function assertEventAccess(
+  req: Request,
+  id: number,
+  action: 'read' | 'update' | 'delete'
+): { owner_contact_id: number | null } {
+  const row = db.prepare(`SELECT owner_contact_id FROM calendar_events WHERE id = ?`).get(id) as
+    { owner_contact_id: number | null } | undefined;
+  if (!row || !ownerInScope(req, 'tasks', action, row.owner_contact_id)) {
+    throw new HttpError(404, 'Không tìm thấy lịch');
+  }
+  return row;
+}
 
 function reload(id: number) {
   return db.prepare(`${EVENT_SELECT} WHERE e.id = ?`).get(id);
@@ -119,16 +139,25 @@ function normalize(input: EventInput): Required<
  * Bo qua su kien ca ngay: moi su kien ca ngay deu chong moi thu trong ngay,
  * bao ra chi la nhieu.
  */
-function findConflicts(id: number | null, start: string, end: string, allDay: number) {
+function findConflicts(
+  id: number | null,
+  start: string,
+  end: string,
+  allDay: number,
+  owner: number | null
+) {
   if (allDay === 1) return [];
+  /* Chi so voi lich cua CUNG nguoi: lich nguoi khac khong phai xung dot cua minh,
+     va tra ve tieu de cua no la lo lich rieng cua ho. */
   return db
     .prepare(
       `SELECT id, title, start_at, end_at FROM calendar_events
         WHERE (? IS NULL OR id <> ?) AND all_day = 0 AND status <> 'cancelled'
+          AND owner_contact_id IS ?
           AND start_at < ? AND end_at > ?
         ORDER BY start_at LIMIT 5`
     )
-    .all(id, id, end, start);
+    .all(id, id, owner, end, start);
 }
 
 /** Danh sach doc lap — dung cho che do Danh sach va tim kiem khong gioi han khoang. */
@@ -165,6 +194,8 @@ router.get('/events', (req, res) => {
     params.push(...statuses);
   }
 
+  pushScope(where, params, scopeWhereOrUnowned(req, 'tasks', 'read', 'e.owner_contact_id'));
+
   const limit = Math.min(Math.max(Number(req.query.limit ?? 200) || 200, 1), 1000);
   const sql = `${EVENT_SELECT}${where.length ? ` WHERE ${where.join(' AND ')}` : ''}
      ORDER BY e.start_at LIMIT ?`;
@@ -173,11 +204,13 @@ router.get('/events', (req, res) => {
 
 router.get('/events/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertEventAccess(req, id, 'read');
   res.json(required(reload(id), 'Không tìm thấy lịch'));
 });
 
 router.post('/events', (req, res) => {
   const body = normalize(parseBody(schema, req));
+  const owner = defaultOwner(req);
   const info = db
     .prepare(
       `INSERT INTO calendar_events
@@ -198,18 +231,19 @@ router.post('/events', (req, res) => {
       buildSearchText(body.title, body.description, body.location),
       /* Lich ca nhan thuoc nguoi tao — thieu dong nay thi su kien vo chu va bien
          mat khoi man Trong tam (che do "Của tôi"), vi man do loc theo chu. */
-      defaultOwner(req)
+      owner
     );
 
   const id = Number(info.lastInsertRowid);
   res.status(201).json({
     ...(reload(id) as object),
-    conflicts: findConflicts(id, body.start_at, body.end_at, body.all_day),
+    conflicts: findConflicts(id, body.start_at, body.end_at, body.all_day, owner),
   });
 });
 
 router.patch('/events/:id', (req, res) => {
   const id = intParam(req.params.id);
+  const { owner_contact_id: owner } = assertEventAccess(req, id, 'update');
   const current = required(
     db.prepare(`SELECT * FROM calendar_events WHERE id = ?`).get(id),
     'Không tìm thấy lịch'
@@ -260,12 +294,13 @@ router.patch('/events/:id', (req, res) => {
 
   res.json({
     ...(reload(id) as object),
-    conflicts: findConflicts(id, merged.start_at, merged.end_at, merged.all_day),
+    conflicts: findConflicts(id, merged.start_at, merged.end_at, merged.all_day, owner),
   });
 });
 
 router.delete('/events/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertEventAccess(req, id, 'delete');
   db.prepare(`DELETE FROM calendar_events WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

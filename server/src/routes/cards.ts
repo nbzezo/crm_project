@@ -7,6 +7,14 @@ import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
+import {
+  assertCardAccess,
+  assertLinkTargetsInScope,
+  assertListPlaceable,
+  boardAllowed,
+  cardAllowed,
+  loadCardAccess,
+} from '../lib/recordAccess.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import {
   assertParentListCompatible,
@@ -35,13 +43,11 @@ import {
   guardLeaveStatus,
   listCardFlows,
 } from '../services/taskFlowService.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
-  .nullable();
+const dateOnly = z.string().refine(isRealDate, 'Ngày phải có dạng YYYY-MM-DD').nullable();
 
 const priorityEnum = z.enum(['low', 'medium', 'high', 'urgent']);
 
@@ -57,11 +63,13 @@ type CardRow = {
 };
 
 router.post('/', (req, res) => {
-  res
-    .status(201)
-    .json(
-      createCard(parseBody(createTaskInputSchema, req), { actorContactId: actorContactId(req) })
-    );
+  const input = parseBody(createTaskInputSchema, req);
+  if (input.list_id != null) assertListPlaceable(req, input.list_id);
+  if (input.parent_id != null) {
+    assertCardAccess(req, input.parent_id, 'read', 'Không tìm thấy việc cha');
+  }
+  assertLinkTargetsInScope(req, input);
+  res.status(201).json(createCard(input, { actorContactId: actorContactId(req) }));
 });
 
 /**
@@ -87,6 +95,7 @@ router.get('/context', (req, res) => {
     contract_id: numeric(req.query.contract_id),
     quotation_id: numeric(req.query.quotation_id),
   };
+  assertLinkTargetsInScope(req, requested);
   const links = deriveTaskLinks(db, requested);
   const customerId = links.customer_id ?? null;
   /*
@@ -96,26 +105,35 @@ router.get('/context', (req, res) => {
    */
   const projectId = numeric(req.query.project_id);
 
-  const boards = db
-    .prepare(
-      `SELECT b.id, b.name, b.customer_id, b.project_id FROM boards b
-        WHERE b.is_archived = 0 AND (? IS NULL OR b.project_id = ?)
-        ORDER BY (? IS NOT NULL AND b.customer_id = ?) DESC, b.is_starred DESC, b.id`
-    )
-    .all(projectId, projectId, customerId, customerId) as {
-    id: number;
-    name: string;
-    customer_id: number | null;
-    project_id: number | null;
-  }[];
-  const lists = db
-    .prepare(
-      `SELECT l.id, l.name, l.board_id, l.status_mapping
-         FROM lists l JOIN boards b ON b.id = l.board_id
-        WHERE b.is_archived = 0 AND (? IS NULL OR b.project_id = ?)
-        ORDER BY l.board_id, l.position, l.id`
-    )
-    .all(projectId, projectId);
+  /* Chi bang / danh sach nguoi goi tha viec vao duoc — cung luat voi GET /api/boards. */
+  const boards = (
+    db
+      .prepare(
+        `SELECT b.id, b.name, b.customer_id, b.project_id, b.owner_contact_id FROM boards b
+          WHERE b.is_archived = 0 AND (? IS NULL OR b.project_id = ?)
+          ORDER BY (? IS NOT NULL AND b.customer_id = ?) DESC, b.is_starred DESC, b.id`
+      )
+      .all(projectId, projectId, customerId, customerId) as {
+      id: number;
+      name: string;
+      customer_id: number | null;
+      project_id: number | null;
+      owner_contact_id: number | null;
+    }[]
+  )
+    .filter((board) => boardAllowed(req, board, 'read'))
+    .map(({ id, name, customer_id, project_id }) => ({ id, name, customer_id, project_id }));
+  const boardIds = new Set(boards.map((board) => board.id));
+  const lists = (
+    db
+      .prepare(
+        `SELECT l.id, l.name, l.board_id, l.status_mapping
+           FROM lists l JOIN boards b ON b.id = l.board_id
+          WHERE b.is_archived = 0 AND (? IS NULL OR b.project_id = ?)
+          ORDER BY l.board_id, l.position, l.id`
+      )
+      .all(projectId, projectId) as { board_id: number }[]
+  ).filter((list) => boardIds.has(list.board_id));
 
   // Chi liet ke ung vien thuoc dung khach hang — chon nham khach hang khac se bi 422.
   const scoped = <T>(sql: string): T[] =>
@@ -166,6 +184,7 @@ function pick(sql: string, id: number | null | undefined, column: string): strin
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertCardAccess(req, id, 'read');
   const card = required(reloadCard(id), 'Không tìm thấy thẻ') as Record<string, unknown>;
 
   const labels = db
@@ -199,7 +218,13 @@ router.get('/:id', (req, res) => {
         WHERE k.parent_id = ? AND k.is_archived = 0
         ORDER BY k.is_done, k.position, k.id`
     )
-    .all(id);
+    .all(id) as { id: number }[];
+  /* Viec con giao cho nguoi khac tren bang khong thuoc pham vi cua minh: an di, giong
+     cach GET /api/boards/:id/full loc the. */
+  const visibleSubtasks = subtasks.filter((row) => {
+    const access = loadCardAccess(row.id);
+    return access != null && cardAllowed(req, access, 'read');
+  });
   const parent = card.parent_id
     ? db.prepare(`SELECT id, title FROM cards WHERE id = ?`).get(card.parent_id as number)
     : null;
@@ -237,7 +262,7 @@ router.get('/:id', (req, res) => {
     reminders,
     comments,
     board,
-    subtasks,
+    subtasks: visibleSubtasks,
     parent,
     attachments,
     fields,
@@ -251,6 +276,8 @@ router.get('/:id', (req, res) => {
 router.post('/:id/dependencies', (req, res) => {
   const successorId = intParam(req.params.id);
   const body = parseBody(z.object({ predecessor_id: z.number().int().positive() }), req);
+  assertCardAccess(req, successorId, 'update');
+  assertCardAccess(req, body.predecessor_id, 'read', 'Không tìm thấy việc phụ thuộc');
   addDependency(body.predecessor_id, successorId);
   res.status(201).json(listDependencies(successorId));
 });
@@ -258,6 +285,7 @@ router.post('/:id/dependencies', (req, res) => {
 router.delete('/:id/dependencies/:predecessorId', (req, res) => {
   const successorId = intParam(req.params.id);
   const predecessorId = intParam(req.params.predecessorId, 'predecessorId');
+  assertCardAccess(req, successorId, 'update');
   db.prepare(`DELETE FROM card_dependencies WHERE predecessor_id = ? AND successor_id = ?`).run(
     predecessorId,
     successorId
@@ -270,6 +298,7 @@ router.put('/:id/fields/:fieldId', (req, res) => {
   const id = intParam(req.params.id);
   const fieldId = intParam(req.params.fieldId, 'fieldId');
   const body = parseBody(z.object({ value: z.string() }), req);
+  assertCardAccess(req, id, 'update');
 
   const card = required(
     db.prepare(`SELECT list_id FROM cards WHERE id = ?`).get(id),
@@ -347,6 +376,7 @@ router.patch('/:id', (req, res) => {
     }),
     req
   );
+  assertCardAccess(req, id, 'update');
   const card = required(
     db
       .prepare(`SELECT *, COALESCE(status_key, status) AS status_key FROM cards WHERE id = ?`)
@@ -354,6 +384,7 @@ router.patch('/:id', (req, res) => {
     'Không tìm thấy thẻ'
   ) as CardRow;
   if (body.status !== undefined) requireActiveStatus(db, body.status);
+  assertLinkTargetsInScope(req, body);
   const currentLinks = card as CardRow & Record<string, number | null>;
 
   /*
@@ -449,6 +480,7 @@ router.patch('/:id', (req, res) => {
   }
 
   assertListProjectCustomer(db, targetListId, derived.customer_id, 'Công việc');
+  if (targetListId !== card.list_id) assertListPlaceable(req, targetListId);
 
   /*
    * Chan quy trinh dang do (v66) — TRUOC moi lenh ghi ben duoi, ke ca dong
@@ -520,11 +552,22 @@ router.patch('/:id', (req, res) => {
     if (body.parent_id === id)
       throw new HttpError(400, 'Một công việc không thể là cha của chính nó');
     if (body.parent_id) {
+      const parentAccess = assertCardAccess(req, body.parent_id, 'read', 'Không tìm thấy việc cha');
       const parent = required(
         db.prepare(`SELECT parent_id FROM cards WHERE id = ?`).get(body.parent_id),
         'Không tìm thấy việc cha'
       ) as { parent_id: number | null };
       if (parent.parent_id) throw new HttpError(400, 'Chỉ hỗ trợ một cấp việc con');
+      /* Cung luat voi assertParentListCompatible — ham do chi chay khi doi danh sach
+         va doc cha CU tu CSDL, nen doi rieng cha sang bang khac tung lot qua. */
+      const targetBoard = db
+        .prepare(`SELECT board_id FROM lists WHERE id = ?`)
+        .get(targetListId) as { board_id: number } | undefined;
+      if (targetBoard?.board_id !== parentAccess.board_id) {
+        throw new HttpError(422, 'Việc con phải nằm cùng bảng với việc cha', {
+          code: 'PARENT_BOARD_MISMATCH',
+        });
+      }
       const hasChildren = db
         .prepare(`SELECT COUNT(*) AS n FROM cards WHERE parent_id = ?`)
         .get(id) as { n: number };
@@ -685,6 +728,8 @@ router.patch('/:id/move', (req, res) => {
     }),
     req
   );
+  const access = assertCardAccess(req, id, 'update');
+  if (body.list_id !== access.list_id) assertListPlaceable(req, body.list_id);
   const before = required(
     db
       .prepare(`SELECT list_id, COALESCE(status_key, status) AS status FROM cards WHERE id = ?`)
@@ -710,6 +755,7 @@ router.patch('/:id/move', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertCardAccess(req, id, 'delete');
   db.transaction(() => {
     /* documents.card_id la ON DELETE CASCADE — soft-delete truoc de tai lieu di
        qua Thung rac (va unverifyBySource) thay vi bi SQLite hard-delete am tham. */
@@ -722,6 +768,7 @@ router.delete('/:id', (req, res) => {
 /* ---- Nhan xet tren the (ghi chu ca nhan theo dong thoi gian) ---- */
 router.get('/:id/comments', (req, res) => {
   const id = intParam(req.params.id);
+  assertCardAccess(req, id, 'read');
   res.json(
     db
       .prepare(`SELECT * FROM card_comments WHERE card_id = ? ORDER BY created_at DESC, id DESC`)
@@ -732,7 +779,7 @@ router.get('/:id/comments', (req, res) => {
 router.post('/:id/comments', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ body: z.string().trim().min(1, 'Nội dung trống') }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
+  assertCardAccess(req, cardId, 'update');
   const info = db
     .prepare(`INSERT INTO card_comments (card_id, body) VALUES (?, ?)`)
     .run(cardId, body.body);
@@ -752,7 +799,7 @@ router.post('/:id/comments', (req, res) => {
 router.put('/:id/watch', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ watching: z.boolean() }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
+  assertCardAccess(req, cardId, 'read');
   const contactId = actorContactId(req);
   if (contactId == null) throw new HttpError(400, 'Tài khoản chưa gắn với nhân sự');
 
@@ -785,11 +832,13 @@ router.post('/:id/copy', (req, res) => {
     z.object({ title: z.string().trim().min(1).optional(), list_id: z.number().int().optional() }),
     req
   );
+  assertCardAccess(req, id, 'read');
   const source = required(
     db.prepare(`SELECT * FROM cards WHERE id = ?`).get(id),
     'Không tìm thấy thẻ'
   ) as Record<string, unknown>;
   const destinationListId = body.list_id ?? (source.list_id as number);
+  assertListPlaceable(req, destinationListId);
   assertListProjectCustomer(db, destinationListId, source.customer_id as number | null);
   const destination = required(
     db.prepare(`SELECT status_mapping FROM lists WHERE id = ?`).get(destinationListId),
@@ -869,7 +918,7 @@ router.post('/:id/copy', (req, res) => {
 router.post('/:id/checklist', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ content: z.string().trim().min(1) }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
+  assertCardAccess(req, cardId, 'update');
   const position = nextPosition({
     table: 'checklist_items',
     scopeCol: 'card_id',
@@ -886,7 +935,7 @@ router.post('/:id/checklist', (req, res) => {
 router.put('/:id/labels', (req, res) => {
   const cardId = intParam(req.params.id);
   const body = parseBody(z.object({ label_ids: z.array(z.number().int()) }), req);
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy thẻ');
+  assertCardAccess(req, cardId, 'update');
 
   db.transaction(() => {
     db.prepare(`DELETE FROM card_labels WHERE card_id = ?`).run(cardId);

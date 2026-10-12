@@ -197,9 +197,15 @@ export function createApp(options: AppOptions = {}): Express {
   /* Ai dang nhap cung doc duoc (moi o chon can danh muc); ghi tu kiem `settings.app`. */
   app.use('/api/crm-config', crmConfig);
   app.use('/api/settings', requireResource('settings.app'), settings);
-  app.use('/api', requireResource('deals'), scoring);
-  app.use('/api', system);
   app.use('/api/ai', requireResource('ai'), ai);
+  /* `system` (tim kiem, sao luu, xuat) tu kiem quyen trong tung route. Phai nam
+     TRUOC scoring: router do mount o `/api` tran kem requireResource('deals'), nen
+     moi thu xep sau no deu doi them quyen co hoi — Admin doanh thu tung bi 403 khi
+     tim kiem va sao luu vi vay. */
+  app.use('/api', system);
+  /* Chi chan quyen co hoi tren DUNG tien to cua scoring, khong tren ca `/api`. */
+  app.use(['/api/deals', '/api/settings/scoring'], requireResource('deals'));
+  app.use('/api', scoring);
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Không tìm thấy endpoint' });
@@ -224,8 +230,21 @@ export function createApp(options: AppOptions = {}): Express {
       res.status(err.status).json({ error: err.message, ...err.details });
       return;
     }
+    /* Loi body JSON hong / qua lon tu express.json() mang status 4xx rieng. */
+    const status = (err as { status?: unknown })?.status;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      res.status(status).json({ error: 'Yêu cầu không hợp lệ' });
+      return;
+    }
     console.error('[api]', err);
-    const message = err instanceof Error ? err.message : 'Lỗi không xác định';
+    /* Loi SQLite / he thong tep (co `code` nhu SQLITE_CONSTRAINT, ENOENT) mang ten bang,
+       cau SQL va duong dan tren may chu — khong tra ra client, chi ghi log. Loi khac
+       (vd tu choi dinh dang tep o multer) la thong bao viet cho nguoi dung, giu nguyen. */
+    const systemError =
+      err instanceof Error &&
+      (err.name === 'SqliteError' || typeof (err as { code?: unknown }).code === 'string');
+    const message =
+      err instanceof Error && !systemError ? err.message : 'Lỗi máy chủ, vui lòng thử lại sau';
     res.status(500).json({ error: message });
   });
 

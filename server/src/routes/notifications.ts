@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { firstStatusOfKind, requireActiveStatus } from '../lib/taskStatuses.ts';
 import { db } from '../db/connection.ts';
-import { actorContactId } from '../middleware/currentUser.ts';
+import { accessOf, actorContactId } from '../middleware/currentUser.ts';
+import { assertCardAccess, ownerInScope } from '../lib/recordAccess.ts';
 import { HttpError, parseBody, required } from '../lib/validate.ts';
 import { setCardStatus } from '../services/cardService.ts';
 import { guardLeaveStatus } from '../services/taskFlowService.ts';
@@ -62,31 +63,97 @@ function parseKey(key: string): { prefix: keyof typeof prefixTable; id: number }
   return { prefix: match[1] as keyof typeof prefixTable, id: Number(match[2]) };
 }
 
-function ensureSource(key: string, contactId: number | null = null) {
+/**
+ * Thong bao AI / CRM tro toi mot ban ghi qua `link`: chi hien voi nguoi xem duoc ban
+ * ghi do. Canh bao khong gan ban ghi nao (tong hop toan he thong) chi danh cho nguoi
+ * co pham vi `ai` toan cong ty — noi dung cua no cong don tren du lieu cua moi nguoi.
+ */
+export function aiNotificationVisible(req: Request, link: string | null): boolean {
+  const match = /^\/(deals|customers|contracts)\/(\d+)/.exec(link ?? '');
+  if (!match) return accessOf(req).visibleContactIds('ai', 'read') === 'all';
+  const id = Number(match[2]);
+  if (match[1] === 'deals') {
+    const row = db.prepare(`SELECT owner_contact_id AS owner FROM deals WHERE id = ?`).get(id) as
+      { owner: number | null } | undefined;
+    return row != null && ownerInScope(req, 'deals', 'read', row.owner);
+  }
+  if (match[1] === 'customers') {
+    const row = db
+      .prepare(`SELECT owner_contact_id AS owner FROM customers WHERE id = ?`)
+      .get(id) as { owner: number | null } | undefined;
+    return row != null && ownerInScope(req, 'customers', 'read', row.owner);
+  }
+  const row = db
+    .prepare(
+      `SELECT COALESCE(d.owner_contact_id, c.owner_contact_id) AS owner
+         FROM contracts x
+         LEFT JOIN deals d ON d.id = x.deal_id
+         LEFT JOIN customers c ON c.id = x.customer_id
+        WHERE x.id = ?`
+    )
+    .get(id) as { owner: number | null } | undefined;
+  return row != null && ownerInScope(req, 'contracts', 'read', row.owner);
+}
+
+/**
+ * Nguon cua mot khoa thong bao phai thuoc HOP THU CUA NGUOI GOI — cung luat voi
+ * GET / ben duoi. Ngoai pham vi thi nhu khong ton tai.
+ */
+function ensureSource(req: Request, key: string, action: 'read' | 'update' = 'read') {
   const parsed = parseKey(key);
+  const me = actorContactId(req);
+  const gone = 'Thông báo không còn tồn tại';
   if (parsed.prefix === 'feed') {
     /* Thong bao Bang tin cua nguoi khac phai nhu khong ton tai. */
     required(
       db
         .prepare(`SELECT id FROM feed_notifications WHERE id = ? AND contact_id = ?`)
-        .get(parsed.id, contactId ?? 0),
-      'Thông báo không còn tồn tại'
+        .get(parsed.id, me ?? 0),
+      gone
     );
     return parsed;
   }
-  required(
-    db.prepare(`SELECT id FROM ${prefixTable[parsed.prefix]} WHERE id = ?`).get(parsed.id),
-    'Thông báo không còn tồn tại'
+  if (parsed.prefix === 'task') {
+    assertCardAccess(req, parsed.id, action, gone);
+    return parsed;
+  }
+  if (parsed.prefix === 'ai') {
+    const row = required(
+      db.prepare(`SELECT link FROM ai_notifications WHERE id = ?`).get(parsed.id) as
+        { link: string | null } | undefined,
+      gone
+    );
+    if (!aiNotificationVisible(req, row.link)) throw new HttpError(404, gone);
+    return parsed;
+  }
+  const row = required(
+    db
+      .prepare(`SELECT owner_contact_id FROM ${prefixTable[parsed.prefix]} WHERE id = ?`)
+      .get(parsed.id) as { owner_contact_id: number | null } | undefined,
+    gone
   );
+  if (!ownerInScope(req, 'tasks', action, row.owner_contact_id)) throw new HttpError(404, gone);
   return parsed;
 }
 
-function upsertState(key: string, isRead: boolean, snoozedUntil: string | null | undefined) {
+/** Trang thai doc / hoan la cua tung nguoi (v72). */
+function requireMe(req: Request): number {
+  const me = actorContactId(req);
+  if (me == null) throw new HttpError(400, 'Tài khoản chưa gắn với nhân sự');
+  return me;
+}
+
+function upsertState(
+  contactId: number,
+  key: string,
+  isRead: boolean,
+  snoozedUntil: string | null | undefined
+) {
   db.prepare(
     `INSERT INTO notification_states
-       (notification_key, is_read, read_at, snoozed_until, updated_at)
-     VALUES (?, ?, CASE WHEN ? = 1 THEN datetime('now','localtime') END, ?, datetime('now','localtime'))
-     ON CONFLICT(notification_key) DO UPDATE SET
+       (contact_id, notification_key, is_read, read_at, snoozed_until, updated_at)
+     VALUES (?, ?, ?, CASE WHEN ? = 1 THEN datetime('now','localtime') END, ?, datetime('now','localtime'))
+     ON CONFLICT(contact_id, notification_key) DO UPDATE SET
        is_read = excluded.is_read,
        read_at = CASE WHEN excluded.is_read = 1 THEN COALESCE(notification_states.read_at, datetime('now','localtime'))
                       ELSE NULL END,
@@ -94,6 +161,7 @@ function upsertState(key: string, isRead: boolean, snoozedUntil: string | null |
                             ELSE excluded.snoozed_until END,
        updated_at = datetime('now','localtime')`
   ).run(
+    contactId,
     key,
     isRead ? 1 : 0,
     isRead ? 1 : 0,
@@ -116,6 +184,8 @@ function notificationLink(row: SourceRow, source: 'reminder' | 'event' | 'task' 
 }
 
 router.get('/', (req, res) => {
+  const me = actorContactId(req);
+  /* Hop thu la CUA TOI: nhac hen va lich minh tao (ban ghi vo chu truoc v40 van hien). */
   const reminders = db
     .prepare(
       `SELECT r.id, r.title,
@@ -129,10 +199,11 @@ router.get('/', (req, res) => {
         LEFT JOIN customers c ON c.id = r.customer_id
         LEFT JOIN deals d ON d.id = r.deal_id
         WHERE r.is_done = 0
+          AND (r.owner_contact_id IS NULL OR r.owner_contact_id = ?)
           AND r.due_at <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+7 days'))
         ORDER BY r.due_at LIMIT 100`
     )
-    .all() as SourceRow[];
+    .all(me) as SourceRow[];
 
   const events = db
     .prepare(
@@ -151,9 +222,10 @@ router.get('/', (req, res) => {
           AND strftime('%Y-%m-%dT%H:%M', datetime(e.start_at, '-' || e.reminder_minutes || ' minutes'))
               <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+7 days'))
           AND e.start_at >= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-30 days'))
+          AND (e.owner_contact_id IS NULL OR e.owner_contact_id = ?)
         ORDER BY due_at LIMIT 100`
     )
-    .all() as SourceRow[];
+    .all(me) as SourceRow[];
 
   const tasks = db
     .prepare(
@@ -177,19 +249,20 @@ router.get('/', (req, res) => {
           AND (k.assignee_contact_id IS NULL OR k.assignee_contact_id = ?)
         ORDER BY k.due_date, k.priority DESC LIMIT 100`
     )
-    .all(actorContactId(req)) as SourceRow[];
+    .all(me) as SourceRow[];
 
-  const ai = db
-    .prepare(
-      `SELECT id, title, body, NULL AS due_at, created_at, link,
-              NULL AS card_id, NULL AS customer_id, NULL AS deal_id,
-              severity, is_read AS previous_is_read, 0 AS source_can_undo
-         FROM ai_notifications
-        ORDER BY created_at DESC LIMIT 100`
-    )
-    .all() as SourceRow[];
+  const ai = (
+    db
+      .prepare(
+        `SELECT id, title, body, NULL AS due_at, created_at, link,
+                NULL AS card_id, NULL AS customer_id, NULL AS deal_id,
+                severity, is_read AS previous_is_read, 0 AS source_can_undo
+           FROM ai_notifications
+          ORDER BY created_at DESC LIMIT 100`
+      )
+      .all() as SourceRow[]
+  ).filter((row) => aiNotificationVisible(req, row.link));
 
-  const me = actorContactId(req);
   const feed: SourceRow[] =
     me == null
       ? []
@@ -211,8 +284,11 @@ router.get('/', (req, res) => {
   const states = new Map(
     (
       db
-        .prepare(`SELECT notification_key, is_read, snoozed_until FROM notification_states`)
-        .all() as StateRow[]
+        .prepare(
+          `SELECT notification_key, is_read, snoozed_until FROM notification_states
+            WHERE contact_id = ?`
+        )
+        .all(me ?? 0) as StateRow[]
     ).map((state) => [state.notification_key, state])
   );
   const now = db.prepare(`SELECT strftime('%Y-%m-%dT%H:%M','now','localtime') AS now`).get() as {
@@ -272,7 +348,8 @@ router.get('/', (req, res) => {
 
 router.patch('/:key/state', (req, res) => {
   const key = req.params.key ?? '';
-  const parsed = ensureSource(key, actorContactId(req));
+  const parsed = ensureSource(req, key);
+  const me = requireMe(req);
   const body = parseBody(
     z
       .object({
@@ -285,11 +362,15 @@ router.patch('/:key/state', (req, res) => {
     req
   );
   const current = db
-    .prepare(`SELECT is_read FROM notification_states WHERE notification_key = ?`)
-    .get(key) as { is_read: number } | undefined;
+    .prepare(
+      `SELECT is_read FROM notification_states WHERE contact_id = ? AND notification_key = ?`
+    )
+    .get(me, key) as { is_read: number } | undefined;
   const isRead = body.is_read ?? current?.is_read === 1;
-  upsertState(key, isRead, body.snoozed_until);
-  if ((parsed.prefix === 'ai' || parsed.prefix === 'feed') && body.is_read !== undefined) {
+  upsertState(me, key, isRead, body.snoozed_until);
+  /* Chi Bang tin moi la dong rieng tung nguoi; `ai_notifications.is_read` dung chung
+     nen khong ghi nua — trang thai doc nay da nam trong notification_states (v72). */
+  if (parsed.prefix === 'feed' && body.is_read !== undefined) {
     db.prepare(`UPDATE ${prefixTable[parsed.prefix]} SET is_read = ? WHERE id = ?`).run(
       isRead ? 1 : 0,
       parsed.id
@@ -300,11 +381,12 @@ router.patch('/:key/state', (req, res) => {
 
 router.post('/read-all', (req, res) => {
   const { keys } = parseBody(z.object({ keys: z.array(z.string()).min(1).max(250) }), req);
+  const me = requireMe(req);
   db.transaction(() => {
     for (const key of [...new Set(keys)]) {
-      const parsed = ensureSource(key, actorContactId(req));
-      upsertState(key, true, undefined);
-      if (parsed.prefix === 'ai' || parsed.prefix === 'feed') {
+      const parsed = ensureSource(req, key);
+      upsertState(me, key, true, undefined);
+      if (parsed.prefix === 'feed') {
         db.prepare(`UPDATE ${prefixTable[parsed.prefix]} SET is_read = 1 WHERE id = ?`).run(
           parsed.id
         );
@@ -316,7 +398,7 @@ router.post('/read-all', (req, res) => {
 
 router.post('/:key/complete', (req, res) => {
   const key = req.params.key ?? '';
-  const parsed = ensureSource(key);
+  const parsed = ensureSource(req, key, 'update');
   const body = parseBody(
     z.object({
       done: z.boolean(),
@@ -357,7 +439,8 @@ router.post('/:key/complete', (req, res) => {
     throw new HttpError(400, 'Cảnh báo CRM/hệ thống không có hành động hoàn thành');
   }
 
-  upsertState(key, body.done, undefined);
+  const me = actorContactId(req);
+  if (me != null) upsertState(me, key, body.done, undefined);
   res.json({ ok: true, previous_status: previousStatus });
 });
 

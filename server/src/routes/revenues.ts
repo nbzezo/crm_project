@@ -20,7 +20,8 @@ import {
   type LineAnchor,
   type RevenueGroup,
 } from '../services/revenueSegments.ts';
-import { actorContactId } from '../middleware/currentUser.ts';
+import { accessOf, actorContactId } from '../middleware/currentUser.ts';
+import { assertLinkTargetsInScope, ownerInScope } from '../lib/recordAccess.ts';
 import { computeKpi, summarizeKpi } from '../services/revenueKpi.ts';
 import {
   buildTemplate,
@@ -30,13 +31,11 @@ import {
 } from '../services/revenueImport.ts';
 import type { ContractKind, ContractTerm, ServiceStatus } from '@workflow/contracts';
 import { cacheResponse } from '../lib/responseCache.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .nullable();
+const dateOnly = z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable();
 
 const lineSchema = z.object({
   customer_id: z.number().int(),
@@ -360,6 +359,34 @@ function selectLines(req: Request, year: number) {
   };
 }
 
+/**
+ * Dong doanh thu mang chu so huu rieng (`customer_services.owner_contact_id`) — cung
+ * cot ma danh sach loc. Moi route theo id (va theo danh sach id) phai qua day.
+ */
+function assertLinesAccess(
+  req: Request,
+  ids: number[],
+  action: 'read' | 'update' | 'delete'
+): void {
+  const unique = [...new Set(ids)];
+  const rows = db
+    .prepare(
+      `SELECT id, owner_contact_id FROM customer_services WHERE id IN (${unique.map(() => '?').join(',')})`
+    )
+    .all(...unique) as { id: number; owner_contact_id: number | null }[];
+  if (
+    rows.length !== unique.length ||
+    rows.some((row) => !ownerInScope(req, 'revenues', action, row.owner_contact_id))
+  ) {
+    throw new HttpError(
+      unique.length === 1 ? 404 : 422,
+      unique.length === 1
+        ? 'Không tìm thấy dòng dịch vụ'
+        : 'Danh sách dòng doanh thu có phần tử không tồn tại'
+    );
+  }
+}
+
 router.get('/lines', (req, res) => {
   const year = resolveYear(req.query.year);
   res.json({ year, lines: selectLines(req, year).lines });
@@ -368,6 +395,7 @@ router.get('/lines', (req, res) => {
 router.post('/lines', (req, res) => {
   const body = parseBody(lineSchema, req);
   assertEntityLinks(db, body);
+  assertLinkTargetsInScope(req, body);
   assertCrmCustomer(db, body.customer_id);
   assertLineDates(body);
   assertAnchor(body.revenue_anchor_mode, body.revenue_anchor_period);
@@ -413,12 +441,15 @@ router.post('/lines', (req, res) => {
 router.get('/lines/:id', (req, res) => {
   const id = intParam(req.params.id);
   const year = resolveYear(req.query.year);
+  assertLinesAccess(req, [id], 'read');
   res.json(required(reloadLine(id, year), 'Không tìm thấy dòng dịch vụ'));
 });
 
 router.patch('/lines/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(lineSchema.partial(), req);
+  assertLinesAccess(req, [id], 'update');
+  assertLinkTargetsInScope(req, body);
   const current = required(
     db.prepare(`SELECT * FROM customer_services WHERE id = ?`).get(id),
     'Không tìm thấy dòng dịch vụ'
@@ -473,6 +504,7 @@ router.patch('/lines/:id', (req, res) => {
 
 router.delete('/lines/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertLinesAccess(req, [id], 'delete');
   db.prepare(`DELETE FROM customer_services WHERE id = ?`).run(id);
   res.json({ ok: true });
 });
@@ -516,10 +548,7 @@ function readCell(lineId: number, period: string): MonthCell | undefined {
 router.put('/lines/:id/revenue', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(revenueSchema, req);
-  required(
-    db.prepare(`SELECT id FROM customer_services WHERE id = ?`).get(id),
-    'Không tìm thấy dòng dịch vụ'
-  );
+  assertLinesAccess(req, [id], 'update');
 
   const next = mergeRevenueCell(readCell(id, body.period), body);
   upsertCell.run(id, body.period, next.amount_vnd, next.forecast_vnd, next.stage, next.note);
@@ -530,10 +559,7 @@ router.put('/lines/:id/revenue', (req, res) => {
 router.put('/lines/:id/revenue-bulk', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(z.object({ cells: z.array(revenueSchema).max(24) }), req);
-  required(
-    db.prepare(`SELECT id FROM customer_services WHERE id = ?`).get(id),
-    'Không tìm thấy dòng dịch vụ'
-  );
+  assertLinesAccess(req, [id], 'update');
 
   db.transaction(() => {
     for (const cell of body.cells) {
@@ -562,11 +588,7 @@ router.put('/period-stage', (req, res) => {
     req
   );
   const placeholders = body.line_ids.map(() => '?').join(',');
-  const existing = db
-    .prepare(`SELECT COUNT(*) AS n FROM customer_services WHERE id IN (${placeholders})`)
-    .get(...body.line_ids) as { n: number };
-  if (existing.n !== new Set(body.line_ids).size)
-    throw new HttpError(422, 'Danh sách dòng doanh thu có phần tử không tồn tại');
+  assertLinesAccess(req, body.line_ids, 'update');
   const info = db
     .prepare(
       `UPDATE service_revenues SET stage = ?, updated_at = datetime('now','localtime')
@@ -972,12 +994,14 @@ function anchorImpact(id: number, next: { mode: AnchorMode; period?: string | nu
 router.post('/lines/:id/anchor-preview', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(anchorSchema, req);
+  assertLinesAccess(req, [id], 'read');
   res.json(anchorImpact(id, body));
 });
 
 router.put('/lines/:id/anchor', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(anchorSchema, req);
+  assertLinesAccess(req, [id], 'update');
   const impact = anchorImpact(id, body);
   db.prepare(
     `UPDATE customer_services SET revenue_anchor_mode = ?, revenue_anchor_period = ?,
@@ -1000,10 +1024,7 @@ router.put('/lines/:id/baseline', (req, res) => {
     }),
     req
   );
-  required(
-    db.prepare(`SELECT id FROM customer_services WHERE id = ?`).get(id),
-    'Không tìm thấy dòng dịch vụ'
-  );
+  assertLinesAccess(req, [id], 'update');
   if (body.avg_monthly_vnd === null) {
     db.prepare(`DELETE FROM revenue_baselines WHERE line_id = ? AND year = ?`).run(id, body.year);
   } else {
@@ -1032,6 +1053,7 @@ router.post('/baselines/fill', (req, res) => {
     }),
     req
   );
+  assertLinesAccess(req, body.line_ids, 'update');
   const rows = db
     .prepare(
       `SELECT line_id, SUM(amount_vnd) AS total, COUNT(*) AS months FROM service_revenues
@@ -1184,9 +1206,15 @@ type PlannedRow = ParsedRow & {
  */
 function planImport(req: Request, parsedRows: ParsedRow[], year: number): PlannedRow[] {
   const customers = new Map<string, { id: number; name: string }[]>();
+  /* Chi khop khach hang nguoi nhap XEM duoc — nhap Excel tung tao dong doanh thu cho
+     khach hang cua phong khac chi vi trung ten. */
+  const customerScope = scopeWhereOrUnowned(req, 'customers', 'read', 'owner_contact_id');
   for (const c of db
-    .prepare(`SELECT id, name, short_name FROM customers WHERE org_kind = 'customer'`)
-    .all() as { id: number; name: string; short_name: string | null }[]) {
+    .prepare(
+      `SELECT id, name, short_name FROM customers
+        WHERE org_kind = 'customer'${customerScope.sql ? ` AND ${customerScope.sql}` : ''}`
+    )
+    .all(...customerScope.params) as { id: number; name: string; short_name: string | null }[]) {
     for (const key of new Set([fold(c.name.trim()), fold(c.short_name?.trim())])) {
       if (!key) continue;
       customers.set(key, [...(customers.get(key) ?? []), { id: c.id, name: c.name }]);
@@ -1461,6 +1489,17 @@ router.post('/import', acceptImportFile, async (req, res) => {
       if (value === 0 ? now !== undefined : now !== value)
         kpiChanges.push({ am_user_id: amId, period, value });
     }
+  }
+
+  /* Sheet KPI ghi / xoa chi tieu — PUT /kpi-targets doi quyen sua doanh thu, nhap Excel
+     (POST, quyen tao) khong duoc lach qua. */
+  if (kpiChanges.length > 0 && !accessOf(req).can('revenues', 'update')) {
+    kpiErrors.push({
+      row: 0,
+      am: '',
+      errors: ['Bạn không có quyền sửa chỉ tiêu KPI — sheet KPI bị bỏ qua'],
+    });
+    kpiChanges.length = 0;
   }
 
   if (commit) {

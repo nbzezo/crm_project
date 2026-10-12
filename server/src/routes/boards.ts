@@ -3,6 +3,12 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { defaultOwner, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { accessOf } from '../middleware/currentUser.ts';
+import {
+  assertBoardAccess,
+  assertLinkTargetsInScope,
+  cardAllowed,
+  ownerInScope,
+} from '../lib/recordAccess.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { assertEntityLinks, assertProjectCustomerLink } from '../lib/entityRelations.ts';
@@ -10,6 +16,7 @@ import { applyBoardTemplate } from '../services/deliveryService.ts';
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import { insertBoard } from '../services/boardService.ts';
 import { FLOW_PROGRESS_COLUMNS } from '../services/taskFlowService.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
@@ -30,7 +37,7 @@ const boardUpdate = z.object({
   /* R-03: han cua giai doan ma bang nay dai dien. null = bang khong phai mot moc. */
   milestone_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
+    .refine(isRealDate, 'Ngày phải có dạng YYYY-MM-DD')
     .nullable()
     .optional(),
 });
@@ -99,6 +106,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(boardCreate, req);
   assertEntityLinks(db, { customer_id: body.customer_id });
+  assertLinkTargetsInScope(req, { customer_id: body.customer_id, project_id: body.project_id });
   const customerId = boardCustomerForProject(body.project_id, body.customer_id);
   const result = db.transaction(() => {
     const boardId = insertBoard(db, {
@@ -116,20 +124,56 @@ router.post('/', (req, res) => {
 /** Cong viec da luu tru cua bang — cho de khoi phuc. Moi nhat truoc. */
 router.get('/:id/archived-cards', (req, res) => {
   const id = intParam(req.params.id);
-  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(id), 'Không tìm thấy bảng');
-  const rows = db
-    .prepare(
-      `SELECT k.id, k.title, k.updated_at, l.name AS list_name
+  const owner = assertBoardAccess(req, id, 'read').owner_contact_id;
+  const rows = (
+    db
+      .prepare(
+        `SELECT k.id, k.title, k.updated_at, l.name AS list_name
          FROM cards k JOIN lists l ON l.id = k.list_id
         WHERE l.board_id = ? AND k.is_archived = 1
         ORDER BY k.updated_at DESC, k.id DESC`
-    )
-    .all(id);
+      )
+      .all(id) as { id: number }[]
+  ).filter((row) => visibleOnBoard(req, id, owner, row.id));
   res.json(rows);
 });
 
+/**
+ * The tren mot bang ma nguoi goi chi thay nho ngoai le "co viec giao cho minh":
+ * chi hien viec giao cho minh va viec chua giao ai (luat doc o recordAccess.ts),
+ * khong hien viec giao cho nguoi khac tren bang do.
+ */
+function visibleOnBoard(
+  req: Parameters<typeof cardAllowed>[0],
+  boardId: number,
+  boardOwner: number | null,
+  cardId: number,
+  assignee?: number | null
+): boolean {
+  if (ownerInScope(req, 'tasks', 'read', boardOwner)) return true;
+  const assigneeId =
+    assignee !== undefined
+      ? assignee
+      : ((
+          db.prepare(`SELECT assignee_contact_id FROM cards WHERE id = ?`).get(cardId) as
+            { assignee_contact_id: number | null } | undefined
+        )?.assignee_contact_id ?? null);
+  return cardAllowed(
+    req,
+    {
+      id: cardId,
+      list_id: 0,
+      board_id: boardId,
+      board_owner: boardOwner,
+      assignee_contact_id: assigneeId,
+    },
+    'read'
+  );
+}
+
 router.get('/:id/full', (req, res) => {
   const id = intParam(req.params.id);
+  const boardOwner = assertBoardAccess(req, id, 'read').owner_contact_id;
   const board = required(
     db
       .prepare(
@@ -150,9 +194,10 @@ router.get('/:id/full', (req, res) => {
     )
     .all(id) as { id: number; name: string; position: number }[];
 
-  const cards = db
-    .prepare(
-      `SELECT k.id, k.list_id, k.title, k.description, k.position, k.start_date, k.due_date,
+  const cards = (
+    db
+      .prepare(
+        `SELECT k.id, k.list_id, k.title, k.description, k.position, k.start_date, k.due_date,
               k.priority, k.customer_id, k.deal_id, k.is_done, k.cover_color, k.created_at,
               k.status, COALESCE(k.status_key, k.status) AS status_key, k.blocked_reason,
               k.assignee_contact_id, k.assignee_org_id, ac.full_name AS assignee_name,
@@ -171,8 +216,17 @@ router.get('/:id/full', (req, res) => {
          LEFT JOIN customers ao ON ao.id = k.assignee_org_id
         WHERE l.board_id = ? AND k.is_archived = 0 AND k.parent_id IS NULL
         ORDER BY k.position, k.id`
+      )
+      .all(id) as Record<string, unknown>[]
+  ).filter((card) =>
+    visibleOnBoard(
+      req,
+      id,
+      boardOwner,
+      card.id as number,
+      card.assignee_contact_id as number | null
     )
-    .all(id) as Record<string, unknown>[];
+  );
 
   const labelLinks = db
     .prepare(
@@ -218,6 +272,8 @@ router.get('/:id/full', (req, res) => {
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(boardUpdate, req);
+  assertBoardAccess(req, id, 'update');
+  assertLinkTargetsInScope(req, { customer_id: body.customer_id, project_id: body.project_id });
   const current = required(
     db.prepare(`SELECT * FROM boards WHERE id = ?`).get(id),
     'Không tìm thấy bảng'
@@ -276,6 +332,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertBoardAccess(req, id, 'delete');
   db.transaction(() => {
     const cardIds = (
       db
@@ -296,6 +353,7 @@ router.delete('/:id', (req, res) => {
 router.post('/:id/template', (req, res) => {
   const boardId = intParam(req.params.id);
   const body = parseBody(z.object({ key: z.string().trim().min(1).max(50) }), req);
+  assertBoardAccess(req, boardId, 'update');
   res.json(applyBoardTemplate(db, boardId, body.key));
 });
 
@@ -303,7 +361,7 @@ router.post('/:id/template', (req, res) => {
 router.post('/:id/lists', (req, res) => {
   const boardId = intParam(req.params.id);
   const body = parseBody(z.object({ name: z.string().trim().min(1) }), req);
-  required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Không tìm thấy bảng');
+  assertBoardAccess(req, boardId, 'update');
   const position = nextPosition({ table: 'lists', scopeCol: 'board_id', scopeVal: boardId });
   const info = db
     .prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`)

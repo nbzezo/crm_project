@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
@@ -6,6 +6,15 @@ import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { computeMovePosition } from '../lib/position.ts';
 import { createCard, reloadCard, setCardStatus } from '../services/cardService.ts';
 import { firstStatusOfKind } from '../lib/taskStatuses.ts';
+import { assertCardAccess } from '../lib/recordAccess.ts';
+
+/** Muc checklist di theo the chua no: sua / xoa muc = sua the. */
+function assertItemAccess(req: Request, id: number): void {
+  const item = db.prepare(`SELECT card_id FROM checklist_items WHERE id = ?`).get(id) as
+    { card_id: number } | undefined;
+  if (!item) throw new HttpError(404, 'Không tìm thấy mục việc');
+  assertCardAccess(req, item.card_id, 'update', 'Không tìm thấy mục việc');
+}
 
 const router = Router();
 
@@ -20,6 +29,7 @@ router.patch('/:id', (req, res) => {
     }),
     req
   );
+  assertItemAccess(req, id);
   const item = required(
     db.prepare(`SELECT * FROM checklist_items WHERE id = ?`).get(id),
     'Không tìm thấy mục việc'
@@ -53,6 +63,7 @@ router.patch('/:id', (req, res) => {
  */
 router.post('/:id/promote', (req, res) => {
   const id = intParam(req.params.id);
+  assertItemAccess(req, id);
   const item = required(
     db.prepare(`SELECT * FROM checklist_items WHERE id = ?`).get(id),
     'Không tìm thấy mục việc'
@@ -86,6 +97,7 @@ router.post('/:id/promote', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertItemAccess(req, id);
   db.prepare(`DELETE FROM checklist_items WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

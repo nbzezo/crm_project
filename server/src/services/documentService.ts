@@ -6,6 +6,7 @@ import { unverifyBySource } from '../lib/scoring.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { required } from '../lib/validate.ts';
 import { indexDocument } from './ai/documentIndex.ts';
+import { storedFilePath } from '../lib/storedFile.ts';
 
 export const DOCUMENT_TEMP_DIR = path.join(FILES_DIR, '.tmp');
 fs.mkdirSync(DOCUMENT_TEMP_DIR, { recursive: true });
@@ -172,7 +173,7 @@ export function permanentlyDeleteDocument(id: number): void {
       { stored_name: string } | undefined,
     'Không tìm thấy tài liệu'
   );
-  const filePath = path.join(FILES_DIR, document.stored_name);
+  const filePath = storedFilePath(document.stored_name);
   const trashPath = path.join(DOCUMENT_TEMP_DIR, `delete-${Date.now()}-${document.stored_name}`);
   const hadFile = fs.existsSync(filePath);
   if (hadFile) fs.renameSync(filePath, trashPath);

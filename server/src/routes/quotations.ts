@@ -5,13 +5,12 @@ import { pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { QUOTATION_STATUSES } from '../lib/crm.ts';
 import { assertCrmCustomer, assertEntityLinks } from '../lib/entityRelations.ts';
+import { assertLinkTargetsInScope, assertQuotationAccess } from '../lib/recordAccess.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .nullable();
+const dateOnly = z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable();
 
 const quotationSchema = z.object({
   customer_id: z.number().int(),
@@ -88,6 +87,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(quotationSchema, req);
   assertEntityLinks(db, body);
+  assertLinkTargetsInScope(req, body);
   assertCrmCustomer(db, body.customer_id);
   assertQuotationDates(body);
 
@@ -127,6 +127,8 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(quotationSchema.partial(), req);
+  assertQuotationAccess(req, id, 'update');
+  assertLinkTargetsInScope(req, body);
   const current = required(
     db.prepare(`SELECT * FROM quotations WHERE id = ?`).get(id),
     'Không tìm thấy báo giá'
@@ -177,6 +179,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertQuotationAccess(req, id, 'delete');
   db.prepare(`DELETE FROM quotations WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

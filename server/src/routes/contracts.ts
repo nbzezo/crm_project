@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { accessOf } from '../middleware/currentUser.ts';
 import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
+import { assertContractAccess, assertLinkTargetsInScope } from '../lib/recordAccess.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { nextPosition } from '../lib/position.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
@@ -22,13 +23,11 @@ import { extractContract } from '../services/ai/contractExtract.ts';
 import { describeAiError } from '../services/ai/describeError.ts';
 import { insertCustomer } from './customers.ts';
 import { systemLabel } from '../lib/picklists.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .nullable();
+const dateOnly = z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable();
 
 const contractSchema = z.object({
   customer_id: z.number().int(),
@@ -142,15 +141,23 @@ router.get('/', (req, res) => {
 /** FR-REN-01: hop dong Active sap het han trong so ngay chi dinh (mac dinh 90). */
 router.get('/expiring', (req, res) => {
   const within = Number(req.query.within ?? 90);
+  /* Cung luat pham vi voi GET / — truoc day danh sach nay lo hop dong cua moi phong. */
+  const scope = scopeWhereOrUnowned(
+    req,
+    'contracts',
+    'read',
+    'COALESCE(d.owner_contact_id, c.owner_contact_id)'
+  );
   res.json(
     db
       .prepare(
         `${CONTRACT_SELECT}
           WHERE k.status = 'active' AND k.end_date IS NOT NULL
             AND julianday(k.end_date) - julianday(date('now','localtime')) <= ?
+            ${scope.sql ? `AND ${scope.sql}` : ''}
           ORDER BY k.end_date`
       )
-      .all(within)
+      .all(within, ...scope.params)
   );
 });
 
@@ -328,6 +335,8 @@ router.post('/from-file', contractUpload.single('file'), (req, res) => {
       }
       const contract = { ...body.contract, customer_id: customerId };
       assertEntityLinks(db, contract);
+      if (!customerCreated) assertLinkTargetsInScope(req, contract);
+      else assertLinkTargetsInScope(req, { ...contract, customer_id: undefined });
       assertCrmCustomer(db, customerId);
       assertProjectCustomerLink(db, contract, 'Hợp đồng');
       assertContractDates(contract);
@@ -388,6 +397,7 @@ router.post('/from-file', contractUpload.single('file'), (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(contractSchema, req);
   assertEntityLinks(db, body);
+  assertLinkTargetsInScope(req, body);
   assertCrmCustomer(db, body.customer_id);
   assertProjectCustomerLink(db, body, 'Hợp đồng');
   assertContractDates(body);
@@ -417,6 +427,7 @@ router.post('/', (req, res) => {
 
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertContractAccess(req, id, 'read');
   const contract = required(reload(id), 'Không tìm thấy hợp đồng') as Record<string, unknown>;
   const documents = db
     .prepare(
@@ -430,6 +441,7 @@ router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(contractSchema.partial(), req);
   assertContractInScope(req, id, 'update');
+  assertLinkTargetsInScope(req, body);
   const current = required(
     db.prepare(`SELECT * FROM contracts WHERE id = ?`).get(id),
     'Không tìm thấy hợp đồng'
@@ -502,6 +514,7 @@ router.patch('/:id', (req, res) => {
 /** FR-REN-02: tao co hoi gia han tu hop dong, tu dong keo du lieu cu sang. */
 router.post('/:id/renew', (req, res) => {
   const id = intParam(req.params.id);
+  assertContractAccess(req, id, 'read');
   const contract = required(
     db.prepare(`SELECT * FROM contracts WHERE id = ?`).get(id),
     'Không tìm thấy hợp đồng'
@@ -521,8 +534,9 @@ router.post('/:id/renew', (req, res) => {
     const info = db
       .prepare(
         `INSERT INTO deals (customer_id, contact_id, title, product, stage, probability, value_vnd,
-                            position, expected_close_date, source, is_renewal, notes, search_text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+                            position, expected_close_date, source, is_renewal, notes, search_text,
+                            owner_contact_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
       )
       .run(
         contract.customer_id,
@@ -536,7 +550,9 @@ router.post('/:id/renew', (req, res) => {
         contract.end_date,
         systemLabel(db, 'deal_source', 'renewal', 'Gia hạn hợp đồng'),
         `Tạo từ hợp đồng ${contract.number ?? contract.name} (hết hạn ${contract.end_date ?? '—'}).`,
-        buildSearchText(title)
+        buildSearchText(title),
+        /* Co hoi gia han thuoc nguoi tao — de trong thi no vo chu va hien voi moi nguoi. */
+        defaultOwner(req)
       );
     db.prepare(`UPDATE contracts SET renewal_followed = 1 WHERE id = ?`).run(id);
     return Number(info.lastInsertRowid);

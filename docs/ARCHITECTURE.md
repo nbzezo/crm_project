@@ -78,15 +78,17 @@ flowchart LR
 
 ## Migration và dữ liệu runtime
 
-`server/src/db/migrate.ts` nâng tuần tự từ schema cũ lên phiên bản hiện tại (v40). Test chạy các
-fixture v1, v4, v7, v9, v10, v14 và v18 lên phiên bản mới nhất để phát hiện mất dữ liệu, và khẳng định các
-mặc định của v15 (khách hàng cũ vẫn là `org_kind = 'customer'`, người liên hệ cũ vẫn `is_active = 1`).
+`server/src/db/migrate.ts` nâng tuần tự từ schema cũ lên phiên bản hiện tại (`LATEST_VERSION`, v72
+ở bản 1.37.0). Test chạy các fixture v1, v4, v7, v9, v10, v14, v18, v35 và v37 lên phiên bản mới nhất để
+phát hiện mất dữ liệu, và khẳng định các mặc định của v15 (khách hàng cũ vẫn là `org_kind = 'customer'`,
+người liên hệ cũ vẫn `is_active = 1`). Mỗi migration từ v40 trở đi có `migrate-vNN-rollback.sql` và một
+dòng trong `db/rollback.ts`; v43 và v44 được viết bù ở 1.37.0 nên chuỗi quay lui không còn đứt.
 Đường dẫn runtime được điều khiển bằng `WORKFLOW_DATA_DIR` và `WORKFLOW_DB_PATH`; test dùng DB bộ nhớ
 hoặc thư mục tạm cách ly.
 
-Năm phiên bản gần nhất: v37 phiên trò chuyện với Trợ lý AI · v38 nhiều người dùng và đăng nhập bằng
-email · v39 cây đơn vị, vị trí và ma trận phân quyền · v40 chủ sở hữu bản ghi (phân quyền dữ liệu) ·
-v41 phiên trò chuyện AI thuộc về một người dùng.
+Các mốc phân quyền: v38 nhiều người dùng và đăng nhập bằng email · v39 cây đơn vị, vị trí và ma trận
+phân quyền · v40 chủ sở hữu bản ghi · v41 phiên trò chuyện AI thuộc về một người dùng · v72 trạng thái
+thông báo và đề xuất hành động AI thuộc về từng người.
 
 v19 có hai điểm cần lưu ý khi đọc migration: `DROP COLUMN` chỉ chạy được sau khi **xóa index tham
 chiếu tới cột đó** (SQLite từ chối bỏ cột còn index trỏ vào), và backfill `status_mapping` phải làm ở
@@ -149,9 +151,35 @@ Hai lớp chặn độc lập, đều cần thiết:
   nhân viên là rò rỉ ngay cả khi không ai bấm vào. Giới hạn 20 phiên cũng tính trên mỗi người —
   giới hạn chung sẽ khiến vài người dùng cùng lúc đẩy lịch sử của nhau ra ngoài.
 
-Không có seam chung cho 853 câu `.prepare(` trong server, nên lưới an toàn là
-`server/src/test/dataScope.test.ts` — đếm **đúng số dòng** cho từng vị trí trên từng endpoint. Kỷ luật
-một mình đã từng không đủ: luật `org_kind = 'customer'` cùng loại và đã bị quên ở vài chỗ.
+Không có seam chung cho hơn 850 câu `.prepare(` trong server, nên có hai lưới an toàn bổ sung nhau:
+
+- `server/src/test/dataScope.test.ts` đếm **đúng số dòng** của từng màn **danh sách** cho từng vị trí.
+- `server/src/test/recordAccess.test.ts` (1.37.0) gọi **mọi route có tham số id** bằng tài khoản phòng
+  khác và đòi 404, rồi quét mã nguồn `routes/*.ts`: route có tham số mới mà không nằm trong bảng thử
+  (hoặc danh sách miễn trừ kèm lý do) làm đỏ test.
+
+Lưới thứ hai ra đời sau bản rà soát 2026-10-12: v40 mới ghép phạm vi vào truy vấn danh sách, còn rất
+nhiều route chi tiết / sửa / xoá theo id chỉ kiểm bản ghi *tồn tại* — nhân viên phòng này đọc, sửa, xoá
+được thẻ, bảng, lịch, báo giá, dòng doanh thu, điểm cơ hội của phòng khác bằng cách đoán id.
+
+Quy ước cho route theo id (`server/src/lib/recordAccess.ts`):
+
+- Nạp kèm kiểm thay cho `required(db...get(id))`: `assertCardAccess`, `assertBoardAccess`,
+  `assertListAccess`, `assertContractAccess`, `assertQuotationAccess`, `entityAllowed`… Luật mỗi hàm
+  **trùng với luật danh sách cùng loại**, nếu không màn hình sẽ hiện một dòng mà bấm vào lại 404.
+- Router mà mọi route con xoay quanh một bản ghi gốc (cơ hội, dự án, khách hàng, chấm điểm) dùng
+  `router.param('id', paramGuard(...))` — route con thêm sau này không thể quên kiểm.
+- Khoá liên kết trong body (`customer_id`, `deal_id`, `contract_id`…) đi qua
+  `assertLinkTargetsInScope`: `assertEntityLinks` chỉ kiểm *tồn tại và cùng khách hàng*, thiếu bước này
+  là gắn được tài liệu / hợp đồng / dòng doanh thu vào khách hàng phòng khác.
+- Dữ liệu của **một người** (lịch, nhắc hẹn, ghi chú nhanh, trạng thái đọc thông báo, đề xuất AI) lọc
+  theo chủ ngay cả ở các tác vụ nền: Telegram chỉ gửi nhắc của người nhận, bản tin Trọng tâm không gửi
+  khi không xác định được người nhận (phạm vi `null` nghĩa là *toàn bộ dữ liệu*).
+- Không mount router nghiệp vụ ở `/api` trần kèm middleware quyền: middleware đó chạy cho **mọi** đường
+  dẫn xếp sau nó. Router chấm điểm từng chặn nhầm tìm kiếm, sao lưu và Trợ lý AI của vị trí không có
+  quyền cơ hội vì vậy.
+- Đọc tệp theo `documents.stored_name` luôn qua `storedFilePath()` (chặn `../`). Ngày `YYYY-MM-DD` trong
+  schema qua `isRealDate`; "hôm nay" ở JS qua `todayLocal()` (không dùng `toISOString().slice(0, 10)`).
 
 Module công nợ đầy đủ (hoá đơn, phiếu thu, tuổi nợ) là nợ kỹ thuật đã thống nhất hoãn — xem
 [TECH-DEBT-CONG-NO.md](TECH-DEBT-CONG-NO.md).

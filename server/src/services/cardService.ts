@@ -631,7 +631,7 @@ export function listDependencies(cardId: number) {
 
 /* ---------- Vong doi trang thai (v16) ---------- */
 
-interface RecurRule {
+export interface RecurRule {
   unit: 'day' | 'week' | 'month';
   interval: number;
 }
@@ -657,12 +657,21 @@ function parseRecurRule(raw: unknown): RecurRule | null {
  * Dung UTC de phep cong khong bi lech mot ngay o cac moc doi gio — ngay o day la
  * ngay lich thuan tuy, khong mang thong tin mui gio.
  */
-function shiftDate(date: string, rule: RecurRule): string {
+export function shiftDate(date: string, rule: RecurRule): string {
   const [year, month, day] = date.split('-').map(Number);
   const base = new Date(Date.UTC(year, month - 1, day));
   if (rule.unit === 'day') base.setUTCDate(base.getUTCDate() + rule.interval);
   else if (rule.unit === 'week') base.setUTCDate(base.getUTCDate() + rule.interval * 7);
-  else base.setUTCMonth(base.getUTCMonth() + rule.interval);
+  else {
+    /* `setUTCMonth` tran ngay: 31/01 + 1 thang thanh 03/03 (bo qua thang 2). Viec
+       hang thang phai roi vao NGAY CUOI cua thang dich khi thang do ngan hon. */
+    const target = new Date(Date.UTC(year, month - 1 + rule.interval, 1));
+    const lastDay = new Date(
+      Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)
+    ).getUTCDate();
+    target.setUTCDate(Math.min(day, lastDay));
+    return target.toISOString().slice(0, 10);
+  }
   return base.toISOString().slice(0, 10);
 }
 

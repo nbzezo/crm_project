@@ -3,7 +3,7 @@ import path from 'node:path';
 import { Router, type Request } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { db, FILES_DIR } from '../db/connection.ts';
+import { db } from '../db/connection.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
@@ -21,6 +21,31 @@ import { sendDocumentsZip, type ZipDocument } from '../services/zipService.ts';
 import { assertDocumentsInScope, documentScope } from '../lib/documentScope.ts';
 import { defaultOwner } from '../lib/scope.ts';
 import { indexDocument } from '../services/ai/documentIndex.ts';
+import { storedFilePath } from '../lib/storedFile.ts';
+import { assertCardAccess, assertLinkTargetsInScope } from '../lib/recordAccess.ts';
+import { linkedBranch } from '../lib/linkedScope.ts';
+import { assertMeetingNoteInScope } from '../lib/meetingNoteScope.ts';
+import { isRealDate } from '../lib/dates.ts';
+
+/**
+ * Gan tep vao ban ghi nao thi phai XEM duoc ban ghi do. Tep hien theo ban ghi gan vao
+ * (documentScope), nen gan vao khach hang phong khac la day tep sang man hinh cua ho.
+ * Chi kiem cac khoa co trong `links` — tuc la khoa nguoi goi vua gui len.
+ */
+function assertDocumentLinks(req: Request, links: Record<string, unknown>): void {
+  assertLinkTargetsInScope(req, links);
+  if (typeof links.card_id === 'number') assertCardAccess(req, links.card_id, 'read');
+  if (typeof links.meeting_note_id === 'number') {
+    assertMeetingNoteInScope(req, links.meeting_note_id, 'read');
+  }
+  if (typeof links.quick_note_id === 'number') {
+    const clause = linkedBranch(req, '?', 'quick_note', 'read');
+    const ok =
+      clause.sql !== '1 = 0' &&
+      db.prepare(`SELECT 1 WHERE ${clause.sql}`).get(links.quick_note_id, ...clause.params);
+    if (!ok) throw new HttpError(404, 'Không tìm thấy ghi chú nhanh');
+  }
+}
 
 const router = Router();
 
@@ -85,11 +110,7 @@ const LINK_COLUMNS = [
 
 const emptyDateToNull = z.preprocess(
   (value) => (value === '' || value === undefined ? undefined : value),
-  z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional()
+  z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().optional()
 );
 
 const metadataSchema = z.object({
@@ -214,7 +235,7 @@ router.get('/count', (req, res) => {
   res.json({ count: row.n });
 });
 
-router.get('/download.zip', (req, res) => {
+router.get('/download.zip', async (req, res, next) => {
   const ids = String(req.query.ids ?? '')
     .split(',')
     .map(Number)
@@ -228,14 +249,28 @@ router.get('/download.zip', (req, res) => {
     )
     .all(...ids) as ZipDocument[];
   if (documents.length === 0) throw new HttpError(404, 'Không tìm thấy tài liệu có thể tải');
-  sendDocumentsZip(res, documents);
+  try {
+    await sendDocumentsZip(res, documents);
+  } catch (error) {
+    /* Da gui header ZIP thi khong tra JSON loi duoc nua — chi dong ket noi. */
+    if (res.headersSent) res.destroy();
+    else next(error);
+  }
 });
 
 router.post('/', upload.single('file'), (req, res) => {
   const file = req.file;
   if (!file) throw new HttpError(400, 'Chưa chọn tệp để tải lên');
-  const body = parseBody(metadataSchema, req);
-  assertPicklistValue(db, 'doc_type', body.doc_type);
+  let body: z.infer<typeof metadataSchema>;
+  try {
+    body = parseBody(metadataSchema, req);
+    assertPicklistValue(db, 'doc_type', body.doc_type);
+    assertDocumentLinks(req, body);
+  } catch (error) {
+    /* Tep da nam o thu muc tam — tu choi thi don luon, khong de rac tich lai. */
+    fs.rmSync(file.path, { force: true });
+    throw error;
+  }
   const id = createDocument(file, { ...body, owner_contact_id: defaultOwner(req) });
   res.status(201).json(reload(id));
 });
@@ -245,6 +280,7 @@ router.patch('/bulk', (req, res) => {
   const { ids, ...patch } = body;
   assertDocumentsInScope(req, ids, 'update');
   assertPicklistValue(db, 'doc_type', patch.doc_type);
+  assertDocumentLinks(req, patch);
   const rows = db
     .prepare(`SELECT * FROM documents WHERE deleted_at IS NULL AND id IN (${placeholders(ids)})`)
     .all(...ids) as Record<string, unknown>[];
@@ -334,7 +370,7 @@ router.get('/:id/download', (req, res) => {
     db.prepare(`SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL`).get(id),
     'Không tìm thấy tài liệu'
   ) as { stored_name: string; file_name: string; mime: string };
-  const filePath = path.join(FILES_DIR, doc.stored_name);
+  const filePath = storedFilePath(doc.stored_name);
   if (!fs.existsSync(filePath)) throw new HttpError(404, 'Tệp không còn trên ổ đĩa');
   /*
    * `.webm` la kieu container dung chung cho ca audio va video nen thu vien
@@ -352,6 +388,7 @@ router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   assertDocumentsInScope(req, [id], 'update', true);
   const body = parseBody(metadataSchema.partial(), req);
+  assertDocumentLinks(req, body);
   const current = required(
     db.prepare(`SELECT * FROM documents WHERE id = ?`).get(id),
     'Không tìm thấy tài liệu'

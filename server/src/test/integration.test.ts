@@ -62,6 +62,17 @@ test('health check kiem tra ca ung dung va database', async () => {
   assert.equal(missing.status, 404);
 });
 
+/** Id to chuc "cong ty toi" — tao neu chua co (contacts.customer_id NOT NULL). */
+function ownOrg(): number {
+  const row = db.prepare(`SELECT id FROM customers WHERE org_kind = 'own' LIMIT 1`).get() as
+    { id: number } | undefined;
+  if (row) return row.id;
+  return Number(
+    db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Công ty tôi', 'own')`).run()
+      .lastInsertRowid
+  );
+}
+
 test('xoa nguon thong bao cung don state, khong ro ri sang id tai su dung', () => {
   const reminderId = Number(
     db
@@ -69,7 +80,15 @@ test('xoa nguon thong bao cung don state, khong ro ri sang id tai su dung', () =
       .run('Nguon se xoa', '2026-08-18T09:00').lastInsertRowid
   );
   const key = `reminder-${reminderId}`;
-  db.prepare(`INSERT INTO notification_states (notification_key, is_read) VALUES (?, 1)`).run(key);
+  /* v72: trang thai doc thuoc ve tung nguoi (contact_id). */
+  const reader = Number(
+    db
+      .prepare(`INSERT INTO contacts (customer_id, full_name) VALUES (${ownOrg()}, 'Nguoi doc')`)
+      .run().lastInsertRowid
+  );
+  db.prepare(
+    `INSERT INTO notification_states (contact_id, notification_key, is_read) VALUES (?, ?, 1)`
+  ).run(reader, key);
   db.prepare(`DELETE FROM reminders WHERE id = ?`).run(reminderId);
   const state = db
     .prepare(`SELECT notification_key FROM notification_states WHERE notification_key = ?`)
@@ -1497,6 +1516,13 @@ test('automation AI chi tao canh bao va khong tu y sua CRM', async () => {
 });
 
 test('trung tam thong bao hop nhat nguon va ho tro doc, snooze, hoan tac', async () => {
+  /* Che do tat xac thuc: "toi" la contact is_me. Trang thai doc / hoan luu theo nguoi
+     (v72) nen can mot contact nhu vay. */
+  if (!db.prepare(`SELECT 1 FROM contacts WHERE is_me = 1 AND is_active = 1`).get()) {
+    db.prepare(
+      `INSERT INTO contacts (customer_id, full_name, is_me, is_active) VALUES (${ownOrg()}, 'Toi', 1, 1)`
+    ).run();
+  }
   const date = db
     .prepare(
       `SELECT strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+1 hour')) AS reminder_due,

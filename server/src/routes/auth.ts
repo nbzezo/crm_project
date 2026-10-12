@@ -14,6 +14,7 @@ import { verifyPassword } from '../services/auth/passwords.ts';
 import { loadPermissions, permissionsVersion } from '../services/auth/access.ts';
 import {
   consumeToken,
+  releaseToken,
   issueToken,
   purgeExpiredTokens,
   resolveToken,
@@ -303,8 +304,15 @@ router.post('/reset-password', async (req, res, next) => {
       throw new HttpError(400, 'Liên kết đã hết hạn hoặc đã được dùng');
     }
 
-    await setPassword(user.id, body.new_password);
-    consumeToken(body.token);
+    if (!consumeToken(body.token)) {
+      throw new HttpError(400, 'Liên kết đã hết hạn hoặc đã được dùng');
+    }
+    try {
+      await setPassword(user.id, body.new_password);
+    } catch (error) {
+      releaseToken(body.token);
+      throw error;
+    }
     /* Dat lai mat khau thi moi phien cu cua chinh nguoi do phai chet: neu ly do
        dat lai la "co nguoi khac vao duoc tai khoan toi" thi de phien cu song
        tiep la khong giai quyet duoc gi. */

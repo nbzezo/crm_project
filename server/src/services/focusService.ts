@@ -8,6 +8,7 @@ import {
 } from '../lib/taskFlowSql.ts';
 import { HttpError } from '../lib/validate.ts';
 import { cadenceSql, careEventsBetween } from './customerCare.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 /*
  * "Trong tam" — mot khung nhin theo KY (ngay / tuan / thang / tu chon) tra loi
@@ -158,7 +159,6 @@ function taskWithin(scope: FocusScope): string {
 
 /* ---------- Ky ---------- */
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const MAX_RANGE_DAYS = 92;
 
 export function addDays(date: string, days: number): string {
@@ -182,7 +182,8 @@ function isWorkday(date: string): boolean {
 }
 
 export function validateRange(from: string, to: string): void {
-  if (!DATE_RE.test(from) || !DATE_RE.test(to) || Number.isNaN(Date.parse(from))) {
+  /* isRealDate: regex + Date.parse cho qua 2026-02-30 (JS tu doi thanh 02/03). */
+  if (!isRealDate(from) || !isRealDate(to)) {
     throw new HttpError(400, 'Khoảng ngày không hợp lệ');
   }
   if (to < from) throw new HttpError(400, 'Ngày kết thúc phải sau ngày bắt đầu');

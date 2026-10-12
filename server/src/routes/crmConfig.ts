@@ -31,6 +31,7 @@ import {
   updateStage,
 } from '../lib/pipeline.ts';
 import { applyProfile, exportProfile, parseProfile } from '../services/configProfile.ts';
+import { todayLocal } from '../lib/dates.ts';
 
 const router = Router();
 const canEdit = requirePermission('settings.app', 'update');
@@ -61,7 +62,7 @@ router.get('/', (_req, res) => {
 /* ---------- Ho so cau hinh (1.27.0) ---------- */
 
 router.get('/profile', requirePermission('settings.app', 'read'), (req, res) => {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = todayLocal();
   res.setHeader('Content-Disposition', `attachment; filename=ho-so-cau-hinh-${date}.json`);
   res.json(exportProfile(db, typeof req.query.name === 'string' ? req.query.name : undefined));
 });

@@ -5,7 +5,7 @@
  * doc duoc cau hinh (giao dien can biet tinh nang bat chua va mau tung trang
  * thai). Rieng sua cau hinh doi `settings.app`.
  */
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { FLOW_ASK_MODES, type TaskStatusKey } from '@workflow/contracts';
 import { getTaskStatus, kindOf } from '../lib/taskStatuses.ts';
@@ -25,6 +25,8 @@ import {
   nextStatusAfter,
 } from '../services/taskFlowService.ts';
 import { saveTaskFlowSettings } from '../lib/taskFlowSettings.ts';
+
+import { assertCardAccess } from '../lib/recordAccess.ts';
 
 const router = Router();
 
@@ -87,11 +89,14 @@ interface FlowRow {
   completed_at: string | null;
 }
 
-function loadFlow(flowId: number): FlowRow {
-  return required(
+/** Quy trinh di theo the: moi thao tac tren quy trinh / buoc = sua the. */
+function loadFlow(req: Request, flowId: number): FlowRow {
+  const flow = required(
     db.prepare(`SELECT * FROM card_flows WHERE id = ?`).get(flowId),
     'Không tìm thấy quy trình'
   ) as FlowRow;
+  assertCardAccess(req, flow.card_id, 'update', 'Không tìm thấy quy trình');
+  return flow;
 }
 
 interface StepRow {
@@ -149,7 +154,7 @@ router.post('/cards/:cardId', (req, res) => {
     z.object({ status: flowStatus, steps: z.array(stepText).max(50).optional() }),
     req
   );
-  required(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(cardId), 'Không tìm thấy công việc');
+  assertCardAccess(req, cardId, 'update', 'Không tìm thấy công việc');
   if (!isFlowStatus(body.status)) {
     throw new HttpError(422, 'Trạng thái này không có quy trình', { code: 'STATUS_UNKNOWN' });
   }
@@ -169,14 +174,14 @@ router.post('/cards/:cardId', (req, res) => {
 
 /** "Bo quy trinh": xoa han, khong de lai dau bo qua. */
 router.delete('/:flowId', (req, res) => {
-  const flow = loadFlow(intParam(req.params.flowId, 'flowId'));
+  const flow = loadFlow(req, intParam(req.params.flowId, 'flowId'));
   db.prepare(`DELETE FROM card_flows WHERE id = ?`).run(flow.id);
   res.json(respond(null, flow.card_id));
 });
 
 router.post('/:flowId/steps', (req, res) => {
   assertEnabled();
-  const flow = loadFlow(intParam(req.params.flowId, 'flowId'));
+  const flow = loadFlow(req, intParam(req.params.flowId, 'flowId'));
   const body = parseBody(z.object({ content: stepText }), req);
   db.transaction(() => {
     db.prepare(`INSERT INTO card_flow_steps (flow_id, content, position) VALUES (?, ?, ?)`).run(
@@ -199,7 +204,7 @@ router.post('/:flowId/steps', (req, res) => {
 router.patch('/steps/:stepId', (req, res) => {
   assertEnabled();
   const step = loadStep(intParam(req.params.stepId, 'stepId'));
-  const flow = loadFlow(step.flow_id);
+  const flow = loadFlow(req, step.flow_id);
   const body = parseBody(
     z.object({
       content: stepText.optional(),
@@ -308,7 +313,7 @@ router.patch('/steps/:stepId', (req, res) => {
 
 router.delete('/steps/:stepId', (req, res) => {
   const step = loadStep(intParam(req.params.stepId, 'stepId'));
-  const flow = loadFlow(step.flow_id);
+  const flow = loadFlow(req, step.flow_id);
   db.transaction(() => {
     db.prepare(`DELETE FROM card_flow_steps WHERE id = ?`).run(step.id);
     refreshCompletion(flow.id);

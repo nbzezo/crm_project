@@ -5,12 +5,9 @@ import { createTaskInputSchema } from '@workflow/contracts/schemas';
 import { HttpError, required } from '../../lib/validate.ts';
 import { assertEntityLinks } from '../../lib/entityRelations.ts';
 import { createCard } from '../cardService.ts';
+import { isRealDate } from '../../lib/dates.ts';
 
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .nullable()
-  .optional();
+const dateOnly = z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().optional();
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
 
 /** Dung chung hop dong tao Task voi route /api/cards de payload da duyet khong lech. */
@@ -76,19 +73,29 @@ export const proposedActionSchema = z.discriminatedUnion('type', [
 ]);
 type ProposedAction = z.infer<typeof proposedActionSchema>;
 
-export function saveActionProposal(db: Database, requestId: string | null, action: ProposedAction) {
+/**
+ * `ownerContactId`: nguoi da hoi tro ly (v72). De xuat sinh tu ngu canh cua NGUOI DO
+ * nen chi nguoi do thay va duyet duoc — giong phien tro chuyen (ai_chat_sessions).
+ */
+export function saveActionProposal(
+  db: Database,
+  requestId: string | null,
+  action: ProposedAction,
+  ownerContactId: number | null = null
+) {
   const info = db
     .prepare(
       `INSERT INTO ai_action_proposals
-        (request_id, action_type, title, explanation, payload_json)
-       VALUES (?, ?, ?, ?, ?)`
+        (request_id, action_type, title, explanation, payload_json, owner_contact_id)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
     .run(
       requestId,
       action.type,
       action.title,
       action.explanation ?? '',
-      JSON.stringify(action.payload)
+      JSON.stringify(action.payload),
+      ownerContactId
     );
   return getActionProposal(db, Number(info.lastInsertRowid));
 }
@@ -110,12 +117,56 @@ function getActionProposal(db: Database, id: number) {
   };
 }
 
-export function listActionProposals(db: Database, status?: string) {
-  const sql = status
-    ? `SELECT id FROM ai_action_proposals WHERE status = ? ORDER BY created_at DESC LIMIT 100`
-    : `SELECT id FROM ai_action_proposals ORDER BY created_at DESC LIMIT 100`;
-  const ids = (status ? db.prepare(sql).all(status) : db.prepare(sql).all()) as { id: number }[];
+/**
+ * `owner`: 'all' (quan tri — thay ca de xuat cu chua co chu) hoac contact id cua
+ * nguoi xem; null = tai khoan chua gan nhan su, khong thay gi.
+ */
+export function listActionProposals(
+  db: Database,
+  status: string | undefined,
+  owner: 'all' | number | null
+) {
+  if (owner === null) return [];
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (status) {
+    where.push('status = ?');
+    params.push(status);
+  }
+  if (owner !== 'all') {
+    where.push('owner_contact_id = ?');
+    params.push(owner);
+  }
+  const ids = db
+    .prepare(
+      `SELECT id FROM ai_action_proposals ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+        ORDER BY created_at DESC LIMIT 100`
+    )
+    .all(...params) as { id: number }[];
   return ids.map(({ id }) => getActionProposal(db, id));
+}
+
+/** Chu va noi dung cua mot de xuat — de route kiem quyen truoc khi duyet. */
+export function proposalForCheck(
+  db: Database,
+  id: number
+): {
+  owner_contact_id: number | null;
+  action_type: string;
+  payload: Record<string, unknown>;
+} | null {
+  const row = db
+    .prepare(
+      `SELECT owner_contact_id, action_type, payload_json FROM ai_action_proposals WHERE id = ?`
+    )
+    .get(id) as
+    { owner_contact_id: number | null; action_type: string; payload_json: string } | undefined;
+  if (!row) return null;
+  return {
+    owner_contact_id: row.owner_contact_id,
+    action_type: row.action_type,
+    payload: JSON.parse(row.payload_json) as Record<string, unknown>,
+  };
 }
 
 function execute(db: Database, type: string, rawPayload: unknown, actorContactId: number | null) {

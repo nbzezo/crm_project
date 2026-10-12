@@ -1,8 +1,10 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
-import { defaultOwner } from '../lib/scope.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { defaultOwner, scopeFragmentOrUnowned } from '../lib/scope.ts';
+import { isRealLocalMinute } from '../lib/dates.ts';
+import { assertCardAccess, assertLinkTargetsInScope, ownerInScope } from '../lib/recordAccess.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 
 const router = Router();
@@ -19,7 +21,9 @@ const LOCAL_MINUTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const schema = z.object({
   title: z.string().trim().min(1, 'Tiêu đề không được để trống'),
   note: z.string().optional(),
-  due_at: z.string().regex(LOCAL_MINUTE, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm'),
+  due_at: z
+    .string()
+    .refine(isRealLocalMinute, 'Thời điểm phải có dạng YYYY-MM-DDTHH:mm và là ngày giờ có thật'),
   card_id: z.number().int().nullable().optional(),
   customer_id: z.number().int().nullable().optional(),
   deal_id: z.number().int().nullable().optional(),
@@ -36,7 +40,7 @@ const schema = z.object({
  * Cot phai liet ke TUONG MINH: dung `r.*` trong UNION se lam so cot phu thuoc
  * vao bang reminders, mot ALTER TABLE sau nay se lam vo truy van luc chay.
  */
-const UPCOMING_SQL = `
+const upcomingSql = (req: Request): string => `
   SELECT r.id, 'reminder' AS source, r.title, r.note, r.due_at, r.is_done,
          r.card_id, k.title AS card_title, c.name AS customer_name, d.title AS deal_title,
          NULL AS event_start_at
@@ -46,6 +50,7 @@ const UPCOMING_SQL = `
     LEFT JOIN deals d ON d.id = r.deal_id
    WHERE r.is_done = 0
      AND r.due_at <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+7 days'))
+     ${scopeFragmentOrUnowned(req, 'tasks', 'read', 'r.owner_contact_id')}
   UNION ALL
   SELECT e.id, 'event' AS source, e.title, e.description AS note,
          strftime('%Y-%m-%dT%H:%M',
@@ -60,13 +65,32 @@ const UPCOMING_SQL = `
          <= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+7 days'))
      -- San chan: khong de su kien cu vo han don lai trong chuong bao.
      AND e.start_at >= strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-30 days'))
+     ${scopeFragmentOrUnowned(req, 'tasks', 'read', 'e.owner_contact_id')}
    ORDER BY due_at`;
+
+/** Nhac hen la cua nguoi tao — cung luat voi lich (calendarEvents.ts). */
+function assertReminderAccess(req: Request, id: number, action: 'update' | 'delete'): void {
+  const row = db.prepare(`SELECT owner_contact_id FROM reminders WHERE id = ?`).get(id) as
+    { owner_contact_id: number | null } | undefined;
+  if (!row || !ownerInScope(req, 'tasks', action, row.owner_contact_id)) {
+    throw new HttpError(404, 'Không tìm thấy nhắc hẹn');
+  }
+}
+
+/** Gan nhac vao viec / khach hang / co hoi thi phai thay duoc ban ghi do. */
+function assertReminderLinks(req: Request, links: Record<string, unknown>): void {
+  if (typeof links.card_id === 'number') assertCardAccess(req, links.card_id, 'read');
+  assertLinkTargetsInScope(req, { customer_id: links.customer_id, deal_id: links.deal_id });
+}
 
 router.get('/', (req, res) => {
   const upcoming = req.query.upcoming === '1';
   // Danh sach day du van chi doc bang reminders — do la man quan ly nhac hen,
   // su kien lich khong thuoc ve no.
-  const sql = upcoming ? UPCOMING_SQL : `${REMINDER_SELECT} ORDER BY r.is_done, r.due_at`;
+  const sql = upcoming
+    ? upcomingSql(req)
+    : `${REMINDER_SELECT} WHERE 1 = 1${scopeFragmentOrUnowned(req, 'tasks', 'read', 'r.owner_contact_id')}
+        ORDER BY r.is_done, r.due_at`;
   res.json(db.prepare(sql).all());
 });
 
@@ -116,6 +140,7 @@ router.get('/due', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(schema, req);
   assertEntityLinks(db, body);
+  assertReminderLinks(req, body);
   const info = db
     .prepare(
       `INSERT INTO reminders (title, note, due_at, card_id, customer_id, deal_id, owner_contact_id)
@@ -138,6 +163,8 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(schema.partial().extend({ is_done: z.boolean().optional() }), req);
+  assertReminderAccess(req, id, 'update');
+  assertReminderLinks(req, body);
   const current = required(
     db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id),
     'Không tìm thấy nhắc hẹn'
@@ -169,6 +196,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertReminderAccess(req, id, 'delete');
   db.prepare(`DELETE FROM reminders WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

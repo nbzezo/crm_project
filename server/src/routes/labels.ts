@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { entityAllowed } from '../lib/recordAccess.ts';
 
 const router = Router();
 
@@ -339,6 +340,9 @@ router.get('/:id/records', (req, res) => {
   };
 
   const records = links
+    /* Nhan dung chung, nhung ten ban ghi gan nhan thi khong: chi liet ke ban ghi nguoi
+       xem thay duoc, neu khong man nay la cach doc ten khach hang / viec phong khac. */
+    .filter((link) => entityAllowed(req, link.entity_type, link.entity_id, 'read'))
     .map((link) => {
       const row = db.prepare(TITLES[link.entity_type]).get(link.entity_id) as
         { id: number; title: string } | undefined;
@@ -530,6 +534,7 @@ router.get('/links/:entityType', (req, res) => {
 router.get('/links/:entityType/:entityId', (req, res) => {
   const type = entityTypeParam(req.params.entityType);
   const id = intParam(req.params.entityId, 'entityId');
+  if (!entityAllowed(req, type, id, 'read')) throw new HttpError(404, 'Không tìm thấy bản ghi');
   res.json(labelsOfEntity(type, id));
 });
 
@@ -539,6 +544,7 @@ router.put('/links/:entityType/:entityId', (req, res) => {
   const id = intParam(req.params.entityId, 'entityId');
   const body = parseBody(z.object({ label_ids: z.array(z.number().int()) }), req);
   assertEntityExists(type, id);
+  if (!entityAllowed(req, type, id, 'update')) throw new HttpError(404, 'Không tìm thấy bản ghi');
 
   const ids = [...new Set(body.label_ids)];
   if (ids.length > MAX_LABELS_PER_RECORD)
@@ -577,6 +583,11 @@ router.post('/bulk', (req, res) => {
     const label = getLabel(labelId);
     if (label.parent_id === null)
       throw new HttpError(400, `"${label.name}" là nhóm nhãn nên không gắn trực tiếp được`);
+  }
+  if (
+    body.entity_ids.some((entityId) => !entityAllowed(req, body.entity_type, entityId, 'update'))
+  ) {
+    throw new HttpError(404, 'Có bản ghi không tồn tại hoặc ngoài phạm vi của bạn');
   }
 
   const changed = db.transaction(() => {

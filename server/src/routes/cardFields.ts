@@ -1,11 +1,18 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { intParam, parseBody, required } from '../lib/validate.ts';
 import { STEP } from '../lib/position.ts';
 import { isValidFieldValue, parseFieldOptions } from '../lib/cardFieldValues.ts';
 
+import { assertBoardAccess } from '../lib/recordAccess.ts';
+
 const router = Router();
+
+/** Truong rieng cua mot bang di theo bang do; truong dung chung (board_id NULL) thi khong. */
+function assertFieldBoard(req: Request, boardId: unknown, action: 'read' | 'update'): void {
+  if (typeof boardId === 'number') assertBoardAccess(req, boardId, action);
+}
 
 const FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox'] as const;
 
@@ -32,6 +39,7 @@ function getField(id: number): Record<string, unknown> {
 /** Truong cua mot bang = truong rieng cua bang + truong dung chung (board_id NULL). */
 router.get('/', (req, res) => {
   const boardId = req.query.board_id ? Number(req.query.board_id) : null;
+  if (boardId != null && Number.isInteger(boardId)) assertFieldBoard(req, boardId, 'read');
   const rows = db
     .prepare(
       `SELECT * FROM card_fields
@@ -45,8 +53,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = parseBody(fieldSchema, req);
   const boardId = body.board_id ?? null;
-  if (boardId != null)
-    required(db.prepare(`SELECT id FROM boards WHERE id = ?`).get(boardId), 'Không tìm thấy bảng');
+  if (boardId != null) assertFieldBoard(req, boardId, 'update');
   const row = db
     .prepare(
       `SELECT MAX(position) AS maxPos FROM card_fields
@@ -75,6 +82,7 @@ router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(fieldSchema.partial(), req);
   const current = getField(id);
+  assertFieldBoard(req, current.board_id, 'update');
   const nextFieldType = (body.field_type ?? current.field_type) as string;
   const nextOptions = body.options ? JSON.stringify(body.options) : current.options;
 
@@ -115,6 +123,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertFieldBoard(req, getField(id).board_id, 'update');
   db.prepare(`DELETE FROM card_fields WHERE id = ?`).run(id);
   res.json({ ok: true });
 });

@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { PROJECT_STATUSES, RISK_KINDS, RISK_SEVERITIES, RISK_STATUSES } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
-import { assertInScope, defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
+import { defaultOwner, pushScope, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
+import { assertLinkTargetsInScope, assertRootOwner, paramGuard } from '../lib/recordAccess.ts';
 import { auditFromRequest, listChanges, recordChanges } from '../lib/changeLog.ts';
 import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { assertProjectCustomerChange, resolveAssignee } from '../lib/entityRelations.ts';
@@ -17,13 +18,11 @@ import {
   listPhases,
   listRisks,
 } from '../services/deliveryService.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
-const dateOnly = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
-  .nullable();
+const dateOnly = z.string().refine(isRealDate, 'Ngày phải có dạng YYYY-MM-DD').nullable();
 
 const projectSchema = z.object({
   name: z.string().trim().min(1, 'Tên dự án không được để trống').max(200),
@@ -95,6 +94,17 @@ function assertProjectCanComplete(projectId: number, value: Record<string, unkno
   }
 }
 
+/* Moi route `/:id/...` cua du an (sua, phan loai, so rui ro, xoa) kiem pham vi o day. */
+router.param(
+  'id',
+  paramGuard((req, id) => {
+    const row = db.prepare(`SELECT owner_contact_id FROM projects WHERE id = ?`).get(id) as
+      { owner_contact_id: number | null } | undefined;
+    if (!row) throw new HttpError(404, 'Không tìm thấy dự án');
+    assertRootOwner(req, 'projects', row.owner_contact_id, 'Không tìm thấy dự án');
+  })
+);
+
 router.get('/', (req, res) => {
   const where = ['1 = 1'];
   const params: unknown[] = [];
@@ -132,13 +142,7 @@ router.get('/:id', (req, res) => {
     db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(id),
     'Không tìm thấy dự án'
   ) as Record<string, unknown>;
-  assertInScope(
-    req,
-    'projects',
-    'read',
-    projectRow.owner_contact_id as number | null,
-    'Không tìm thấy dự án'
-  );
+  /* Pham vi doc da kiem o router.param('id') — cung luat voi danh sach (ban ghi vo chu van mo duoc). */
   const project = decorateProject(projectRow);
 
   const boards = db
@@ -213,6 +217,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = parseBody(projectSchema, req);
+  assertLinkTargetsInScope(req, { customer_id: body.customer_id });
   assertProjectDates(body);
   assertProjectCanComplete(0, body);
   // Nguoi phu trach du an chiu chung rang buoc "con hoat dong" voi nguoi phu trach viec.
@@ -276,6 +281,7 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(projectSchema.partial(), req);
+  assertLinkTargetsInScope(req, { customer_id: body.customer_id });
   const current = required(
     db.prepare(`SELECT * FROM projects WHERE id = ?`).get(id),
     'Không tìm thấy dự án'

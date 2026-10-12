@@ -21,12 +21,21 @@ interface DueQuickNoteRow {
   reminder_at: string;
 }
 
-function alreadySent(db: Database, key: string): boolean {
-  return Boolean(db.prepare(`SELECT 1 FROM telegram_sent_log WHERE dedupe_key = ?`).get(key));
+/**
+ * Giu cho mot tin TRUOC khi gui (INSERT OR IGNORE nguyen tu): tra ve false neu da co
+ * vong quet khac giu / da gui. Truoc day "kiem roi danh dau SAU khi gui" — mot lan gui
+ * cham hon chu ky quet thi vong sau thay chua co log va gui trung.
+ */
+function claim(db: Database, key: string): boolean {
+  return (
+    db.prepare(`INSERT OR IGNORE INTO telegram_sent_log (dedupe_key) VALUES (?)`).run(key)
+      .changes === 1
+  );
 }
 
-function markSent(db: Database, key: string): void {
-  db.prepare(`INSERT OR IGNORE INTO telegram_sent_log (dedupe_key) VALUES (?)`).run(key);
+/** Gui that bai thi tra cho lai de vong sau thu tiep. */
+function release(db: Database, key: string): void {
+  db.prepare(`DELETE FROM telegram_sent_log WHERE dedupe_key = ?`).run(key);
 }
 
 /**
@@ -65,39 +74,42 @@ async function notifyDueCards(db: Database): Promise<void> {
 
   for (const card of cards) {
     const key = `task-${card.id}-${card.due_date}`;
-    if (alreadySent(db, key)) continue;
+    if (!claim(db, key)) continue;
     try {
       await sendTelegramMessage(db, `⏰ Việc đến hạn: ${card.title}\nHạn: ${card.due_date}`);
-      markSent(db, key);
     } catch (error) {
+      release(db, key);
       console.error('[telegram] Gui thong bao viec den han that bai:', card.id, error);
     }
   }
 }
 
 async function notifyDueReminders(db: Database): Promise<void> {
+  /* Chat Telegram la cua MOT nguoi (recipientContactId): chi nhac hen cua nguoi do,
+     cong nhac vo chu truoc v40. Truoc day nhac cua moi nguoi deu do vao chat nay. */
   const reminders = db
     .prepare(
       `SELECT id, title, note, due_at
          FROM reminders
         WHERE is_done = 0
+          AND (owner_contact_id IS NULL OR owner_contact_id = ?)
           AND due_at BETWEEN strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-5 minutes'))
                           AND strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+15 minutes'))
         ORDER BY due_at LIMIT 50`
     )
-    .all() as DueReminderRow[];
+    .all(recipientContactId(db)) as DueReminderRow[];
 
   for (const reminder of reminders) {
     const key = `reminder-${reminder.id}-${reminder.due_at}`;
-    if (alreadySent(db, key)) continue;
+    if (!claim(db, key)) continue;
     try {
       const body = reminder.note ? `\n${reminder.note}` : '';
       await sendTelegramMessage(
         db,
         `🔔 Nhắc hẹn: ${reminder.title}${body}\nGiờ: ${reminder.due_at.replace('T', ' ')}`
       );
-      markSent(db, key);
     } catch (error) {
+      release(db, key);
       console.error('[telegram] Gui nhac hen that bai:', reminder.id, error);
     }
   }
@@ -115,32 +127,50 @@ async function notifyDueReminders(db: Database): Promise<void> {
 async function notifyDueQuickNotes(db: Database): Promise<void> {
   const notes = db
     .prepare(
+      /* Ghi chu nhanh la du lieu ca nhan: chi cua nguoi nhan, khong co nhanh "vo chu". */
       `SELECT id, title, reminder_at
          FROM quick_notes
         WHERE deleted_at IS NULL AND reminder_status = 'pending'
+          AND owner_contact_id = ?
           AND reminder_at BETWEEN strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','-5 minutes'))
                                AND strftime('%Y-%m-%dT%H:%M', datetime('now','localtime','+15 minutes'))
         ORDER BY reminder_at LIMIT 50`
     )
-    .all() as DueQuickNoteRow[];
+    .all(recipientContactId(db) ?? 0) as DueQuickNoteRow[];
 
   for (const note of notes) {
     const key = `quick-note-${note.id}-${note.reminder_at}`;
-    if (alreadySent(db, key)) continue;
+    if (!claim(db, key)) continue;
     try {
       const title = note.title || 'Ghi chú không tiêu đề';
       await sendTelegramMessage(db, `📝 Nhắc ghi chú nhanh: ${title}`);
-      markSent(db, key);
       db.prepare(`UPDATE quick_notes SET reminder_status = 'triggered' WHERE id = ?`).run(note.id);
     } catch (error) {
+      release(db, key);
       console.error('[telegram] Gui nhac ghi chu nhanh that bai:', note.id, error);
     }
   }
 }
 
+/* Mot vong quet tai mot thoi diem: vong truoc chua xong (Telegram cham) thi bo qua. */
+let scanning = false;
+
 async function runDueTelegramChecks(db: Database): Promise<void> {
+  if (scanning) return;
+  scanning = true;
+  try {
+    await runDueTelegramChecksOnce(db);
+  } finally {
+    scanning = false;
+  }
+}
+
+async function runDueTelegramChecksOnce(db: Database): Promise<void> {
   const config = getTelegramConfig(db);
   if (!config.enabled || !config.has_token || !config.chat_id) return;
+  /* Chat Telegram la cua MOT nguoi; chua xac dinh duoc la ai thi khong gui gi ca — neu
+     khong, viec chua giao va nhac hen vo chu cua ca cong ty do vao chat do. */
+  if (recipientContactId(db) == null) return;
   if (config.notify_due_dates) await notifyDueCards(db);
   if (config.notify_reminders) {
     await notifyDueReminders(db);

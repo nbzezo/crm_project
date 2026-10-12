@@ -83,12 +83,30 @@ export function resolveToken(token: string): ResolvedToken | null {
   return { userId: rowData.user_id, kind: rowData.kind };
 }
 
-export function consumeToken(token: string): void {
-  db.prepare(
-    `UPDATE password_reset_tokens
-        SET used_at = datetime('now','localtime')
-      WHERE token_hash = ? AND used_at IS NULL`
-  ).run(hashToken(token));
+/**
+ * Danh dau token da dung, NGUYEN TU. Tra ve false neu mot request khac vua dung truoc.
+ *
+ * Phai goi TRUOC khi lam viec gi bat dong bo (bam mat khau): truoc day route goi
+ * resolveToken -> await setPassword -> consumeToken, nen hai request song song cung
+ * qua resolveToken va cung dat duoc mat khau bang mot lien ket dung mot lan.
+ */
+export function consumeToken(token: string): boolean {
+  return (
+    db
+      .prepare(
+        `UPDATE password_reset_tokens
+            SET used_at = datetime('now','localtime')
+          WHERE token_hash = ? AND used_at IS NULL`
+      )
+      .run(hashToken(token)).changes === 1
+  );
+}
+
+/** Tra lai token vua danh dau (doi mat khau loi giua chung) de lien ket con dung duoc. */
+export function releaseToken(token: string): void {
+  db.prepare(`UPDATE password_reset_tokens SET used_at = NULL WHERE token_hash = ?`).run(
+    hashToken(token)
+  );
 }
 
 /** Don token het han. Goi theo kieu goi luoi giong SqliteSessionStore.set(). */

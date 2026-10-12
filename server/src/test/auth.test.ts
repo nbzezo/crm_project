@@ -78,7 +78,7 @@ test('dang nhap dung mo khoa cac route, /me tra ve username', async () => {
   assert.equal(me.data.username, 'admin');
   // Client luu thang ket qua dang nhap: thieu quyen thi menu mat muc toi khi tai lai.
   assert.deepEqual(login.data.permissions, me.data.permissions);
-  assert.equal(login.data.permissions['tasks:read'], 'all');
+  assert.equal((login.data.permissions as Record<string, string>)['tasks:read'], 'all');
 
   assert.equal((await call('GET', '/api/boards')).status, 200);
 });

@@ -13,7 +13,6 @@ import { createDocument, DOCUMENT_TEMP_DIR } from '../services/documentService.t
 import { createCard } from '../services/cardService.ts';
 import {
   assertCanView,
-  canViewGroup,
   ensureAutoGroups,
   groupMembers,
   isFeedSuperAdmin,
@@ -43,6 +42,8 @@ import {
   notifyPostPublished,
   NOTIFY_LEVEL_SQL,
 } from '../services/feedNotify.ts';
+import { storedFilePath } from '../lib/storedFile.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 /*
  * Bang tin nhom (v68). Ai dang nhap cung dung duoc — ranh gioi du lieu la THANH
@@ -587,10 +588,20 @@ router.get('/posts', (req, res) => {
     where.push('p.group_id = ?');
     params.push(group.id);
   } else if (filter !== 'saved') {
-    /* Trang chu: chi nhom minh la thanh vien. Bai da luu thi tu nhom nao cung duoc
-       (mien con xem duoc nhom) — loc o duoi. */
+    /* Trang chu: chi nhom minh la thanh vien. */
     const groups = memberGroupsSql(me);
     where.push(`p.group_id IN (${groups.sql})`);
+    params.push(...groups.params);
+  } else if (!isFeedSuperAdmin(req)) {
+    /* Bai da luu: tu nhom nao cung duoc mien con XEM duoc nhom (cung luat canViewGroup).
+       Loc trong SQL chu khong loc sau LIMIT — loc sau thi bai cua nhom da roi chiem cho
+       trong trang, trang tra ve thieu bai va con tro trang sau bi lech. */
+    const groups = memberGroupsSql(me);
+    where.push(
+      `(p.group_id IN (${groups.sql}) OR p.group_id IN (
+          SELECT id FROM feed_groups
+           WHERE kind = 'custom' AND visibility = 'public' AND is_archived = 0))`
+    );
     params.push(...groups.params);
   }
 
@@ -653,9 +664,6 @@ router.get('/posts', (req, res) => {
     .all(...params, limit + 1) as PostRow[];
   const hasMore = rows.length > limit;
   rows = rows.slice(0, limit);
-  if (filter === 'saved' && !req.query.group_id) {
-    rows = rows.filter((row) => canViewGroup(req, loadGroup(row.group_id)));
-  }
   const last = rows[rows.length - 1];
   res.json({
     items: serializePosts(req, [...pinned, ...rows]),
@@ -716,7 +724,7 @@ function copyDocumentToGroup(documentId: number, groupId: number, ownerContactId
   >;
   const ext = path.extname(String(doc.stored_name));
   const storedName = `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
-  fs.copyFileSync(path.join(FILES_DIR, String(doc.stored_name)), path.join(FILES_DIR, storedName));
+  fs.copyFileSync(storedFilePath(String(doc.stored_name)), path.join(FILES_DIR, storedName));
   const info = db
     .prepare(
       `INSERT INTO documents (name, doc_type, file_name, stored_name, mime, size, description, tags,
@@ -1184,11 +1192,7 @@ router.post('/posts/:id/task', (req, res) => {
     z.object({
       title: z.string().trim().min(1).max(300),
       assignee_contact_id: z.number().int().positive().nullable().optional(),
-      due_date: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .nullable()
-        .optional(),
+      due_date: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().optional(),
     }),
     req
   );
@@ -1407,7 +1411,7 @@ router.get('/attachments/:id/download', (req, res) => {
   ) {
     throw new HttpError(404, 'Không tìm thấy tệp');
   }
-  const filePath = path.join(FILES_DIR, attachment.stored_name);
+  const filePath = storedFilePath(attachment.stored_name);
   if (!fs.existsSync(filePath)) throw new HttpError(404, 'Tệp không còn trên ổ đĩa');
   res.type(attachment.mime || 'application/octet-stream');
   if (req.query.inline === '1' && /^(image|video|audio)\//.test(attachment.mime ?? '')) {

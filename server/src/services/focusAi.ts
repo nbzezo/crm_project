@@ -5,6 +5,7 @@ import { saveActionProposal } from './ai/actions.ts';
 import { runStructured } from './ai/gateway.ts';
 import type { AiRunResult } from './ai/types.ts';
 import { compactFocusForAi, type FocusData } from './focusService.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 /*
  * AI phan tich mot KY cua man hinh Trong tam.
@@ -18,7 +19,7 @@ import { compactFocusForAi, type FocusData } from './focusService.ts';
  * vi nguoi hoi, ke ca khi no "doan" ra mot id co that.
  */
 
-const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const dateOnly = z.string().refine(isRealDate, 'Ngày không hợp lệ');
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/);
 
 const focusPlanSchema = z.object({
@@ -176,19 +177,24 @@ export async function generateFocusPlan(
 
   const proposals = options.withProposals
     ? plan.suggested_tasks.map((task) =>
-        saveActionProposal(db, meta.requestId, {
-          type: 'create_task',
-          title: task.title,
-          explanation: task.reason,
-          payload: {
+        saveActionProposal(
+          db,
+          meta.requestId,
+          {
+            type: 'create_task',
             title: task.title,
-            due_date: task.due_date ?? undefined,
-            priority: task.priority ?? undefined,
-            customer_id: task.customer_id ?? undefined,
-            deal_id: task.deal_id ?? undefined,
-            assignee_contact_id: options.assigneeContactId ?? undefined,
+            explanation: task.reason,
+            payload: {
+              title: task.title,
+              due_date: task.due_date ?? undefined,
+              priority: task.priority ?? undefined,
+              customer_id: task.customer_id ?? undefined,
+              deal_id: task.deal_id ?? undefined,
+              assignee_contact_id: options.assigneeContactId ?? undefined,
+            },
           },
-        })
+          options.assigneeContactId
+        )
       )
     : [];
 

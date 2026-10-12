@@ -251,6 +251,9 @@ export function dueDigests(
 export async function runFocusDigests(db: Database, recipient: number | null): Promise<void> {
   const settings = getDigestSettings(db);
   if (!settings.enabled) return;
+  /* Khong xac dinh duoc nguoi nhan thi KHONG gui: ownerScope(null) nghia la toan bo du
+     lieu, va ban tin se dua so lieu ca cong ty vao mot chat Telegram. */
+  if (recipient == null) return;
   const clock = db
     .prepare(`SELECT date('now','localtime') AS today, strftime('%H:%M','now','localtime') AS now`)
     .get() as { today: string; now: string };

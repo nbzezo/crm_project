@@ -1,9 +1,10 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { NUDGE_CHANNELS } from '@workflow/contracts';
 import { db } from '../db/connection.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { runStructured } from '../services/ai/gateway.ts';
+import { assertCardAccess, cardAllowed, loadCardAccess } from '../lib/recordAccess.ts';
 
 const router = Router();
 
@@ -21,13 +22,31 @@ const NUDGE_SELECT = `
     LEFT JOIN contacts ct ON ct.id = n.contact_id
     LEFT JOIN cards k ON k.id = n.card_id`;
 
+/** Lan nhac di theo cong viec: xem duoc viec thi xem duoc nhat ky nhac cua no. */
+function cardReadable(req: Request, cardId: number): boolean {
+  const card = loadCardAccess(cardId);
+  return card != null && cardAllowed(req, card, 'read');
+}
+
+function assertNudgeAccess(req: Request, id: number): void {
+  const row = db.prepare(`SELECT card_id FROM task_nudges WHERE id = ?`).get(id) as
+    { card_id: number } | undefined;
+  if (!row || !cardReadable(req, row.card_id)) {
+    throw new HttpError(404, 'Không tìm thấy bản ghi');
+  }
+}
+
 /** Lich su nhac cua mot cong viec — moi nhat truoc. */
 router.get('/', (req, res) => {
   const cardId = req.query.card_id ? Number(req.query.card_id) : null;
   if (cardId === null) {
-    res.json(db.prepare(`${NUDGE_SELECT} ORDER BY n.sent_at DESC, n.id DESC LIMIT 100`).all());
+    const rows = db
+      .prepare(`${NUDGE_SELECT} ORDER BY n.sent_at DESC, n.id DESC LIMIT 100`)
+      .all() as { card_id: number }[];
+    res.json(rows.filter((row) => cardReadable(req, row.card_id)));
     return;
   }
+  assertCardAccess(req, cardId, 'read', 'Không tìm thấy công việc');
   res.json(
     db.prepare(`${NUDGE_SELECT} WHERE n.card_id = ? ORDER BY n.sent_at DESC, n.id DESC`).all(cardId)
   );
@@ -42,6 +61,7 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
   const body = parseBody(nudgeSchema, req);
+  assertCardAccess(req, body.card_id, 'read', 'Không tìm thấy công việc');
   const card = required(
     db.prepare(`SELECT id, assignee_contact_id FROM cards WHERE id = ?`).get(body.card_id) as
       { id: number; assignee_contact_id: number | null } | undefined,
@@ -78,7 +98,7 @@ router.patch('/:id', (req, res) => {
     }),
     req
   );
-  required(db.prepare(`SELECT id FROM task_nudges WHERE id = ?`).get(id), 'Không tìm thấy bản ghi');
+  assertNudgeAccess(req, id);
 
   db.prepare(
     `UPDATE task_nudges
@@ -93,7 +113,9 @@ router.patch('/:id', (req, res) => {
 });
 
 router.delete('/:id', (req, res) => {
-  db.prepare(`DELETE FROM task_nudges WHERE id = ?`).run(intParam(req.params.id));
+  const id = intParam(req.params.id);
+  assertNudgeAccess(req, id);
+  db.prepare(`DELETE FROM task_nudges WHERE id = ?`).run(id);
   res.json({ ok: true });
 });
 
@@ -116,6 +138,7 @@ router.post('/:cardId/draft', async (req, res, next) => {
       z.object({ tone: z.enum(['friendly', 'neutral', 'firm']).optional() }),
       req
     );
+    assertCardAccess(req, cardId, 'read', 'Không tìm thấy công việc');
 
     const card = required(
       db

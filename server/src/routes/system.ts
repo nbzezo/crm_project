@@ -32,6 +32,11 @@ function requireFullExportScope(req: Request, _res: Response, next: NextFunction
   );
 }
 import { fold } from '../lib/viSearch.ts';
+import { scopeWhereOrUnowned, type ScopeClause } from '../lib/scope.ts';
+import { linkedBranch, taskBranch } from '../lib/linkedScope.ts';
+import { documentScope } from '../lib/documentScope.ts';
+import type { PermissionResource } from '@workflow/contracts';
+import { todayLocal } from '../lib/dates.ts';
 
 const router = Router();
 
@@ -183,35 +188,61 @@ router.get('/search', (req, res) => {
     return;
   }
   const like = `%${q}%`;
+  const access = accessOf(req);
+  /* Moi nhom ket qua di qua DUNG luat pham vi cua man hinh tuong ung — tim kiem tung
+     tra ve khach hang, co hoi, tep va ca ghi chu nhanh (du lieu ca nhan) cua toan
+     cong ty. Khong co quyen doc loai nao thi nhom do rong. */
+  const scoped = (resource: PermissionResource, clause: () => ScopeClause): ScopeClause | null =>
+    access.can(resource, 'read') ? clause() : null;
+  const run = (clause: ScopeClause | null, sql: (where: string) => string, ...params: unknown[]) =>
+    clause === null
+      ? []
+      : db.prepare(sql(clause.sql ? ` AND ${clause.sql}` : '')).all(...params, ...clause.params);
 
-  const cards = db
-    .prepare(
+  const cards = run(
+    scoped('tasks', () => taskBranch(req, 'k.id')),
+    (scope) =>
       `SELECT k.id, k.title, k.priority, k.due_date, k.is_done, b.name AS board_name, c.name AS customer_name
          FROM cards k
          JOIN lists l ON l.id = k.list_id
          JOIN boards b ON b.id = l.board_id
          LEFT JOIN customers c ON c.id = k.customer_id
-        WHERE k.search_text LIKE ? AND k.is_archived = 0
-        ORDER BY k.is_done, k.updated_at DESC LIMIT 8`
-    )
-    .all(like);
+        WHERE k.search_text LIKE ? AND k.is_archived = 0${scope}
+        ORDER BY k.is_done, k.updated_at DESC LIMIT 8`,
+    like
+  );
 
-  const customers = db
-    .prepare(
-      /* Muc nay hien duoi tieu de "Khach hang" nen chi liet ke org_kind='customer';
-         to chuc noi bo / doi tac tim o trang To chuc & nhan su. */
+  const customers = run(
+    scoped('customers', () => scopeWhereOrUnowned(req, 'customers', 'read', 'owner_contact_id')),
+    /* Muc nay hien duoi tieu de "Khach hang" nen chi liet ke org_kind='customer';
+       to chuc noi bo / doi tac tim o trang To chuc & nhan su. */
+    (scope) =>
       `SELECT id, name, industry, phone, status FROM customers
-        WHERE org_kind = 'customer' AND search_text LIKE ? ORDER BY name LIMIT 8`
-    )
-    .all(like);
+        WHERE org_kind = 'customer' AND search_text LIKE ?${scope} ORDER BY name LIMIT 8`,
+    like
+  );
 
+  /* Nguoi lien he cua khach hang theo pham vi `contacts`; nhan su noi bo (to chuc
+     khong phai khach hang) ai dang nhap cung thay o So do to chuc nen giu nguyen. */
+  const contactScope = scoped('contacts', () => linkedBranch(req, 'ct.id', 'contact', 'read'));
   const contacts = (
     db
       .prepare(
         `SELECT ct.id, ct.customer_id, ct.full_name, ct.title, ct.phone, ct.email, c.name AS customer_name
-           FROM contacts ct JOIN customers c ON c.id = ct.customer_id`
+           FROM contacts ct JOIN customers c ON c.id = ct.customer_id
+          WHERE c.org_kind <> 'customer'${
+            contactScope === null
+              ? ''
+              : contactScope.sql
+                ? ` OR ${contactScope.sql}`
+                : ` OR c.org_kind = 'customer'`
+          }`
       )
-      .all() as { full_name: string; title: string | null; customer_name: string }[]
+      .all(...(contactScope?.params ?? [])) as {
+      full_name: string;
+      title: string | null;
+      customer_name: string;
+    }[]
   )
     .filter(
       (c) =>
@@ -221,40 +252,56 @@ router.get('/search', (req, res) => {
     )
     .slice(0, 8);
 
-  const deals = db
-    .prepare(
+  const deals = run(
+    scoped('deals', () => scopeWhereOrUnowned(req, 'deals', 'read', 'd.owner_contact_id')),
+    (scope) =>
       `SELECT d.id, d.title, d.stage, d.value_vnd, c.name AS customer_name
          FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-        WHERE d.search_text LIKE ? OR c.search_text LIKE ?
-        ORDER BY d.updated_at DESC LIMIT 8`
-    )
-    .all(like, like);
+        WHERE (d.search_text LIKE ? OR c.search_text LIKE ?)${scope}
+        ORDER BY d.updated_at DESC LIMIT 8`,
+    like,
+    like
+  );
 
-  const contracts = db
-    .prepare(
+  const contracts = run(
+    scoped('contracts', () =>
+      scopeWhereOrUnowned(
+        req,
+        'contracts',
+        'read',
+        'COALESCE(dd.owner_contact_id, c.owner_contact_id)'
+      )
+    ),
+    (scope) =>
       `SELECT k.id, k.name, k.number, k.status, k.end_date, k.value_vnd, c.name AS customer_name
          FROM contracts k JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
-        WHERE k.search_text LIKE ? OR c.search_text LIKE ?
-        ORDER BY k.end_date LIMIT 8`
-    )
-    .all(like, like);
+         LEFT JOIN deals dd ON dd.id = k.deal_id
+        WHERE (k.search_text LIKE ? OR c.search_text LIKE ?)${scope}
+        ORDER BY k.end_date LIMIT 8`,
+    like,
+    like
+  );
 
-  const documents = db
-    .prepare(
+  const documents = run(
+    scoped('documents', () => documentScope(req, 'read', 'dc')),
+    (scope) =>
       `SELECT dc.id, dc.name, dc.doc_type, dc.file_name, c.name AS customer_name
-         FROM documents dc LEFT JOIN customers c ON c.id = dc.customer_id
+         FROM documents dc
+         LEFT JOIN customers c ON c.id = dc.customer_id
         WHERE dc.deleted_at IS NULL
-          AND dc.search_text LIKE ? ORDER BY dc.created_at DESC LIMIT 8`
-    )
-    .all(like);
+          AND dc.search_text LIKE ?${scope} ORDER BY dc.created_at DESC LIMIT 8`,
+    like
+  );
 
-  const quickNotes = db
-    .prepare(
+  /* Ghi chu nhanh la du lieu ca nhan — cap tren cung khong thay (xem dataScope.test.ts). */
+  const quickNotes = run(
+    scoped('notes', () => linkedBranch(req, 'id', 'quick_note', 'read')),
+    (scope) =>
       `SELECT id, title, updated_at FROM quick_notes
-        WHERE deleted_at IS NULL AND search_text LIKE ?
-        ORDER BY updated_at DESC LIMIT 8`
-    )
-    .all(like);
+        WHERE deleted_at IS NULL AND search_text LIKE ?${scope}
+        ORDER BY updated_at DESC LIMIT 8`,
+    like
+  );
 
   /* Bang tin (1.34.0): chi bai cua nhom minh tham gia, cong voi nhom tu lap cong khai
      — cung ranh gioi voi trang Bang tin (services/feedService.ts). */
@@ -277,43 +324,60 @@ router.get('/search', (req, res) => {
   res.json({ cards, customers, contacts, deals, contracts, documents, quickNotes, posts });
 });
 
-router.get('/backups', requirePermission('data.export', 'export'), (_req, res) => {
-  const files = fs
-    .readdirSync(BACKUP_DIR)
-    .filter((f) => f.endsWith('.db'))
-    .map((f) => {
-      const stat = fs.statSync(path.join(BACKUP_DIR, f));
-      return { name: f, size: stat.size, created_at: stat.mtime.toISOString() };
-    })
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  res.json(files);
-});
-
-router.post('/backup', requirePermission('data.export', 'export'), async (_req, res, next) => {
-  try {
-    const file = await createBackupFile(db);
-    res.json(file);
-  } catch (err) {
-    next(err);
+/* Ban sao luu la NGUYEN tep CSDL — cung dieu kien voi /export: can pham vi toan cong ty. */
+router.get(
+  '/backups',
+  requirePermission('data.export', 'export'),
+  requireFullExportScope,
+  (_req, res) => {
+    const files = fs
+      .readdirSync(BACKUP_DIR)
+      .filter((f) => f.endsWith('.db'))
+      .map((f) => {
+        const stat = fs.statSync(path.join(BACKUP_DIR, f));
+        return { name: f, size: stat.size, created_at: stat.mtime.toISOString() };
+      })
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    res.json(files);
   }
-});
+);
+
+router.post(
+  '/backup',
+  requirePermission('data.export', 'export'),
+  requireFullExportScope,
+  async (_req, res, next) => {
+    try {
+      const file = await createBackupFile(db);
+      /* Khong tra duong dan tuyet doi tren may chu ra client. */
+      res.json({ name: file.name, size: file.size });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 const SAFE_BACKUP_NAME = /^[\w.-]+\.db$/;
 
-router.get('/backups/:name/download', requirePermission('data.export', 'export'), (req, res) => {
-  const name = String(req.params.name);
-  if (!SAFE_BACKUP_NAME.test(name)) throw new HttpError(400, 'Tên file không hợp lệ');
-  const file = path.join(BACKUP_DIR, name);
-  if (!fs.existsSync(file)) throw new HttpError(404, 'Không tìm thấy bản sao lưu');
-  res.download(file, name);
-});
+router.get(
+  '/backups/:name/download',
+  requirePermission('data.export', 'export'),
+  requireFullExportScope,
+  (req, res) => {
+    const name = String(req.params.name);
+    if (!SAFE_BACKUP_NAME.test(name)) throw new HttpError(400, 'Tên file không hợp lệ');
+    const file = path.join(BACKUP_DIR, name);
+    if (!fs.existsSync(file)) throw new HttpError(404, 'Không tìm thấy bản sao lưu');
+    res.download(file, name);
+  }
+);
 
 router.get(
   '/export',
   requirePermission('data.export', 'export'),
   requireFullExportScope,
   async (_req, res, next) => {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const date = todayLocal().replace(/-/g, '');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=workflow-export-${date}.json`);
     try {
@@ -519,7 +583,7 @@ router.get(
     if (!query) throw new HttpError(404, 'Không hỗ trợ xuất dữ liệu này');
 
     const rows = db.prepare(query.sql).all() as Record<string, unknown>[];
-    const date = new Date().toISOString().slice(0, 10);
+    const date = todayLocal();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=${query.label}-${date}.csv`);
     // BOM de Excel tren Windows doc dung tieng Viet

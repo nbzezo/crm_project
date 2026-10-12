@@ -121,3 +121,23 @@ export function requireResource(resource: PermissionResource) {
     next(new HttpError(403, 'Bạn không có quyền dùng chức năng này'));
   };
 }
+
+/**
+ * Chan khi pham vi cua quyen khong phai `all`.
+ *
+ * Dung cho thao tac tren TOAN BO CSDL (sao luu, day len Google Drive): chung khong
+ * loc theo don vi duoc, nen nguoi co quyen o muc "Của mình" khong duoc dung.
+ */
+export function requireFullScope(
+  resource: PermissionResource,
+  action: PermissionAction,
+  message = 'Thao tác này cần phạm vi Toàn công ty'
+) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (accessOf(req).scopeOf(resource, action) === 'all') {
+      next();
+      return;
+    }
+    next(new HttpError(403, message));
+  };
+}

@@ -1,12 +1,18 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
+import {
+  assertLinkTargetsInScope,
+  assertListPlaceable,
+  ownerInScope,
+} from '../lib/recordAccess.ts';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
-import { intParam, parseBody, required } from '../lib/validate.ts';
+import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { assertPicklistValue } from '../lib/picklists.ts';
 import { unverifyBySource } from '../lib/scoring.ts';
 import { assertEntityLinks } from '../lib/entityRelations.ts';
 import { createCard, ensureCategorizedTaskList } from '../services/cardService.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
@@ -23,11 +29,7 @@ const schema = z.object({
   result: z.string().nullable().optional(),
   /** FR-ACT-04 + FR-OPP-05: luu ngay hanh dong tiep theo len co hoi va tao Task neu duoc yeu cau. */
   next_action: z.string().nullable().optional(),
-  next_action_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
+  next_action_date: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().optional(),
   create_task: z.boolean().optional(),
   task_list_id: z.number().int().nullable().optional(),
 });
@@ -49,6 +51,8 @@ router.post('/', (req, res) => {
   const body = parseBody(schema, req);
   assertPicklistValue(db, 'interaction_type', body.type);
   assertEntityLinks(db, body);
+  assertLinkTargetsInScope(req, body);
+  if (body.task_list_id != null) assertListPlaceable(req, body.task_list_id);
 
   const result = db.transaction(() => {
     const info = db
@@ -108,9 +112,27 @@ router.post('/', (req, res) => {
   res.status(201).json({ ...(reload(result.id) as object), created_task_id: result.taskId });
 });
 
+/**
+ * Tuong tac khong co chu rieng — no di theo khach hang (cung luat voi tab Tuong tac o
+ * ho so khach hang). Sua / xoa tung chi kiem tuong tac ton tai.
+ */
+function assertInteractionAccess(req: Request, id: number, action: 'update' | 'delete'): void {
+  const row = db
+    .prepare(
+      `SELECT c.owner_contact_id FROM interactions i
+         JOIN customers c ON c.id = i.customer_id WHERE i.id = ?`
+    )
+    .get(id) as { owner_contact_id: number | null } | undefined;
+  if (!row || !ownerInScope(req, 'interactions', action, row.owner_contact_id)) {
+    throw new HttpError(404, 'Không tìm thấy tương tác');
+  }
+}
+
 router.patch('/:id', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(schema.partial(), req);
+  assertInteractionAccess(req, id, 'update');
+  assertLinkTargetsInScope(req, body);
   const current = required(
     db.prepare(`SELECT * FROM interactions WHERE id = ?`).get(id),
     'Không tìm thấy tương tác'
@@ -140,6 +162,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertInteractionAccess(req, id, 'delete');
   // C5: diem dang lay hoat dong nay lam bang chung mat dau da xac thuc, diem giu nguyen
   unverifyBySource(db, 'interaction', id);
   db.prepare(`DELETE FROM interactions WHERE id = ?`).run(id);

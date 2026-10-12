@@ -1,9 +1,8 @@
-import path from 'node:path';
 import fs from 'node:fs';
 import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, FILES_DIR } from '../db/connection.ts';
+import { db } from '../db/connection.ts';
 import { createLimiter } from '../lib/rateLimit.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import {
@@ -18,6 +17,7 @@ import {
   type ShareLinkRow,
 } from '../services/shareService.ts';
 import { notifyShareViewTelegram } from '../services/telegram/telegramNotifier.ts';
+import { storedFilePath } from '../lib/storedFile.ts';
 
 /*
  * Phuc vu lien ket chia se CONG KHAI — khong dang nhap.
@@ -186,10 +186,15 @@ router.get('/:token/file/:fileId', (req, res) => {
     throw new HttpError(403, 'Loại tệp này không xem trực tiếp được; liên kết không cho tải về');
   }
   const row = db
-    .prepare(`SELECT stored_name FROM documents WHERE id = ? AND deleted_at IS NULL`)
+    /* Kiem lai do mat ngay luc doc tep: tai lieu vua chuyen sang "Mat" giua luc dung
+       danh sach va luc doc phai bi chan, khong chi dua vao danh sach da dung truoc. */
+    .prepare(
+      `SELECT stored_name FROM documents
+        WHERE id = ? AND deleted_at IS NULL AND confidentiality <> 'confidential'`
+    )
     .get(fileId) as { stored_name: string } | undefined;
   if (!row) throw new HttpError(404, 'Không tìm thấy tệp');
-  const filePath = path.join(FILES_DIR, row.stored_name);
+  const filePath = storedFilePath(row.stored_name);
   if (!fs.existsSync(filePath)) throw new HttpError(404, 'Tệp không còn trên ổ đĩa');
 
   if (download) recordView(link, req, 'download');

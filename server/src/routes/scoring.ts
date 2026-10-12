@@ -46,6 +46,7 @@ import {
   saveScoringSettings,
   writeScore,
 } from '../lib/scoring.ts';
+import { isRealDate } from '../lib/dates.ts';
 
 const router = Router();
 
@@ -150,6 +151,26 @@ function assertDealScope(req: Request, dealId: number, action: 'read' | 'update'
   assertInScope(req, 'deals', action, row.owner_contact_id, 'Không tìm thấy cơ hội');
 }
 
+/*
+ * Moi route `/deals/:id/...` cua router nay di qua day TRUOC handler (1.37.0).
+ *
+ * Truoc day phan lon route chi kiem co hoi TON TAI (`assertDeal`), nen nhan vien
+ * phong khac doc va sua duoc diem, nhom quyet dinh, su kien, doi thu cua co hoi
+ * khong thuoc minh chi bang cach doan id. Doc → pham vi doc; ghi → pham vi sua;
+ * rieng quyet dinh / nhan xet la y kien cua nguoi ghi nen chi can thay co hoi
+ * (xem POST /deals/:id/decisions). Bat bien: server/src/test/recordAccess.test.ts.
+ */
+router.param('id', (req, _res, next, value) => {
+  try {
+    const dealId = intParam(String(value));
+    const readOnly = req.method === 'GET' || /\/decisions(\/|$)/.test(req.path);
+    assertDealScope(req, dealId, readOnly ? 'read' : 'update');
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 function criterionParam(value: string | undefined): AssessmentCriterion {
   if (!ASSESSMENT_CRITERIA.includes(value as AssessmentCriterion))
     throw new HttpError(400, 'Tiêu chí không hợp lệ');
@@ -185,11 +206,7 @@ router.post('/deals/:id/assessment/:criterion/confirm', (req, res) => {
 const decisionSchema = z.object({
   decision: z.enum(DEAL_DECISIONS),
   reason: z.string().max(4000).optional(),
-  review_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
+  review_date: z.string().refine(isRealDate, 'Ngày không hợp lệ').nullable().optional(),
   remind: z.boolean().optional(),
 });
 
@@ -490,7 +507,7 @@ const planSchema = z.object({
     .array(
       z.object({
         title: z.string().trim().min(1).max(120),
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        date: z.string().refine(isRealDate, 'Ngày không hợp lệ'),
       })
     )
     .min(1)

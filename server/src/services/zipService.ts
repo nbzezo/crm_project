@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Response } from 'express';
-import { FILES_DIR } from '../db/connection.ts';
+import { storedFilePath } from '../lib/storedFile.ts';
 
 export interface ZipDocument {
   file_name: string;
@@ -42,8 +42,38 @@ function safeUniqueName(original: string, used: Set<string>): string {
   return candidate;
 }
 
+/**
+ * Ghi mot khuc va CHO bo dem cua socket roi bot khi no day.
+ *
+ * Bo qua gia tri tra ve cua `res.write` thi voi client tai cham, Node giu ca 200 tep
+ * x 25 MB trong RAM — va vi doc tep dong bo, mot lan tai ZIP chan event loop cua
+ * MOI nguoi dung khac.
+ */
+async function writeChunk(res: Response, chunk: Buffer): Promise<void> {
+  if (res.destroyed || res.writableEnded) throw new Error('Kết nối tải ZIP đã đóng');
+  if (res.write(chunk)) return;
+  /* Socket co the dong ngay sau lan ghi tren — khi do 'close' da phat, cho mai khong toi. */
+  if (res.destroyed) throw new Error('Kết nối tải ZIP đã đóng');
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      res.off('drain', onDrain);
+      res.off('close', onClose);
+    };
+    const onDrain = () => {
+      cleanup();
+      resolve();
+    };
+    const onClose = () => {
+      cleanup();
+      reject(new Error('Kết nối tải ZIP đã đóng'));
+    };
+    res.on('drain', onDrain);
+    res.on('close', onClose);
+  });
+}
+
 /** Ghi ZIP theo che do store, tung tep mot, de khong giu toan bo goi ZIP trong bo nho. */
-export function sendDocumentsZip(res: Response, documents: ZipDocument[]): void {
+export async function sendDocumentsZip(res: Response, documents: ZipDocument[]): Promise<void> {
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', 'attachment; filename="tai-lieu.zip"');
 
@@ -52,9 +82,9 @@ export function sendDocumentsZip(res: Response, documents: ZipDocument[]): void 
   let offset = 0;
 
   for (const document of documents) {
-    const filePath = path.join(FILES_DIR, document.stored_name);
+    const filePath = storedFilePath(document.stored_name);
     if (!fs.existsSync(filePath)) continue;
-    const data = fs.readFileSync(filePath);
+    const data = await fs.promises.readFile(filePath);
     const name = Buffer.from(safeUniqueName(document.file_name, used), 'utf8');
     const checksum = crc32(data);
     const stamp = dosDateTime();
@@ -92,15 +122,15 @@ export function sendDocumentsZip(res: Response, documents: ZipDocument[]): void 
     directory.writeUInt32LE(offset, 42);
     central.push(Buffer.concat([directory, name]));
 
-    res.write(local);
-    res.write(name);
-    res.write(data);
+    await writeChunk(res, local);
+    await writeChunk(res, name);
+    await writeChunk(res, data);
     offset += local.length + name.length + data.length;
   }
 
   const centralOffset = offset;
   for (const entry of central) {
-    res.write(entry);
+    await writeChunk(res, entry);
     offset += entry.length;
   }
   const end = Buffer.alloc(22);

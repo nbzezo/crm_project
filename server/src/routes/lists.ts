@@ -7,6 +7,7 @@ import { kindOf, requireActiveStatus } from '../lib/taskStatuses.ts';
 import { setCardStatus } from '../services/cardService.ts';
 import { softDeleteDocumentsForCards } from '../services/documentService.ts';
 import { copyFlows } from '../services/taskFlowService.ts';
+import { assertBoardAccess, assertListAccess } from '../lib/recordAccess.ts';
 
 const router = Router();
 
@@ -29,10 +30,7 @@ router.post('/', (req, res) => {
     }),
     req
   );
-  required(
-    db.prepare(`SELECT id FROM boards WHERE id = ?`).get(body.board_id),
-    'Không tìm thấy bảng'
-  );
+  assertBoardAccess(req, body.board_id, 'update');
   if (body.status_mapping) requireActiveStatus(db, body.status_mapping);
   const position = nextPosition({ table: 'lists', scopeCol: 'board_id', scopeVal: body.board_id });
   const info = db
@@ -51,7 +49,7 @@ router.patch('/:id', (req, res) => {
     }),
     req
   );
-  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(id), 'Không tìm thấy danh sách');
+  assertListAccess(req, id, 'update');
   if (body.name !== undefined)
     db.prepare(`UPDATE lists SET name = ? WHERE id = ?`).run(body.name, id);
   if (body.is_collapsed !== undefined)
@@ -93,7 +91,7 @@ router.patch('/:id/sort', (req, res) => {
     z.object({ by: z.enum(['created_desc', 'created_asc', 'due', 'title', 'priority']) }),
     req
   );
-  required(db.prepare(`SELECT id FROM lists WHERE id = ?`).get(id), 'Không tìm thấy danh sách');
+  assertListAccess(req, id, 'update');
 
   const ORDER: Record<string, string> = {
     created_desc: 'created_at DESC, id DESC',
@@ -118,6 +116,7 @@ router.patch('/:id/sort', (req, res) => {
 router.post('/:id/copy', (req, res) => {
   const id = intParam(req.params.id);
   const body = parseBody(z.object({ name: z.string().trim().min(1).optional() }), req);
+  assertListAccess(req, id, 'update');
   const source = required(
     db.prepare(`SELECT * FROM lists WHERE id = ?`).get(id),
     'Không tìm thấy danh sách'
@@ -196,6 +195,7 @@ router.patch('/:id/move', (req, res) => {
     }),
     req
   );
+  assertListAccess(req, id, 'update');
   const list = required(
     db.prepare(`SELECT * FROM lists WHERE id = ?`).get(id),
     'Không tìm thấy danh sách'
@@ -217,6 +217,7 @@ router.patch('/:id/move', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = intParam(req.params.id);
+  assertListAccess(req, id, 'delete');
   db.transaction(() => {
     const cardIds = (
       db.prepare(`SELECT id FROM cards WHERE list_id = ?`).all(id) as { id: number }[]
