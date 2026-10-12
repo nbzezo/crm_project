@@ -56,7 +56,14 @@ async function createCustomer(name: string): Promise<number> {
 test('health check kiem tra ca ung dung va database', async () => {
   const response = await json('GET', '/api/health');
   assert.equal(response.status, 200);
-  assert.deepEqual(response.data, { ok: true, app: 'WorkFlow', database: 'ready' });
+  /* 1.38.0: kiem them schema da nang cap het va thu muc du lieu ghi duoc (healthcheck Docker). */
+  assert.deepEqual(response.data, {
+    ok: true,
+    app: 'WorkFlow',
+    database: 'ready',
+    schema: db.pragma('user_version', { simple: true }),
+    storage: 'writable',
+  });
 
   const missing = await json('GET', '/api/khong-ton-tai');
   assert.equal(missing.status, 404);

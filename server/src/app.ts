@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
-import { db } from './db/connection.ts';
+import { db, RUNTIME_DATA_DIR } from './db/connection.ts';
+import { LATEST_VERSION } from './db/migrate.ts';
 import { HttpError } from './lib/validate.ts';
 import { requireAuth } from './middleware/requireAuth.ts';
 import { attachCurrentUser, requirePermission, requireResource } from './middleware/currentUser.ts';
@@ -119,9 +120,26 @@ export function createApp(options: AppOptions = {}): Express {
     );
   }
 
+  /* Healthcheck cua container (docker-compose.yml). Ngoai doc duoc CSDL con kiem: schema dung
+     phien ban (migration chay xong) va thu muc du lieu ghi duoc (o dia day / volume chi doc
+     la loi thuong gap nhat ma "SELECT 1" khong phat hien). Khong lo duong dan hay chi tiet. */
   app.get('/api/health', (_req, res) => {
     db.prepare('SELECT 1').get();
-    res.json({ ok: true, app: 'WorkFlow', database: 'ready' });
+    const schema = db.pragma('user_version', { simple: true }) as number;
+    let writable = true;
+    try {
+      fs.accessSync(RUNTIME_DATA_DIR, fs.constants.W_OK);
+    } catch {
+      writable = false;
+    }
+    const ok = schema === LATEST_VERSION && writable;
+    res.status(ok ? 200 : 503).json({
+      ok,
+      app: 'WorkFlow',
+      database: 'ready',
+      schema,
+      storage: writable ? 'writable' : 'read-only',
+    });
   });
 
   /* Lien ket chia se cong khai: KHONG dang nhap, nen phai nam TRUOC requireAuth.
