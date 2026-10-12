@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.38.2',
+    date: '2026-10-12',
+    title: 'Lỗi AI hiện đúng nguyên nhân thay cho "Lỗi 502"',
+    changes: [
+      'Sửa lỗi: bấm "Tách nội dung bằng AI" (và các nút AI khác như tóm tắt, gợi ý, đánh giá) khi nhà cung cấp AI gặp sự cố trước đây chỉ hiện "Lỗi 502: máy chủ ứng dụng không phản hồi qua proxy"; nay hiện đúng nguyên nhân và cách xử lý (API key bị từ chối, model không còn, hết hạn mức, nhà cung cấp lỗi tạm thời, mất mạng, quá thời gian).',
+      'Sửa lỗi: API key của nhà cung cấp AI bị từ chối không còn làm bạn bị đăng xuất khỏi ứng dụng.',
+    ],
+  },
+  {
     version: '1.38.1',
     date: '2026-10-12',
     title: 'Đếm việc, Tổng quan, Báo cáo nhanh hơn; sửa lỗi phạm vi ở Tổng quan',

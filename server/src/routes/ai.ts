@@ -61,6 +61,7 @@ import {
   safeFilePath,
   searchDocumentChunks,
 } from '../services/ai/documentIndex.ts';
+import { describeAiError } from '../services/ai/describeError.ts';
 import { parseAiJson, runAi, runStructured } from '../services/ai/gateway.ts';
 import { assistCustomer } from '../services/ai/companyLookup.ts';
 import { buildFocus, canSeeTeam, focusScopeOf } from '../services/focusService.ts';
@@ -79,7 +80,7 @@ import {
   expiringItems,
   refreshSuggestions,
 } from '../services/customerCare.ts';
-import { AiProviderError, AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
+import { AI_PROVIDERS, type AiProviderName } from '../services/ai/types.ts';
 import {
   getVoiceModel,
   getVoicePromptTemplates,
@@ -135,24 +136,14 @@ function providerParam(value: string | undefined): AiProviderName {
   return value as AiProviderName;
 }
 
+/**
+ * Loi AI -> 424 kem nguyen nhan (describeAiError). Truoc day tra 502: proxy phia truoc
+ * nginx thay than 502 bang trang loi cua no, nguoi dung chi thay "Loi 502 ... proxy"
+ * du ung dung van chay; 401 cho loi key thi lam client dang xuat nguoi dung.
+ */
 function asHttpError(error: unknown): never {
   if (error instanceof HttpError) throw error;
-  if (error instanceof AiProviderError) {
-    const status =
-      error.code === 'not_configured' || /quota/.test(error.code)
-        ? 409
-        : error.status === 401 || error.status === 403
-          ? 401
-          : 502;
-    throw new HttpError(status, error.message, { code: error.code });
-  }
-  if (error instanceof z.ZodError) {
-    throw new HttpError(
-      502,
-      `Phản hồi AI không đúng cấu trúc: ${error.issues[0]?.message ?? 'không hợp lệ'}`
-    );
-  }
-  throw error;
+  throw describeAiError(error) ?? error;
 }
 
 function safeBaseUrl(value: string): string {

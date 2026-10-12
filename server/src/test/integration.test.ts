@@ -1292,8 +1292,14 @@ test('AI task goi y ngay, khach hang, co hoi, du an va nguoi phu trach tu ban nh
   assert.equal(contact.status, 201);
 
   let returnUnknownFields = false;
+  let providerDown = false;
   const mockProvider = createServer((request, response) => {
     response.setHeader('content-type', 'application/json');
+    if (providerDown && request.method === 'POST') {
+      response.statusCode = 500;
+      response.end(JSON.stringify({ error: { message: 'backend overloaded' } }));
+      return;
+    }
     if (request.method === 'GET' && request.url?.startsWith('/v1beta/models')) {
       response.end(
         JSON.stringify({
@@ -1405,6 +1411,17 @@ test('AI task goi y ngay, khach hang, co hoi, du an va nguoi phu trach tu ban nh
     assert.equal(ignored.project_id, null);
     assert.equal(ignored.assignee_contact_id, null);
     assert.ok(ignored.warnings.length >= 4);
+
+    /* Nha cung cap loi: KHONG tra 502 — proxy phia truoc thay than 502 bang trang
+       loi cua no va nguoi dung chi thay "Loi 502 ... proxy". Tra 424 kem nguyen nhan. */
+    providerDown = true;
+    const failed = await json('POST', '/api/ai/assist/task', {
+      draft: 'Làm hồ sơ thanh toán chi phí cho khách hàng',
+      context: { customer_id: customerId },
+    });
+    assert.equal(failed.status, 424);
+    assert.match(String(failed.data.error), /Nhà cung cấp AI đang lỗi tạm thời \(HTTP 500\)/);
+    assert.match(String(failed.data.error), /backend overloaded/);
   } finally {
     await new Promise<void>((resolve, reject) =>
       mockProvider.close((error) => (error ? reject(error) : resolve()))

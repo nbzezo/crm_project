@@ -18,7 +18,7 @@ export function describeAiError(error: unknown): HttpError | null {
     const first = error.issues[0];
     return new HttpError(
       424,
-      `AI trả về dữ liệu sai cấu trúc (${first?.path.join('.') || 'gốc'}: ${first?.message ?? 'không hợp lệ'}). Bấm "Đọc lại" để thử lần nữa; nếu lặp lại, đổi sang model khác trong Cài đặt → Trợ lý AI.`,
+      `AI trả về dữ liệu sai cấu trúc (${first?.path.join('.') || 'gốc'}: ${first?.message ?? 'không hợp lệ'}). Thử lại lần nữa; nếu lặp lại, đổi sang model khác trong Cài đặt → Trợ lý AI.`,
       { code: 'ai_bad_shape' }
     );
   }
@@ -38,11 +38,11 @@ export function describeAiError(error: unknown): HttpError | null {
         `${detail}. Tăng giới hạn trong Cài đặt → Trợ lý AI hoặc chờ sang ngày mới; trong lúc đó bạn nhập tay.`
       );
     case code === 'capability_missing':
-      return wrap(424, `${detail} Với hợp đồng scan/ảnh cần model đọc được tệp (Gemini, Claude…).`);
+      return wrap(424, `${detail} Với tệp scan/ảnh cần model đọc được tệp (Gemini, Claude…).`);
     case code === 'timeout':
       return wrap(
         424,
-        'AI không phản hồi trong 120 giây. Hợp đồng quá dài hoặc nhà cung cấp đang chậm — thử lại, hoặc cắt bớt trang rồi tải lại.'
+        'AI không phản hồi kịp thời hạn. Nhà cung cấp đang chậm hoặc nội dung quá dài — thử lại sau ít phút, hoặc rút gọn nội dung / cắt bớt trang tệp.'
       );
     case code === 'network_error':
       return wrap(
@@ -52,7 +52,7 @@ export function describeAiError(error: unknown): HttpError | null {
     case code === 'invalid_json':
       return wrap(
         424,
-        'AI trả về nội dung không phải JSON hợp lệ sau 2 lần thử. Bấm "Đọc lại", hoặc chọn model khác.'
+        'AI trả về nội dung không phải JSON hợp lệ sau 2 lần thử. Thử lại, hoặc chọn model khác trong Cài đặt → Trợ lý AI.'
       );
     case error.status === 401 || error.status === 403:
       return wrap(
