@@ -1,0 +1,22 @@
+/* Quay ve v72: bo cac trigger cham the cha va chi muc updated_at. Du lieu khong doi. */
+DROP TRIGGER IF EXISTS cards_touch_self;
+DROP TRIGGER IF EXISTS cards_touch_parent_insert;
+DROP TRIGGER IF EXISTS cards_touch_parent_update;
+DROP TRIGGER IF EXISTS cards_touch_parent_delete;
+DROP TRIGGER IF EXISTS checklist_touch_card_insert;
+DROP TRIGGER IF EXISTS checklist_touch_card_update;
+DROP TRIGGER IF EXISTS checklist_touch_card_delete;
+DROP TRIGGER IF EXISTS card_labels_touch_card_insert;
+DROP TRIGGER IF EXISTS card_labels_touch_card_delete;
+DROP TRIGGER IF EXISTS task_nudges_touch_card_insert;
+DROP TRIGGER IF EXISTS task_nudges_touch_card_delete;
+DROP TRIGGER IF EXISTS task_watchers_touch_card_insert;
+DROP TRIGGER IF EXISTS task_watchers_touch_card_delete;
+DROP TRIGGER IF EXISTS card_due_changes_touch_card;
+DROP TRIGGER IF EXISTS card_flows_touch_card_insert;
+DROP TRIGGER IF EXISTS card_flows_touch_card_update;
+DROP TRIGGER IF EXISTS card_flows_touch_card_delete;
+DROP TRIGGER IF EXISTS card_flow_steps_touch_card_insert;
+DROP TRIGGER IF EXISTS card_flow_steps_touch_card_update;
+DROP TRIGGER IF EXISTS card_flow_steps_touch_card_delete;
+DROP INDEX IF EXISTS idx_cards_updated;

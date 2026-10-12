@@ -978,3 +978,58 @@ test('v43, v44: co kich ban quay lui va chay duoc', () => {
   migrate(scratch);
   scratch.close();
 });
+
+test('v73: thay doi o bang con lam the "moi" (updated_at), quay lui duoc', () => {
+  const scratch = new Database(':memory:');
+  scratch.pragma('foreign_keys = ON');
+  migrate(scratch);
+  const board = Number(
+    scratch.prepare(`INSERT INTO boards (name) VALUES ('B')`).run().lastInsertRowid
+  );
+  const list = Number(
+    scratch.prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, 'L', 1)`).run(board)
+      .lastInsertRowid
+  );
+  const card = Number(
+    scratch.prepare(`INSERT INTO cards (list_id, title, position) VALUES (?, 'Cha', 1)`).run(list)
+      .lastInsertRowid
+  );
+  const OLD = '2000-01-01 00:00:00';
+  const reset = () =>
+    scratch.prepare(`UPDATE cards SET updated_at = ? WHERE id = ?`).run(OLD, card);
+  const touched = () =>
+    (
+      scratch.prepare(`SELECT updated_at FROM cards WHERE id = ?`).get(card) as {
+        updated_at: string;
+      }
+    ).updated_at !== OLD;
+
+  reset();
+  scratch
+    .prepare(`INSERT INTO checklist_items (card_id, content, position) VALUES (?, 'x', 1)`)
+    .run(card);
+  assert.ok(touched(), 'them muc checklist');
+
+  reset();
+  scratch
+    .prepare(`INSERT INTO cards (list_id, title, position, parent_id) VALUES (?, 'Con', 2, ?)`)
+    .run(list, card);
+  assert.ok(touched(), 'them viec con');
+
+  reset();
+  scratch.prepare(`UPDATE cards SET is_done = 1 WHERE parent_id = ?`).run(card);
+  assert.ok(touched(), 'viec con xong');
+
+  reset();
+  scratch.prepare(`UPDATE cards SET title = 'Doi ten' WHERE id = ?`).run(card);
+  assert.ok(touched(), 'UPDATE quen dat updated_at van lam the moi');
+
+  scratch.exec(fs.readFileSync(new URL('../db/migrate-v73-rollback.sql', import.meta.url), 'utf8'));
+  assert.equal(
+    scratch
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%touch%'`)
+      .get(),
+    undefined
+  );
+  scratch.close();
+});
