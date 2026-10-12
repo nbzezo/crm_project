@@ -94,6 +94,18 @@ function taskSelect(fields: 'full' | 'list'): string {
 const TASK_SELECT = taskSelect('full');
 const TASK_SELECT_LIST = taskSelect('list');
 
+/* Lich chi can cac cot dung de tao 7 truong card cong khai ben duoi. `list_id`,
+   `board_id`, `customer_id` va `assignee_contact_id` van nam trong SELECT vi
+   chung phuc vu JOIN/WHERE/pham vi; khong dua ra payload. */
+const CALENDAR_CARD_SELECT = `
+  SELECT k.id, k.title, k.due_date, k.priority, k.is_done,
+         k.list_id, b.id AS board_id, k.customer_id, k.assignee_contact_id,
+         b.name AS board_name, c.name AS customer_name
+    FROM cards k
+    JOIN lists l ON l.id = k.list_id
+    JOIN boards b ON b.id = l.board_id
+    LEFT JOIN customers c ON c.id = k.customer_id`;
+
 /** Cot phu canh bao cho co hoi (FR-PIP-04, FR-DSH-05, BR-06, BR-07). */
 const DEAL_ATTENTION_SELECT = `
   SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
@@ -586,7 +598,7 @@ router.get('/calendar', (req, res) => {
 
   const cards = db
     .prepare(
-      `${TASK_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.due_date IS NOT NULL
+      `${CALENDAR_CARD_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.due_date IS NOT NULL
         AND k.due_date BETWEEN ? AND ?
         AND (? IS NULL OR b.id = ?) AND (? IS NULL OR b.project_id = ?)${taskScope(req)}`
     )

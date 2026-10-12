@@ -93,7 +93,9 @@ function orgKindFilter(raw: unknown, alias = 'c'): { sql: string; params: unknow
 }
 
 const LIST_SQL = `
-  SELECT c.*,
+  SELECT c.id, c.name, c.short_name, c.tax_code, c.industry, c.address, c.website, c.phone,
+         c.email, c.size, c.source, c.status, c.notes, c.created_at, c.updated_at,
+         c.org_kind, c.owner_contact_id, c.care_tier, c.care_cadence_days,
          COALESCE(s.open_deal_count, 0) AS open_deal_count,
          COALESCE(s.deal_count, 0) AS deal_count,
          COALESCE(s.open_task_count, 0) AS open_task_count,
