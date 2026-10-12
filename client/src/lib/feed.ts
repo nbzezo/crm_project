@@ -19,6 +19,23 @@ export type FeedFilter =
   | 'events';
 export type LinkType = 'customer' | 'deal' | 'contract' | 'project' | 'card';
 
+/** Xem truoc link dan vao bai / binh luan (the Open Graph do may chu doc). */
+export interface LinkPreview {
+  url: string;
+  site: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+}
+
+/** Cung mau nhan link voi RichText: http(s) den het khoang trang, bo dau cau o cuoi. */
+export const URL_PATTERN = /https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g;
+
+/** Link dau tien trong van ban — link duoc xem truoc. */
+export function firstUrl(text: string): string | null {
+  return text.match(URL_PATTERN)?.[0] ?? null;
+}
+
 export interface NavGroup {
   id: number;
   kind: GroupKind;
@@ -289,6 +306,7 @@ export const feedKeys = {
     ['feed', 'posts', scope, filter, q] as const,
   post: (id: number) => ['feed', 'post', id] as const,
   comments: (postId: number) => ['feed', 'comments', postId] as const,
+  linkPreview: (url: string) => ['feed', 'link-preview', url] as const,
   files: (groupId: number) => ['feed', 'files', groupId] as const,
   members: (groupId: number) => ['feed', 'members', groupId] as const,
   events: (groupId?: number) => ['feed', 'events', groupId ?? 0] as const,
@@ -334,6 +352,7 @@ export const feedApi = {
     body: { title: string; assignee_contact_id?: number | null; due_date?: string | null }
   ) => api.post<{ card: { id: number }; post: FeedPost }>(`/api/feed/posts/${id}/task`, body),
   comments: (postId: number) => api.get<FeedComment[]>(`/api/feed/posts/${postId}/comments`),
+  linkPreview: (url: string) => api.get<LinkPreview | null>(`/api/feed/link-preview${qs({ url })}`),
   addComment: (
     postId: number,
     body: { body: string; parent_id?: number | null; mention_ids: number[] }

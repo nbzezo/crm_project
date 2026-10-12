@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -28,6 +28,7 @@ import {
   feedApi,
   feedKeys,
   fileSize,
+  firstUrl,
   formatEventTime,
   LINK_TYPE_LABEL,
   linkHref,
@@ -39,8 +40,10 @@ import {
 } from '../../lib/feed';
 import {
   Avatar,
+  DraftLinkPreview,
   FileTypeIcon,
   GroupIcon,
+  LinkPreviewCard,
   MentionTextarea,
   RichText,
   SourceBadge,
@@ -75,11 +78,12 @@ function usePatchPost() {
 export function PostCard({
   post,
   showGroup = true,
-  defaultCommentsOpen = false,
+  showAllComments = false,
 }: {
   post: FeedPost;
   showGroup?: boolean;
-  defaultCommentsOpen?: boolean;
+  /** Trang chi tiet bai: hien moi binh luan. Bang tin chi hien vai binh luan moi nhat. */
+  showAllComments?: boolean;
 }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
@@ -87,7 +91,7 @@ export function PostCard({
   const patch = usePatchPost();
   const menu = usePopover();
   const reactionMenu = usePopover();
-  const [commentsOpen, setCommentsOpen] = useState(defaultCommentsOpen);
+  const commentsRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.body);
@@ -132,6 +136,9 @@ export function PostCard({
   const files = post.attachments.filter((a) => !a.is_image);
   const myReaction = REACTIONS.find((r) => r.key === post.reactions.mine);
   const topReactions = REACTIONS.filter((r) => post.reactions.counts[r.key]).slice(0, 3);
+  const bodyUrl = firstUrl(post.body);
+  const focusComment = () =>
+    commentsRef.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
 
   const react = (reaction: Reaction | null) => act.mutate(() => feedApi.react(post.id, reaction));
 
@@ -330,6 +337,7 @@ export function PostCard({
           </div>
         )
       )}
+      {!editing && bodyUrl && images.length === 0 && <LinkPreviewCard url={bodyUrl} />}
 
       {post.event && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-panel border border-tr-border bg-tr-panel p-3">
@@ -561,122 +569,118 @@ export function PostCard({
         </div>
       )}
 
-      {(post.reactions.total > 0 || post.comment_count > 0) && (
-        <div className="mt-3 flex items-center justify-between gap-2 text-xs text-tr-subtle">
-          <span className="flex items-center gap-1">
-            {topReactions.length > 0 && (
-              <span aria-hidden="true">{topReactions.map((r) => r.glyph).join('')}</span>
-            )}
-            {post.reactions.total > 0 &&
-              reactionSummary(
-                post.reactions.recent_names,
-                post.reactions.total,
-                Boolean(post.reactions.mine)
-              )}
-          </span>
-          {post.comment_count > 0 && (
+      {post.status === 'published' && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-tr-border pt-1.5">
+          <div className="flex items-center gap-0.5">
+            <div className="flex">
+              <button
+                type="button"
+                aria-pressed={Boolean(post.reactions.mine)}
+                onClick={() => react(post.reactions.mine ? null : 'like')}
+                className={`${ACTION} rounded-r-none pr-1.5 ${
+                  post.reactions.mine ? 'text-tr-primary' : 'text-tr-subtle'
+                }`}
+              >
+                {myReaction && myReaction.key !== 'like' ? (
+                  <span aria-hidden="true">{myReaction.glyph}</span>
+                ) : (
+                  <ThumbsUp size={16} aria-hidden="true" />
+                )}
+                {myReaction?.label ?? 'Thích'}
+              </button>
+              <button
+                type="button"
+                aria-label="Chọn cảm xúc khác"
+                aria-haspopup="menu"
+                aria-expanded={reactionMenu.open}
+                onClick={reactionMenu.toggle}
+                className={`inline-flex min-h-9 items-center rounded-r-control px-1 text-tr-muted hover:bg-tr-hover ${focusRing}`}
+              >
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              <Popover
+                open={reactionMenu.open}
+                onClose={reactionMenu.close}
+                anchor={reactionMenu.anchor}
+                title="Cảm xúc"
+                width={260}
+              >
+                <div className="flex flex-wrap gap-1 py-1">
+                  {REACTIONS.map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      aria-label={r.label}
+                      title={r.label}
+                      aria-pressed={post.reactions.mine === r.key}
+                      onClick={() => {
+                        reactionMenu.close();
+                        react(post.reactions.mine === r.key ? null : r.key);
+                      }}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full text-xl hover:bg-tr-hover ${
+                        post.reactions.mine === r.key ? 'bg-tr-primary/10' : ''
+                      } ${focusRing}`}
+                    >
+                      <span aria-hidden="true">{r.glyph}</span>
+                    </button>
+                  ))}
+                </div>
+              </Popover>
+            </div>
+            <button type="button" onClick={focusComment} className={`${ACTION} text-tr-subtle`}>
+              <MessageCircle size={16} aria-hidden="true" /> Bình luận
+            </button>
             <button
               type="button"
-              onClick={() => setCommentsOpen((open) => !open)}
-              className={`hover:underline ${focusRing}`}
+              onClick={() => setTaskOpen(true)}
+              aria-label="Tạo công việc"
+              title="Tạo công việc từ bài"
+              className={`${ACTION} text-tr-subtle`}
             >
-              {post.comment_count} bình luận
+              <ListPlus size={16} aria-hidden="true" />
+              <span className="hidden sm:inline">Tạo công việc</span>
             </button>
+            <button
+              type="button"
+              aria-pressed={post.saved}
+              aria-label={post.saved ? 'Đã lưu' : 'Lưu'}
+              title={post.saved ? 'Bỏ lưu bài' : 'Lưu bài'}
+              onClick={() => act.mutate(() => feedApi.save(post.id, !post.saved))}
+              className={`${ACTION} ${post.saved ? 'text-tr-primary' : 'text-tr-subtle'}`}
+            >
+              {post.saved ? (
+                <BookmarkCheck size={16} aria-hidden="true" />
+              ) : (
+                <Bookmark size={16} aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">{post.saved ? 'Đã lưu' : 'Lưu'}</span>
+            </button>
+          </div>
+          {(post.reactions.total > 0 || post.comment_count > 0) && (
+            <div className="ml-auto flex items-center gap-2 text-xs text-tr-subtle">
+              {post.reactions.total > 0 && (
+                <span className="flex items-center gap-1">
+                  {topReactions.length > 0 && (
+                    <span aria-hidden="true">{topReactions.map((r) => r.glyph).join('')}</span>
+                  )}
+                  {reactionSummary(
+                    post.reactions.recent_names,
+                    post.reactions.total,
+                    Boolean(post.reactions.mine)
+                  )}
+                </span>
+              )}
+              {post.comment_count > 0 && <span>{post.comment_count} bình luận</span>}
+            </div>
           )}
         </div>
       )}
 
       {post.status === 'published' && (
-        <div className="mt-2 flex items-center gap-1 border-t border-tr-border pt-1.5">
-          <div className="flex flex-1">
-            <button
-              type="button"
-              aria-pressed={Boolean(post.reactions.mine)}
-              onClick={() => react(post.reactions.mine ? null : 'like')}
-              className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-l-control text-sm font-medium hover:bg-tr-hover ${
-                post.reactions.mine ? 'text-tr-primary' : 'text-tr-subtle'
-              } ${focusRing}`}
-            >
-              {myReaction && myReaction.key !== 'like' ? (
-                <span aria-hidden="true">{myReaction.glyph}</span>
-              ) : (
-                <ThumbsUp size={16} aria-hidden="true" />
-              )}
-              {myReaction?.label ?? 'Thích'}
-            </button>
-            <button
-              type="button"
-              aria-label="Chọn cảm xúc khác"
-              aria-haspopup="menu"
-              aria-expanded={reactionMenu.open}
-              onClick={reactionMenu.toggle}
-              className={`inline-flex min-h-10 items-center rounded-r-control px-1.5 text-tr-muted hover:bg-tr-hover ${focusRing}`}
-            >
-              <ChevronDown size={14} aria-hidden="true" />
-            </button>
-            <Popover
-              open={reactionMenu.open}
-              onClose={reactionMenu.close}
-              anchor={reactionMenu.anchor}
-              title="Cảm xúc"
-              width={260}
-            >
-              <div className="flex flex-wrap gap-1 py-1">
-                {REACTIONS.map((r) => (
-                  <button
-                    key={r.key}
-                    type="button"
-                    aria-label={r.label}
-                    title={r.label}
-                    aria-pressed={post.reactions.mine === r.key}
-                    onClick={() => {
-                      reactionMenu.close();
-                      react(post.reactions.mine === r.key ? null : r.key);
-                    }}
-                    className={`flex h-11 w-11 items-center justify-center rounded-full text-xl hover:bg-tr-hover ${
-                      post.reactions.mine === r.key ? 'bg-tr-primary/10' : ''
-                    } ${focusRing}`}
-                  >
-                    <span aria-hidden="true">{r.glyph}</span>
-                  </button>
-                ))}
-              </div>
-            </Popover>
-          </div>
-          <button
-            type="button"
-            aria-expanded={commentsOpen}
-            onClick={() => setCommentsOpen((open) => !open)}
-            className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-control text-sm font-medium text-tr-subtle hover:bg-tr-hover ${focusRing}`}
-          >
-            <MessageCircle size={16} aria-hidden="true" /> Bình luận
-          </button>
-          <button
-            type="button"
-            onClick={() => setTaskOpen(true)}
-            className={`hidden min-h-10 flex-1 items-center justify-center gap-1.5 rounded-control text-sm font-medium text-tr-subtle hover:bg-tr-hover sm:inline-flex ${focusRing}`}
-          >
-            <ListPlus size={16} aria-hidden="true" /> Tạo công việc
-          </button>
-          <button
-            type="button"
-            aria-pressed={post.saved}
-            onClick={() => act.mutate(() => feedApi.save(post.id, !post.saved))}
-            className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-control text-sm font-medium hover:bg-tr-hover ${
-              post.saved ? 'text-tr-primary' : 'text-tr-subtle'
-            } ${focusRing}`}
-          >
-            {post.saved ? (
-              <BookmarkCheck size={16} aria-hidden="true" />
-            ) : (
-              <Bookmark size={16} aria-hidden="true" />
-            )}
-            {post.saved ? 'Đã lưu' : 'Lưu'}
-          </button>
+        <div ref={commentsRef}>
+          <Comments post={post} showAll={showAllComments} />
         </div>
       )}
-
-      {commentsOpen && post.status === 'published' && <Comments post={post} />}
 
       <ConfirmDialog
         open={confirmDelete}
@@ -702,6 +706,9 @@ export function PostCard({
     </article>
   );
 }
+
+/** Nut thao tac duoi bai: rong theo noi dung, xep sat nhau ben trai (khong chia deu ca hang). */
+const ACTION = `inline-flex min-h-9 items-center gap-1.5 rounded-control px-2.5 text-sm font-medium hover:bg-tr-hover ${focusRing}`;
 
 function reactionSummary(names: string[], total: number, mine: boolean): string {
   if (total === 1 && mine) return 'Bạn';
@@ -774,15 +781,21 @@ function PollBlock({ post, onVote }: { post: FeedPost; onVote: (ids: number[]) =
   );
 }
 
-function Comments({ post }: { post: FeedPost }) {
+/** Bang tin chi hien chung nay binh luan goc moi nhat (kem tra loi); bam de xem het. */
+const PREVIEW_ROOTS = 2;
+
+function Comments({ post, showAll }: { post: FeedPost; showAll: boolean }) {
   const queryClient = useQueryClient();
   const pushToast = useUiStore((s) => s.pushToast);
   const [body, setBody] = useState('');
   const [mentionIds, setMentionIds] = useState<number[]>([]);
   const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
+  const [expanded, setExpanded] = useState(showAll);
   const comments = useQuery({
     queryKey: feedKeys.comments(post.id),
     queryFn: () => feedApi.comments(post.id),
+    /* Bai chua co binh luan: chi hien o nhap, khong goi may chu. */
+    enabled: post.comment_count > 0,
   });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: feedKeys.comments(post.id) });
@@ -824,6 +837,10 @@ function Comments({ post }: { post: FeedPost }) {
     else replies.set(c.parent_id, [c]);
   }
   const repliesOf = (id: number) => replies.get(id) ?? [];
+  const shownRoots = expanded ? roots : roots.slice(-PREVIEW_ROOTS);
+  const hiddenCount = roots
+    .slice(0, roots.length - shownRoots.length)
+    .reduce((sum, c) => sum + 1 + repliesOf(c.id).length, 0);
 
   const renderComment = (comment: FeedComment, nested = false) => (
     <li key={comment.id} className={nested ? 'mt-2' : ''}>
@@ -851,6 +868,7 @@ function Comments({ post }: { post: FeedPost }) {
               <RichText text={comment.body} />
             </div>
           </div>
+          {firstUrl(comment.body) && <LinkPreviewCard url={firstUrl(comment.body)!} compact />}
           <div className="mt-0.5 flex flex-wrap items-center gap-3 px-2 text-xs text-tr-subtle">
             <span>{relativeTime(comment.created_at)}</span>
             <button
@@ -904,7 +922,20 @@ function Comments({ post }: { post: FeedPost }) {
       {comments.isLoading ? (
         <p className="text-sm text-tr-muted">Đang tải bình luận…</p>
       ) : (
-        roots.length > 0 && <ul className="space-y-3">{roots.map((c) => renderComment(c))}</ul>
+        <>
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className={`text-sm font-semibold text-tr-subtle hover:underline ${focusRing}`}
+            >
+              Xem thêm {hiddenCount} bình luận
+            </button>
+          )}
+          {shownRoots.length > 0 && (
+            <ul className="space-y-3">{shownRoots.map((c) => renderComment(c))}</ul>
+          )}
+        </>
       )}
       <div className="space-y-1.5">
         {replyTo && (
@@ -931,6 +962,7 @@ function Comments({ post }: { post: FeedPost }) {
               placeholder="Viết bình luận… (Ctrl+Enter để gửi)"
               onSubmitShortcut={() => body.trim() && add.mutate()}
             />
+            <DraftLinkPreview text={body} compact />
           </div>
           <Button
             variant="primary"

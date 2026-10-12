@@ -18,6 +18,16 @@ export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.39.0',
+    date: '2026-10-12',
+    title: 'Bảng tin: bình luận hiện sẵn, nút gọn hơn, xem trước link',
+    changes: [
+      'Bình luận hiện sẵn dưới mỗi bài, không cần bấm mới xổ ra: Bảng tin hiện 2 bình luận mới nhất kèm nút "Xem thêm N bình luận"; trang chi tiết bài hiện tất cả. Ô viết bình luận luôn có sẵn.',
+      'Hàng nút Thích, Bình luận, Tạo công việc, Lưu xếp gọn sát nhau bên trái thay vì dàn đều cả chiều ngang; số lượt cảm xúc và số bình luận nằm cùng hàng bên phải. Bấm "Bình luận" đưa con trỏ vào ô viết bình luận. Trên điện thoại, Tạo công việc và Lưu chỉ hiện biểu tượng.',
+      'Dán link vào bài viết hoặc bình luận nay có thẻ xem trước (tên trang, tiêu đề, mô tả, ảnh), cả khi đang soạn lẫn sau khi đăng. Khi đang soạn có thể bấm × để ẩn thẻ xem trước. Bài có ảnh đính kèm thì không hiện thẻ xem trước link.',
+    ],
+  },
+  {
     version: '1.38.2',
     date: '2026-10-12',
     title: 'Lỗi AI hiện đúng nguyên nhân thay cho "Lỗi 502"',

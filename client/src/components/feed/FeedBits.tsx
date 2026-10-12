@@ -1,9 +1,13 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { X } from 'lucide-react';
 import { contrastInk } from '../../lib/format';
 import {
   colorFor,
   feedApi,
+  feedKeys,
   fileBadge,
+  firstUrl,
   initials,
   SOURCE_LABEL,
   type PostAttachment,
@@ -132,6 +136,106 @@ export function RichText({ text }: { text: string }) {
   }
   if (last < text.length) parts.push(text.slice(last));
   return <>{parts}</>;
+}
+
+/**
+ * The xem truoc link (tieu de, mo ta, anh) — may chu doc the Open Graph. Trang khong
+ * xem truoc duoc thi khong hien gi, link van bam duoc trong van ban.
+ */
+export function LinkPreviewCard({
+  url,
+  compact = false,
+  onDismiss,
+}: {
+  url: string;
+  compact?: boolean;
+  onDismiss?: () => void;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const preview = useQuery({
+    queryKey: feedKeys.linkPreview(url),
+    queryFn: () => feedApi.linkPreview(url),
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+  const data = preview.data;
+  if (preview.isLoading) {
+    return (
+      <div
+        className={`mt-2 h-16 animate-pulse rounded-panel border border-tr-border bg-tr-surface ${
+          compact ? 'max-w-sm' : ''
+        }`}
+        aria-label="Đang tải xem trước link"
+      />
+    );
+  }
+  if (!data) return null;
+  const showImage = Boolean(data.image) && !imageFailed;
+  return (
+    <div
+      className={`relative mt-2 flex overflow-hidden rounded-panel border border-tr-border bg-tr-panel ${
+        compact ? 'max-w-sm' : ''
+      }`}
+    >
+      <a
+        href={data.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`flex min-w-0 flex-1 hover:bg-tr-hover ${focusRing}`}
+      >
+        {showImage && (
+          <img
+            src={data.image!}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={() => setImageFailed(true)}
+            className={`shrink-0 bg-tr-surface object-cover ${
+              compact ? 'h-16 w-16' : 'h-24 w-24 sm:h-28 sm:w-40'
+            }`}
+          />
+        )}
+        <span className="min-w-0 flex-1 px-3 py-2">
+          <span className="block truncate text-[11px] tracking-wide text-tr-subtle uppercase">
+            {data.site}
+          </span>
+          {data.title && (
+            <span className="line-clamp-2 text-sm font-semibold text-tr-text">{data.title}</span>
+          )}
+          {data.description && !compact && (
+            <span className="mt-0.5 line-clamp-2 text-xs text-tr-subtle">{data.description}</span>
+          )}
+        </span>
+      </a>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Bỏ xem trước link"
+          title="Bỏ xem trước"
+          className={`absolute top-1 right-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-tr-card/90 text-tr-muted hover:text-tr-text ${focusRing}`}
+        >
+          <X size={14} aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Xem truoc link trong o dang soan: doi nguoi dung ngung go mot chut moi tai (khong goi
+ * may chu theo tung phim khi go tay link), co nut bo xem truoc cho link dang hien.
+ */
+export function DraftLinkPreview({ text, compact }: { text: string; compact?: boolean }) {
+  const url = firstUrl(text);
+  const [settled, setSettled] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettled(url), 600);
+    return () => window.clearTimeout(timer);
+  }, [url]);
+  if (!url || settled !== url || dismissed === url) return null;
+  return <LinkPreviewCard url={url} compact={compact} onDismiss={() => setDismissed(url)} />;
 }
 
 interface Candidate {

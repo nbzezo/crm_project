@@ -42,6 +42,7 @@ import {
   notifyPostPublished,
   NOTIFY_LEVEL_SQL,
 } from '../services/feedNotify.ts';
+import { getLinkPreview } from '../services/linkPreview.ts';
 import { storedFilePath } from '../lib/storedFile.ts';
 import { isRealDate } from '../lib/dates.ts';
 
@@ -1550,6 +1551,14 @@ router.get('/people', (req, res) => {
     )
     .all() as { id: number; name: string; unit: string | null }[];
   res.json(rows.filter((row) => !q || fold(row.name).includes(q)).slice(0, 30));
+});
+
+/** Xem truoc link dan vao bai / binh luan (tieu de, mo ta, anh) — chan dia chi noi bo. */
+router.get('/link-preview', async (req, res) => {
+  const url = String(req.query.url ?? '');
+  if (!url || url.length > 2000) throw new HttpError(400, 'Đường dẫn không hợp lệ');
+  res.set('Cache-Control', 'private, max-age=3600');
+  res.json(await getLinkPreview(url));
 });
 
 /** Tim ban ghi CRM de gan vao bai — chi trong pham vi nguoi dang. */

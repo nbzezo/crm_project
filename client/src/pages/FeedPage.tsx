@@ -390,7 +390,7 @@ function SinglePost({ postId }: { postId: number }) {
       >
         ← {post.data.group.name}
       </Link>
-      <PostCard post={post.data} defaultCommentsOpen />
+      <PostCard post={post.data} showAllComments />
     </div>
   );
 }

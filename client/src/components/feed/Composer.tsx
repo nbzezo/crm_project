@@ -25,7 +25,7 @@ import {
   type PostKind,
 } from '../../lib/feed';
 import { AttachPicker, type PickedAttachment } from './AttachPicker';
-import { Avatar, FileTypeIcon, MentionTextarea, SourceBadge } from './FeedBits';
+import { Avatar, DraftLinkPreview, FileTypeIcon, MentionTextarea, SourceBadge } from './FeedBits';
 
 const KIND_LABEL: Record<PostKind, string> = {
   post: 'Bài viết',
@@ -345,6 +345,7 @@ export function Composer({
                 : 'Bạn muốn chia sẻ gì? Gõ @ để nhắc tên đồng nghiệp…'
         }
       />
+      <DraftLinkPreview text={body} />
 
       {kind === 'announcement' && (
         <label className="flex items-center gap-2 text-sm text-tr-text">
