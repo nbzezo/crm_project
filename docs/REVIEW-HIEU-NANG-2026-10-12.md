@@ -160,3 +160,21 @@ viên có phạm vi hẹp làm con số này nhỏ hơn nhiều.
 
 Bước tiếp theo nếu cần thêm: đưa Tổng quan / đếm việc sang bảng số liệu tính trước (cùng cơ chế
 `stats_dirty` của lớp A), và cân nhắc nhiều tiến trình đọc khi số người dùng vượt ~100.
+
+## 7. Đợt 1.38.1 — chỉ mục và truy vấn tổng hợp (migration v75)
+
+Đo bằng `server/scripts/db-profile.mjs` (thời gian từng câu SQL của mỗi API, chỉ mục thừa, dung lượng,
+chi phí ghi) trên CSDL thử 1x giữ lại bằng `BENCH_KEEP=1`. Đối chiếu kết quả trước/sau bằng
+`server/scripts/db-compare.mjs`: mọi API giống hệt, trừ thứ tự các việc cùng hạn ở Tổng quan (trước đây
+không xác định, nay cố định theo mã việc).
+
+- Ghi đã rẻ (8–12 câu, dưới 10 ms gồm trigger v73/v74) — không cần làm gì.
+- v75: chỉ mục một phần phủ cho việc mở `idx_cards_open_due`, việc xong theo `completed_at`
+  `idx_cards_done_completed`; bỏ 6 chỉ mục trùng/tiền tố. `idx_calendar_events_remind` giữ (chỉ mục một phần).
+- Bỏ bọc `substr()/date()` khi so ngày với hằng; tách tổng hợp mở/xong để dùng chỉ mục một phần.
+- SQL thuần (1 lần gọi): đếm việc 151 → ~82 ms, Báo cáo 472 → ~265–311 ms, danh sách "cần nhắc" 772 → 338 ms.
+  Tải 20 người: đếm việc p50 3,3 → 1,8 s; event loop chặn lâu nhất 9,3 → 5,8 s.
+- Phát hiện kèm: bốn danh sách việc của Tổng quan thiếu lọc phạm vi (đã sửa + test trong `dataScope.test.ts`).
+- Đã thử, không áp dụng: `ANALYZE`/`PRAGMA optimize` (kết quả lẫn lộn: bảng việc nhanh, tìm kiếm chậm đi);
+  đổi `period LIKE` của doanh thu (chỉ ~4 ms — chi phí doanh thu nằm ở ghép ô tháng và 30 MB phản hồi, cần lớp B).
+- Còn lại: Tổng quan vẫn ~220 ms vì ~25 câu (phần lớn là cơ hội) — ứng viên tiếp theo cho số liệu tính sẵn.

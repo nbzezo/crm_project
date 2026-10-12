@@ -18,6 +18,17 @@ export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.38.1',
+    date: '2026-10-12',
+    title: 'Đếm việc, Tổng quan, Báo cáo nhanh hơn; sửa lỗi phạm vi ở Tổng quan',
+    changes: [
+      'Sửa lỗi: bốn danh sách việc ở Tổng quan (Quá hạn, Hôm nay, Ngày mai, 7 ngày tới) trước đây hiện cả việc của người ngoài phạm vi được xem; nay chỉ hiện việc bạn được phép xem, khớp với con số đếm bên cạnh.',
+      'Việc có hạn kèm giờ trong ngày hôm nay (ví dụ 14:00) nay được tính và hiện đúng trong nhóm "Hôm nay" / "Ngày mai" của Tổng quan.',
+      'Đếm việc ở màn Công việc, số liệu Tổng quan, Báo cáo theo người phụ trách và Trọng tâm nhóm đọc dữ liệu qua chỉ mục riêng cho việc đang mở và việc đã xong, không còn quét toàn bộ lịch sử việc. Khi 20 người dùng cùng lúc, đếm việc từ khoảng 3,3 giây còn 1,8 giây.',
+      'Bỏ 6 chỉ mục trùng lặp trong cơ sở dữ liệu để thao tác ghi nhẹ hơn.',
+    ],
+  },
+  {
     version: '1.38.0',
     date: '2026-10-12',
     title: 'Chịu tải tốt hơn nhiều khi đông người dùng',

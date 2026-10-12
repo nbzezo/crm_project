@@ -1223,47 +1223,23 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
   /* ---------- Tai nhom ---------- */
   const workload =
     scope.mode === 'team'
-      ? (() => {
-          const open: Row[] = db
-            .prepare(
-              `SELECT k.assignee_contact_id, ac.full_name AS assignee_name,
-                      SUM(k.due_date >= @from AND k.due_date < date(@to, '+1 day')) AS open_count,
-                      SUM(k.due_date < @today) AS overdue_count,
-                      SUM(CASE WHEN k.due_date >= @from AND k.due_date < date(@to, '+1 day')
-                               THEN COALESCE(k.estimate_hours, ${WORK_HOURS.defaultTaskHours}) ELSE 0 END) AS estimate_hours
-                 ${TASK_FROM} AND k.is_done = 0 AND k.due_date IS NOT NULL${tasks}
-                GROUP BY k.assignee_contact_id`
-            )
-            .all({ from, to, today }) as Row[];
-          const done: Row[] = db
-            .prepare(
-              `SELECT k.assignee_contact_id, COUNT(*) AS done_count
-                 ${TASK_FROM} AND k.is_done = 1
-                   AND k.completed_at >= @from AND k.completed_at < date(@to, '+1 day')${tasks}
-                GROUP BY k.assignee_contact_id`
-            )
-            .all({ from, to }) as Row[];
-          const doneByAssignee = new Map(
-            done.map((row) => [row.assignee_contact_id, Number(row.done_count)])
-          );
-          return open
-            .map((row) => ({
-              ...row,
-              done_count: doneByAssignee.get(row.assignee_contact_id) ?? 0,
-            }))
-            .filter(
-              (row: Row) =>
-                Number(row.open_count) > 0 ||
-                Number(row.overdue_count) > 0 ||
-                Number(row.done_count) > 0
-            )
-            .sort(
-              (a: Row, b: Row) =>
-                Number(b.overdue_count) - Number(a.overdue_count) ||
-                Number(b.open_count) - Number(a.open_count)
-            )
-            .slice(0, 20) as FocusData['workload'];
-        })()
+      ? (db
+          .prepare(
+            /* Mot lan quet, giu nguyen dieu kien `k.due_date IS NOT NULL` cho CA viec xong
+               (done_count chi dem viec co han) va nguoi chi co viec xong van hien. */
+            `SELECT k.assignee_contact_id, ac.full_name AS assignee_name,
+                    SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN @from AND @to THEN 1 ELSE 0 END) AS open_count,
+                    SUM(CASE WHEN k.is_done = 0 AND k.due_date < @today THEN 1 ELSE 0 END) AS overdue_count,
+                    SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN @from AND @to
+                             THEN COALESCE(k.estimate_hours, ${WORK_HOURS.defaultTaskHours}) ELSE 0 END) AS estimate_hours,
+                    SUM(CASE WHEN k.is_done = 1 AND k.completed_at >= @from
+                              AND k.completed_at < date(@to, '+1 day') THEN 1 ELSE 0 END) AS done_count
+               ${TASK_FROM} AND k.due_date IS NOT NULL${tasks}
+              GROUP BY k.assignee_contact_id
+             HAVING open_count > 0 OR overdue_count > 0 OR done_count > 0
+              ORDER BY overdue_count DESC, open_count DESC LIMIT 20`
+          )
+          .all({ from, to, today }) as FocusData['workload'])
       : [];
 
   /* ---------- Tong hop ---------- */

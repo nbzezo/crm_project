@@ -636,6 +636,45 @@ test('Bao cao: cong viec va co hoi deu loc theo pham vi', async () => {
   assert.equal(adminProjects.by_project.find((row) => row.id === projectId)?.overdue_count, 1);
 });
 
+test('Tong quan: danh sach viec qua han / hom nay loc theo pham vi nhu so dem', async () => {
+  /* Truoc 1.38.1 bon danh sach viec cua Tong quan khong loc pham vi: N1 thay ten viec cua N2
+     (phong khac) trong khi con so dem ben canh da dung. Viec 'Viec du an N2' (qua han, tren
+     bang cua N2) tao o test truoc; them mot viec han HOM NAY co gio cho N2. */
+  const boardId = (
+    db.prepare(`SELECT id FROM boards WHERE name = 'Bảng dự án N2'`).get() as {
+      id: number;
+    }
+  ).id;
+  const listId = (
+    db.prepare(`SELECT id FROM lists WHERE board_id = ?`).get(boardId) as { id: number }
+  ).id;
+  db.prepare(
+    `INSERT INTO cards (list_id, title, position, assignee_contact_id, due_date)
+     VALUES (?, 'Viec hom nay N2', 2048, ?, date('now','localtime') || ' 08:00')`
+  ).run(listId, n2.contactId);
+
+  type Dash = {
+    tasks: Record<'overdue' | 'today' | 'tomorrow' | 'next7', { title: string }[]>;
+  };
+  const titles = (body: Dash) =>
+    Object.values(body.tasks)
+      .flat()
+      .map((task) => task.title);
+
+  await signInAs(n1);
+  const staff = titles((await call('GET', '/api/views/dashboard')).data as Dash);
+  assert.ok(!staff.includes('Viec du an N2'), 'N1 khong thay viec qua han cua N2');
+  assert.ok(!staff.includes('Viec hom nay N2'), 'N1 khong thay viec hom nay cua N2');
+
+  await signInAs(n2);
+  const own = (await call('GET', '/api/views/dashboard')).data as Dash;
+  assert.ok(own.tasks.overdue.some((task) => task.title === 'Viec du an N2'));
+  assert.ok(
+    own.tasks.today.some((task) => task.title === 'Viec hom nay N2'),
+    'han hom nay co gio van nam trong danh sach Hom nay'
+  );
+});
+
 test('Hieu suat: nhan vien thay minh, truong phong thay ca phong, khong thay phong khac', async () => {
   /* Mot viec da xong dung han giao cho N2, nam tren bang cua N1 — dem theo NGUOI
      chu khong theo bang, nen no phai tinh cho N2 du bang thuoc ve ai. */

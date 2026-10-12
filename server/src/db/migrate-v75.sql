@@ -11,10 +11,10 @@
       phai cap nhat ma khong truy van nao can toi). idx_calendar_events_remind giu lai:
       no la chi muc mot phan, khong thua. */
 CREATE INDEX IF NOT EXISTS idx_cards_open_due
-  ON cards(due_date, list_id, assignee_contact_id, priority, status, parent_id)
+  ON cards(due_date, list_id, assignee_contact_id, creator_contact_id, priority, status, parent_id)
   WHERE is_done = 0 AND is_archived = 0;
 CREATE INDEX IF NOT EXISTS idx_cards_done_completed
-  ON cards(completed_at) WHERE is_done = 1;
+  ON cards(completed_at, list_id, assignee_contact_id, is_archived) WHERE is_done = 1;
 
 -- = idx_deals_project_unique(project_id) WHERE project_id IS NOT NULL (moi so sanh "=" deu dung duoc)
 DROP INDEX IF EXISTS idx_deals_project;

@@ -1009,31 +1009,37 @@ router.get('/dashboard', cacheResponse, (req, res) => {
     )
     .all() as { days_left: number }[];
 
+  /* Bon danh sach viec cua Tong quan. Truoc 1.38.1 thieu `taskScope` — nhan vien thay ten
+     viec cua ca cong ty o day du con so dem ben canh da dung pham vi. Moc ngay so theo
+     khoang (`>= ngay AND < ngay sau`) de khop voi so dem va nhan ca han co gio. */
+  const scopedOpen = `b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0${taskScope(req)}`;
   const tasksByBucket = {
     overdue: db
       .prepare(
-        `${TASK_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
+        `${TASK_SELECT} WHERE ${scopedOpen}
             AND k.due_date IS NOT NULL AND k.due_date < date('now','localtime')
-          ORDER BY k.due_date LIMIT 10`
+          ORDER BY k.due_date, k.id LIMIT 10`
       )
       .all(),
     today: db
       .prepare(
-        `${TASK_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
-            AND k.due_date = date('now','localtime') ORDER BY k.priority LIMIT 10`
+        `${TASK_SELECT} WHERE ${scopedOpen}
+            AND k.due_date >= date('now','localtime') AND k.due_date < date('now','localtime','+1 day')
+          ORDER BY k.priority, k.id LIMIT 10`
       )
       .all(),
     tomorrow: db
       .prepare(
-        `${TASK_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
-            AND k.due_date = date('now','localtime','+1 day') LIMIT 10`
+        `${TASK_SELECT} WHERE ${scopedOpen}
+            AND k.due_date >= date('now','localtime','+1 day') AND k.due_date < date('now','localtime','+2 days')
+          ORDER BY k.id LIMIT 10`
       )
       .all(),
     next7: db
       .prepare(
-        `${TASK_SELECT} WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
-            AND k.due_date BETWEEN date('now','localtime','+2 days') AND date('now','localtime','+7 days')
-          ORDER BY k.due_date LIMIT 10`
+        `${TASK_SELECT} WHERE ${scopedOpen}
+            AND k.due_date >= date('now','localtime','+2 days') AND k.due_date < date('now','localtime','+8 days')
+          ORDER BY k.due_date, k.id LIMIT 10`
       )
       .all(),
   };
@@ -1428,34 +1434,76 @@ router.get('/reports', cacheResponse, (req, res) => {
    * de biet con so gio la day du hay chi la mot phan, thay vi trinh bay mot tong
    * sai la mot tong that.
    */
-  const by_assignee = db
-    .prepare(
-      `SELECT k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name, (ac.id = ?) AS is_me,
-              ao.name AS org_name, ao.org_kind,
-              SUM(CASE WHEN k.is_done = 1 AND k.completed_at IS NOT NULL
-                        AND k.completed_at >= ? AND k.completed_at < date(?, '+1 day') THEN 1 ELSE 0 END) AS completed,
-              SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count,
-              SUM(CASE WHEN k.is_done = 0 AND k.due_date IS NOT NULL
-                        AND k.due_date < date('now','localtime') THEN 1 ELSE 0 END) AS overdue_count,
-              SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN date('now','localtime')
-                                                            AND date('now','localtime','+7 days')
-                       THEN 1 ELSE 0 END) AS due_week_count,
-              COALESCE(SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN date('now','localtime')
-                                                                     AND date('now','localtime','+7 days')
-                                THEN k.estimate_hours ELSE 0 END), 0) AS week_hours,
-              SUM(CASE WHEN k.is_done = 0 AND k.estimate_hours IS NOT NULL THEN 1 ELSE 0 END)
-                AS estimated_count
-         FROM cards k
+  /* Hai lan doc thay vi mot lan quet ca lich su viec (1.38.1): viec DANG MO di chi muc mot
+     phan idx_cards_open_due, viec XONG TRONG KY di idx_cards_done_completed theo khoang
+     completed_at. Ket qua giong het cau cu (mot dong moi nguoi co viec mo hoac xong trong ky). */
+  type AssigneeRow = {
+    contact_id: number | null;
+    assignee_name: string | null;
+    is_me: number | null;
+    org_name: string | null;
+    org_kind: string | null;
+    completed: number;
+    open_count: number;
+    overdue_count: number;
+    due_week_count: number;
+    week_hours: number;
+    estimated_count: number;
+  };
+  const assigneeColumns = `k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name,
+              (ac.id = @me) AS is_me, ao.name AS org_name, ao.org_kind`;
+  const assigneeFrom = `FROM cards k
          JOIN lists l ON l.id = k.list_id
          JOIN boards b ON b.id = l.board_id
          LEFT JOIN contacts ac ON ac.id = k.assignee_contact_id
-         LEFT JOIN customers ao ON ao.id = k.assignee_org_id
-        WHERE k.is_archived = 0 AND b.is_archived = 0${taskScope(req)}
-        GROUP BY k.assignee_contact_id
-       HAVING completed > 0 OR open_count > 0
-        ORDER BY overdue_count DESC, open_count DESC`
+         LEFT JOIN customers ao ON ao.id = k.assignee_org_id`;
+  const openByAssignee = db
+    .prepare(
+      `SELECT ${assigneeColumns},
+              0 AS completed,
+              COUNT(*) AS open_count,
+              SUM(CASE WHEN k.due_date IS NOT NULL
+                        AND k.due_date < date('now','localtime') THEN 1 ELSE 0 END) AS overdue_count,
+              SUM(CASE WHEN k.due_date BETWEEN date('now','localtime')
+                                           AND date('now','localtime','+7 days')
+                       THEN 1 ELSE 0 END) AS due_week_count,
+              COALESCE(SUM(CASE WHEN k.due_date BETWEEN date('now','localtime')
+                                                    AND date('now','localtime','+7 days')
+                                THEN k.estimate_hours ELSE 0 END), 0) AS week_hours,
+              SUM(CASE WHEN k.estimate_hours IS NOT NULL THEN 1 ELSE 0 END) AS estimated_count
+         ${assigneeFrom}
+        WHERE k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0${taskScope(req)}
+        GROUP BY k.assignee_contact_id`
     )
-    .all(actorContactId(req), from, to);
+    .all({ me: actorContactId(req) }) as AssigneeRow[];
+  const doneByAssignee = db
+    .prepare(
+      `SELECT ${assigneeColumns}, COUNT(*) AS completed
+         ${assigneeFrom}
+        WHERE k.is_done = 1 AND k.is_archived = 0 AND b.is_archived = 0
+          AND k.completed_at >= @from AND k.completed_at < date(@to, '+1 day')${taskScope(req)}
+        GROUP BY k.assignee_contact_id`
+    )
+    .all({ me: actorContactId(req), from, to }) as AssigneeRow[];
+  const assigneeRows = new Map<number | null, AssigneeRow>(
+    openByAssignee.map((row) => [row.contact_id, row])
+  );
+  for (const row of doneByAssignee) {
+    const open = assigneeRows.get(row.contact_id);
+    if (open) open.completed = row.completed;
+    else
+      assigneeRows.set(row.contact_id, {
+        ...row,
+        open_count: 0,
+        overdue_count: 0,
+        due_week_count: 0,
+        week_hours: 0,
+        estimated_count: 0,
+      });
+  }
+  const by_assignee = [...assigneeRows.values()].sort(
+    (a, b) => b.overdue_count - a.overdue_count || b.open_count - a.open_count
+  );
 
   /**
    * Tien do theo DU AN — cho ban bao cao rut gon cua nhom Du an. Chi gom viec tren
