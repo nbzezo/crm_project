@@ -359,4 +359,6 @@ if (users > 0) {
 
 server.close();
 closeDatabase();
-fs.rmSync(dataDir, { recursive: true, force: true });
+/* BENCH_KEEP=1: giu CSDL thu de phan tich tiep (in duong dan). */
+if (process.env.BENCH_KEEP) console.log(`Giu CSDL thu: ${process.env.WORKFLOW_DB_PATH}`);
+else fs.rmSync(dataDir, { recursive: true, force: true });

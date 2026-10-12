@@ -1033,3 +1033,57 @@ test('v73: thay doi o bang con lam the "moi" (updated_at), quay lui duoc', () =>
   );
   scratch.close();
 });
+
+test('v75: chi muc viec mo phu du cot dem, bo chi muc thua, va quay lui duoc', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  migrate(db, 74);
+  migrate(db);
+  const indexNames = () =>
+    new Set(
+      (
+        db.prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`).all() as {
+          name: string;
+        }[]
+      ).map((row) => row.name)
+    );
+  const dropped = [
+    'idx_deals_project',
+    'idx_contracts_project',
+    'idx_ai_chunks_document',
+    'idx_boards_project',
+    'idx_meeting_note_attendees_note',
+    'idx_qnr_note',
+  ];
+  let names = indexNames();
+  for (const name of dropped) assert.equal(names.has(name), false, `${name} da bo`);
+  for (const name of ['idx_cards_open_due', 'idx_cards_done_completed', 'idx_deals_project_unique'])
+    assert.ok(names.has(name), name);
+
+  /* Dem viec mo qua han / theo do uu tien phai di bang chi muc mot phan, khong quet bang. */
+  const plan = (sql: string) =>
+    (db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all() as { detail: string }[])
+      .map((row) => row.detail)
+      .join(' | ');
+  assert.match(
+    plan(
+      `SELECT COUNT(*) FROM cards k WHERE k.is_done = 0 AND k.is_archived = 0 AND k.due_date < date('now','localtime')`
+    ),
+    /COVERING INDEX idx_cards_open_due/
+  );
+  assert.match(
+    plan(
+      `SELECT k.priority, COUNT(*) FROM cards k JOIN lists l ON l.id = k.list_id JOIN boards b ON b.id = l.board_id
+        WHERE k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0 GROUP BY k.priority`
+    ),
+    /COVERING INDEX idx_cards_open_due/
+  );
+  /* Chi muc UNIQUE mot phan van phuc vu tra cuu co hoi theo du an. */
+  assert.match(plan(`SELECT id FROM deals WHERE project_id = 1`), /idx_deals_project_unique/);
+
+  db.exec(fs.readFileSync(new URL('../db/migrate-v75-rollback.sql', import.meta.url), 'utf8'));
+  names = indexNames();
+  for (const name of dropped) assert.ok(names.has(name), `${name} tao lai`);
+  assert.equal(names.has('idx_cards_open_due'), false);
+  assert.equal(names.has('idx_cards_done_completed'), false);
+});
