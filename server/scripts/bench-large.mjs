@@ -218,6 +218,9 @@ db.prepare = (sql) => {
 };
 
 const server = createApp({ auth: false }).listen(0);
+/* Nginx mo ket noi moi toi app cho moi request; client ao o day dung lai ket noi keep-alive,
+   ma may chu dong sau 5 s im lang — luc may chu ban lau, client ao bao "fetch failed" gia. */
+server.keepAliveTimeout = 120_000;
 await new Promise((resolve) => server.once('listening', resolve));
 const base = `http://127.0.0.1:${server.address().port}/api`;
 const endpoints = [

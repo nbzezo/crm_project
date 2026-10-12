@@ -18,6 +18,21 @@ export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.38.0',
+    date: '2026-10-12',
+    title: 'Chịu tải tốt hơn nhiều khi đông người dùng',
+    changes: [
+      'Màn Công việc chỉ tải phần đã thay đổi kể từ lần trước thay vì tải lại toàn bộ danh sách sau mỗi thao tác; danh sách cũng gọn hơn (bỏ phần mô tả dài, mở việc mới tải). Ở dữ liệu lớn, mỗi lần cập nhật từ hàng chục MB xuống vài KB.',
+      'Pipeline dạng bảng tải 100 cơ hội đầu mỗi cột kèm nút "Tải thêm"; số lượng và tổng tiền mỗi cột vẫn tính trên toàn bộ. Khi lọc theo nhãn hoặc xem dạng danh sách vẫn tải đầy đủ như trước.',
+      'Danh sách Khách hàng đọc số liệu tổng hợp đã tính sẵn (số cơ hội, việc, hợp đồng, lần liên hệ gần nhất, việc kế tiếp…), tự cập nhật ngay khi dữ liệu liên quan thay đổi.',
+      'Lịch và danh sách Khách hàng trả về ít dữ liệu hơn, mở nhanh hơn.',
+      'Đọc nội dung tài liệu (PDF, Word, Excel) cho Trợ lý AI và đọc tệp Excel nhập doanh thu chạy ở luồng riêng, không làm chậm người khác.',
+      'Bảng tin cuộn mượt hơn khi đã tải nhiều bài.',
+      'Máy chủ tự báo tình trạng (cơ sở dữ liệu, ổ đĩa) để hệ thống tự khởi động lại khi gặp sự cố, và có giới hạn bộ nhớ rõ ràng.',
+      'Đo ở 20 người dùng cùng lúc trên dữ liệu 120.000 việc: màn Công việc từ khoảng 36 giây còn dưới 2 giây, Pipeline từ khoảng 10 giây còn khoảng 2 giây.',
+    ],
+  },
+  {
     version: '1.37.1',
     date: '2026-10-12',
     title: 'Nhanh hơn khi nhiều người dùng cùng lúc',

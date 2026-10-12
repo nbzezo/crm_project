@@ -123,3 +123,40 @@ giới hạn bộ nhớ + healthcheck cho container; đưa pha tải đồng th�
 ```bash
 cd server && WORKFLOW_RESPONSE_CACHE=off BENCH_LOAD=20 BENCH_SECONDS=30 node --import tsx scripts/bench-large.mjs 1 /zzz
 ```
+
+---
+
+## 6. Kết quả sau 1.37.1 và 1.38.0
+
+Cùng bộ đo: 20 người dùng ảo, 30 giây, đệm tắt, quyền toàn công ty, quy mô 1x. Vòng gọi của 1.38.0
+dùng đúng cách client mới gọi (Công việc theo phần thay đổi, Pipeline 100 cơ hội mỗi cột).
+
+| | Ban đầu | 1.37.1 | 1.38.0 |
+|---|---|---|---|
+| Công việc (p50) | 36,0 s | 32,1 s | 1,4–2,2 s |
+| Pipeline (p50) | 10,4 s | 11,7 s | 1,7–3,3 s |
+| Lịch (p50) | 12,5 s | 13,5 s | ~5 s |
+| Request xử lý được trong 30 s | 160 | 160 | 320 |
+| Event loop bị chặn tối đa | 32,6 s | 28,3 s | 7–10 s |
+| RSS đỉnh (gồm client ảo) | 2,2 GB | 2,5 GB | 0,7–1,2 GB |
+
+Gọi riêng từng API: Lịch 520 → 209 ms; danh sách Khách hàng (lần sau lần đầu) 165–178 ms.
+Các lỗi "fetch failed" từng thấy trong pha tải là do client ảo dùng lại kết nối keep-alive mà
+máy chủ đã đóng sau 5 giây im lặng; nới `keepAliveTimeout` trong bộ đo thì 0 lỗi. Thực tế nginx
+mở kết nối mới tới app cho mỗi request nên không gặp.
+
+Phần còn lại là thông lượng thô: mỗi "lượt" 8 màn tốn ~1,2 giây CPU máy chủ ở quyền toàn công ty;
+20 người bấm liên tục thì xếp hàng. Thực tế lớp đệm 5 phút theo người dùng (tắt trong bộ đo) và nhân
+viên có phạm vi hẹp làm con số này nhỏ hơn nhiều.
+
+**Đã cân nhắc, chưa làm (kèm lý do):**
+- **Lớp B (rollup doanh thu):** tổng doanh thu có đệm và sau pragma chỉ ~0,66 s lần đầu; KPI đã tải
+  chi tiết theo kỳ (`entries=none` + `entries_period`). Lợi ích nhỏ so với rủi ro hai đường tính.
+- **Phân trang `/revenues/lines`:** màn Doanh thu ít người dùng (admin doanh thu, quản lý), tổng các
+  cột đang tính ở client từ toàn bộ dòng — đổi sang phân trang là thay đổi lớn về hành vi.
+- **Ảo hoá Kanban:** cột đã giới hạn 50 thẻ từ 1.23.0. Bảng tin dùng `content-visibility: auto`
+  thay vì thêm thư viện ảo hoá.
+- **Trợ lý AI điền việc** vẫn nạp danh sách tên để dò trong câu; chi phí nhỏ so với thời gian gọi AI.
+
+Bước tiếp theo nếu cần thêm: đưa Tổng quan / đếm việc sang bảng số liệu tính trước (cùng cơ chế
+`stats_dirty` của lớp A), và cân nhắc nhiều tiến trình đọc khi số người dùng vượt ~100.
