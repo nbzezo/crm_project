@@ -335,7 +335,15 @@ function PostList({ filter, groupId }: { filter: FeedFilter; groupId?: number })
       ) : (
         <>
           {items.map((post) => (
-            <PostCard key={post.id} post={post} showGroup={groupId === undefined} />
+            /* Bai ngoai man hinh: trinh duyet bo qua dung bo cuc va ve (1.38.0) — cuon
+               xa trong bang tin khong con cham dan theo so bai da tai. `auto 360px` la
+               chieu cao uoc luong truoc khi bai duoc ve lan dau. */
+            <div
+              key={post.id}
+              style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 360px' }}
+            >
+              <PostCard post={post} showGroup={groupId === undefined} />
+            </div>
           ))}
           {posts.hasNextPage && (
             <LoadMoreSentinel
