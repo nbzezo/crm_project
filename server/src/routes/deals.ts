@@ -155,6 +155,107 @@ router.get('/', (req, res) => {
     );
     return;
   }
+  const perStage = req.query.per_stage;
+  const stageParam = req.query.stage;
+  const offsetParam = req.query.offset;
+  const limitParam = req.query.limit;
+  const parseBoundedInt = (value: unknown, min: number, max: number): number | null => {
+    if (typeof value !== 'string' || !/^\d+$/.test(value)) return null;
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
+  };
+
+  if (perStage !== undefined) {
+    const limit = parseBoundedInt(perStage, 1, 500);
+    if (limit === null) throw new HttpError(400, 'Tham số per_stage không hợp lệ');
+  }
+  if (stageParam !== undefined || offsetParam !== undefined || limitParam !== undefined) {
+    if (typeof stageParam !== 'string' || offsetParam === undefined || limitParam === undefined) {
+      throw new HttpError(400, 'Tham số phân trang không hợp lệ');
+    }
+    const offset = parseBoundedInt(offsetParam, 0, Number.MAX_SAFE_INTEGER);
+    const limit = parseBoundedInt(limitParam, 1, 500);
+    if (offset === null || limit === null)
+      throw new HttpError(400, 'Tham số phân trang không hợp lệ');
+    res.json(
+      db
+        .prepare(
+          `${DEAL_SELECT} WHERE (? IS NULL OR d.customer_id = ?) AND d.stage = ?` +
+            (scope.sql ? ` AND ${scope.sql}` : '') +
+            ` ORDER BY d.position, d.id LIMIT ? OFFSET ?`
+        )
+        .all(customerId, customerId, stageParam, ...scope.params, limit, offset)
+    );
+    return;
+  }
+
+  const baseWhere =
+    `WHERE (? IS NULL OR d.customer_id = ?)` + (scope.sql ? ` AND ${scope.sql}` : '');
+  if (perStage !== undefined) {
+    const limit = parseBoundedInt(perStage, 1, 500)!;
+    const limitedRows = db
+      .prepare(
+        `${DEAL_SELECT} ${baseWhere}
+           AND d.id IN (
+             SELECT id FROM (
+               SELECT deal_rows.id, ROW_NUMBER() OVER (
+                 PARTITION BY deal_rows.stage ORDER BY deal_rows.position, deal_rows.id
+               ) AS stage_row
+               FROM (${DEAL_SELECT} ${baseWhere}) AS deal_rows
+             ) WHERE stage_row <= ?
+           )
+         ORDER BY d.position, d.id`
+      )
+      .all(
+        customerId,
+        customerId,
+        ...scope.params,
+        customerId,
+        customerId,
+        ...scope.params,
+        limit
+      ) as Array<{
+      stage: string;
+      value_vnd: number;
+      probability: number;
+    }>;
+    const totalRows = db
+      .prepare(
+        `SELECT d.stage, COUNT(*) AS count, COALESCE(SUM(d.value_vnd), 0) AS sum_vnd,
+                COALESCE(SUM(ROUND(d.value_vnd * d.probability / 100.0)), 0) AS weighted_vnd
+           FROM deals d
+           JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
+           JOIN deal_scorecard s ON s.deal_id = d.id
+          ${baseWhere}
+          GROUP BY d.stage`
+      )
+      .all(customerId, customerId, ...scope.params) as Array<{
+      stage: string;
+      count: number;
+      sum_vnd: number;
+      weighted_vnd: number;
+    }>;
+    const stages: Record<string, unknown[]> = {};
+    const totals: Record<string, { count: number; sum_vnd: number; weighted_vnd: number }> = {};
+    const more: Record<string, number> = {};
+    for (const { key } of allStages(db)) {
+      stages[key] = [];
+      totals[key] = { count: 0, sum_vnd: 0, weighted_vnd: 0 };
+      more[key] = 0;
+    }
+    for (const row of limitedRows) (stages[row.stage] ??= []).push(row);
+    for (const row of totalRows) {
+      totals[row.stage] ??= { count: 0, sum_vnd: 0, weighted_vnd: 0 };
+      more[row.stage] = Math.max(0, row.count - (stages[row.stage]?.length ?? 0));
+      totals[row.stage] = {
+        count: row.count,
+        sum_vnd: row.sum_vnd,
+        weighted_vnd: row.weighted_vnd,
+      };
+    }
+    res.json({ stages, totals, more });
+    return;
+  }
   const rows = db
     .prepare(
       `${DEAL_SELECT} WHERE (? IS NULL OR d.customer_id = ?)` +

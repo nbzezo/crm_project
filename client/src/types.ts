@@ -1318,6 +1318,8 @@ export interface DealsResponse {
   totals: Record<Stage, { count: number; sum_vnd: number; weighted_vnd: number }>;
 }
 
+export type DealsPagedResponse = DealsResponse & { more: Record<Stage, number> };
+
 /* ---------- Chấm điểm cơ hội BANT + 4P (v10) ---------- */
 
 export type Factor =

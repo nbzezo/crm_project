@@ -45,10 +45,11 @@ import { t } from '../i18n/vi';
 import { formatVND, formatVNDShort } from '../lib/format';
 import { invalidateCrmViews } from '../lib/queryKeys';
 import { applyOptimisticStage, cloneDeals, locateDeal, refreshDealTotals } from '../lib/dnd/deals';
+import { appendStagePage } from '../lib/dealPages';
 import { buildDndAnnouncements } from '../lib/dnd/announcements';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useDealStageMove } from '../hooks/useDealStageMove';
-import type { Deal, DealsResponse, Label, Stage } from '../types';
+import type { Deal, DealsPagedResponse, DealsResponse, Label, Stage } from '../types';
 import {
   closedStageKey,
   isClosedStage,
@@ -69,7 +70,8 @@ export default function PipelinePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
-  const dragSnapshot = useRef<DealsResponse | null>(null);
+  const dragSnapshot = useRef<DealsResponse | DealsPagedResponse | null>(null);
+  const [loadingStage, setLoadingStage] = useState<Stage | null>(null);
   const [form, setForm] = useState<{ open: boolean; deal?: Deal | null; stage?: Stage }>({
     open: false,
   });
@@ -97,9 +99,14 @@ export default function PipelinePage() {
     }
   };
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['deals'],
-    queryFn: () => api.get<DealsResponse>('/api/deals'),
+  const pagedBoard = view === 'board' && labelFilter.ids.length === 0 && !pendingHandoverOnly;
+  const dealsQueryKey = pagedBoard ? (['deals'] as const) : (['deals', 'all'] as const);
+  const { data, isLoading, error, refetch } = useQuery<DealsResponse | DealsPagedResponse>({
+    queryKey: dealsQueryKey,
+    queryFn: () =>
+      api.get<DealsResponse | DealsPagedResponse>(
+        pagedBoard ? '/api/deals?per_stage=100' : '/api/deals'
+      ),
   });
 
   /* Doi id ky thuat (`stage-quoted`, id so cua co hoi) sang ten doc duoc, de
@@ -131,7 +138,8 @@ export default function PipelinePage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-  const setData = (next: DealsResponse) => queryClient.setQueryData(['deals'], next);
+  const setData = (next: DealsResponse | DealsPagedResponse) =>
+    queryClient.setQueryData(dealsQueryKey, next);
   const restoreDragSnapshot = () => {
     if (dragSnapshot.current) setData(dragSnapshot.current);
     dragSnapshot.current = null;
@@ -139,6 +147,22 @@ export default function PipelinePage() {
   const refreshAll = () => {
     queryClient.invalidateQueries({ queryKey: ['deals'] });
     invalidateCrmViews(queryClient);
+  };
+
+  const loadMore = async (stage: Stage) => {
+    if (!data || !pagedBoard || loadingStage) return;
+    const current = data as DealsPagedResponse;
+    setLoadingStage(stage);
+    try {
+      const page = await api.get<Deal[]>(
+        `/api/deals?stage=${encodeURIComponent(stage)}&offset=${current.stages[stage]?.length ?? 0}&limit=100`
+      );
+      queryClient.setQueryData<DealsPagedResponse>(['deals'], (previous) =>
+        previous ? appendStagePage(previous, stage, page) : previous
+      );
+    } finally {
+      setLoadingStage(null);
+    }
   };
 
   const { move, dialogs: stageMoveDialogs } = useDealStageMove({
@@ -178,6 +202,7 @@ export default function PipelinePage() {
     if (!from || from.stage === targetStage) return;
 
     const [moved] = next.stages[from.stage].splice(from.index, 1);
+    const previousProbability = moved.probability;
     applyOptimisticStage(moved, targetStage);
     const overIdx =
       over.data.current?.type === 'deal'
@@ -188,7 +213,13 @@ export default function PipelinePage() {
       0,
       moved
     );
-    refreshDealTotals(next);
+    refreshDealTotals(next, {
+      fromStage: from.stage,
+      toStage: targetStage,
+      value_vnd: moved.value_vnd,
+      fromProbability: previousProbability,
+      toProbability: moved.probability,
+    });
     setData(next);
   }
 
@@ -234,6 +265,7 @@ export default function PipelinePage() {
         next.stages[targetStage] = arrayMove(list, from.index, overIdx);
     } else {
       const [moved] = next.stages[from.stage].splice(from.index, 1);
+      const previousProbability = moved.probability;
       applyOptimisticStage(moved, targetStage);
       const overIdx =
         over.data.current?.type === 'deal'
@@ -244,7 +276,13 @@ export default function PipelinePage() {
         0,
         moved
       );
-      refreshDealTotals(next);
+      refreshDealTotals(next, {
+        fromStage: from.stage,
+        toStage: targetStage,
+        value_vnd: moved.value_vnd,
+        fromProbability: previousProbability,
+        toProbability: moved.probability,
+      });
     }
     setData(next);
 
@@ -419,6 +457,10 @@ export default function PipelinePage() {
                 key={stage}
                 stage={stage}
                 deals={visibleDeals(stage)}
+                totals={data.totals[stage]}
+                more={pagedBoard ? (data as DealsPagedResponse).more[stage] : 0}
+                loadingMore={loadingStage === stage}
+                onLoadMore={() => loadMore(stage)}
                 labelMap={labelMap}
                 onAdd={() => setForm({ open: true, deal: null, stage })}
                 onOpen={(deal) => navigate(`/deals/${deal.id}`)}
@@ -627,12 +669,20 @@ function FilterMetric({
 function StageColumn({
   stage,
   deals,
+  totals,
+  more,
+  loadingMore,
+  onLoadMore,
   labelMap,
   onAdd,
   onOpen,
 }: {
   stage: Stage;
   deals: Deal[];
+  totals: { count: number; sum_vnd: number; weighted_vnd: number };
+  more: number;
+  loadingMore: boolean;
+  onLoadMore: () => void;
   labelMap: Record<string, Label[]>;
   onAdd: () => void;
   onOpen: (deal: Deal) => void;
@@ -646,8 +696,8 @@ function StageColumn({
       return false;
     }
   });
-  const total = deals.reduce((sum, d) => sum + d.value_vnd, 0);
-  const weighted = deals.reduce((sum, d) => sum + (d.value_vnd * d.probability) / 100, 0);
+  const total = totals.sum_vnd;
+  const weighted = totals.weighted_vnd;
 
   if (closed && !expanded) {
     return (
@@ -670,7 +720,7 @@ function StageColumn({
         <span className="text-xs font-semibold [writing-mode:vertical-rl]">
           {stageLabel(stage)}
         </span>
-        <span className="text-xs text-tr-muted">{deals.length}</span>
+        <span className="text-xs text-tr-muted">{totals.count}</span>
         <span className="text-xs text-tr-muted">{formatVNDShort(total)}</span>
       </button>
     );
@@ -686,7 +736,7 @@ function StageColumn({
         <span className="tr-list-title flex-1 text-sm font-semibold text-tr-text">
           {stageLabel(stage)}
         </span>
-        <span className="text-xs text-tr-muted">{deals.length}</span>
+        <span className="text-xs text-tr-muted">{totals.count}</span>
       </header>
 
       <div className="tr-scroll min-h-[4rem] flex-1 space-y-2 overflow-y-auto px-2">
@@ -715,6 +765,16 @@ function StageColumn({
             <span className="text-tr-muted">Trọng số</span>
             <span className="text-tr-subtle">{formatVNDShort(Math.round(weighted))}</span>
           </div>
+        )}
+        {more > 0 && (
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="w-full rounded-control px-1 py-1 text-xs text-tr-primary transition hover:bg-tr-hover-strong disabled:cursor-wait disabled:opacity-60"
+          >
+            {loadingMore ? 'Đang tải…' : `Tải thêm (còn ${more})`}
+          </button>
         )}
         <button
           onClick={onAdd}
