@@ -306,7 +306,7 @@ function nudgeSql(me: number | null): string {
       : `(k.assignee_contact_id IS NULL OR k.assignee_contact_id <> ${Math.trunc(me)}) AND `;
   return `(k.parent_id IS NULL AND ${notMine}(k.status = 'blocked'
   OR (k.due_date IS NOT NULL
-      AND substr(k.due_date, 1, 10) <= date('now','localtime','+${NUDGE_HORIZON_DAYS} days'))))`;
+      AND k.due_date < date('now','localtime','+${NUDGE_HORIZON_DAYS + 1} days'))))`;
 }
 
 /** Pham vi co ban cua danh sach viec: bang/viec chua luu tru + luat pham vi CONG VIEC. */
@@ -551,21 +551,31 @@ router.get('/tasks/older', (req, res) => {
 router.get('/tasks/counts', cacheResponse, (req, res) => {
   const { where, params } = baseTaskWhere(req);
   const me = actorContactId(req) ?? -1;
-  const counts = db
+  const openCounts = db
     .prepare(
       `SELECT COALESCE(SUM(k.is_done = 0), 0) AS owned,
               COALESCE(SUM(k.is_done = 0 AND k.assignee_contact_id = ?), 0) AS assigned,
               COALESCE(SUM(k.is_done = 0 AND k.creator_contact_id = ?), 0) AS created,
-              COALESCE(SUM(k.is_done = 1), 0) AS completed,
               COALESCE(SUM(k.is_done = 0 AND ${nudgeSql(actorContactId(req))}), 0) AS nudge,
               COALESCE(SUM(k.is_done = 0 AND ${nudgeSql(actorContactId(req))}
-                           AND substr(k.due_date, 1, 10) = date('now','localtime')), 0) AS nudge_today
+                           AND k.due_date >= date('now','localtime')
+                           AND k.due_date < date('now','localtime','+1 day')), 0) AS nudge_today
          FROM cards k
          JOIN lists l ON l.id = k.list_id
          JOIN boards b ON b.id = l.board_id
-        WHERE ${where.join(' AND ')}`
+        WHERE ${[...where, 'k.is_done = 0', 'k.is_archived = 0'].join(' AND ')}`
     )
     .get(me, me, ...params) as Record<string, number>;
+  const completed = db
+    .prepare(
+      `SELECT COUNT(*) AS completed
+         FROM cards k
+         JOIN lists l ON l.id = k.list_id
+         JOIN boards b ON b.id = l.board_id
+        WHERE ${[...where, 'k.is_done = 1'].join(' AND ')}`
+    )
+    .get(...params) as { completed: number };
+  const counts = { ...openCounts, completed: completed.completed };
   const watching = db
     .prepare(
       `SELECT COUNT(*) AS n FROM task_watchers tw
@@ -610,7 +620,7 @@ router.get('/calendar', (req, res) => {
          LEFT JOIN cards k ON k.id = r.card_id
          LEFT JOIN lists l ON l.id = k.list_id
          LEFT JOIN boards b ON b.id = l.board_id
-        WHERE substr(r.due_at, 1, 10) BETWEEN ? AND ?
+        WHERE r.due_at >= ? AND r.due_at < date(?, '+1 day')
           AND (? IS NULL OR l.board_id = ?) AND (? IS NULL OR b.project_id = ?)
           ${scopeFragmentOrUnowned(req, 'tasks', 'read', 'r.owner_contact_id')}`
     )
@@ -835,19 +845,31 @@ router.get('/timeline', (req, res) => {
 
 /** Dashboard ca nhan theo FR-DSH-01..06. */
 router.get('/dashboard', cacheResponse, (req, res) => {
-  const taskCounts = db
+  const openTaskCounts = db
     .prepare(
       `SELECT
-         SUM(CASE WHEN k.is_done = 0 AND k.due_date IS NOT NULL AND k.due_date < date('now','localtime') THEN 1 ELSE 0 END) AS overdue_count,
-         SUM(CASE WHEN k.is_done = 0 AND k.due_date = date('now','localtime') THEN 1 ELSE 0 END) AS due_today_count,
-         SUM(CASE WHEN k.is_done = 0 AND k.due_date = date('now','localtime','+1 day') THEN 1 ELSE 0 END) AS due_tomorrow_count,
-         SUM(CASE WHEN k.is_done = 0 AND k.due_date BETWEEN date('now','localtime') AND date('now','localtime','+7 days') THEN 1 ELSE 0 END) AS due_week_count,
-         SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count,
-         SUM(CASE WHEN k.is_done = 1 AND substr(k.completed_at, 1, 10) = date('now','localtime') THEN 1 ELSE 0 END) AS done_today_count
+         SUM(k.due_date IS NOT NULL AND k.due_date < date('now','localtime')) AS overdue_count,
+         SUM(k.due_date >= date('now','localtime') AND k.due_date < date('now','localtime','+1 day')) AS due_today_count,
+         SUM(k.due_date >= date('now','localtime','+1 day') AND k.due_date < date('now','localtime','+2 days')) AS due_tomorrow_count,
+         SUM(k.due_date >= date('now','localtime') AND k.due_date < date('now','localtime','+8 days')) AS due_week_count,
+         COUNT(*) AS open_count
        FROM cards k JOIN lists l ON l.id = k.list_id JOIN boards b ON b.id = l.board_id
-      WHERE b.is_archived = 0 AND k.is_archived = 0${taskScope(req)}`
+      WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0${taskScope(req)}`
     )
     .get() as Record<string, number | null>;
+  const doneToday = db
+    .prepare(
+      `SELECT COUNT(*) AS done_today_count
+         FROM cards k JOIN lists l ON l.id = k.list_id JOIN boards b ON b.id = l.board_id
+        WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 1
+          AND k.completed_at >= date('now','localtime')
+          AND k.completed_at < date('now','localtime','+1 day')${taskScope(req)}`
+    )
+    .get() as { done_today_count: number };
+  const taskCounts: Record<string, number | null> = {
+    ...openTaskCounts,
+    done_today_count: doneToday.done_today_count,
+  };
 
   // FR-DSH-01 + FR-DSH-02: pipeline va weighted pipeline
   const pipeline = db
@@ -1262,7 +1284,7 @@ router.get('/reports', cacheResponse, (req, res) => {
          JOIN lists l ON l.id = k.list_id
          JOIN boards b ON b.id = l.board_id
         WHERE k.is_done = 1 AND k.completed_at IS NOT NULL
-          AND substr(k.completed_at, 1, 10) BETWEEN ? AND ?${taskScope(req)}
+          AND k.completed_at >= ? AND k.completed_at < date(?, '+1 day')${taskScope(req)}
         GROUP BY week_start ORDER BY week_start`
     )
     .all(from, to);
@@ -1411,7 +1433,7 @@ router.get('/reports', cacheResponse, (req, res) => {
       `SELECT k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name, (ac.id = ?) AS is_me,
               ao.name AS org_name, ao.org_kind,
               SUM(CASE WHEN k.is_done = 1 AND k.completed_at IS NOT NULL
-                        AND date(k.completed_at) BETWEEN ? AND ? THEN 1 ELSE 0 END) AS completed,
+                        AND k.completed_at >= ? AND k.completed_at < date(?, '+1 day') THEN 1 ELSE 0 END) AS completed,
               SUM(CASE WHEN k.is_done = 0 THEN 1 ELSE 0 END) AS open_count,
               SUM(CASE WHEN k.is_done = 0 AND k.due_date IS NOT NULL
                         AND k.due_date < date('now','localtime') THEN 1 ELSE 0 END) AS overdue_count,
@@ -1444,7 +1466,7 @@ router.get('/reports', cacheResponse, (req, res) => {
   const by_project = db
     .prepare(
       `SELECT p.id, p.name, p.status, p.plan_end,
-              SUM(CASE WHEN k.is_done = 1 AND date(k.completed_at) BETWEEN ? AND ?
+              SUM(CASE WHEN k.is_done = 1 AND k.completed_at >= ? AND k.completed_at < date(?, '+1 day')
                        THEN 1 ELSE 0 END) AS completed,
               SUM(CASE WHEN k.is_done = 1 THEN 1 ELSE 0 END) AS done_total,
               COUNT(*) AS task_total,
@@ -1655,7 +1677,7 @@ router.get('/performance', requirePermission('report.tasks', 'read'), (req, res)
                         AND date(k.completed_at) > substr(k.due_date, 1, 10)
                        THEN 1 ELSE 0 END) AS late
          FROM cards k
-        WHERE k.is_done = 1 AND date(k.completed_at) BETWEEN ? AND ?
+        WHERE k.is_done = 1 AND k.completed_at >= ? AND k.completed_at < date(?, '+1 day')
           AND k.assignee_contact_id IN (${inIds})
         GROUP BY k.assignee_contact_id, week_start
         ORDER BY week_start`

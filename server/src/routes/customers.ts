@@ -102,7 +102,7 @@ const LIST_SQL = `
          (SELECT COUNT(*) FROM cards k
            WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
              AND k.due_date IS NOT NULL
-             AND substr(k.due_date, 1, 10) < date('now','localtime')) AS overdue_task_count,
+             AND k.due_date < date('now','localtime')) AS overdue_task_count,
          COALESCE(s.total_won_vnd, 0) AS total_won_vnd,
          COALESCE(s.open_pipeline_vnd, 0) AS open_pipeline_vnd,
          COALESCE(s.active_contract_count, 0) AS active_contract_count,
@@ -111,7 +111,7 @@ const LIST_SQL = `
          (SELECT COUNT(*) FROM deals d
            WHERE d.customer_id = c.id AND d.stage_category = 'open'
              AND d.next_action_date IS NOT NULL
-             AND substr(d.next_action_date, 1, 10) < date('now','localtime')) AS overdue_next_action_count,
+             AND d.next_action_date < date('now','localtime')) AS overdue_next_action_count,
          s.next_deal_action AS next_deal_action,
          s.next_deal_action_date AS next_deal_action_date,
          s.next_task_title AS next_task_title,

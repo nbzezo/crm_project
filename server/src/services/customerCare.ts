@@ -228,7 +228,7 @@ export function churnRiskOf(db: Database, customerId: number, care: CareStatus):
   const overdueTasks = db
     .prepare(
       `SELECT COUNT(*) AS n FROM cards WHERE customer_id = ? AND is_done = 0 AND is_archived = 0
-          AND due_date IS NOT NULL AND substr(due_date,1,10) < ?`
+          AND due_date IS NOT NULL AND due_date < ?`
     )
     .get(customerId, today) as { n: number };
   if (overdueTasks.n > 0) {
