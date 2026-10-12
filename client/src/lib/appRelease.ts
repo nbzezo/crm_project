@@ -18,6 +18,21 @@ export const APP_UPDATED_AT = '2026-10-12';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.37.1',
+    date: '2026-10-12',
+    title: 'Nhanh hơn khi nhiều người dùng cùng lúc',
+    changes: [
+      'Cơ sở dữ liệu dùng bộ nhớ đệm lớn hơn: các màn Báo cáo, Doanh thu, Công việc, Lịch mở nhanh hơn khoảng 30–80% ở dữ liệu lớn.',
+      'Mở lại ứng dụng hiện ngay danh sách lần trước (Công việc, Pipeline, Khách hàng, bảng, dự án) rồi tự cập nhật bản mới. Dữ liệu lưu trên máy được xóa khi đăng xuất, tách riêng theo tài khoản và tự bỏ khi quyền của bạn thay đổi.',
+      'Ô "thêm việc phụ thuộc" trong cửa sổ thẻ tìm theo từ khóa trên máy chủ thay vì tải toàn bộ công việc.',
+      'Ô chọn cơ hội / hợp đồng / báo giá khi tải tài liệu lên và trong ghi chú chỉ tải tên, nhẹ hơn nhiều lần.',
+      'Xuất dữ liệu CSV ghi dần theo luồng, không còn làm chậm người khác khi xuất bảng lớn.',
+      'Nhắc việc đúng giờ kiểm tra mỗi 30 giây khi đang mở tab, 60 giây khi tab ẩn — giảm tải máy chủ mà vẫn kịp nhắc.',
+      'Tệp giao diện được trình duyệt giữ lại giữa các lần mở, tải trang nhanh hơn sau lần đầu.',
+      'Đăng xuất xóa sạch dữ liệu đã tải trong tab, người đăng nhập sau không còn thoáng thấy dữ liệu của người trước.',
+    ],
+  },
+  {
     version: '1.37.0',
     date: '2026-10-12',
     title: 'Bảo mật: mỗi người chỉ thấy và sửa đúng dữ liệu của mình',

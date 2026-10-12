@@ -28,7 +28,20 @@ function expiryMs(session: SessionData): number {
   return Date.now() + (typeof maxAge === 'number' ? maxAge : 24 * 60 * 60 * 1000);
 }
 
+/**
+ * Phien "rolling" 30 ngay: express-session goi `touch()` o MOI request de day han.
+ * Ghi xuong SQLite moi lan la mot UPDATE + WAL cho tung request cua tung nguoi —
+ * day han som hon vai phut so voi 30 ngay khong doi gi, nen chi ghi khi lan truoc da
+ * cach it nhat TOUCH_INTERVAL_MS (1.37.1). Cookie phia trinh duyet van duoc gia han.
+ */
+const TOUCH_INTERVAL_MS = 10 * 60_000;
+/** Don phien het han toi da moi khoang nay, thay vi truoc MOI lan ghi phien. */
+const PURGE_INTERVAL_MS = 10 * 60_000;
+
 export class SqliteSessionStore extends Store {
+  private readonly lastTouch = new Map<string, number>();
+  private lastPurge = 0;
+
   private readonly getStmt = db.prepare<[string], { data: string; expires_at: number }>(
     'SELECT data, expires_at FROM sessions WHERE id = ?'
   );
@@ -59,7 +72,12 @@ export class SqliteSessionStore extends Store {
 
   set(sid: string, session: SessionData, done: DoneErr): void {
     try {
-      this.purgeStmt.run(Date.now());
+      const now = Date.now();
+      if (now - this.lastPurge >= PURGE_INTERVAL_MS) {
+        this.purgeStmt.run(now);
+        this.lastPurge = now;
+      }
+      this.lastTouch.set(hashSid(sid), now);
       this.upsertStmt.run(
         hashSid(sid),
         JSON.stringify(session),
@@ -74,7 +92,14 @@ export class SqliteSessionStore extends Store {
 
   touch(sid: string, session: SessionData, done: DoneErr): void {
     try {
-      this.touchStmt.run(expiryMs(session), hashSid(sid));
+      const key = hashSid(sid);
+      const now = Date.now();
+      if (now - (this.lastTouch.get(key) ?? 0) >= TOUCH_INTERVAL_MS) {
+        this.touchStmt.run(expiryMs(session), key);
+        /* Map chi giu phien dang hoat dong; qua lon thi xoa het (lan touch sau ghi lai). */
+        if (this.lastTouch.size > 50_000) this.lastTouch.clear();
+        this.lastTouch.set(key, now);
+      }
       done();
     } catch (err) {
       done(err);
@@ -84,6 +109,7 @@ export class SqliteSessionStore extends Store {
   destroy(sid: string, done: DoneErr): void {
     try {
       this.deleteStmt.run(hashSid(sid));
+      this.lastTouch.delete(hashSid(sid));
       done();
     } catch (err) {
       done(err);

@@ -36,12 +36,14 @@ export function useDealsByCustomer(customerId: string, enabled = true) {
   });
 }
 
-/** Toan bo co hoi, khong loc theo khach hang — dung cho o chon gan Quick Note (FR15). */
+/**
+ * Toan bo co hoi, khong loc theo khach hang — dung cho o chon gan Quick Note (FR15).
+ * `fields=basic`: chi id / ten / khach hang (ban day du ~17 MB o 15.000 co hoi).
+ */
 export function useDealOptions(enabled = true) {
   return useQuery({
     queryKey: ['deals', 'select'],
-    queryFn: () => api.get<DealsResponse>('/api/deals'),
-    select: (data): Deal[] => Object.values(data.stages).flat(),
+    queryFn: () => api.get<Deal[]>('/api/deals?fields=basic'),
     staleTime: 60_000,
     enabled,
   });

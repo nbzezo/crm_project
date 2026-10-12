@@ -394,13 +394,20 @@ export async function runDueContactSyncs(db: Database): Promise<number> {
 }
 
 let scheduler: ReturnType<typeof setInterval> | null = null;
+/* Mot vong dong bo tai mot thoi diem: vong truoc (nhieu tai khoan, Google cham) chua
+   xong thi bo qua, khong mo vong thu hai chay chong len (1.37.1). */
+let syncing = false;
 
 export function startGoogleContactsScheduler(db: Database) {
   if (scheduler) return scheduler;
   const tick = () => {
-    runDueContactSyncs(db).catch((error) =>
-      console.error('[google-contacts] Quet lich loi:', error)
-    );
+    if (syncing) return;
+    syncing = true;
+    runDueContactSyncs(db)
+      .catch((error) => console.error('[google-contacts] Quet lich loi:', error))
+      .finally(() => {
+        syncing = false;
+      });
   };
   scheduler = setInterval(tick, 30 * 60_000);
   scheduler.unref();

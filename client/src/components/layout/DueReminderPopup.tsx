@@ -108,7 +108,9 @@ export function DueReminderPopup() {
     // Gui kem gio may: `due_at` nhap theo gio trinh duyet, may chu co the khac mui gio.
     queryFn: () =>
       api.get<DueReminder[]>(`/api/reminders/due?now=${encodeURIComponent(nowLocalInput())}`),
-    refetchInterval: 20_000,
+    /* Tab dang mo: 30 giay; tab an van hoi (de bao thong bao tren may) nhung thua hon.
+       Truoc 1.37.1 la 20 giay ca khi an — 100 nguoi la 5 request/giay chay nen. */
+    refetchInterval: () => (document.visibilityState === 'visible' ? 30_000 : 60_000),
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
     enabled: !locked,

@@ -36,7 +36,7 @@ import { ShareButton } from '../share/ShareButton';
 import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import { Popover, usePopover } from '../common/Popover';
 import { DocumentsToolbar } from './DocumentsToolbar';
-import type { Contract, CrmDocument, Customer, DealsResponse, Quotation } from '../../types';
+import type { Contract, CrmDocument, Customer, Deal, Quotation } from '../../types';
 import { pickLabel, pickOptions } from '../../lib/crmConfig';
 
 type PendingAction = { type: 'trash' | 'permanent'; ids: number[] } | null;
@@ -185,32 +185,29 @@ export function DocumentsLibrary({
      tai luc mo ngan thay vi luc vao trang. Ba danh sach nay co the len hang chuc MB,
      va may chu mot luong bat trang tai lieu xep hang cho chung. */
   const needLinkOptions = uploadOpen || editing !== null;
-  const { data: dealsData } = useQuery({
+  /* `fields=basic`: chi id / ten / khach hang — o chon khong can diem, tuoi giai doan
+     hay so tai lieu, va ban day du len hang chuc MB o du lieu lon (1.37.1). */
+  const { data: deals = [] } = useQuery({
     queryKey: ['deals', 'document-select'],
-    queryFn: () => api.get<DealsResponse>('/api/deals'),
+    queryFn: () => api.get<Deal[]>('/api/deals?fields=basic'),
     staleTime: 60_000,
     enabled: needLinkOptions,
   });
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'document-select'],
-    queryFn: () => api.get<Contract[]>('/api/contracts'),
+    queryFn: () => api.get<Contract[]>('/api/contracts?fields=basic'),
     staleTime: 60_000,
     enabled: needLinkOptions,
   });
   const { data: quotations = [] } = useQuery({
     queryKey: ['quotations', 'document-select'],
-    queryFn: () => api.get<Quotation[]>('/api/quotations'),
+    queryFn: () => api.get<Quotation[]>('/api/quotations?fields=basic'),
     staleTime: 60_000,
     enabled: needLinkOptions,
   });
   const options: DocumentOptions = useMemo(
-    () => ({
-      customers,
-      deals: dealsData ? Object.values(dealsData.stages).flat() : [],
-      contracts,
-      quotations,
-    }),
-    [contracts, customers, dealsData, quotations]
+    () => ({ customers, deals, contracts, quotations }),
+    [contracts, customers, deals, quotations]
   );
 
   /* Theo trang (1.21.0): moi nhat truoc, tai dan khi cuon. Truoc day tai ca thu

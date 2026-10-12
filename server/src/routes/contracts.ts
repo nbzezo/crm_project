@@ -128,10 +128,18 @@ router.get('/', (req, res) => {
       'COALESCE(d.owner_contact_id, c.owner_contact_id)'
     )
   );
+  /* `fields=basic`: chi cot can cho o chon, khong tinh so ngay con lai hay dem tai lieu. */
+  const select =
+    req.query.fields === 'basic'
+      ? `SELECT k.id, k.name, k.number, k.customer_id, k.deal_id, k.status
+           FROM contracts k
+           JOIN customers c ON c.id = k.customer_id AND c.org_kind = 'customer'
+           LEFT JOIN deals d ON d.id = k.deal_id`
+      : CONTRACT_SELECT;
   res.json(
     db
       .prepare(
-        `${CONTRACT_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+        `${select} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
           ORDER BY k.end_date IS NULL, k.end_date`
       )
       .all(...params)

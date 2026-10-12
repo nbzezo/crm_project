@@ -214,7 +214,17 @@ export function createApp(options: AppOptions = {}): Express {
   // Production (Docker): server phuc vu luon ban build cua client tren cung origin,
   // nen khong can CORS. Bo qua khi chua co ban build (dev dung Vite, test khong co).
   if (fs.existsSync(CLIENT_DIST)) {
-    app.use(express.static(CLIENT_DIST));
+    /* Cung chinh sach voi nginx.conf: /assets mang ma bam trong ten -> giu mai; con lai
+       (index.html) phai hoi lai sau moi lan deploy. */
+    app.use(
+      '/assets',
+      express.static(path.join(CLIENT_DIST, 'assets'), { immutable: true, maxAge: '1y' })
+    );
+    app.use(
+      express.static(CLIENT_DIST, {
+        setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+      })
+    );
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
       res.sendFile(path.join(CLIENT_DIST, 'index.html'));

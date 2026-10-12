@@ -727,7 +727,11 @@ test('Suc khoe pipeline chi dem co hoi trong pham vi', async () => {
 });
 
 test('Lich khong hien moc cua co hoi ngoai pham vi', async () => {
-  const range = '?from=1970-01-01&to=2999-12-31';
+  /* Khoang thuc te: may chu cat khoang lich toi da 120 ngay (1.37.1). Han chot cua
+     du lieu mau la +10 ngay. */
+  const day = (offset: number) =>
+    new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  const range = `?from=${day(-30)}&to=${day(60)}`;
   /* Endpoint tra ve mot MANG PHANG gom nhieu loai muc, phan biet bang `kind`. */
   const dealsOn = async () => {
     const items = (await call('GET', `/api/views/calendar${range}`)).data as { kind: string }[];

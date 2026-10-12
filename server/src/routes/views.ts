@@ -11,6 +11,7 @@ import { HttpError, intParam, parseBody } from '../lib/validate.ts';
 import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 import { cacheResponse } from '../lib/responseCache.ts';
 import { FLOW_PROGRESS_COLUMNS } from '../services/taskFlowService.ts';
+import { addDaysIso, isRealDate, todayLocal } from '../lib/dates.ts';
 
 const router = Router();
 
@@ -57,12 +58,32 @@ const DEAL_ATTENTION_SELECT = `
     FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
    WHERE d.stage_category = 'open'`;
 
+/** Duoi nguong nay doc nhan theo lo id; tren nguong doc ca bang mot lan re hon. */
+const LABEL_BATCH_LIMIT = 5000;
+const LABEL_BATCH = 500;
+
 function attachLabels(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   if (rows.length === 0) return rows;
-  const links = db.prepare(`SELECT card_id, label_id FROM card_labels`).all() as {
-    card_id: number;
-    label_id: number;
-  }[];
+  /* Truoc 1.37.1 luon doc CA bang card_labels — ke ca khi chi can nhan cua 20 viec
+     (o tim viec phu thuoc, mot bang nho). */
+  let links: { card_id: number; label_id: number }[];
+  if (rows.length > LABEL_BATCH_LIMIT) {
+    links = db.prepare(`SELECT card_id, label_id FROM card_labels`).all() as typeof links;
+  } else {
+    links = [];
+    const ids = rows.map((row) => row.id as number);
+    for (let i = 0; i < ids.length; i += LABEL_BATCH) {
+      const chunk = ids.slice(i, i + LABEL_BATCH);
+      links.push(
+        ...(db
+          .prepare(
+            `SELECT card_id, label_id FROM card_labels
+              WHERE card_id IN (${chunk.map(() => '?').join(',')})`
+          )
+          .all(...chunk) as typeof links)
+      );
+    }
+  }
   const map = new Map<number, number[]>();
   for (const l of links) {
     const arr = map.get(l.card_id) ?? [];
@@ -354,12 +375,15 @@ router.get('/tasks', (req, res) => {
     where.push(`(k.is_done = 0 OR ${DONE_AT} >= datetime('now','localtime','-${days} days'))`);
   }
 
+  /* `limit` (1.37.1): o tim nhanh (them viec phu thuoc...) chi can vai chuc dong khop
+     `q` — truoc day no tai TOAN BO viec dang mo (56 MB o 120.000 viec) roi loc o client. */
+  const limit = req.query.limit === undefined ? null : pageLimit(req.query.limit);
   const rows = db
     .prepare(
       `${TASK_SELECT} WHERE ${where.join(' AND ')}
-        ORDER BY k.is_done, k.due_date IS NULL, k.due_date, k.id DESC`
+        ORDER BY k.is_done, k.due_date IS NULL, k.due_date, k.id DESC${limit ? ' LIMIT ?' : ''}`
     )
-    .all(...params) as Record<string, unknown>[];
+    .all(...params, ...(limit ? [limit] : [])) as Record<string, unknown>[];
 
   res.json(attachPersonalTaskState(attachLabels(rows), actorContactId(req)));
 });
@@ -451,9 +475,19 @@ router.get('/tasks/counts', cacheResponse, (req, res) => {
 });
 
 /** Su kien cho trang Lich — cong viec, nhac hen, ngay chot du kien, han hop dong. */
+/** Lich xem toi da chung nay ngay mot lan (giao dien gui toi da ~6 tuan). */
+const CALENDAR_MAX_DAYS = 120;
+
 router.get('/calendar', (req, res) => {
-  const from = String(req.query.from ?? '1970-01-01');
-  const to = String(req.query.to ?? '2999-12-31');
+  /* Truoc 1.37.1 thieu tham so la tu 1970 toi 2999 — quet het viec, nhac hen, co hoi,
+     hop dong cua ca cong ty trong mot request. Nay mac dinh 6 tuan quanh hom nay va
+     cat khoang qua dai. */
+  const today = todayLocal();
+  const fromRaw = String(req.query.from ?? '');
+  const from = isRealDate(fromRaw) ? fromRaw : addDaysIso(today, -7);
+  const toRaw = String(req.query.to ?? '');
+  const maxTo = addDaysIso(from, CALENDAR_MAX_DAYS);
+  const to = isRealDate(toRaw) ? (toRaw > maxTo ? maxTo : toRaw) : addDaysIso(from, 42);
   // Khi xem trong mot bang — hoac mot du an (v19) — thi chi lay du lieu pham vi do
   const boardId = req.query.board_id ? Number(req.query.board_id) : null;
   const projectId = req.query.project_id ? Number(req.query.project_id) : null;

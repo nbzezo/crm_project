@@ -45,18 +45,25 @@ export function ScheduleSection({ card, onChanged }: { card: CardDetail; onChang
     onSuccess: onChanged,
   });
 
-  /** Ứng viên việc-trước: chỉ nạp khi mở ô thêm, và loại sẵn chính thẻ này. */
+  /**
+   * Ứng viên việc-trước: chỉ nạp khi mở ô thêm. Máy chủ tìm theo từ khoá (không dấu)
+   * và trả tối đa 20 dòng — trước đây tải toàn bộ việc đang mở rồi lọc ở trình duyệt.
+   */
+  const term = search.trim();
   const { data: candidates = [] } = useQuery({
-    queryKey: ['tasks', 'dependency-candidates'],
-    queryFn: () => api.get<TaskRow[]>('/api/views/tasks?done=0'),
+    queryKey: ['tasks', 'dependency-candidates', term],
+    queryFn: () =>
+      api.get<TaskRow[]>(
+        `/api/views/tasks?done=0&limit=20${term ? `&q=${encodeURIComponent(term)}` : ''}`
+      ),
     enabled: adding,
     staleTime: 30_000,
+    placeholderData: (previous) => previous,
   });
 
   const existing = new Set(card.dependencies?.predecessors.map((p) => p.id) ?? []);
   const matches = candidates
     .filter((task) => task.id !== card.id && !existing.has(task.id))
-    .filter((task) => task.title.toLowerCase().includes(search.trim().toLowerCase()))
     .slice(0, 8);
 
   const slipCount = card.slip_count ?? 0;

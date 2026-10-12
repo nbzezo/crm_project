@@ -113,7 +113,15 @@ export const cacheResponse: RequestHandler = (req, res, next) => {
   if (fresh) {
     const last = lastFreshAt.get(key) ?? 0;
     if (now - last < FRESH_MIN_INTERVAL_MS) fresh = false;
-    else lastFreshAt.set(key, now);
+    else {
+      /* Khoa gom ca query string nen co the nhieu vo han — don cac moc da qua han. */
+      if (lastFreshAt.size > 5_000) {
+        for (const [freshKey, at] of lastFreshAt) {
+          if (now - at >= FRESH_MIN_INTERVAL_MS) lastFreshAt.delete(freshKey);
+        }
+      }
+      lastFreshAt.set(key, now);
+    }
   }
 
   const hit = entries.get(key);
@@ -135,19 +143,21 @@ export const cacheResponse: RequestHandler = (req, res, next) => {
       body !== null && typeof body === 'object' && !Array.isArray(body)
         ? { ...(body as Record<string, unknown>), computed_at: new Date().toISOString() }
         : body;
-    if (res.statusCode < 400) {
-      const text = JSON.stringify(payload);
-      if (text.length <= MAX_ENTRY_BYTES) {
-        entries.set(key, { storedAt: Date.now(), body: text });
-        totalBytes += text.length;
-        for (const [oldKey] of entries) {
-          if (totalBytes <= MAX_TOTAL_BYTES) break;
-          remove(oldKey);
-        }
+    res.setHeader('X-Cache', 'miss');
+    if (res.statusCode >= 400) return json(payload);
+    /* Chuyen JSON MOT lan roi dung chuoi do cho ca dem lan phan hoi — truoc day
+       res.json() stringify lai lan nua, gap doi CPU tren cac bao cao lon. */
+    const text = JSON.stringify(payload);
+    if (text.length <= MAX_ENTRY_BYTES) {
+      remove(key);
+      entries.set(key, { storedAt: Date.now(), body: text });
+      totalBytes += text.length;
+      for (const [oldKey] of entries) {
+        if (totalBytes <= MAX_TOTAL_BYTES) break;
+        remove(oldKey);
       }
     }
-    res.setHeader('X-Cache', 'miss');
-    return json(payload);
+    return res.type('application/json').send(text);
   };
   next();
 };

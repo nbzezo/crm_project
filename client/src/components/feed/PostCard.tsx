@@ -814,7 +814,16 @@ function Comments({ post }: { post: FeedPost }) {
 
   const rows = comments.data ?? [];
   const roots = rows.filter((c) => c.parent_id === null);
-  const repliesOf = (id: number) => rows.filter((c) => c.parent_id === id);
+  /* Gom tra loi theo binh luan cha MOT lan — truoc day moi binh luan lai loc ca mang
+     (hai lan), O(n²) tren bai nhieu binh luan. */
+  const replies = new Map<number, FeedComment[]>();
+  for (const c of rows) {
+    if (c.parent_id === null) continue;
+    const list = replies.get(c.parent_id);
+    if (list) list.push(c);
+    else replies.set(c.parent_id, [c]);
+  }
+  const repliesOf = (id: number) => replies.get(id) ?? [];
 
   const renderComment = (comment: FeedComment, nested = false) => (
     <li key={comment.id} className={nested ? 'mt-2' : ''}>

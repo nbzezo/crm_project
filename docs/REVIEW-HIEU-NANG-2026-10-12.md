@@ -73,7 +73,7 @@ cùng tiến trình nên RSS đo được cao hơn máy chủ thật; độ tr�
 | Cao | `db/connection.ts` | Thiếu pragma (xem 1.3). | Thêm `synchronous=NORMAL` (an toàn với WAL), `cache_size`, `temp_store`, `mmap_size`, `busy_timeout`. |
 | Cao | `app.ts` + `SqliteSessionStore` | `rolling: true` → mỗi request ghi `UPDATE sessions` vào SQLite. | Chỉ gia hạn phiên khi đã quá vài phút kể từ lần trước. |
 | Cao | `services/ai/automations.ts` | Bộ hẹn giờ mỗi phút chạy tuần tự các automation quét toàn bảng trên luồng chính. | Giới hạn mỗi lượt; đo thời gian; về sau tách worker. |
-| Cao | `lib/responseCache.ts` | Không có "single-flight": hết hạn đệm, 20 người cùng mở Tổng quan là 20 lần tính lại cùng lúc. `lastFreshAt`/`lastWriteAt` tăng không giới hạn theo số khoá. | Gộp các request trùng khoá vào một lần tính; dọn hai Map phụ. |
+| TB | `lib/responseCache.ts` | Mỗi lần không trúng đệm chuyển JSON **hai lần** (một để lưu, một để gửi). `lastFreshAt` tăng không giới hạn theo số khoá. *(Đính chính: "single-flight" không cần — các route có đệm chạy đồng bộ, request trùng khoá xếp hàng và trúng đệm của request trước.)* | Dùng lại chuỗi JSON đã tạo; dọn mốc cũ. |
 | TB | Docker / Node | Không đặt giới hạn bộ nhớ container hay `--max-old-space-size`; không có `healthcheck`. | Đặt giới hạn + healthcheck; cảnh báo khi RSS cao. |
 | TB | `nginx.conf` | Tệp tĩnh có hash nhưng không có `Cache-Control: immutable`; timeout 300 s cho mọi API; body 30 MB cho mọi đường dẫn trong khi JSON chỉ nhận 5 MB. | Cache dài cho `/assets`; timeout và giới hạn body theo nhóm đường dẫn. |
 | TB | `googleContacts.ts` | Vòng đồng bộ danh bạ 30 phút không có khoá toàn cục, có thể chồng nhau. | Cờ `scanning` như Telegram. |
@@ -93,7 +93,6 @@ bản máy chủ song song, nhiều luồng ghi đồng thời, hoặc dữ li�
 | Cao | `ListColumn.tsx`, `FeedPage.tsx` | Kanban và Bảng tin vẽ toàn bộ thẻ / bài đã tải, không ảo hoá. | Ảo hoá danh sách (`@tanstack/react-virtual`). |
 | TB | `TasksWorkspace.tsx` hoạt động | Lịch sử hoạt động không giới hạn. | `limit` + tải thêm. |
 | TB | `PostCard.tsx` | Dựng cây bình luận O(n²). | Gom theo `parent_id` một lần bằng `Map`. |
-| TB | `DocumentUploadManager.tsx` | Giữ nguyên các `File` (tới 25 MB mỗi tệp) sau khi tải xong. | Chỉ giữ metadata. |
 | Thấp | Feed / tài liệu | `invalidateQueries` quá rộng, poll điều hướng bảng tin 60 giây. | Thu hẹp khoá; chỉ poll khi tab hiện. |
 
 Đã làm tốt: các trang tải chậm theo route (lazy), BlockNote / Excalidraw tách riêng, `staleTime` mặc
@@ -107,7 +106,7 @@ bản máy chủ song song, nhiều luồng ghi đồng thời, hoặc dữ li�
 3. `attachLabels` lọc theo lô.
 4. Phiên đăng nhập chỉ gia hạn vài phút một lần.
 5. Popup nhắc việc chỉ hỏi khi tab đang hiện, 60 giây.
-6. `/views/calendar` bắt buộc khoảng ngày; single-flight + dọn Map cho lớp đệm.
+6. `/views/calendar` bắt buộc khoảng ngày; lớp đệm bỏ chuyển JSON hai lần + dọn Map.
 7. Cache dài cho tệp tĩnh ở nginx.
 
 **Đợt 2 — thay đổi cấu trúc (1.38.0):**

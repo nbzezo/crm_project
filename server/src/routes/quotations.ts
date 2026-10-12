@@ -74,10 +74,19 @@ router.get('/', (req, res) => {
       'COALESCE(d.owner_contact_id, c.owner_contact_id)'
     )
   );
+  /* `fields=basic`: chi cot can cho o chon (id, ma, phien ban, khach hang) — bo truy van
+     con dem tai lieu va cac cot dai. Danh sach day du len hang MB o vai nghin bao gia. */
+  const select =
+    req.query.fields === 'basic'
+      ? `SELECT q.id, q.code, q.version, q.customer_id, q.deal_id
+           FROM quotations q
+           JOIN customers c ON c.id = q.customer_id AND c.org_kind = 'customer'
+           LEFT JOIN deals d ON d.id = q.deal_id`
+      : QUOTATION_SELECT;
   res.json(
     db
       .prepare(
-        `${QUOTATION_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+        `${select} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
           ORDER BY q.quote_date IS NULL, q.quote_date DESC, q.version DESC`
       )
       .all(...params)

@@ -139,6 +139,22 @@ router.get('/', (req, res) => {
      `deal_scorecard`; nhet dieu kien vao trong view hay vao menh de JOIN se doi
      ca hinh dang ket qua chu khong chi loc bot dong. */
   const scope = scopeWhereOrUnowned(req, 'deals', 'read', 'd.owner_contact_id');
+  /* `fields=basic`: mang phang id / ten / khach hang cho o chon lien ket (tai lieu,
+     cong viec). Ban day du ~17 MB o 15.000 co hoi vi DEAL_SELECT tinh diem, tuoi giai
+     doan, so tuong tac cho tung co hoi. */
+  if (req.query.fields === 'basic') {
+    res.json(
+      db
+        .prepare(
+          `SELECT d.id, d.title, d.customer_id, d.stage, c.name AS customer_name
+             FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
+            WHERE (? IS NULL OR d.customer_id = ?)${scope.sql ? ` AND ${scope.sql}` : ''}
+            ORDER BY d.position, d.id`
+        )
+        .all(customerId, customerId, ...scope.params)
+    );
+    return;
+  }
   const rows = db
     .prepare(
       `${DEAL_SELECT} WHERE (? IS NULL OR d.customer_id = ?)` +

@@ -30,3 +30,10 @@ export function isRealLocalMinute(value: string): boolean {
 export function todayLocal(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(now);
 }
+
+/** Cong `days` ngay vao ngay lich `YYYY-MM-DD` (tinh theo UTC, khong lech mui gio). */
+export function addDaysIso(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}

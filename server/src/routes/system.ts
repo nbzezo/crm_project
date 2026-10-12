@@ -559,35 +559,74 @@ const CSV_QUERIES: Record<string, { sql: string; label: string }> = {
   },
 };
 
-function toCsv(rows: Record<string, unknown>[]): string {
-  if (rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const escape = (value: unknown) => {
-    if (value === null || value === undefined) return '';
-    const text = String(value);
-    return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  return [
-    headers.join(','),
-    ...rows.map((row) => headers.map((h) => escape(row[h])).join(',')),
-  ].join('\r\n');
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+/** Ghi vao response, cho `drain` khi bo dem day; nem loi khi nguoi dung huy tai. */
+async function writeOrWait(res: Response, chunk: string): Promise<void> {
+  if (res.destroyed) throw new Error('Người dùng đã hủy tải bản xuất');
+  if (res.write(chunk)) return;
+  await new Promise<void>((resolve, reject) => {
+    const onDrain = () => {
+      res.off('close', onClose);
+      resolve();
+    };
+    const onClose = () => {
+      res.off('drain', onDrain);
+      reject(new Error('Người dùng đã hủy tải bản xuất'));
+    };
+    res.once('drain', onDrain);
+    res.once('close', onClose);
+  });
 }
 
 router.get(
   '/export/:entity.csv',
   requirePermission('data.export', 'export'),
   requireFullExportScope,
-  (req, res) => {
+  async (req, res, next) => {
     const entity = String(req.params.entity);
     const query = CSV_QUERIES[entity];
     if (!query) throw new HttpError(404, 'Không hỗ trợ xuất dữ liệu này');
 
-    const rows = db.prepare(query.sql).all() as Record<string, unknown>[];
+    /* Ghi theo luong tren mot ket noi CHI DOC rieng (giong /export): truoc 1.37.1 la
+       `.all()` + dung ca tep CSV thanh mot chuoi trong RAM — hang tram MB voi bang
+       doanh thu lon, va chan moi request khac trong luc dung chuoi. */
+    const file = db.name;
+    const source =
+      file && file !== ':memory:' && fs.existsSync(file)
+        ? new Database(file, { readonly: true, fileMustExist: true })
+        : null;
     const date = todayLocal();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=${query.label}-${date}.csv`);
-    // BOM de Excel tren Windows doc dung tieng Viet
-    res.send('﻿' + toCsv(rows));
+    try {
+      const statement = (source ?? db).prepare(query.sql);
+      const headers = statement.columns().map((column) => column.name);
+      // BOM de Excel tren Windows doc dung tieng Viet
+      let buffer = '﻿' + headers.join(',');
+      /* Ket noi rieng: duyet tung dong. Ket noi chinh (test, CSDL bo nho): lay het —
+         trong luc duyet ket noi bi giu, khong nhuong duoc cho request khac. */
+      const rows = (source ? statement.iterate() : statement.all()) as Iterable<
+        Record<string, unknown>
+      >;
+      for (const row of rows) {
+        buffer += '\r\n' + headers.map((h) => csvCell(row[h])).join(',');
+        if (buffer.length > 64 * 1024) {
+          await writeOrWait(res, buffer);
+          buffer = '';
+        }
+      }
+      res.end(buffer);
+    } catch (error) {
+      if (res.headersSent) res.destroy();
+      else next(error);
+    } finally {
+      source?.close();
+    }
   }
 );
 

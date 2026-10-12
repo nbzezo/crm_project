@@ -9,6 +9,12 @@ import { useUiStore } from './stores/uiStore';
 import { isUserCancelled } from './api/client';
 import { t } from './i18n/vi';
 import { initTheme } from './stores/themeStore';
+import { useAuthStore } from './stores/authStore';
+import {
+  clearPersistedQueries,
+  startQueryPersistence,
+  stopQueryPersistence,
+} from './lib/queryPersist';
 import './index.css';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -222,6 +228,34 @@ const router = createBrowserRouter([
 ]);
 
 initTheme();
+
+/*
+ * Luu dem danh sach hay dung xuong IndexedDB theo tung tai khoan (lib/queryPersist.ts).
+ * Dang xuat: xoa ca bo nho dem trong tab lan ban luu tren dia — truoc 1.37.1 nguoi dang
+ * nhap sau tren cung tab con thoang thay du lieu cua nguoi truoc cho toi khi tai lai.
+ */
+let persistedOwner = '';
+useAuthStore.subscribe((state) => {
+  if (state.status === 'authenticated' && state.user) {
+    const owner = {
+      userId: state.user.id,
+      permissionsVersion: state.user.permissions_version ?? 0,
+    };
+    const tag = `${owner.userId}:${owner.permissionsVersion}`;
+    if (tag === persistedOwner) return;
+    if (persistedOwner && persistedOwner.split(':')[0] !== String(owner.userId))
+      queryClient.clear();
+    persistedOwner = tag;
+    void startQueryPersistence(queryClient, owner);
+  } else if (state.status === 'anonymous') {
+    /* Ke ca khi mo trang da het phien (chua tung dang nhap trong tab nay): ban luu tren
+       dia khong con chu hop le thi khong de lai cho nguoi dung may sau. */
+    persistedOwner = '';
+    stopQueryPersistence();
+    queryClient.clear();
+    void clearPersistedQueries();
+  }
+});
 
 /* Trang xem cong khai cua lien ket chia se (/s/<token>): nguoi nhan khong co tai khoan
    nen KHONG qua AuthGate va khong co khung app. Quyet dinh o day, truoc khi dung router,

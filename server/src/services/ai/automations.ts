@@ -250,14 +250,25 @@ function runDueAutomations(db: Database) {
         AND (next_run_at IS NULL OR next_run_at <= datetime('now','localtime')) ORDER BY id`
     )
     .all() as { id: number }[];
+  /* Moi automation quet ca bang, chay dong bo tren luong chinh: chay het mot loat lien
+     tiep la chan moi nguoi dung trong luc do. Dung lai khi da tieu het ngan sach thoi
+     gian cua luot; phan con lai chay o luot sau (moi phut). */
+  const started = performance.now();
   for (const item of due) {
+    const t = performance.now();
     try {
       runAutomation(db, item.id);
     } catch (error) {
       console.error('[ai-automation]', error instanceof Error ? error.message : error);
     }
+    const ms = performance.now() - t;
+    if (ms >= 1000) console.warn(`[ai-automation] #${item.id} chay ${Math.round(ms)} ms`);
+    if (performance.now() - started >= AUTOMATION_TICK_BUDGET_MS) break;
   }
 }
+
+/** Ngan sach thoi gian moi luot quet automation (1.37.1). */
+const AUTOMATION_TICK_BUDGET_MS = 500;
 
 export function startAiAutomationScheduler(db: Database) {
   if (scheduler) return scheduler;

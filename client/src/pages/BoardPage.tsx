@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
@@ -84,12 +84,16 @@ export default function BoardPage() {
     queryFn: () => api.get<BoardFull>(`/api/boards/${id}/full`),
     enabled: Number.isFinite(id),
   });
-  const matchCount =
-    board?.lists.reduce(
-      (sum, list) =>
-        sum + list.cards.filter((card) => matchesFilters(card, filters, meContactId)).length,
-      0
-    ) ?? 0;
+  /* Chi dem lai khi bang / bo loc doi — khong phai o moi lan ve (keo the, mo menu). */
+  const matchCount = useMemo(
+    () =>
+      board?.lists.reduce(
+        (sum, list) =>
+          sum + list.cards.filter((card) => matchesFilters(card, filters, meContactId)).length,
+        0
+      ) ?? 0,
+    [board, filters, meContactId]
+  );
 
   // Dang bang tinh lay du lieu phang cua rieng bang nay
   const { data: boardTasks = [] } = useQuery({
