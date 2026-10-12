@@ -28,6 +28,7 @@ import { vi } from 'date-fns/locale';
 import { api, qs } from '../../api/client';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { useTaskStatuses } from '../../lib/taskStatuses';
+import { mergeTaskDelta } from '../../lib/taskDelta';
 import { useAuthStore } from '../../stores/authStore';
 import {
   countActiveTaskFilters,
@@ -133,16 +134,50 @@ interface TaskPage {
   next_cursor: string | null;
 }
 
+interface WorkspaceTaskData {
+  rows: TaskRow[];
+  serverTime: string;
+  fullAt: number;
+}
+
 function useWorkspaceTasks(scope: TaskScope) {
+  const queryClient = useQueryClient();
   const filters = useUiStore((state) => state.taskFilters);
   const params = taskParams(scope, filters);
   /* Man nay co the gom viec da xong (tab Hoan thanh, hoac trang thai "Tat ca"):
      chi khi do moi co phan "cu hon 30 ngay" de tai dan. */
   const includesDone = params.done !== '0';
-  const recent = useQuery({
-    queryKey: ['tasks', 'workspace', scope, params],
-    queryFn: () =>
-      api.get<TaskRow[]>(`/api/views/tasks${qs({ ...params, recent_days: RECENT_DAYS })}`),
+  const queryKey = ['tasks', 'workspace', scope, params] as const;
+  const recent = useQuery<WorkspaceTaskData>({
+    queryKey,
+    queryFn: async () => {
+      const previous = queryClient.getQueryData<WorkspaceTaskData | TaskRow[]>(queryKey);
+      const canDelta =
+        previous != null &&
+        !Array.isArray(previous) &&
+        Array.isArray(previous.rows) &&
+        typeof previous.serverTime === 'string' &&
+        typeof previous.fullAt === 'number' &&
+        Date.now() - previous.fullAt < 30 * 60 * 1000;
+      if (canDelta) {
+        const delta = await api.get<{
+          items: TaskRow[];
+          ids: number[];
+          server_time: string;
+        }>(
+          `/api/views/tasks${qs({ ...params, recent_days: RECENT_DAYS, fields: 'list', delta: 1, since: previous.serverTime })}`
+        );
+        return {
+          rows: mergeTaskDelta(previous.rows, delta),
+          serverTime: delta.server_time,
+          fullAt: previous.fullAt,
+        };
+      }
+      const full = await api.get<{ items: TaskRow[]; server_time: string }>(
+        `/api/views/tasks${qs({ ...params, recent_days: RECENT_DAYS, fields: 'list', delta: 1 })}`
+      );
+      return { rows: full.items, serverTime: full.server_time, fullAt: Date.now() };
+    },
     enabled: scope !== 'activity',
   });
   /* Bat phan "cu hon" chi sau khi nguoi dung cuon toi cuoi — va gan voi dung bo
@@ -169,7 +204,7 @@ function useWorkspaceTasks(scope: TaskScope) {
 
   const rows = useMemo(() => {
     const olderRows = olderStarted ? (older.data?.pages.flatMap((page) => page.items) ?? []) : [];
-    const merged = [...(recent.data ?? []), ...olderRows];
+    const merged = [...(recent.data?.rows ?? []), ...olderRows];
     return merged.filter((task) => {
       if (filters.due === 'none') return task.due_date === null;
       if (!filters.due || filters.due === 'overdue') return true;
@@ -188,7 +223,12 @@ function useWorkspaceTasks(scope: TaskScope) {
     data: rows,
     isLoading: recent.isLoading,
     error: recent.error,
-    refetch: recent.refetch,
+    refetch: () => {
+      queryClient.setQueryData<WorkspaceTaskData>(queryKey, (current) =>
+        current && !Array.isArray(current) ? { ...current, fullAt: 0 } : current
+      );
+      return recent.refetch();
+    },
     older: {
       enabled: includesDone && scope !== 'activity',
       hasMore: !olderStarted || Boolean(hasNextPage),

@@ -15,29 +15,71 @@ import { addDaysIso, isRealDate, todayLocal } from '../lib/dates.ts';
 
 const router = Router();
 
-const TASK_SELECT = `
-  SELECT k.id, k.title, k.description, k.priority, k.start_date, k.due_date, k.is_done,
-         k.status, COALESCE(k.status_key, k.status) AS status_key, k.blocked_reason, k.blocked_since, k.recur_rule,
-         k.completed_at, k.position, k.list_id, k.parent_id, k.created_at, k.updated_at,
-         k.creator_contact_id, creator.full_name AS creator_name,
-         (SELECT COUNT(*) FROM task_watchers tw WHERE tw.card_id = k.id) AS watcher_count,
-         (SELECT COUNT(*) FROM task_nudges n WHERE n.card_id = k.id) AS nudge_count,
-         (SELECT MAX(n.sent_at) FROM task_nudges n WHERE n.card_id = k.id) AS last_nudged_at,
-         (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total,
-         (SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done,
-         (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total,
-         (SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done,
-         ${FLOW_PROGRESS_COLUMNS},
-         l.name AS list_name, b.id AS board_id, b.name AS board_name, b.color AS board_color,
-         k.customer_id, c.name AS customer_name, k.deal_id, d.title AS deal_title,
-         k.assignee_contact_id, k.assignee_org_id, ac.full_name AS assignee_name,
-         ac.phone AS assignee_phone, ac.email AS assignee_email, ac.zalo AS assignee_zalo,
-         ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
-         /* Du an suy tu BANG (v19) — cards khong con cot project_id. */
-         b.project_id, pr.name AS project_name, l.status_mapping,
-         k.estimate_hours, k.spent_hours, k.is_milestone, k.baseline_due_date,
-         (SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS slip_count,
-         CAST(julianday(k.due_date) - julianday(k.baseline_due_date) AS INTEGER) AS slip_days
+const TASK_SELECT_SHARED_COLUMNS = [
+  'k.id',
+  'k.title',
+  'k.priority',
+  'k.start_date',
+  'k.due_date',
+  'k.is_done',
+  'k.status',
+  'COALESCE(k.status_key, k.status) AS status_key',
+  'k.blocked_reason',
+  'k.blocked_since',
+  'k.recur_rule',
+  'k.completed_at',
+  'k.position',
+  'k.list_id',
+  'k.parent_id',
+  'k.created_at',
+  'k.updated_at',
+  'k.creator_contact_id',
+  'creator.full_name AS creator_name',
+  '(SELECT COUNT(*) FROM task_watchers tw WHERE tw.card_id = k.id) AS watcher_count',
+  '(SELECT COUNT(*) FROM task_nudges n WHERE n.card_id = k.id) AS nudge_count',
+  '(SELECT MAX(n.sent_at) FROM task_nudges n WHERE n.card_id = k.id) AS last_nudged_at',
+  '(SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id) AS checklist_total',
+  '(SELECT COUNT(*) FROM checklist_items ci WHERE ci.card_id = k.id AND ci.is_done = 1) AS checklist_done',
+  '(SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0) AS subtask_total',
+  '(SELECT COUNT(*) FROM cards sc WHERE sc.parent_id = k.id AND sc.is_archived = 0 AND sc.is_done = 1) AS subtask_done',
+  FLOW_PROGRESS_COLUMNS,
+  'l.name AS list_name',
+  'b.id AS board_id',
+  'b.name AS board_name',
+  'b.color AS board_color',
+  'k.customer_id',
+  'c.name AS customer_name',
+  'k.deal_id',
+  'd.title AS deal_title',
+  'k.assignee_contact_id',
+  'k.assignee_org_id',
+  'ac.full_name AS assignee_name',
+  'ao.name AS assignee_org_name',
+  'ao.org_kind AS assignee_org_kind',
+  'b.project_id',
+  'pr.name AS project_name',
+  'l.status_mapping',
+  'k.estimate_hours',
+  'k.spent_hours',
+  'k.is_milestone',
+  'k.baseline_due_date',
+  '(SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS slip_count',
+  'CAST(julianday(k.due_date) - julianday(k.baseline_due_date) AS INTEGER) AS slip_days',
+];
+
+function taskSelect(fields: 'full' | 'list'): string {
+  const columns = [
+    TASK_SELECT_SHARED_COLUMNS[0],
+    TASK_SELECT_SHARED_COLUMNS[1],
+    fields === 'list' ? "'' AS description" : 'k.description',
+    ...TASK_SELECT_SHARED_COLUMNS.slice(2, 38),
+    fields === 'list' ? 'NULL AS assignee_phone' : 'ac.phone AS assignee_phone',
+    fields === 'list' ? 'NULL AS assignee_email' : 'ac.email AS assignee_email',
+    fields === 'list' ? 'NULL AS assignee_zalo' : 'ac.zalo AS assignee_zalo',
+    ...TASK_SELECT_SHARED_COLUMNS.slice(38),
+  ];
+  return `
+  SELECT ${columns.join(',\n         ')}
     FROM cards k
     JOIN lists l ON l.id = k.list_id
     JOIN boards b ON b.id = l.board_id
@@ -47,6 +89,10 @@ const TASK_SELECT = `
     LEFT JOIN contacts creator ON creator.id = k.creator_contact_id
     LEFT JOIN customers ao ON ao.id = k.assignee_org_id
     LEFT JOIN projects pr ON pr.id = b.project_id`;
+}
+
+const TASK_SELECT = taskSelect('full');
+const TASK_SELECT_LIST = taskSelect('list');
 
 /** Cot phu canh bao cho co hoi (FR-PIP-04, FR-DSH-05, BR-06, BR-07). */
 const DEAL_ATTENTION_SELECT = `
@@ -375,12 +421,58 @@ router.get('/tasks', (req, res) => {
     where.push(`(k.is_done = 0 OR ${DONE_AT} >= datetime('now','localtime','-${days} days'))`);
   }
 
+  const delta = req.query.delta === '1';
+  if (delta && req.query.limit !== undefined) {
+    throw new HttpError(400, 'Không dùng limit cùng delta');
+  }
+  const since = req.query.since;
+  if (since !== undefined && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(String(since))) {
+    throw new HttpError(400, 'Mốc thời gian không hợp lệ');
+  }
+
+  if (delta) {
+    const serverTime = (
+      db.prepare(`SELECT datetime('now','localtime') AS server_time`).get() as {
+        server_time: string;
+      }
+    ).server_time;
+    const itemWhere = [...where];
+    const itemParams = [...params];
+    if (since !== undefined) {
+      itemWhere.push(`k.updated_at >= ?`);
+      itemParams.push(String(since));
+    }
+    const rows = db
+      .prepare(
+        `${req.query.fields === 'list' ? TASK_SELECT_LIST : TASK_SELECT} WHERE ${itemWhere.join(' AND ')}
+          ORDER BY k.is_done, k.due_date IS NULL, k.due_date, k.id DESC`
+      )
+      .all(...itemParams) as Record<string, unknown>[];
+    const ids = (
+      db
+        .prepare(
+          `SELECT k.id FROM cards k
+             JOIN lists l ON l.id = k.list_id
+             JOIN boards b ON b.id = l.board_id
+            WHERE ${where.join(' AND ')}
+            ORDER BY k.id`
+        )
+        .all(...params) as { id: number }[]
+    ).map((row) => row.id);
+    res.json({
+      items: attachPersonalTaskState(attachLabels(rows), actorContactId(req)),
+      ids,
+      server_time: serverTime,
+    });
+    return;
+  }
+
   /* `limit` (1.37.1): o tim nhanh (them viec phu thuoc...) chi can vai chuc dong khop
      `q` — truoc day no tai TOAN BO viec dang mo (56 MB o 120.000 viec) roi loc o client. */
   const limit = req.query.limit === undefined ? null : pageLimit(req.query.limit);
   const rows = db
     .prepare(
-      `${TASK_SELECT} WHERE ${where.join(' AND ')}
+      `${req.query.fields === 'list' ? TASK_SELECT_LIST : TASK_SELECT} WHERE ${where.join(' AND ')}
         ORDER BY k.is_done, k.due_date IS NULL, k.due_date, k.id DESC${limit ? ' LIMIT ?' : ''}`
     )
     .all(...params, ...(limit ? [limit] : [])) as Record<string, unknown>[];
