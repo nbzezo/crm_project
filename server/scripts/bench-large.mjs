@@ -269,6 +269,77 @@ for (const endpoint of endpoints) {
   );
 }
 
+/*
+ * Pha tai dong thoi (BENCH_LOAD=<so nguoi>): moi "nguoi dung ao" lap lai mot vong
+ * mo man hinh thuong gap trong BENCH_SECONDS giay (mac dinh 20). In p50/p95 tung
+ * API, RSS dinh, heap dinh va do tre event loop — Node mot luong nen mot request
+ * nang lam MOI nguoi cung cho, do tre event loop la con so the hien dieu do.
+ * Lop dem 5 phut bi bo qua (?fresh=1 khong dung) vi moi nguoi ao la cung mot
+ * "nguoi dung" o che do tat xac thuc — dem se an het, nen tat han bang bien moi truong.
+ */
+const users = Number(process.env.BENCH_LOAD ?? 0);
+if (users > 0) {
+  const { monitorEventLoopDelay } = await import('node:perf_hooks');
+  const seconds = Number(process.env.BENCH_SECONDS ?? 20);
+  const round = [
+    '/notifications',
+    '/views/dashboard',
+    '/views/tasks/counts',
+    '/views/tasks?done=0&recent_days=30',
+    '/deals',
+    '/customers?fields=basic',
+    `/views/calendar?from=${day(-3)}&to=${day(38)}`,
+    '/search?q=khach',
+  ];
+  const latencies = new Map(round.map((path) => [path, []]));
+  const loop = monitorEventLoopDelay({ resolution: 10 });
+  loop.enable();
+  let peakRss = 0;
+  let peakHeap = 0;
+  const sampler = setInterval(() => {
+    const m = process.memoryUsage();
+    peakRss = Math.max(peakRss, m.rss);
+    peakHeap = Math.max(peakHeap, m.heapUsed);
+  }, 50);
+  const until = Date.now() + seconds * 1000;
+  let requests = 0;
+  let errors = 0;
+  await Promise.all(
+    Array.from({ length: users }, async () => {
+      while (Date.now() < until) {
+        for (const path of round) {
+          const t = performance.now();
+          try {
+            const response = await fetch(base + path);
+            await response.arrayBuffer();
+            if (!response.ok) errors++;
+          } catch {
+            errors++;
+          }
+          latencies.get(path).push(performance.now() - t);
+          requests++;
+        }
+      }
+    })
+  );
+  clearInterval(sampler);
+  loop.disable();
+  const pct = (values, p) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))] ?? 0;
+  };
+  console.log(`\nTai dong thoi: ${users} nguoi, ${seconds} s, ${requests} request, ${errors} loi`);
+  for (const [path, values] of latencies) {
+    console.log(
+      `  ${path.padEnd(42)} p50 ${pct(values, 50).toFixed(0).padStart(6)} ms  p95 ${pct(values, 95).toFixed(0).padStart(6)} ms`
+    );
+  }
+  console.log(
+    `  RSS dinh ${(peakRss / 1e6).toFixed(0)} MB · heap dinh ${(peakHeap / 1e6).toFixed(0)} MB · ` +
+      `tre event loop p99 ${(loop.percentile(99) / 1e6).toFixed(0)} ms, max ${(loop.max / 1e6).toFixed(0)} ms`
+  );
+}
+
 server.close();
 closeDatabase();
 fs.rmSync(dataDir, { recursive: true, force: true });
