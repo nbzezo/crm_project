@@ -1,0 +1,19 @@
+/* Quay ve v73: bo so lieu tinh truoc cua khach hang (lop A). Du lieu goc khong doi. */
+DROP TRIGGER IF EXISTS customers_stats_insert;
+DROP TRIGGER IF EXISTS deals_stats_insert;
+DROP TRIGGER IF EXISTS deals_stats_update;
+DROP TRIGGER IF EXISTS deals_stats_delete;
+DROP TRIGGER IF EXISTS cards_stats_insert;
+DROP TRIGGER IF EXISTS cards_stats_update;
+DROP TRIGGER IF EXISTS cards_stats_delete;
+DROP TRIGGER IF EXISTS contracts_stats_insert;
+DROP TRIGGER IF EXISTS contracts_stats_update;
+DROP TRIGGER IF EXISTS contracts_stats_delete;
+DROP TRIGGER IF EXISTS interactions_stats_insert;
+DROP TRIGGER IF EXISTS interactions_stats_update;
+DROP TRIGGER IF EXISTS interactions_stats_delete;
+DROP TRIGGER IF EXISTS reminders_stats_insert;
+DROP TRIGGER IF EXISTS reminders_stats_update;
+DROP TRIGGER IF EXISTS reminders_stats_delete;
+DROP TABLE IF EXISTS stats_dirty;
+DROP TABLE IF EXISTS customer_stats;

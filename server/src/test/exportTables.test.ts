@@ -66,6 +66,10 @@ test('EXPORT_TABLES phu het moi bang du lieu that o schema moi nhat', () => {
     // Ma khoa man hinh cho (v58), ma hoa bang khoa cua may chu: rieng tung tai khoan,
     // khong phai du lieu nghiep vu, va xuat ra la lo ma cua moi nguoi.
     'user_lock_pins',
+    // So lieu tinh truoc (v74, lop A): suy hoan toan tu deals/cards/contracts/... va tu dung
+    // lai sau khi khoi phuc (moi khach "ban" thi lan doc dau tinh lai) — khong xuat.
+    'customer_stats',
+    'stats_dirty',
     // Link nhac yeu thich (v59): so thich ca nhan cua tung tai khoan (`users` nam ngoai
     // goi sao luu), khong phai du lieu nghiep vu.
     'user_music_links',
