@@ -281,13 +281,19 @@ const users = Number(process.env.BENCH_LOAD ?? 0);
 if (users > 0) {
   const { monitorEventLoopDelay } = await import('node:perf_hooks');
   const seconds = Number(process.env.BENCH_SECONDS ?? 20);
+  /* Dung DUNG cach client 1.38.0 goi: man Cong viec hoi phan thay doi tu mot moc gan
+     (lan tai day du chi xay ra mot lan moi phien), Pipeline 100 co hoi moi cot, danh sach
+     Khach hang day du (doc customer_stats). */
+  const since = new Date(Date.now() - 60_000)
+    .toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' })
+    .slice(0, 19);
   const round = [
     '/notifications',
     '/views/dashboard',
     '/views/tasks/counts',
-    '/views/tasks?done=0&recent_days=30',
-    '/deals',
-    '/customers?fields=basic',
+    `/views/tasks?done=0&recent_days=30&fields=list&delta=1&since=${encodeURIComponent(since)}`,
+    '/deals?per_stage=100',
+    '/customers',
     `/views/calendar?from=${day(-3)}&to=${day(38)}`,
     '/search?q=khach',
   ];
@@ -304,6 +310,7 @@ if (users > 0) {
   const until = Date.now() + seconds * 1000;
   let requests = 0;
   let errors = 0;
+  const errorKinds = new Map();
   await Promise.all(
     Array.from({ length: users }, async () => {
       while (Date.now() < until) {
@@ -312,9 +319,15 @@ if (users > 0) {
           try {
             const response = await fetch(base + path);
             await response.arrayBuffer();
-            if (!response.ok) errors++;
-          } catch {
+            if (!response.ok) {
+              errors++;
+              const kind = `${response.status} ${path}`;
+              errorKinds.set(kind, (errorKinds.get(kind) ?? 0) + 1);
+            }
+          } catch (error) {
             errors++;
+            const kind = `loi mang ${path}: ${error instanceof Error ? error.message : error}`;
+            errorKinds.set(kind, (errorKinds.get(kind) ?? 0) + 1);
           }
           latencies.get(path).push(performance.now() - t);
           requests++;
@@ -329,6 +342,7 @@ if (users > 0) {
     return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))] ?? 0;
   };
   console.log(`\nTai dong thoi: ${users} nguoi, ${seconds} s, ${requests} request, ${errors} loi`);
+  for (const [kind, count] of errorKinds) console.log(`  loi: ${kind} x${count}`);
   for (const [path, values] of latencies) {
     console.log(
       `  ${path.padEnd(42)} p50 ${pct(values, 50).toFixed(0).padStart(6)} ms  p95 ${pct(values, 95).toFixed(0).padStart(6)} ms`
