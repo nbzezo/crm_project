@@ -23,12 +23,9 @@ import {
 import { accessOf, actorContactId } from '../middleware/currentUser.ts';
 import { assertLinkTargetsInScope, ownerInScope } from '../lib/recordAccess.ts';
 import { computeKpi, summarizeKpi } from '../services/revenueKpi.ts';
-import {
-  buildTemplate,
-  parseWorkbook,
-  validateRow,
-  type ParsedRow,
-} from '../services/revenueImport.ts';
+import { buildTemplate, validateRow, type ParsedRow } from '../services/revenueImport.ts';
+import { runInWorker } from '../lib/workerPool.ts';
+import type { ParsedWorkbook } from '../services/revenueWorkbookParse.ts';
 import type { ContractKind, ContractTerm, ServiceStatus } from '@workflow/contracts';
 import { cacheResponse } from '../lib/responseCache.ts';
 import { isRealDate } from '../lib/dates.ts';
@@ -1436,9 +1433,12 @@ function applyRow(req: Request, row: PlannedRow, year: number): number {
  */
 router.post('/import', acceptImportFile, async (req, res) => {
   if (!req.file) throw new HttpError(422, 'Chưa chọn file');
-  let parsed;
+  let parsed: ParsedWorkbook;
   try {
-    parsed = await parseWorkbook(req.file.buffer);
+    parsed = await runInWorker<ParsedWorkbook>({
+      kind: 'parse-revenue-workbook',
+      buffer: req.file.buffer,
+    });
   } catch {
     throw new HttpError(422, 'Không đọc được file Excel — hãy dùng file mẫu .xlsx');
   }

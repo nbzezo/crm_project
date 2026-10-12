@@ -1476,7 +1476,15 @@ test('RAG lap chi muc noi dung text va loai tai lieu confidential khoi ket qua',
   await upload('chien-luoc.txt', 'internal', 'Ke hoach chien luoc mo rong thi truong Da Nang');
   await upload('bi-mat.txt', 'confidential', 'Mat khau noi bo tuyet mat khong duoc gui AI');
 
-  const publicSearch = await json('GET', '/api/ai/documents/search?q=chien%20luoc%20Da%20Nang');
+  /* Lap chi muc chay NEN sau khi tai len (doc tep trong worker thread, 1.38.0) — tai len
+     khong cho no. Thu lai toi khi chi muc co noi dung, toi da ~5 giay. */
+  let publicSearch = await json('GET', '/api/ai/documents/search?q=chien%20luoc%20Da%20Nang');
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const rows = publicSearch.data as unknown as { content: string }[];
+    if (rows.some((row) => row.content.includes('Da Nang'))) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    publicSearch = await json('GET', '/api/ai/documents/search?q=chien%20luoc%20Da%20Nang');
+  }
   assert.equal(publicSearch.status, 200);
   const publicRows = publicSearch.data as unknown as { content: string }[];
   assert.ok(publicRows.some((row) => row.content.includes('Da Nang')));

@@ -23,6 +23,8 @@ nên test bạn viết phải kiểm thật hành vi. Dự án là WorkFlow CRM 
   - Máy chủ: `cd server && node scripts/run-tests.mjs`
   - Giao diện: `cd client && npx tsc --noEmit -p tsconfig.json && npx vitest run`
   - Lint: `npx eslint client/src server/src`
+  - Định dạng: `npx prettier --write <các tệp đã sửa>` — kiểm tra tự động chặn tệp chưa format
+    (đây là lý do trượt thường gặp nhất của các lần giao trước).
 - Không chạy được kiểm tra nào thì ghi rõ lý do, đừng bỏ qua im lặng.
 
 ## Báo cáo cuối cùng (tin nhắn cuối)

@@ -11,6 +11,7 @@ import { startDriveBackupScheduler } from './services/backup/driveBackup.ts';
 import { startGoogleContactsScheduler } from './services/contacts/googleContacts.ts';
 import { startBackupTelegramScheduler } from './services/telegram/telegramBackup.ts';
 import { startTelegramNotifierScheduler } from './services/telegram/telegramNotifier.ts';
+import { shutdownWorkerPool } from './lib/workerPool.ts';
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -28,7 +29,8 @@ const server = app.listen(PORT, () => {
 
 function shutdown(signal: string) {
   console.log(`[api] Nhan ${signal}, dang dung ung dung...`);
-  server.close(() => {
+  server.close(async () => {
+    await shutdownWorkerPool();
     closeDatabase();
     process.exit(0);
   });
