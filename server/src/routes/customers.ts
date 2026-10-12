@@ -9,6 +9,7 @@ import { buildSearchText, fold } from '../lib/viSearch.ts';
 import { ORG_KINDS, normalizeOrgName } from '@workflow/contracts';
 import { assertOrgKindChange } from '../lib/entityRelations.ts';
 import { actorContactId } from '../middleware/currentUser.ts';
+import { flushCustomerStats } from '../services/customerStats.ts';
 import {
   CARE_TIERS,
   addDaysStr,
@@ -93,45 +94,30 @@ function orgKindFilter(raw: unknown, alias = 'c'): { sql: string; params: unknow
 
 const LIST_SQL = `
   SELECT c.*,
-         (SELECT COUNT(*) FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_deal_count,
-         (SELECT COUNT(*) FROM deals d WHERE d.customer_id = c.id) AS deal_count,
-         (SELECT COUNT(*) FROM cards k WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0) AS open_task_count,
+         COALESCE(s.open_deal_count, 0) AS open_deal_count,
+         COALESCE(s.deal_count, 0) AS deal_count,
+         COALESCE(s.open_task_count, 0) AS open_task_count,
          (SELECT COUNT(*) FROM cards k
            WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
              AND k.due_date IS NOT NULL
              AND substr(k.due_date, 1, 10) < date('now','localtime')) AS overdue_task_count,
-         (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'won') AS total_won_vnd,
-         (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_pipeline_vnd,
-         (SELECT COUNT(*) FROM contracts k WHERE k.customer_id = c.id AND k.status = 'active') AS active_contract_count,
-         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_activity_at,
-         (SELECT COUNT(*) FROM deals d
-           WHERE d.customer_id = c.id AND d.stage_category = 'open'
-             AND trim(COALESCE(d.next_action, '')) = '') AS deals_without_next_action_count,
+         COALESCE(s.total_won_vnd, 0) AS total_won_vnd,
+         COALESCE(s.open_pipeline_vnd, 0) AS open_pipeline_vnd,
+         COALESCE(s.active_contract_count, 0) AS active_contract_count,
+         s.last_activity_at AS last_activity_at,
+         COALESCE(s.deals_without_next_action_count, 0) AS deals_without_next_action_count,
          (SELECT COUNT(*) FROM deals d
            WHERE d.customer_id = c.id AND d.stage_category = 'open'
              AND d.next_action_date IS NOT NULL
              AND substr(d.next_action_date, 1, 10) < date('now','localtime')) AS overdue_next_action_count,
-         (SELECT d.next_action FROM deals d
-           WHERE d.customer_id = c.id AND d.stage_category = 'open'
-             AND trim(COALESCE(d.next_action, '')) <> ''
-           ORDER BY d.next_action_date IS NULL, d.next_action_date, d.updated_at DESC LIMIT 1) AS next_deal_action,
-         (SELECT d.next_action_date FROM deals d
-           WHERE d.customer_id = c.id AND d.stage_category = 'open'
-             AND trim(COALESCE(d.next_action, '')) <> ''
-           ORDER BY d.next_action_date IS NULL, d.next_action_date, d.updated_at DESC LIMIT 1) AS next_deal_action_date,
-         (SELECT k.title FROM cards k
-           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
-           ORDER BY k.due_date IS NULL, k.due_date, k.updated_at DESC LIMIT 1) AS next_task_title,
-         (SELECT k.due_date FROM cards k
-           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
-           ORDER BY k.due_date IS NULL, k.due_date, k.updated_at DESC LIMIT 1) AS next_task_due_date,
-         (SELECT r.title FROM reminders r
-           WHERE r.customer_id = c.id AND r.is_done = 0
-           ORDER BY r.due_at LIMIT 1) AS next_reminder_title,
-         (SELECT r.due_at FROM reminders r
-           WHERE r.customer_id = c.id AND r.is_done = 0
-           ORDER BY r.due_at LIMIT 1) AS next_reminder_due_at
-    FROM customers c`;
+         s.next_deal_action AS next_deal_action,
+         s.next_deal_action_date AS next_deal_action_date,
+         s.next_task_title AS next_task_title,
+         s.next_task_due_date AS next_task_due_date,
+         s.next_reminder_title AS next_reminder_title,
+         s.next_reminder_due_at AS next_reminder_due_at
+    FROM customers c
+    LEFT JOIN customer_stats s ON s.customer_id = c.id`;
 
 /* Moi route `/:id/...` cua khach hang (tac dong khi xoa, them nguoi lien he, lich su
    tuong tac...) kiem pham vi o day; route rieng van co the kiem chat hon. */
@@ -170,6 +156,7 @@ router.get('/', (req, res) => {
      cho o chon khach hang (mo the viec, tao viec, loc bang...) — chi can ten. Ban day
      du ton hang giay khi co vai nghin khach, va may chu mot luong bat moi nguoi cho. */
   const select = req.query.fields === 'basic' ? 'SELECT c.* FROM customers c' : LIST_SQL;
+  if (select === LIST_SQL) flushCustomerStats(db);
   const sql = `${select} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY c.name COLLATE NOCASE`;
   res.json(db.prepare(sql).all(...params));
 });
@@ -279,6 +266,7 @@ router.post('/', (req, res) => {
 
 router.get('/:id/full', (req, res) => {
   const id = intParam(req.params.id);
+  flushCustomerStats(db);
   const customer = required(
     db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
     'Không tìm thấy khách hàng'
