@@ -12,3 +12,6 @@ desktop.ini
 
 # Worktree tạm của Codex (scripts/codex.ps1)
 .codex-worktrees/
+
+# Thư mục tạm của Claude Code (worktree, ảnh chụp, script nháp)
+.claude/

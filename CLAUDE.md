@@ -37,6 +37,36 @@ kế tiếp, gộp ghi chú của các thay đổi chưa có trong `RELEASE_NOTE
 - Giao diện: `cd client && npx tsc --noEmit -p tsconfig.json && npx vitest run`
 - Lint: `npx eslint client/src server/src`
 
+## Dọn worktree trên Windows: tháo junction TRƯỚC khi xóa
+
+`git worktree remove --force` **đi xuyên junction**. Worktree mượn `node_modules` của repo chính
+qua junction, mà `node_modules` của npm workspaces lại chứa junction trỏ ngược về mã nguồn, nên
+xóa worktree sẽ xóa luôn mã nguồn repo chính:
+
+```
+<worktree>/node_modules --junction--> <repo>/node_modules
+                                        |-- client              --junction--> <repo>/client
+                                        |-- server              --junction--> <repo>/server
+                                        `-- @workflow/contracts --junction--> <repo>/packages/contracts
+```
+
+Ngày 2026-10-18 chuỗi này đã xóa 713 file đã track trong `client/`, `server/`, `packages/`.
+Đã kiểm chứng: `rd /s /q`, `Remove-Item -Recurse -Force` và `git clean -ffdx` **không** đi xuyên;
+chỉ `git worktree remove` mới nguy hiểm.
+
+Vì vậy **không bao giờ xóa worktree trực tiếp**, dùng lệnh có tháo junction:
+
+- Worktree của Claude Code (`.claude/worktrees/`): `pwsh scripts/clean-worktrees.ps1` chạy thử
+  (chỉ liệt kê), rồi thêm `-Apply` để xóa thật, `-Force` nếu muốn bỏ cả thay đổi chưa commit.
+- Worktree của Codex (`.codex-worktrees/`): `pwsh scripts/codex.ps1 clean`
+
+Cả hai dùng chung `scripts/worktree-junctions.ps1`: quét đệ quy toàn bộ worktree, tháo từng
+junction, xác nhận còn 0, rồi mới xóa; còn sót thì từ chối xóa.
+
+Nếu lỡ xóa trực tiếp và `git status` hiện hàng loạt file `D`: index còn nguyên nên
+`git restore -- client packages server` lấy lại được mã nguồn, sau đó phải dựng lại phụ thuộc
+bằng `npm ci && npm run build -w @workflow/contracts`.
+
 ## Giao việc cho Codex (chạy local)
 
 Claude vẫn viết mã; Codex chỉ thay phần "chân tay" khối lượng lớn. Chia việc theo số liệu đo ngày

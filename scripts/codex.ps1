@@ -26,6 +26,7 @@ param(
   [string]$Message
 )
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot/worktree-junctions.ps1"
 
 # File Codex không bao giờ được sửa (khớp AGENTS.md); apply từ chối nếu đụng vào.
 $forbidden = @(
@@ -69,11 +70,13 @@ function Add-ModuleLinks([string]$dir) {
 }
 
 # Gỡ junction TRƯỚC khi xóa worktree, để không xóa lan sang node_modules của repo chính.
+# Quét đệ quy cả worktree thay vì chỉ $modules: junction có thể nằm sâu hơn danh sách đó
+# (ví dụ server/node_modules/typescript), mà sót một cái là đủ để xóa lan vào mã nguồn.
 function Remove-ModuleLinks([string]$dir) {
-  foreach ($m in $modules) {
-    $dst = Join-Path $dir $m
-    $item = Get-Item $dst -Force -ErrorAction SilentlyContinue
-    if ($item -and $item.LinkType -eq 'Junction') { cmd /c rmdir "$dst" | Out-Null }
+  Remove-WorktreeJunctions $dir | Out-Null
+  $left = Get-WorktreeJunctions $dir
+  if ($left.Count -gt 0) {
+    throw "Còn $($left.Count) junction trong '$dir'; KHÔNG xóa để tránh phá repo chính."
   }
 }
 
