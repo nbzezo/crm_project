@@ -1,6 +1,9 @@
 Sổ rủi ro là **một sổ dùng chung cho bốn loại mục**. Gộp lại một chỗ vì trong thực tế chúng chuyển
-hóa lẫn nhau: một rủi ro không xử lý thành vấn đề, một vấn đề dẫn tới yêu cầu thay đổi, và cuối
+hóa lẫn nhau: một rủi ro không xử lý thành vấn đề, một vấn đề dẫn tới đề nghị thay đổi, và cuối
 cùng ai đó phải ra quyết định.
+
+Mở từ một dự án, tab **Rủi ro & nghiệm thu**; khối đầu tab tên là *Sổ rủi ro & thay đổi* kèm số mục
+đang mở.
 
 ![Tab Rủi ro & nghiệm thu của một dự án: bốn mục thuộc bốn loại, mục quá hạn tô đỏ ở trên cùng và mục đã đóng gạch ngang ở dưới](/guide/img/so-rui-ro-danh-sach.jpg)
 
@@ -10,8 +13,10 @@ cùng ai đó phải ra quyết định.
 |---|---|
 | **Rủi ro** | Điều *có thể* xảy ra và sẽ gây hại |
 | **Vấn đề** | Điều *đã* xảy ra và đang gây hại |
-| **Yêu cầu thay đổi** | Khách hoặc nội bộ muốn đổi phạm vi |
+| **Đề nghị thay đổi** | Khách hoặc nội bộ muốn đổi phạm vi |
 | **Quyết định** | Điều đã chốt, ghi lại để sau không ai hỏi "ai đồng ý vụ này" |
+
+Ô **Tất cả loại** ở đầu danh sách lọc theo một loại; nút **Thêm mục** tạo mục mới.
 
 ## Mỗi mục có gì
 
