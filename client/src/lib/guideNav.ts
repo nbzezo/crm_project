@@ -342,7 +342,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
     slug: 'chia-se-link',
     title: 'Chia sẻ link công khai',
     summary: 'Cho người ngoài xem một tài liệu, báo giá hay hợp đồng mà không cần tài khoản.',
-    keywords: 'chia sẻ link công khai share token chỉ xem thu hồi hết hạn qr',
+    keywords: 'chia sẻ link công khai share token chỉ xem thu hồi hết hạn gia hạn mật khẩu',
     icon: Share2,
     chapter: GUIDE_CHAPTERS.docs,
   },

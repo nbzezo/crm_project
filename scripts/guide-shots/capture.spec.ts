@@ -16,10 +16,17 @@ fs.mkdirSync(IMG_DIR, { recursive: true });
 /* Ep che do toi truoc khi trang chay: toan bo tai lieu dung mot tong mau. */
 const forceDarkTheme = `try { localStorage.setItem('workflow-theme', 'dark'); } catch {}`;
 
-async function settle(page: Page): Promise<void> {
+/**
+ * Cho trang lang di truoc khi chup.
+ *
+ * `dismissPopups` chi bat TRUOC `prepare`: popup nhac viec den han co the che
+ * man hinh vua mo, nen phai bam Escape dong no. Nhung sau `prepare` thi Escape
+ * dong luon hop thoai ma `prepare` vua mo ra de chup — bang bo loc, menu cot,
+ * the cua so deu bien mat theo cach do.
+ */
+async function settle(page: Page, dismissPopups = true): Promise<void> {
   await page.waitForLoadState('networkidle').catch(() => undefined);
-  /* Popup nhac viec den han co the che man hinh — dong truoc khi chup. */
-  await page.keyboard.press('Escape').catch(() => undefined);
+  if (dismissPopups) await page.keyboard.press('Escape').catch(() => undefined);
   await page.waitForTimeout(600);
 }
 
@@ -30,7 +37,7 @@ async function capture(page: Page, shot: Shot): Promise<void> {
   await settle(page);
   if (shot.prepare) {
     await shot.prepare(page);
-    await settle(page);
+    await settle(page, false);
   }
 
   const type = shot.type ?? 'jpeg';

@@ -10,6 +10,8 @@ Trạng thái của giai đoạn — đúng hạn / sắp tới hạn / quá h�
 thẻ đã xong bên trong. Không có cột nào lưu sẵn, nên không bao giờ có chuyện mốc đã dời mà trạng
 thái vẫn là của hôm qua.
 
+![Tab Giai đoạn của một dự án: ba đợt bàn giao, mỗi đợt một mốc ngày, số việc đã xong và nhãn đúng tiến độ hay trễ hạn](/guide/img/giai-doan-moc-ban-giao.jpg)
+
 > **Lưu ý** Đừng nhầm với **giai đoạn của cơ hội** (stage trong pipeline bán hàng). Hai thứ trùng
 > tên nhưng khác hẳn nhau: một bên là tiến độ triển khai, một bên là bước bán hàng.
 
@@ -22,12 +24,16 @@ Khi tạo dự án, hệ thống **gợi ý** một trong hai mẫu:
 | **Model A** | Dự án lớn | 9 bước, P01 đến P09 |
 | **Model B** | Dự án nhỏ | 5 bước |
 
-Gợi ý dựa trên **4 ngưỡng** cấu hình ở *Cài đặt → Triển khai*:
+Trong màn Cài đặt, hai mẫu này ghi là **Mô hình A** và **Mô hình B** — cùng một thứ.
+
+Gợi ý dựa trên **4 ngưỡng** cấu hình ở *Cài đặt → Triển khai dự án*:
 
 - Giá trị hợp đồng
 - Số ngày thực hiện
 - Số giai đoạn
 - Số người tham gia
+
+![Màn Cài đặt → Triển khai dự án: bốn ô ngưỡng phân loại, bên dưới là bộ cột mẫu P01–P05 của Model A](/guide/img/cai-dat-trien-khai.jpg)
 
 ## Chọn khác gợi ý
 
@@ -38,8 +44,8 @@ Gợi ý dựa trên **4 ngưỡng** cấu hình ở *Cài đặt → Triển kh
 
 ## Đổi ngưỡng
 
-Ngưỡng nằm ở *Cài đặt → Triển khai* và cần quyền cấu hình. Đổi ngưỡng **không** làm thay đổi các dự
-án đã tạo — nó chỉ ảnh hưởng tới gợi ý cho dự án mới.
+Ngưỡng nằm ở *Cài đặt → Triển khai dự án* và cần quyền cấu hình. Đổi ngưỡng **không** làm thay đổi
+các dự án đã tạo — nó chỉ ảnh hưởng tới gợi ý cho dự án mới.
 
 ## Liên quan
 

@@ -2,6 +2,8 @@ Sổ rủi ro là **một sổ dùng chung cho bốn loại mục**. Gộp lại
 hóa lẫn nhau: một rủi ro không xử lý thành vấn đề, một vấn đề dẫn tới yêu cầu thay đổi, và cuối
 cùng ai đó phải ra quyết định.
 
+![Tab Rủi ro & nghiệm thu của một dự án: bốn mục thuộc bốn loại, mục quá hạn tô đỏ ở trên cùng và mục đã đóng gạch ngang ở dưới](/guide/img/so-rui-ro-danh-sach.jpg)
+
 ## Bốn loại mục
 
 | Loại | Là gì |

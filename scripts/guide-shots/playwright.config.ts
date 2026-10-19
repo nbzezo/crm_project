@@ -43,6 +43,13 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     viewport: { width: 1280, height: 800 },
     deviceScaleFactor: 1,
+    /* Micro gia lap: anh `ghi-am-cong-cu` bam nut Ghi am that roi ket thuc, nen
+       Chromium phai co mot nguon am thanh va khong duoc hoi quyen. Khong anh
+       huong anh nao khac — khong man hinh nao con lai goi getUserMedia. */
+    permissions: ['microphone'],
+    launchOptions: {
+      args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+    },
   },
   projects: [
     { name: 'setup', testMatch: /auth\.setup\.ts/ },

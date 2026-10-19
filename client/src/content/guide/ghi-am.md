@@ -12,6 +12,8 @@ Nút ghi âm có trong cả **Ghi chú họp** lẫn **Ghi chú nhanh**. Ghi tr�
    - **Một mẫu tóm tắt** — theo mẫu quản trị cấu hình ở *Cài đặt → Trợ lý AI*
 6. Văn bản chèn ngay vào ghi chú đang mở.
 
+![Thanh công cụ ghi âm sau khi ghi xong: trình nghe lại, nút Lưu ghi âm, ô chọn kiểu xử lý và nút Chuyển văn bản](/guide/img/ghi-am-cong-cu.png)
+
 ## Chọn model
 
 Model dùng cho việc này đặt riêng ở *Cài đặt → Ghi âm → văn bản*. AI đọc thẳng tệp âm thanh, không

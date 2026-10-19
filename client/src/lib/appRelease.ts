@@ -18,6 +18,16 @@ export const APP_UPDATED_AT = '2026-10-19';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.40.1',
+    date: '2026-10-19',
+    title: 'Hướng dẫn: thêm ảnh cho năm bài còn thiếu',
+    changes: [
+      'Năm bài hướng dẫn Ghi chú nhanh, Chia sẻ link công khai, Ghi âm thành văn bản, Sổ rủi ro và Giai đoạn & Model A/B nay đều có ảnh minh hoạ; riêng Chia sẻ link và Giai đoạn có thêm ảnh màn cài đặt tương ứng.',
+      'Ba ảnh cũ (thẻ cửa sổ, bộ lọc bảng, menu cột) chụp nhầm lúc hộp thoại đã đóng, nay chụp lại đúng thứ cần xem.',
+      'Bài Chia sẻ link bỏ bước "đưa mã QR" không có thật, ghi rõ các bước tạo liên kết và nhắc rằng đường dẫn chỉ hiện đầy đủ một lần.',
+    ],
+  },
+  {
     version: '1.40.0',
     date: '2026-10-19',
     title: 'Hướng dẫn sử dụng ngay trong ứng dụng',

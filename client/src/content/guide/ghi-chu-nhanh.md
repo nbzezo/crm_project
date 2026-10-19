@@ -1,6 +1,8 @@
 Ghi chú nhanh là bảng giấy dán kiểu sổ tay: mở từ nút **Ghi nhanh** trên thanh trên, ghi một dòng
 rồi đóng lại. Không cần đặt tên, không cần chọn chỗ lưu.
 
+![Bảng Ghi chú nhanh với một ghi chú đã ghim ở trên và các ghi chú khác xếp theo lưới, mỗi ghi chú một màu và một nhãn](/guide/img/ghi-chu-nhanh-bang.jpg)
+
 ## Mỗi ghi chú có gì
 
 - **Ghim** lên đầu bảng
