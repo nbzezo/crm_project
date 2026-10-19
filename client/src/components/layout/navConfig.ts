@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BarChart3,
   BellRing,
+  BookOpen,
   CalendarDays,
   CircleDollarSign,
   BookUser,
@@ -43,6 +44,9 @@ export const HOME_NAV: NavItem = {
   icon: LayoutDashboard,
   end: true,
 };
+/* Huong dan khong gan quyen: bai nao can quyen thi bi loc BEN TRONG trang, de
+   nguoi moi van doc duoc phan danh cho minh. */
+export const GUIDE_NAV: NavItem = { to: '/huong-dan', label: t.nav.guide, icon: BookOpen };
 export const SETTINGS_NAV: NavItem = { to: '/settings', label: t.nav.settings, icon: Settings };
 export const SETTINGS_PERMISSIONS: PermissionKey[] = [
   'settings.app:read',

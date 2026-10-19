@@ -12,6 +12,7 @@ import type { Board } from '../../types';
 import { BottomSheet } from '../common/BottomSheet';
 import {
   NAV_GROUPS,
+  GUIDE_NAV,
   SETTINGS_NAV,
   loadNavOrder,
   useCanOpenSettings,
@@ -132,12 +133,13 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
               </section>
             );
           })}
-          {canOpenSettings && (
-            <section aria-label="Hệ thống">
-              <h3 className="mb-2 text-sm font-semibold text-tr-muted">Hệ thống</h3>
-              <div className="grid grid-cols-4 gap-1">{renderItem(SETTINGS_NAV)}</div>
-            </section>
-          )}
+          <section aria-label="Hệ thống">
+            <h3 className="mb-2 text-sm font-semibold text-tr-muted">Hệ thống</h3>
+            <div className="grid grid-cols-4 gap-1">
+              {renderItem(GUIDE_NAV)}
+              {canOpenSettings && renderItem(SETTINGS_NAV)}
+            </div>
+          </section>
           {starred.length > 0 && (
             <section aria-label="Luồng việc đã ghim">
               <h3 className="mb-2 text-sm font-semibold text-tr-muted">Luồng việc đã ghim</h3>

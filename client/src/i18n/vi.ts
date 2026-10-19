@@ -43,6 +43,7 @@ export const t = {
     myContacts: 'Danh bạ cá nhân',
     ai: 'Trợ lý AI',
     quickNotes: 'Ghi nhanh',
+    guide: 'Hướng dẫn',
     settings: 'Cài đặt',
     groupDaily: 'Bàn làm việc',
     groupProjects: 'Dự án',
@@ -913,6 +914,20 @@ export const t = {
     openPipeline: 'Pipeline đang mở',
     dueThisWeek: 'Đến hạn tuần này',
   },
+  /* Trang Huong dan su dung (1.40.0). Noi dung tung bai nam trong
+     client/src/content/guide/*.md, o day chi la chu cua khung trang. */
+  guide: {
+    pageDescription:
+      'Tra cứu cách dùng từng màn hình. Gõ không dấu cũng tìm được; ảnh minh hoạ chụp ở chế độ tối.',
+    searchPlaceholder: 'Tìm trong hướng dẫn…',
+    clearSearch: 'Xoá ô tìm',
+    resultsTitle: 'Kết quả tìm',
+    matchCount: (n: number) => `${n} bài khớp`,
+    noMatch: (term: string) => `Không có bài nào khớp “${term}”.`,
+    noMatchHint: 'Thử một từ khác, hoặc gõ tên nút bạn đang nhìn thấy trên màn hình.',
+    openHelp: 'Hướng dẫn cho màn hình này',
+  },
+
   settings: {
     pageTitle: 'Cài đặt',
     pageSubtitle: 'Cấu hình nhãn, chấm điểm cơ hội, trợ lý AI và dữ liệu hệ thống',

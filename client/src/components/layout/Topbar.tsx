@@ -1,5 +1,5 @@
-import { Menu, NotebookPen, Search, Settings } from 'lucide-react';
-import { Link, NavLink } from 'react-router';
+import { CircleHelp, Menu, NotebookPen, Search, Settings } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router';
 import { Logo } from '../common/Logo';
 import { SearchBox } from '../common/SearchBox';
 import { ReminderBell } from './ReminderBell';
@@ -11,7 +11,8 @@ import { t } from '../../i18n/vi';
 import { useUiStore } from '../../stores/uiStore';
 import { focusRing } from '../common/ui';
 import { usePermissionCheck } from '../../lib/permissions';
-import { SETTINGS_NAV, useCanOpenSettings } from './navConfig';
+import { GUIDE_NAV, SETTINGS_NAV, useCanOpenSettings } from './navConfig';
+import { articleForRoute } from '../../lib/guideNav';
 
 export function Topbar({ title }: { title: string }) {
   const setNavOpen = useUiStore((s) => s.setNavOpen);
@@ -19,6 +20,7 @@ export function Topbar({ title }: { title: string }) {
   const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
   const canReadNotes = usePermissionCheck()('notes:read');
   const canOpenSettings = useCanOpenSettings();
+  const { pathname } = useLocation();
 
   return (
     <header className="tr-topbar flex h-14 shrink-0 items-center gap-1 border-b border-tr-border/70 bg-transparent px-2.5 sm:gap-2 sm:px-5">
@@ -74,6 +76,23 @@ export function Topbar({ title }: { title: string }) {
           <NotebookPen size={18} aria-hidden="true" />
         </button>
       )}
+      {/* Tro giup theo ngo canh: mo dung bai huong dan cua man hinh dang xem,
+          chu khong phai muc luc — nguoi dang ket o mot man hinh khong muon doc
+          muc luc. */}
+      <NavLink
+        to={`${GUIDE_NAV.to}?bai=${articleForRoute(pathname)}`}
+        aria-label={t.guide.openHelp}
+        title={t.guide.openHelp}
+        className={({ isActive }) =>
+          `hidden h-11 w-11 shrink-0 items-center justify-center rounded-control border transition md:flex fine:h-8 fine:w-8 ${
+            isActive
+              ? 'border-tr-primary/40 bg-tr-hover text-tr-text'
+              : 'border-tr-border bg-tr-panel text-tr-muted hover:bg-tr-hover hover:text-tr-text'
+          } ${focusRing}`
+        }
+      >
+        <CircleHelp size={18} aria-hidden="true" />
+      </NavLink>
       {canOpenSettings && (
         <NavLink
           to={SETTINGS_NAV.to}

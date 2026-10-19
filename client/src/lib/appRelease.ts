@@ -14,9 +14,22 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-12';
+export const APP_UPDATED_AT = '2026-10-19';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.40.0',
+    date: '2026-10-19',
+    title: 'Hướng dẫn sử dụng ngay trong ứng dụng',
+    changes: [
+      'Thêm mục "Hướng dẫn" ở cuối thanh bên: 43 bài tra cứu cách dùng từng màn hình, chia 10 chương (Bắt đầu, Bàn làm việc, Bảng – Luồng việc, Dự án, Khách hàng & Cơ hội, Tài liệu & ghi chú, Trợ lý AI, Báo cáo, Quản trị, Tra cứu nhanh), kèm 42 ảnh chụp thật của hệ thống.',
+      'Ô tìm trong trang hướng dẫn quét cả tiêu đề lẫn nội dung bài, gõ không dấu cũng ra, và hiện đoạn trích cho biết vì sao bài đó khớp. Bấm phím "/" để nhảy vào ô tìm.',
+      'Nút dấu hỏi trên thanh trên mở đúng bài hướng dẫn của màn hình bạn đang xem, không bắt đọc mục lục.',
+      'Ctrl + K tìm luôn trong các bài hướng dẫn, cạnh khách hàng, cơ hội, thẻ và trang cài đặt.',
+      'Bài đang đọc nằm trong địa chỉ trang (?bai=…) nên F5 hay gửi link cho đồng nghiệp đều mở đúng bài; mỗi mục trong bài có neo riêng để dẫn thẳng tới đoạn cần.',
+      'Các bài dành cho quản trị (người dùng, phân quyền, danh mục, kết nối, sao lưu) chỉ hiện với người có quyền tương ứng.',
+    ],
+  },
   {
     version: '1.39.0',
     date: '2026-10-12',

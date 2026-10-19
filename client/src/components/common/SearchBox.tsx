@@ -12,6 +12,7 @@ import type { Priority, Stage } from '../../types';
 import { pickLabel, stageLabel } from '../../lib/crmConfig';
 import { usePermissionCheck } from '../../lib/permissions';
 import { searchSettings, visibleSettingsTabs } from '../../lib/settingsNav';
+import { searchGuideMeta, visibleGuideArticles } from '../../lib/guideNav';
 
 interface SearchResults {
   cards: {
@@ -137,9 +138,15 @@ export function SearchBox() {
         .filter((tab) => tab.key !== 'overview')
         .slice(0, 4)
     : [];
+  /* 1.40.0: tim luon bai huong dan. Chi quet ten va tu khoa (searchGuideMeta)
+     — ban quet ca noi dung Markdown nam trong chunk cua trang Huong dan. */
+  const guideHits = term.trim()
+    ? searchGuideMeta(visibleGuideArticles(allowed), term).slice(0, 4)
+    : [];
   const total =
     (data ? Object.values(data).reduce((n, list) => n + (list?.length ?? 0), 0) : 0) +
-    settingsHits.length;
+    settingsHits.length +
+    guideHits.length;
 
   return (
     <>
@@ -263,6 +270,22 @@ export function SearchBox() {
                       }}
                       primary={tab.label}
                       secondary={`${tab.group} · ${tab.description}`}
+                    />
+                  ))}
+                </Group>
+              )}
+
+              {guideHits.length > 0 && (
+                <Group title={t.nav.guide}>
+                  {guideHits.map((article) => (
+                    <Row
+                      key={article.slug}
+                      onClick={() => {
+                        navigate(`/huong-dan?bai=${article.slug}`);
+                        close();
+                      }}
+                      primary={article.title}
+                      secondary={`${article.chapter} · ${article.summary}`}
                     />
                   ))}
                 </Group>

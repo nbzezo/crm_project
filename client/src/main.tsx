@@ -39,6 +39,7 @@ const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
 const OrgDirectoryPage = lazy(() => import('./pages/OrgDirectoryPage'));
 const MyContactsPage = lazy(() => import('./pages/MyContactsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const GuidePage = lazy(() => import('./pages/GuidePage'));
 const AiWorkspacePage = lazy(() => import('./pages/AiWorkspacePage'));
 const PublicSharePage = lazy(() => import('./pages/PublicSharePage'));
 const FeedPage = lazy(() => import('./pages/FeedPage'));
@@ -220,6 +221,9 @@ const router = createBrowserRouter([
       { path: 'shares', element: <Navigate to="/settings?tab=shares" replace /> },
       { path: 'notes', element: <NotesRedirect /> },
       { path: 'settings', element: <SettingsPage />, handle: { title: t.nav.settings } },
+      /* Huong dan khong khai `permission`: ai dang nhap cung doc duoc, cac bai
+         danh cho quan tri bi loc ngay trong trang theo quyen cua nguoi doc. */
+      { path: 'huong-dan', element: <GuidePage />, handle: { title: t.nav.guide } },
       /* URL khong khop: dat lam route con de van nam trong khung app — nguoi dung
          lac duong khong bi mat luon thanh dieu huong de tim duong ra. */
       { path: '*', element: <NotFoundPage />, handle: { title: 'Không tìm thấy trang' } },

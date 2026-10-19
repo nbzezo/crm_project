@@ -42,6 +42,7 @@ export default tseslint.config(
       '*.config.{js,ts}',
       'server/scripts/**/*.mjs',
       'client/scripts/**/*.mjs',
+      'scripts/**/*.mjs',
     ],
     languageOptions: {
       globals: globals.node,

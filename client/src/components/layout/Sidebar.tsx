@@ -40,6 +40,7 @@ import { focusRing } from '../common/ui';
 import { buildDndAnnouncements } from '../../lib/dnd/announcements';
 import {
   DEFAULT_NAV_ORDER,
+  GUIDE_NAV,
   HOME_NAV,
   NAV_GROUPS,
   NAV_ORDER_STORAGE_KEY,
@@ -296,7 +297,7 @@ function SidebarNav({
      dan ky thuat — doi sang dung nhan hien tren man hinh. */
   const announcements = useMemo(() => {
     const labels = new Map(
-      [HOME_NAV, SETTINGS_NAV, ...NAV_GROUPS.flatMap((g) => g.items)].map((item) => [
+      [HOME_NAV, GUIDE_NAV, SETTINGS_NAV, ...NAV_GROUPS.flatMap((g) => g.items)].map((item) => [
         item.to,
         item.label,
       ])
@@ -401,6 +402,12 @@ function SidebarNav({
             </section>
           );
         })}
+
+        {/* Huong dan dung ngoai ba nhom va ngoai thu tu keo-tha: no khong thuoc
+            mang viec nao, va luon o mot cho de con tim duoc khi dang bi ket. */}
+        <div className="mt-3 border-t border-[var(--tr-nav-border)] pt-2">
+          <NavItemLink item={GUIDE_NAV} onNavigate={onNavigate} />
+        </div>
       </nav>
 
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-[var(--tr-nav-border)] px-3 pt-2 pb-3">
@@ -490,6 +497,9 @@ function CollapsedNav({ order }: { order: NavOrder }) {
           </div>
         );
       })}
+      <div className="flex flex-col items-center gap-1 border-t border-[var(--tr-nav-border)] pt-1">
+        <CollapsedNavLink item={GUIDE_NAV} />
+      </div>
     </nav>
   );
 }
