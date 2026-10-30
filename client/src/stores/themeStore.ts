@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ensureThemeFont } from '../lib/themeFonts';
+import { storageGet, storageSet } from '../lib/safeStorage';
 
 export type ThemeMode = 'light' | 'dark' | 'ubuntu' | 'mono' | 'system';
 
@@ -35,14 +36,10 @@ function applyTheme(mode: ThemeMode): void {
 }
 
 function initialMode(): ThemeMode {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const saved = storageGet(STORAGE_KEY);
   if (THEME_MODES.includes(saved as ThemeMode)) return saved as ThemeMode;
   if (saved && REMOVED_LIGHT_THEMES.has(saved)) {
-    try {
-      localStorage.setItem(STORAGE_KEY, 'light');
-    } catch {
-      // Trinh duyet chan storage thi van chay dung trong phien nay.
-    }
+    storageSet(STORAGE_KEY, 'light');
     return 'light';
   }
   return 'dark';
@@ -57,7 +54,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>((set, get) => ({
   mode: initialMode(),
   setMode: (mode) => {
-    localStorage.setItem(STORAGE_KEY, mode);
+    storageSet(STORAGE_KEY, mode);
     applyTheme(mode);
     set({ mode });
   },

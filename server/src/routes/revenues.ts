@@ -11,7 +11,6 @@ import { HttpError } from '../lib/validate.ts';
 import { mergeRevenueCell, type RevenueCell as MonthCell } from '../services/revenueService.ts';
 import {
   baseFromPeriod,
-  compareLine,
   effectiveAnchor,
   groupOf,
   parseGroupFilter,
@@ -26,9 +25,24 @@ import { computeKpi, summarizeKpi } from '../services/revenueKpi.ts';
 import { buildTemplate, validateRow, type ParsedRow } from '../services/revenueImport.ts';
 import { runInWorker } from '../lib/workerPool.ts';
 import type { ParsedWorkbook } from '../services/revenueWorkbookParse.ts';
-import type { ContractKind, ContractTerm, ServiceStatus } from '@workflow/contracts';
+import {
+  addRevenueCellToTotals,
+  type ContractKind,
+  type ContractTerm,
+  type RevenueTotals as Totals,
+  type ServiceStatus,
+} from '@workflow/contracts';
 import { cacheResponse } from '../lib/responseCache.ts';
 import { isRealDate } from '../lib/dates.ts';
+import {
+  buildRevenueSummaryReport,
+  emptyRevenueTotals,
+  type RevenueSummaryLine,
+} from '../services/revenueSummaryReport.ts';
+import {
+  buildRevenueComparisonReport,
+  type RevenueComparisonLine,
+} from '../services/revenueComparisonReport.ts';
 
 const router = Router();
 
@@ -111,24 +125,8 @@ const LINE_SELECT = `
  * Tong cua mot pham vi: so tien tong + so du kien ban dau + so tien dang nam o tung giai doan
  * (cac o stage_* la tong ROI NHAU, phia hien thi tu cong don thanh phieu neu can).
  */
-interface Totals {
-  amount_vnd: number;
-  forecast_vnd: number;
-  stage_forecast_vnd: number;
-  stage_reconciled_vnd: number;
-  stage_invoiced_vnd: number;
-  stage_paid_vnd: number;
-}
-
 function emptyTotals(): Totals {
-  return {
-    amount_vnd: 0,
-    forecast_vnd: 0,
-    stage_forecast_vnd: 0,
-    stage_reconciled_vnd: 0,
-    stage_invoiced_vnd: 0,
-    stage_paid_vnd: 0,
-  };
+  return emptyRevenueTotals();
 }
 
 /** Nam hop le, mac dinh la nam hien tai theo gio may. */
@@ -192,15 +190,6 @@ function buildFilters(req: Request): { sql: string; params: unknown[] } {
   }
   pushScope(where, params, scopeWhereOrUnowned(req, 'revenues', 'read', 'cs.owner_contact_id'));
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
-}
-
-function addCell(totals: Totals, cell: MonthCell): void {
-  totals.amount_vnd += cell.amount_vnd;
-  totals.forecast_vnd += cell.forecast_vnd;
-  if (cell.stage === 'forecast') totals.stage_forecast_vnd += cell.amount_vnd;
-  else if (cell.stage === 'reconciled') totals.stage_reconciled_vnd += cell.amount_vnd;
-  else if (cell.stage === 'invoiced') totals.stage_invoiced_vnd += cell.amount_vnd;
-  else totals.stage_paid_vnd += cell.amount_vnd;
 }
 
 function inList(ids: number[]): string {
@@ -313,7 +302,7 @@ function attachMonths<L extends Record<string, unknown>>(
     const groups = groupsOf(line, anchor, year);
     const totals = emptyTotals();
     for (const [period, cell] of Object.entries(months)) {
-      if (!only || only.has(groups[period])) addCell(totals, cell);
+      if (!only || only.has(groups[period])) addRevenueCellToTotals(totals, cell);
     }
     return {
       ...line,
@@ -609,61 +598,7 @@ router.put('/period-stage', (req, res) => {
 router.get('/summary', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const { only, lines } = selectLines(req, year);
-
-  const months = new Map<string, Totals>();
-  const totals = emptyTotals();
-  const byService = new Map<string, { name: string; line_count: number } & Totals>();
-  const byCustomer = new Map<number, { id: number; name: string } & Totals>();
-  const byGroup: Record<RevenueGroup, { totals: Totals; months: Record<string, number> }> = {
-    new: { totals: emptyTotals(), months: {} },
-    expansion: { totals: emptyTotals(), months: {} },
-    base: { totals: emptyTotals(), months: {} },
-  };
-
-  for (const line of lines) {
-    const serviceName = (line.service_name as string | null) ?? 'Chưa gán dịch vụ';
-    const service = byService.get(serviceName) ?? {
-      name: serviceName,
-      line_count: 0,
-      ...emptyTotals(),
-    };
-    service.line_count += 1;
-    byService.set(serviceName, service);
-    const customerId = Number(line.customer_id);
-    const customer = byCustomer.get(customerId) ?? {
-      id: customerId,
-      name: line.customer_name as string,
-      ...emptyTotals(),
-    };
-    byCustomer.set(customerId, customer);
-
-    for (const [period, cell] of Object.entries(line.months)) {
-      const group = line.groups[period];
-      if (only && !only.has(group)) continue;
-      if (!months.has(period)) months.set(period, emptyTotals());
-      addCell(months.get(period)!, cell);
-      addCell(totals, cell);
-      addCell(service, cell);
-      addCell(customer, cell);
-      addCell(byGroup[group].totals, cell);
-      byGroup[group].months[period] = (byGroup[group].months[period] ?? 0) + cell.amount_vnd;
-    }
-  }
-
-  res.json({
-    year,
-    months: [...months.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([period, value]) => ({ period, ...value })),
-    totals,
-    line_count: lines.length,
-    by_service: [...byService.values()].sort((a, b) => b.amount_vnd - a.amount_vnd),
-    by_customer: [...byCustomer.values()]
-      .filter((c) => c.amount_vnd > 0)
-      .sort((a, b) => b.amount_vnd - a.amount_vnd)
-      .slice(0, 10),
-    by_group: byGroup,
-  });
+  res.json(buildRevenueSummaryReport(year, only, lines as RevenueSummaryLine[]));
 });
 
 /** Thang hien tai theo gio may — moc tach "da qua" va "sap toi" cho so du kien. */
@@ -695,64 +630,16 @@ router.get('/comparison', cacheResponse, (req, res) => {
   }
 
   const current = currentPeriod();
-  const rows = [];
-  for (const line of lines) {
-    const periods = yearPeriods(year).filter((p) => !only || only.has(line.groups[p]));
-    if (periods.length === 0) continue;
-    const months = Object.fromEntries(
-      Object.entries(line.months).map(([p, cell]) => [p, cell.amount_vnd])
-    );
-    const comparison = compareLine({
+  res.json(
+    buildRevenueComparisonReport(
       year,
       current,
-      months,
-      prevMonths: prevByLine.get(Number(line.id)) ?? {},
-      status: line.status as ServiceStatus,
-      start_date: (line.start_date as string | null) ?? null,
-      end_date: (line.end_date as string | null) ?? null,
-      periods,
-      baselineAvg: line.baseline_avg_vnd,
-    });
-    rows.push({
-      line_id: line.id,
-      customer_id: line.customer_id,
-      customer_name: line.customer_name,
-      service_name: line.service_name,
-      contract_name: line.contract_name,
-      contract_kind: line.contract_kind,
-      status: line.status,
-      anchor: line.anchor,
-      groups: line.groups,
-      periods,
-      months,
-      prev_months: prevByLine.get(Number(line.id)) ?? {},
-      baseline_avg_vnd: line.baseline_avg_vnd,
-      ...comparison,
-    });
-  }
-  /* Tong ca nam cho o "Co cau doanh thu theo nhom". Truoc day client tai CHI TIET tung
-     dong (hang chuc MB) chi de cong lai bon con so nay. `lines=none` bo phan chi tiet —
-     ket qua nho nen duoc luu dem (lib/responseCache.ts). */
-  const totals = {
-    projected_by_group: { new: 0, expansion: 0, base: 0 } as Record<RevenueGroup, number>,
-    projected_total_vnd: 0,
-    prev_total_vnd: 0,
-    prev_total_approx: false,
-  };
-  for (const row of rows) {
-    for (const [period, value] of Object.entries(row.projection)) {
-      totals.projected_by_group[row.groups[period] as RevenueGroup] += value.value;
-    }
-    totals.projected_total_vnd += row.projected_total_vnd;
-    totals.prev_total_vnd += row.prev_total_vnd;
-    if (row.prev_total_approx) totals.prev_total_approx = true;
-  }
-  res.json({
-    year,
-    current_period: current,
-    totals,
-    lines: req.query.lines === 'none' ? [] : rows,
-  });
+      only,
+      lines as RevenueComparisonLine[],
+      prevByLine,
+      req.query.lines !== 'none'
+    )
+  );
 });
 
 /* ---------- KPI doanh thu theo AM ---------- */

@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
 import crypto from 'node:crypto';
@@ -18,7 +18,7 @@ import {
   updateUser,
 } from '../services/auth/users.ts';
 import { issueToken } from '../services/auth/tokens.ts';
-import { appBaseUrl, sendMail } from '../services/email/emailService.ts';
+import { configuredAppBaseUrl, sendMail } from '../services/email/emailService.ts';
 import { inviteEmail } from '../services/email/templates.ts';
 
 const router = Router();
@@ -50,7 +50,6 @@ router.use((req, res, next) => {
  * da dung" cho mot tai khoan ho tuong chua ton tai.
  */
 async function sendInvite(
-  req: Request,
   userId: number
 ): Promise<{ invite_link: string | null; invite_error: string | null }> {
   const user = findUserById(userId);
@@ -59,11 +58,14 @@ async function sendInvite(
   }
 
   const { token } = issueToken(userId, 'invite');
-  const host = req.get('host');
-  const link = `${appBaseUrl(db, host ? `${req.protocol}://${host}` : undefined)}/reset-password?token=${token}`;
+  const baseUrl = configuredAppBaseUrl(db);
+  /* Khong co URL tin cay thi chi tra duong dan tuong doi cho quan tri vien dang
+     dang nhap; tuyet doi khong dua Host header vao email mang token. */
+  const link = `${baseUrl ?? ''}/reset-password?token=${token}`;
   let delivered = false;
-  let inviteError: string | null = null;
+  let inviteError: string | null = baseUrl ? null : 'Chưa khai báo URL CRM nên chưa gửi thư mời';
   try {
+    if (!baseUrl) return { invite_link: link, invite_error: inviteError };
     ({ delivered } = await sendMail(db, inviteEmail(user.email, user.full_name ?? '', link)));
   } catch (error) {
     inviteError = error instanceof Error ? error.message : String(error);
@@ -192,7 +194,7 @@ router.post('/', async (req, res, next) => {
         }
       },
     });
-    const invite = await sendInvite(req, id);
+    const invite = await sendInvite(id);
     /* Canh bao, khong chan: co noi tao tai khoan truoc, phan quyen sau la quy
        trinh binh thuong. Client nhac de nguoi quan tri khong quen. */
     const warnings = [
@@ -240,7 +242,7 @@ router.post('/:id/invite', async (req, res, next) => {
   try {
     const id = intParam(req.params.id);
     if (!findUserById(id)) throw new HttpError(404, 'Không tìm thấy tài khoản');
-    res.json(await sendInvite(req, id));
+    res.json(await sendInvite(id));
   } catch (err) {
     next(err);
   }

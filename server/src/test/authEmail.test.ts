@@ -37,6 +37,7 @@ before(async () => {
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Khong khoi dong duoc test server');
   baseUrl = `http://127.0.0.1:${address.port}`;
+  db.prepare(`UPDATE email_settings SET app_base_url = 'https://crm.congty.vn' WHERE id = 1`).run();
 });
 
 after(async () => {
@@ -127,6 +128,23 @@ test('quen mat khau: email khong ton tai van tra 204 va khong sinh token', async
     db.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get() as { n: number }
   ).n;
   assert.equal(after_, before_, 'khong duoc tao token cho email khong ton tai');
+});
+
+test('quen mat khau khong tao token khi chua co app_base_url tin cay', async () => {
+  cookie = '';
+  const email = 'khong-host-header@congty.vn';
+  seedUser(email);
+  db.prepare(`UPDATE email_settings SET app_base_url = '' WHERE id = 1`).run();
+  const before_ = (
+    db.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get() as { n: number }
+  ).n;
+  const res = await call('POST', '/api/auth/forgot-password', { email });
+  assert.equal(res.status, 204);
+  const after_ = (
+    db.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get() as { n: number }
+  ).n;
+  assert.equal(after_, before_, 'khong duoc tao token gan voi Host header cua request');
+  db.prepare(`UPDATE email_settings SET app_base_url = 'https://crm.congty.vn' WHERE id = 1`).run();
 });
 
 test('quen mat khau: dat lai duoc, token chi dung mot lan', async () => {

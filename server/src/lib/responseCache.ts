@@ -36,6 +36,12 @@ const entries = new Map<string, Entry>();
 let totalBytes = 0;
 const lastWriteAt = new Map<string, number>();
 const lastFreshAt = new Map<string, number>();
+interface InFlightResult {
+  status: number;
+  body: string;
+}
+const inFlight = new Map<string, Promise<InFlightResult | null>>();
+const cacheMetrics = { hits: 0, misses: 0, shared: 0 };
 
 /** Duong dan ma ghi vao do co the doi pham vi xem cua nguoi khac. */
 const ACCESS_PATHS = ['/api/users', '/api/positions', '/api/org-units'];
@@ -66,6 +72,10 @@ export function clearResponseCache(): void {
   totalBytes = 0;
   lastWriteAt.clear();
   lastFreshAt.clear();
+  inFlight.clear();
+  cacheMetrics.hits = 0;
+  cacheMetrics.misses = 0;
+  cacheMetrics.shared = 0;
 }
 
 /**
@@ -131,11 +141,43 @@ export const cacheResponse: RequestHandler = (req, res, next) => {
     now - hit.storedAt < CACHE_TTL_MS &&
     hit.storedAt > (lastWriteAt.get(userKey) ?? 0)
   ) {
+    cacheMetrics.hits += 1;
     res.setHeader('X-Cache', 'hit');
     res.type('application/json').send(hit.body);
     return;
   }
   if (hit) remove(key);
+
+  const running = inFlight.get(key);
+  if (running) {
+    cacheMetrics.shared += 1;
+    void running.then((result) => {
+      if (!result) {
+        next();
+        return;
+      }
+      res.status(result.status);
+      res.setHeader('X-Cache', 'shared');
+      res.type('application/json').send(result.body);
+    });
+    return;
+  }
+
+  let settle!: (result: InFlightResult | null) => void;
+  const pending = new Promise<InFlightResult | null>((resolve) => {
+    settle = resolve;
+  });
+  inFlight.set(key, pending);
+  cacheMetrics.misses += 1;
+  let settled = false;
+  const finish = (result: InFlightResult | null) => {
+    if (settled) return;
+    settled = true;
+    if (inFlight.get(key) === pending) inFlight.delete(key);
+    settle(result);
+  };
+  res.once('finish', () => finish(null));
+  res.once('close', () => finish(null));
 
   const json = res.json.bind(res);
   res.json = (body: unknown) => {
@@ -157,7 +199,17 @@ export const cacheResponse: RequestHandler = (req, res, next) => {
         remove(oldKey);
       }
     }
+    finish({ status: res.statusCode, body: text });
     return res.type('application/json').send(text);
   };
   next();
 };
+
+export function responseCacheStats() {
+  return {
+    ...cacheMetrics,
+    entries: entries.size,
+    bytes: totalBytes,
+    in_flight: inFlight.size,
+  };
+}

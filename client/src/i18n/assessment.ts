@@ -352,7 +352,7 @@ export const DECISION_LABELS: Record<DealDecisionKind, string> = {
 };
 
 export const DECISION_COLORS: Record<DealDecisionKind, string> = {
-  pursue: '#0ca30c',
-  pause: '#d18b00',
-  withdraw: '#e04b3a',
+  pursue: 'var(--tr-success)',
+  pause: 'var(--tr-warning)',
+  withdraw: 'var(--tr-danger)',
 };

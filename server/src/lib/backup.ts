@@ -39,7 +39,10 @@ export function pruneBackups(keep = backupKeepCount()): string[] {
   return removed;
 }
 
-export async function createBackupFile(db: Database): Promise<BackupFileInfo> {
+export async function createBackupFile(
+  db: Database,
+  options: { temporary?: boolean } = {}
+): Promise<BackupFileInfo> {
   /* Ten theo giay: hai lan bam trong cung mot giay tung ghi de len nhau. */
   const stamp = timestamp();
   let file = path.join(BACKUP_DIR, `app-${stamp}.db`);
@@ -48,7 +51,9 @@ export async function createBackupFile(db: Database): Promise<BackupFileInfo> {
   }
   await db.backup(file);
   const stat = fs.statSync(file);
-  pruneBackups();
+  /* Snapshot tam se bi xoa sau khi day len dich vu ngoai, nen khong duoc tinh no
+     vao retention va xoa nham mot backup local ben vung. */
+  if (!options.temporary) pruneBackups();
   return { path: file, name: path.basename(file), size: stat.size };
 }
 

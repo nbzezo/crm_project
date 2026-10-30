@@ -142,31 +142,12 @@ function careLine(data: CustomerOverviewData): { text: string; danger: boolean }
   return { text: `Lần liên hệ tới: ${formatDate(care.next_contact_due)}`, danger: false };
 }
 
-/**
- * Sức khỏe chung dùng ngưỡng cố định 14/30 ngày; hồ sơ 360 biết nhịp riêng của
- * khách (VIP 14 ngày, Ít ưu tiên 90 ngày…). Quá nhịp thì ít nhất "Cần chú ý", quá
- * nửa nhịp trở lên thì "Rủi ro" — để nhãn không mâu thuẫn với dòng nhịp ngay dưới.
- */
+/** Response cũ chưa có `health` vẫn dùng kết quả dự phòng trong lúc cache được làm mới. */
 export function healthWithCadence(
   health: ReturnType<typeof getCustomerHealth>,
   data: CustomerOverviewData | undefined
 ): ReturnType<typeof getCustomerHealth> {
-  if (!data) return health;
-  const { care } = data;
-  const onlyInactivity = /ngày chưa tương tác$/.test(health.reason);
-  if (care.state !== 'overdue' && care.state !== 'never') {
-    /* Trong nhịp: ngưỡng chung 14/30 ngày không được hạ khách ít ưu tiên (nhịp 90). */
-    return onlyInactivity
-      ? { level: 'good', label: 'Tốt', reason: 'Đang trong nhịp chăm sóc' }
-      : health;
-  }
-  if (health.level === 'risk' && !onlyInactivity) return health;
-  const reason = care.last_contact_at
-    ? `Quá nhịp liên hệ ${care.days_overdue} ngày (nhịp ${care.cadence_days} ngày)`
-    : 'Chưa tương tác lần nào';
-  return care.days_overdue * 2 >= care.cadence_days || care.state === 'never'
-    ? { level: 'risk', label: 'Rủi ro', reason }
-    : { level: 'attention', label: 'Cần chú ý', reason };
+  return data?.health ?? health;
 }
 
 function HealthCard({

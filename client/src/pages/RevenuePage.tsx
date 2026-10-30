@@ -64,6 +64,7 @@ import {
   funnel,
   groupLinesByCustomer,
   receivable,
+  totalsFromCells,
   type RevenueCustomerGroup,
 } from '../lib/revenue';
 import type {
@@ -1396,23 +1397,7 @@ function GroupBadge({
 
 /** Tính lại tổng năm của một dòng sau khi sửa một ô. */
 function recomputeTotals(line: RevenueLine): RevenueLine {
-  const totals = {
-    amount_vnd: 0,
-    forecast_vnd: 0,
-    stage_forecast_vnd: 0,
-    stage_reconciled_vnd: 0,
-    stage_invoiced_vnd: 0,
-    stage_paid_vnd: 0,
-  };
-  for (const cell of Object.values(line.months)) {
-    totals.amount_vnd += cell.amount_vnd;
-    totals.forecast_vnd += cell.forecast_vnd;
-    if (cell.stage === 'forecast') totals.stage_forecast_vnd += cell.amount_vnd;
-    else if (cell.stage === 'reconciled') totals.stage_reconciled_vnd += cell.amount_vnd;
-    else if (cell.stage === 'invoiced') totals.stage_invoiced_vnd += cell.amount_vnd;
-    else totals.stage_paid_vnd += cell.amount_vnd;
-  }
-  return { ...line, totals };
+  return { ...line, totals: totalsFromCells(Object.values(line.months)) };
 }
 
 /** Badge trạng thái dùng token semantic để tự đổi theo theme. */

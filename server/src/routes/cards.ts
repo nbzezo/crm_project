@@ -51,6 +51,12 @@ const dateOnly = z.string().refine(isRealDate, 'Ngày phải có dạng YYYY-MM-
 
 const priorityEnum = z.enum(['low', 'medium', 'high', 'urgent']);
 
+const bulkIdsSchema = z
+  .array(z.number().int().positive())
+  .min(1)
+  .max(500)
+  .refine((ids) => new Set(ids).size === ids.length, 'ID công việc bị trùng');
+
 type CardRow = {
   id: number;
   list_id: number;
@@ -333,6 +339,159 @@ router.put('/:id/fields/:fieldId', (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+router.patch('/bulk', (req, res) => {
+  const body = parseBody(
+    z.object({
+      ids: bulkIdsSchema,
+      patch: z
+        .object({
+          priority: priorityEnum.optional(),
+          assignee_contact_id: z.number().int().nullable().optional(),
+          status: z.string().trim().min(1).max(60).optional(),
+          is_done: z.boolean().optional(),
+          skip_flow: z.boolean().optional(),
+        })
+        .refine(
+          (patch) =>
+            patch.priority !== undefined ||
+            patch.assignee_contact_id !== undefined ||
+            patch.status !== undefined ||
+            patch.is_done !== undefined,
+          'Không có thay đổi'
+        ),
+    }),
+    req
+  );
+  if (body.patch.status !== undefined) requireActiveStatus(db, body.patch.status);
+  const cards = body.ids.map((id) => {
+    assertCardAccess(req, id, 'update');
+    return required(
+      db
+        .prepare(
+          `SELECT id, title, priority, assignee_contact_id, is_done,
+                  COALESCE(status_key, status) AS status_key
+             FROM cards WHERE id = ?`
+        )
+        .get(id),
+      'Không tìm thấy thẻ'
+    ) as {
+      id: number;
+      title: string;
+      priority: string;
+      assignee_contact_id: number | null;
+      is_done: number;
+      status_key: TaskStatusKey;
+    };
+  });
+  const doneStatus =
+    body.patch.is_done === undefined
+      ? null
+      : firstStatusOfKind(db, body.patch.is_done ? 'done' : 'todo');
+  const nextStatusOf = (card: (typeof cards)[number]) =>
+    body.patch.status ??
+    (body.patch.is_done !== undefined && body.patch.is_done !== Boolean(card.is_done)
+      ? doneStatus
+      : null);
+  const blocked: ({ id: number; title: string } & Record<string, unknown>)[] = [];
+  for (const card of cards) {
+    const nextStatus = nextStatusOf(card);
+    if (nextStatus) {
+      try {
+        guardLeaveStatus(card.id, card.status_key, nextStatus);
+      } catch (error) {
+        if (
+          error instanceof HttpError &&
+          error.status === 409 &&
+          error.details?.code === 'FLOW_INCOMPLETE'
+        ) {
+          blocked.push({ id: card.id, title: card.title, ...error.details });
+        } else throw error;
+      }
+    }
+  }
+  if (blocked.length > 0 && !body.patch.skip_flow) {
+    throw new HttpError(409, `${blocked.length} công việc còn quy trình chưa hoàn tất`, {
+      code: 'BULK_FLOW_INCOMPLETE',
+      blocked,
+    });
+  }
+
+  const actor = actorContactId(req);
+  const assignee =
+    body.patch.assignee_contact_id === undefined
+      ? null
+      : resolveAssignee(db, body.patch.assignee_contact_id);
+  db.transaction(() => {
+    for (const card of cards) {
+      const nextStatus = nextStatusOf(card);
+      if (nextStatus && nextStatus !== card.status_key) {
+        guardLeaveStatus(card.id, card.status_key, nextStatus, {
+          skip: body.patch.skip_flow,
+          actorContactId: actor,
+        });
+      }
+      if (body.patch.priority !== undefined && body.patch.priority !== card.priority) {
+        db.prepare(
+          `UPDATE cards SET priority = ?, updated_at = datetime('now','localtime') WHERE id = ?`
+        ).run(body.patch.priority, card.id);
+        logTaskActivity({
+          cardId: card.id,
+          actorContactId: actor,
+          action: 'updated',
+          field: 'priority',
+          oldValue: card.priority,
+          newValue: body.patch.priority,
+        });
+      }
+      if (assignee && assignee.assignee_contact_id !== card.assignee_contact_id) {
+        db.prepare(
+          `UPDATE cards SET assignee_contact_id = ?, assignee_org_id = ?,
+                            updated_at = datetime('now','localtime') WHERE id = ?`
+        ).run(assignee.assignee_contact_id, assignee.assignee_org_id, card.id);
+        logTaskActivity({
+          cardId: card.id,
+          actorContactId: actor,
+          action: 'updated',
+          field: 'assignee_contact_id',
+          oldValue: card.assignee_contact_id,
+          newValue: assignee.assignee_contact_id,
+        });
+      }
+      if (nextStatus && nextStatus !== card.status_key) {
+        setCardStatus(card.id, nextStatus, { actorContactId: actor });
+        logTaskActivity({
+          cardId: card.id,
+          actorContactId: actor,
+          action: body.patch.is_done ? 'completed' : 'updated',
+          field: 'status_key',
+          oldValue: card.status_key,
+          newValue: nextStatus,
+        });
+      }
+    }
+  })();
+  if (assignee) {
+    for (const card of cards) {
+      if (assignee.assignee_contact_id !== card.assignee_contact_id)
+        notifyAssigneeChangeTelegram(db, card.id);
+    }
+  }
+  res.json({
+    updated: cards.length,
+    cards: cards.map((card) => reloadCard(card.id)),
+  });
+});
+
+router.delete('/bulk', (req, res) => {
+  const { ids } = parseBody(z.object({ ids: bulkIdsSchema }), req);
+  for (const id of ids) assertCardAccess(req, id, 'delete');
+  db.transaction(() => {
+    softDeleteDocumentsForCards(ids);
+    db.prepare(`DELETE FROM cards WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+  })();
+  res.json({ ok: true, deleted: ids.length });
 });
 
 router.patch('/:id', (req, res) => {

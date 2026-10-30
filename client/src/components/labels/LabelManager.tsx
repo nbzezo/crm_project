@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ChevronDown,
@@ -14,6 +14,7 @@ import { api } from '../../api/client';
 import { Button, Input, Select, Textarea, focusRing } from '../common/ui';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import { LabelChip } from './LabelChips';
 import { contrastInk, foldText } from '../../lib/format';
 import { t } from '../../i18n/vi';
@@ -625,10 +626,16 @@ function MergeDialog({
 /* ---------- Mở dữ liệu từ nhãn (FR-TAG-24) ---------- */
 
 function RecordsDialog({ label, onClose }: { label: Label; onClose: () => void }) {
-  const { data: records = [], isLoading } = useQuery({
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['label-records', label.id],
-    queryFn: () => api.get<LabelRecord[]>(`/api/labels/${label.id}/records`),
+    queryFn: ({ pageParam }) =>
+      api.get<{ items: LabelRecord[]; next_cursor: string | null }>(
+        `/api/labels/${label.id}/records?paged=1${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ''}`
+      ),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
   });
+  const records = data?.pages.flatMap((page) => page.items) ?? [];
 
   const byType = new Map<string, LabelRecord[]>();
   for (const record of records) {
@@ -667,6 +674,13 @@ function RecordsDialog({ label, onClose }: { label: Label; onClose: () => void }
               </ul>
             </div>
           ))}
+          <LoadMoreSentinel
+            hasMore={Boolean(hasNextPage)}
+            loading={isFetchingNextPage}
+            onLoadMore={() => void fetchNextPage()}
+            label="Tải thêm bản ghi"
+            endLabel="Đã hiện hết bản ghi"
+          />
         </div>
       )}
     </Modal>

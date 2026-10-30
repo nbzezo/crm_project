@@ -19,7 +19,7 @@ import {
   CornerDownRight,
   Trash2,
 } from 'lucide-react';
-import { api } from '../../api/client';
+import { api, bulkFlowBlockedTitles } from '../../api/client';
 import { Button, EmptyState, InlineDate, focusRing, selectOptionContrast } from '../common/ui';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
@@ -65,6 +65,7 @@ export function TaskTable({
   const isWide = useMediaQuery(MD_QUERY);
   const queryClient = useQueryClient();
   const openCard = useUiStore((s) => s.openCard);
+  const pushToast = useUiStore((s) => s.pushToast);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'due_date', desc: false }]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -91,6 +92,27 @@ export function TaskTable({
 
   const remove = useMutation({
     mutationFn: (id: number) => api.del(`/api/cards/${id}`),
+    onSuccess: () => {
+      invalidateCardViews(queryClient);
+      onChanged?.();
+    },
+  });
+
+  const bulkUpdate = useMutation({
+    mutationFn: ({ ids, patch }: { ids: number[]; patch: Record<string, unknown> }) =>
+      api.patch('/api/cards/bulk', { ids, patch }),
+    onSuccess: () => {
+      setSelected(new Set());
+      invalidateCardViews(queryClient);
+      onChanged?.();
+    },
+    onError: (error) => {
+      const titles = bulkFlowBlockedTitles(error);
+      if (titles.length > 0) pushToast(`Chưa thể đổi trạng thái: ${titles.join(', ')}`, 'error');
+    },
+  });
+  const bulkRemove = useMutation({
+    mutationFn: (ids: number[]) => api.del('/api/cards/bulk', { ids }),
     onSuccess: () => {
       invalidateCardViews(queryClient);
       onChanged?.();
@@ -349,8 +371,7 @@ export function TaskTable({
     pageRows.length > 0 && pageRows.every((r) => selected.has(r.original.id));
 
   const bulkSet = (patch: Record<string, unknown>) => {
-    selected.forEach((id) => mutate({ id, patch }));
-    setSelected(new Set());
+    bulkUpdate.mutate({ ids: [...selected], patch });
   };
 
   if (tasks.length === 0) {
@@ -590,7 +611,7 @@ export function TaskTable({
           setPendingDelete((prev) => new Set([...prev, ...ids]));
           undoableDelete({
             message: `Đã xóa ${ids.length} công việc`,
-            commit: () => ids.forEach((id) => remove.mutate(id)),
+            commit: () => bulkRemove.mutate(ids),
             revert: () =>
               setPendingDelete((prev) => {
                 const next = new Set(prev);

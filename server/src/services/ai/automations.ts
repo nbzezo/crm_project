@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type { Database } from 'better-sqlite3';
+import { startTrackedScheduler, type SchedulerHandle } from '../../lib/scheduler.ts';
 import { required } from '../../lib/validate.ts';
 import { getHandoverSettings, listOverdueHandovers } from '../handoverService.ts';
 import { todayLocal } from '../../lib/dates.ts';
@@ -241,7 +242,7 @@ export function runAutomation(db: Database, id: number) {
   }
 }
 
-let scheduler: ReturnType<typeof setInterval> | null = null;
+let scheduler: SchedulerHandle | null = null;
 
 function runDueAutomations(db: Database) {
   const due = db
@@ -272,8 +273,11 @@ const AUTOMATION_TICK_BUDGET_MS = 500;
 
 export function startAiAutomationScheduler(db: Database) {
   if (scheduler) return scheduler;
-  scheduler = setInterval(() => runDueAutomations(db), 60_000);
-  scheduler.unref();
-  setTimeout(() => runDueAutomations(db), 2_000).unref();
+  scheduler = startTrackedScheduler({
+    intervalMs: 60_000,
+    initialDelayMs: 2_000,
+    job: () => runDueAutomations(db),
+    onError: (error) => console.error('[ai-automation] Quet lich loi:', error),
+  });
   return scheduler;
 }

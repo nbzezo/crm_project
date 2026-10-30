@@ -196,9 +196,7 @@ export function LinkPreviewCard({
           />
         )}
         <span className="min-w-0 flex-1 px-3 py-2">
-          <span className="block truncate text-[11px] tracking-wide text-tr-subtle uppercase">
-            {data.site}
-          </span>
+          <span className="block truncate text-xs text-tr-subtle">{data.site}</span>
           {data.title && (
             <span className="line-clamp-2 text-sm font-semibold text-tr-text">{data.title}</span>
           )}

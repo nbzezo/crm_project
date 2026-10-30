@@ -43,7 +43,18 @@ function fallbackMessage(status: number): string {
  */
 const FLOW_GUARDED = /^\/api\/(cards\/\d+(\/move)?|notifications\/[^/]+\/complete)$/;
 
-async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+export interface ApiRequestOptions {
+  signal?: AbortSignal;
+}
+
+export const apiTimeout = { getMs: 30_000, mutationMs: 120_000, longMs: 5 * 60_000 };
+
+async function request<T>(
+  method: string,
+  url: string,
+  body?: unknown,
+  options?: ApiRequestOptions
+): Promise<T> {
   const guarded =
     (method === 'PATCH' || method === 'POST') &&
     FLOW_GUARDED.test(url) &&
@@ -51,7 +62,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     typeof body === 'object' &&
     !(typeof FormData !== 'undefined' && body instanceof FormData);
   try {
-    const data = await send<T>(method, url, body);
+    const data = await send<T>(method, url, body, options);
     notifyFlowPrompt(data);
     return data;
   } catch (error) {
@@ -62,7 +73,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     if (!skip) {
       throw new ApiError(409, 'Đã giữ nguyên trạng thái', { ...error.details, cancelled: true });
     }
-    const data = await send<T>(method, url, { ...(body as object), skip_flow: true });
+    const data = await send<T>(method, url, { ...(body as object), skip_flow: true }, options);
     notifyFlowPrompt(data);
     return data;
   }
@@ -73,19 +84,51 @@ export function isUserCancelled(error: unknown): boolean {
   return error instanceof ApiError && error.details.cancelled === true;
 }
 
+/** Tên các việc chặn một thao tác bulk vì còn quy trình dở. */
+export function bulkFlowBlockedTitles(error: unknown): string[] {
+  if (!(error instanceof ApiError) || error.details.code !== 'BULK_FLOW_INCOMPLETE') return [];
+  const blocked = error.details.blocked;
+  if (!Array.isArray(blocked)) return [];
+  return blocked.flatMap((item) =>
+    item && typeof item === 'object' && typeof item.title === 'string' ? [item.title] : []
+  );
+}
+
 function notifyFlowPrompt(data: unknown): void {
   const prompt = flowPromptOf(data);
   if (prompt) useTaskFlowStore.getState().pushPrompt(prompt);
 }
 
-async function send<T>(method: string, url: string, body?: unknown): Promise<T> {
+async function send<T>(
+  method: string,
+  url: string,
+  body?: unknown,
+  options?: ApiRequestOptions
+): Promise<T> {
   /* FormData: de trinh duyet tu dat Content-Type kem boundary — tu dat se hong tep tai len. */
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
-  const res = await fetch(url, {
-    method,
-    headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
-  });
+  const isLong = isForm || /\/ai(?:\/|-|$)/.test(url);
+  const timeoutMs = isLong
+    ? apiTimeout.longMs
+    : method === 'GET'
+      ? apiTimeout.getMs
+      : apiTimeout.mutationMs;
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+      signal,
+    });
+  } catch (error) {
+    if (timeout.aborted && !options?.signal?.aborted) {
+      throw new ApiError(408, `Yêu cầu quá thời gian chờ (${Math.round(timeoutMs / 1000)} giây)`);
+    }
+    throw error;
+  }
   if (res.status === 401) {
     // Phiên hết giữa chừng: AuthGate sẽ hiện lại màn đăng nhập.
     const { useAuthStore } = await import('../stores/authStore');
@@ -109,12 +152,17 @@ async function send<T>(method: string, url: string, body?: unknown): Promise<T> 
 }
 
 export const api = {
-  get: <T>(url: string) => request<T>('GET', url),
-  post: <T>(url: string, body?: unknown) => request<T>('POST', url, body ?? {}),
-  postForm: <T>(url: string, form: FormData) => request<T>('POST', url, form),
-  patch: <T>(url: string, body: unknown) => request<T>('PATCH', url, body),
-  put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
-  del: <T>(url: string, body?: unknown) => request<T>('DELETE', url, body),
+  get: <T>(url: string, options?: ApiRequestOptions) => request<T>('GET', url, undefined, options),
+  post: <T>(url: string, body?: unknown, options?: ApiRequestOptions) =>
+    request<T>('POST', url, body ?? {}, options),
+  postForm: <T>(url: string, form: FormData, options?: ApiRequestOptions) =>
+    request<T>('POST', url, form, options),
+  patch: <T>(url: string, body: unknown, options?: ApiRequestOptions) =>
+    request<T>('PATCH', url, body, options),
+  put: <T>(url: string, body: unknown, options?: ApiRequestOptions) =>
+    request<T>('PUT', url, body, options),
+  del: <T>(url: string, body?: unknown, options?: ApiRequestOptions) =>
+    request<T>('DELETE', url, body, options),
 };
 
 /** Ghep query string, bo qua cac gia tri rong. */

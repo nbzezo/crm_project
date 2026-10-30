@@ -312,7 +312,7 @@ function WorkspaceSidebar({
                 <>
                   <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
                   {item.count !== undefined && (
-                    <span className="text-xs tabular-nums text-tr-muted">{item.count}</span>
+                    <span className="text-xs tabular-nums text-tr-text">{item.count}</span>
                   )}
                 </>
               )}
@@ -831,7 +831,7 @@ export function TasksWorkspace() {
                   aria-expanded={filterPopover.open}
                   className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-control border px-3 text-sm font-medium lg:min-h-9 lg:text-xs ${focusRing} ${filterCount ? 'border-tr-primary/30 bg-tr-primary/10 text-tr-primary' : 'border-tr-border bg-tr-panel text-tr-subtle hover:bg-tr-hover'}`}
                 >
-                  <Filter size={14} /> <span className="lg:hidden">Lọc</span>
+                  <Filter size={14} /> <span className="lg:hidden">Lọc &amp; sắp xếp</span>
                   <span className="hidden lg:inline">Bộ lọc nâng cao</span>{' '}
                   {filterCount > 0 && (
                     <span className="rounded-full bg-tr-primary px-1.5 text-tr-on-primary">

@@ -946,6 +946,12 @@ const PROBES: Probe[] = [
   },
   {
     file: 'scoring',
+    method: 'delete',
+    route: '/deals/:id/quick-assessment/:question',
+    url: `/api/deals/${dealId}/quick-assessment/need`,
+  },
+  {
+    file: 'scoring',
     method: 'get',
     route: '/deals/:id/committee',
     url: `/api/deals/${dealId}/committee`,
@@ -1307,6 +1313,28 @@ test('danh sach va tim kiem khong lo du lieu phong khac', async () => {
     if (group === 'contacts' || group === 'posts') continue;
     assert.equal(rows.length, 0, `tim kiem nhom ${group} lo du lieu cua N1`);
   }
+});
+
+test('nhan hang loat bat buoc ids, gioi han 500 va loc theo pham vi', async () => {
+  await signInAs(n2);
+  assert.equal((await call('get', '/api/labels/links/deal')).status, 422);
+  assert.equal(
+    (
+      await call(
+        'get',
+        `/api/labels/links/deal?ids=${Array.from({ length: 501 }, (_, i) => i + 1).join(',')}`
+      )
+    ).status,
+    422
+  );
+  assert.deepEqual((await call('get', `/api/labels/links/deal?ids=${dealId}`)).data, {});
+
+  await signInAs(n1);
+  const visible = (await call('get', `/api/labels/links/deal?ids=${dealId}`)).data as Record<
+    string,
+    unknown[]
+  >;
+  assert.equal(visible[String(dealId)]?.length, 1);
 });
 
 test('trang thai doc cua thong bao la cua tung nguoi (v72)', async () => {

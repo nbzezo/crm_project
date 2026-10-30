@@ -1,14 +1,9 @@
 import { formatDate, todayStr } from '../../lib/format';
-import type { Customer } from '../../types';
+import type { Customer, CustomerHealth } from '../../types';
 
 export type CustomerSmartView = 'all' | 'prospect' | 'opportunity' | 'follow-up' | 'stale';
 
-type CustomerHealth = {
-  /** `new` = chua du du lieu de ket luan, khong phai mot danh gia tot/xau. */
-  level: 'good' | 'attention' | 'risk' | 'new';
-  label: string;
-  reason: string;
-};
+type LegacyCustomerHealth = Omit<CustomerHealth, 'care'>;
 
 /** Duoi nguong nay thi khach moi tao chua the bi cham la "nguoi". */
 const NEW_CUSTOMER_DAYS = 7;
@@ -49,7 +44,8 @@ export function needsFollowUp(customer: Customer): boolean {
   );
 }
 
-export function getCustomerHealth(customer: Customer): CustomerHealth {
+export function getCustomerHealth(customer: Customer): CustomerHealth | LegacyCustomerHealth {
+  if (customer.health) return customer.health;
   const overdueTasks = customer.overdue_task_count ?? 0;
   const missingActions = customer.deals_without_next_action_count ?? 0;
   const inactiveDays = customerInactiveDays(customer);

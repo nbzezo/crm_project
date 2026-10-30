@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.ts';
+import { accessOf } from '../middleware/currentUser.ts';
+import { decodeCursor, encodeCursor, pageLimit } from '../lib/paging.ts';
 import { fold } from '../lib/viSearch.ts';
 import { HttpError, intParam, parseBody, required } from '../lib/validate.ts';
 import { entityAllowed } from '../lib/recordAccess.ts';
+import { scopeWhereOrUnowned } from '../lib/scope.ts';
 
 const router = Router();
 
@@ -314,6 +317,11 @@ router.get('/check-name', (req, res) => {
 router.get('/:id/records', (req, res) => {
   const id = intParam(req.params.id);
   const label = getLabel(id);
+  const limit = Math.min(pageLimit(req.query.limit), 200);
+  const cursor = decodeCursor(req.query.cursor);
+  if (cursor && (!ENTITY_TYPES.includes(cursor.key as EntityType) || cursor.id < 0)) {
+    throw new HttpError(400, 'Con trỏ phân trang không hợp lệ');
+  }
 
   // Nhan cha: gom ban ghi cua toan bo nhan con (AC-TAG-07)
   const ids =
@@ -323,34 +331,104 @@ router.get('/:id/records', (req, res) => {
         )
       : [id];
   if (ids.length === 0) {
-    res.json([]);
+    res.json(req.query.paged === '1' ? { items: [], next_cursor: null } : []);
     return;
   }
   const holes = ids.map(() => '?').join(',');
-  const links = db
-    .prepare(`SELECT DISTINCT entity_type, entity_id FROM label_links WHERE label_id IN (${holes})`)
-    .all(...ids) as { entity_type: EntityType; entity_id: number }[];
+  const sources = {
+    customer: {
+      from: 'customers e ON e.id = ll.entity_id',
+      title: 'e.name',
+      owner: 'e.owner_contact_id',
+      resource: 'customers',
+    },
+    deal: {
+      from: 'deals e ON e.id = ll.entity_id',
+      title: 'e.title',
+      owner: 'e.owner_contact_id',
+      resource: 'deals',
+    },
+    contact: {
+      from: 'contacts e ON e.id = ll.entity_id JOIN customers c ON c.id = e.customer_id',
+      title: 'e.full_name',
+      owner: 'c.owner_contact_id',
+      resource: 'contacts',
+    },
+    contract: {
+      from: 'contracts e ON e.id = ll.entity_id LEFT JOIN deals d ON d.id = e.deal_id LEFT JOIN customers c ON c.id = e.customer_id',
+      title: 'e.name',
+      owner: 'COALESCE(d.owner_contact_id, c.owner_contact_id)',
+      resource: 'contracts',
+    },
+  } as const;
+  const records: { entity_type: EntityType; id: number; title: string }[] = [];
+  const cursorType = cursor ? (cursor.key as EntityType) : null;
+  const cursorIndex = cursorType ? ENTITY_TYPES.indexOf(cursorType) : 0;
 
-  const TITLES: Record<EntityType, string> = {
-    card: `SELECT id, title AS title FROM cards WHERE id = ?`,
-    customer: `SELECT id, name AS title FROM customers WHERE id = ?`,
-    deal: `SELECT id, title AS title FROM deals WHERE id = ?`,
-    contact: `SELECT id, full_name AS title FROM contacts WHERE id = ?`,
-    contract: `SELECT id, name AS title FROM contracts WHERE id = ?`,
+  for (let index = cursorIndex; index < ENTITY_TYPES.length && records.length <= limit; index++) {
+    const type = ENTITY_TYPES[index];
+    const afterId = cursorType === type ? cursor?.id : null;
+    const where = [`ll.label_id IN (${holes})`, 'll.entity_type = ?'];
+    const params: unknown[] = [...ids, type];
+    if (afterId != null) {
+      where.push('e.id > ?');
+      params.push(afterId);
+    }
+
+    let from: string;
+    let title: string;
+    if (type === 'card') {
+      from =
+        'cards e ON e.id = ll.entity_id JOIN lists l ON l.id = e.list_id JOIN boards b ON b.id = l.board_id';
+      title = 'e.title';
+      const access = accessOf(req);
+      const visible = access.visibleContactIds('tasks', 'read');
+      if (visible !== 'all') {
+        const allowed: string[] = [];
+        if (visible.length > 0) {
+          allowed.push(`b.owner_contact_id IN (${visible.map(() => '?').join(',')})`);
+          params.push(...visible);
+          allowed.push('b.owner_contact_id IS NULL', 'e.assignee_contact_id IS NULL');
+        }
+        if (access.contactId != null) {
+          allowed.push('e.assignee_contact_id = ?');
+          params.push(access.contactId);
+        }
+        where.push(allowed.length > 0 ? `(${allowed.join(' OR ')})` : '1 = 0');
+      }
+    } else {
+      const source = sources[type];
+      from = source.from;
+      title = source.title;
+      const scope = scopeWhereOrUnowned(req, source.resource, 'read', source.owner);
+      if (scope.sql) {
+        where.push(scope.sql);
+        params.push(...scope.params);
+      }
+    }
+
+    records.push(
+      ...(db
+        .prepare(
+          `SELECT DISTINCT '${type}' AS entity_type, e.id, ${title} AS title
+             FROM label_links ll
+             JOIN ${from}
+            WHERE ${where.join(' AND ')}
+            ORDER BY e.id
+            LIMIT ?`
+        )
+        .all(...params, limit + 1 - records.length) as typeof records)
+    );
+  }
+
+  const hasMore = records.length > limit;
+  const items = hasMore ? records.slice(0, limit) : records;
+  const last = items[items.length - 1];
+  const page = {
+    items,
+    next_cursor: hasMore && last ? encodeCursor({ key: last.entity_type, id: last.id }) : null,
   };
-
-  const records = links
-    /* Nhan dung chung, nhung ten ban ghi gan nhan thi khong: chi liet ke ban ghi nguoi
-       xem thay duoc, neu khong man nay la cach doc ten khach hang / viec phong khac. */
-    .filter((link) => entityAllowed(req, link.entity_type, link.entity_id, 'read'))
-    .map((link) => {
-      const row = db.prepare(TITLES[link.entity_type]).get(link.entity_id) as
-        { id: number; title: string } | undefined;
-      return row ? { entity_type: link.entity_type, id: row.id, title: row.title } : null;
-    })
-    .filter(Boolean);
-
-  res.json(records);
+  res.json(req.query.paged === '1' ? page : page.items);
 });
 
 /* ---------- Ghi ---------- */
@@ -512,16 +590,29 @@ router.post('/:id/merge', (req, res) => {
  */
 router.get('/links/:entityType', (req, res) => {
   const type = entityTypeParam(req.params.entityType);
+  const ids = String(req.query.ids ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map((value) => Number(value));
+  if (ids.length === 0 || ids.some((id) => !Number.isInteger(id) || id <= 0))
+    throw new HttpError(422, 'Phải truyền danh sách ids hợp lệ');
+  if (ids.length > 500) throw new HttpError(422, 'Mỗi lần chỉ đọc nhãn của tối đa 500 bản ghi');
+  const allowed = [...new Set(ids)].filter((id) => entityAllowed(req, type, id, 'read'));
+  if (allowed.length === 0) {
+    res.json({});
+    return;
+  }
+  const holes = allowed.map(() => '?').join(',');
   const rows = db
     .prepare(
       `SELECT ll.entity_id, l.*, p.name AS group_name
          FROM label_links ll
          JOIN labels l ON l.id = ll.label_id
     LEFT JOIN labels p ON p.id = l.parent_id
-        WHERE ll.entity_type = ?
+        WHERE ll.entity_type = ? AND ll.entity_id IN (${holes})
         ORDER BY p.position, l.position, l.id`
     )
-    .all(type) as (LabelRow & { entity_id: number; group_name: string | null })[];
+    .all(type, ...allowed) as (LabelRow & { entity_id: number; group_name: string | null })[];
 
   const map: Record<number, unknown[]> = {};
   for (const row of rows) {

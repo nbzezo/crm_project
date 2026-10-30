@@ -89,7 +89,6 @@ export default function PipelinePage() {
     return window.matchMedia('(max-width: 639px)').matches ? 'list' : 'board';
   });
   const [stageFilter, setStageFilter] = useState<Stage | 'all'>('all');
-  const labelMap = useLabelMap('deal');
   const changeView = (next: 'board' | 'list') => {
     setView(next);
     try {
@@ -108,6 +107,16 @@ export default function PipelinePage() {
         pagedBoard ? '/api/deals?per_stage=100' : '/api/deals'
       ),
   });
+  const visibleDealIds = useMemo(
+    () =>
+      data
+        ? Object.values(data.stages)
+            .flat()
+            .map((deal) => deal.id)
+        : [],
+    [data]
+  );
+  const labelMap = useLabelMap('deal', visibleDealIds);
 
   /* Doi id ky thuat (`stage-quoted`, id so cua co hoi) sang ten doc duoc, de
      trinh doc man hinh phat ra "Da tha Hop dong ACME vao Bao gia" thay vi

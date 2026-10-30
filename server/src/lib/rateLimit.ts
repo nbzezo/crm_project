@@ -15,7 +15,19 @@ export interface Limiter {
 
 export function createLimiter(max: number, windowMs: number): Limiter {
   const buckets = new Map<string, number[]>();
+  const maxBuckets = 50_000;
+  let operations = 0;
+  function maintain(now: number): void {
+    operations += 1;
+    if (operations % 256 === 0) {
+      for (const [key, list] of buckets) {
+        if (list.every((timestamp) => now - timestamp >= windowMs)) buckets.delete(key);
+      }
+    }
+    while (buckets.size >= maxBuckets) buckets.delete(buckets.keys().next().value!);
+  }
   function recent(key: string, now: number): number[] {
+    maintain(now);
     const list = (buckets.get(key) ?? []).filter((t) => now - t < windowMs);
     if (list.length === 0) buckets.delete(key);
     else buckets.set(key, list);

@@ -4,6 +4,7 @@ import type { Server } from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import express from 'express';
 
 /*
  * Lop dem cac man tong hop (1.22.0): luu 5 phut, nguoi vua ghi thay ngay thay doi cua
@@ -102,4 +103,34 @@ test('fresh=1 tinh lai ngay, nhung bam lien tuc trong 10 giay thi lay dem', asyn
   const again = await get('/api/views/pipeline-health?fresh=1');
   assert.equal(again.cache, 'hit');
   assert.equal(again.body.computed_at, refreshed.body.computed_at);
+});
+
+test('hai request dong thoi cung khoa chi tinh mot lan', async () => {
+  clearResponseCache();
+  const { cacheResponse } = await import('../lib/responseCache.ts');
+  const app = express();
+  let calculations = 0;
+  app.get('/slow', cacheResponse, async (_req, res) => {
+    calculations += 1;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    res.json({ calculations });
+  });
+  const local = app.listen(0);
+  await new Promise<void>((resolve) => local.once('listening', resolve));
+  const address = local.address();
+  if (!address || typeof address === 'string') throw new Error('Khong mo duoc test server');
+  const url = `http://127.0.0.1:${address.port}/slow`;
+  try {
+    const [first, second] = await Promise.all([fetch(url), fetch(url)]);
+    assert.equal(calculations, 1);
+    assert.deepEqual(await first.json(), await second.json());
+    assert.deepEqual([first.headers.get('x-cache'), second.headers.get('x-cache')].sort(), [
+      'miss',
+      'shared',
+    ]);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      local.close((error) => (error ? reject(error) : resolve()))
+    );
+  }
 });

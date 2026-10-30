@@ -32,6 +32,7 @@ import {
 } from '../components/common/ui';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../i18n/vi';
 import { invalidateCardViews } from '../lib/queryKeys';
+import { createQuickTask } from '../lib/quickTask';
 import {
   countActiveTaskFilters,
   emptyTaskFilters,
@@ -41,16 +42,7 @@ import {
 import { useAssignees } from '../components/tasks/AssigneePicker';
 import { isWaitingStatus } from '../components/tasks/CardStatusControl';
 import { parseAssigneeFilter } from '../components/kanban/BoardFilter';
-import type {
-  Assignee,
-  Board,
-  BoardFull,
-  Card,
-  Customer,
-  Priority,
-  Project,
-  TaskRow,
-} from '../types';
+import type { Assignee, Board, BoardFull, Customer, Priority, Project, TaskRow } from '../types';
 import { TasksWorkspace } from '../components/tasks/TasksWorkspace';
 
 function useTaskQuery() {
@@ -741,14 +733,14 @@ function QuickAddRow({ onClose }: { onClose: () => void }) {
 
   const create = useMutation({
     mutationFn: () =>
-      api.post<Card>('/api/cards', {
+      createQuickTask({
         list_id: Number(listId),
         title: title.trim(),
         priority,
         due_date: dueDate,
         customer_id: customerId === '' ? null : Number(customerId),
       }),
-    onSuccess: (created) => {
+    onSuccess: ({ card: created }) => {
       invalidateCardViews(queryClient);
       setTitle('');
       pushToast('Đã tạo công việc', 'success', {

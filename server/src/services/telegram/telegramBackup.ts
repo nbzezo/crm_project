@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import type { Database } from 'better-sqlite3';
+import { startTrackedScheduler, type SchedulerHandle } from '../../lib/scheduler.ts';
 import { createBackupFile, gzipFile } from '../../lib/backup.ts';
 import { HttpError } from '../../lib/validate.ts';
 import {
@@ -16,7 +17,7 @@ export async function sendBackupToTelegram(db: Database): Promise<{ name: string
   if (!config.has_token || !config.chat_id) {
     throw new HttpError(400, 'Chưa cấu hình Bot Token hoặc Chat ID cho Telegram');
   }
-  const file = await createBackupFile(db);
+  const file = await createBackupFile(db, { temporary: true });
   /* Nen truoc khi gui (SQLite nen duoc 3-5 lan), va xoa ca ban chup lan ban nen sau
      khi gui — giong sao luu Drive. Truoc day gui nguyen tep .db: qua 50 MB la Telegram
      tu choi, va moi lan gui de lai mot ban day du trong thu muc backups. */
@@ -77,20 +78,15 @@ async function runDueBackupCheck(db: Database): Promise<void> {
   }
 }
 
-let scheduler: ReturnType<typeof setInterval> | null = null;
+let scheduler: SchedulerHandle | null = null;
 
 export function startBackupTelegramScheduler(db: Database) {
   if (scheduler) return scheduler;
-  scheduler = setInterval(() => {
-    runDueBackupCheck(db).catch((error) =>
-      console.error('[telegram] Quet sao luu dinh ky loi:', error)
-    );
-  }, 5 * 60_000);
-  scheduler.unref();
-  setTimeout(() => {
-    runDueBackupCheck(db).catch((error) =>
-      console.error('[telegram] Quet sao luu dinh ky loi:', error)
-    );
-  }, 5_000).unref();
+  scheduler = startTrackedScheduler({
+    intervalMs: 5 * 60_000,
+    initialDelayMs: 5_000,
+    job: () => runDueBackupCheck(db),
+    onError: (error) => console.error('[telegram] Quet sao luu dinh ky loi:', error),
+  });
   return scheduler;
 }

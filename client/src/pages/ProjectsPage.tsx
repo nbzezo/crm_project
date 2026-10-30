@@ -23,6 +23,7 @@ export default function ProjectsPage() {
   } = useQuery({
     queryKey: ['projects', showArchived],
     queryFn: () => api.get<Project[]>(`/api/projects${showArchived ? '?archived=1' : ''}`),
+    refetchOnMount: 'always',
   });
 
   return (

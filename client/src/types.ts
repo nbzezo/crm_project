@@ -305,6 +305,7 @@ export interface Customer {
   /** v54: hạng chăm sóc và nhịp liên hệ đặt tay (null = theo hạng). */
   care_tier?: CareTier;
   care_cadence_days?: number | null;
+  health?: CustomerHealth;
   deal_count?: number;
   open_deal_count?: number;
   open_task_count?: number;
@@ -1503,6 +1504,9 @@ export interface QuickAssessmentItem {
   note: string;
   updated_at: string | null;
   updated_by_name: string | null;
+  advanced_answer: QuickAnswer | null;
+  advanced_updated_at: string | null;
+  conflict: boolean;
 }
 
 export interface QuickAssessment {
@@ -1646,6 +1650,13 @@ export interface CareStatus {
   state: 'ok' | 'due_soon' | 'overdue' | 'never';
 }
 
+export interface CustomerHealth {
+  level: 'good' | 'attention' | 'risk' | 'new';
+  label: string;
+  reason: string;
+  care: CareStatus;
+}
+
 export interface ChurnRisk {
   score: number;
   level: 'low' | 'medium' | 'high';
@@ -1697,6 +1708,7 @@ export interface TimelineEntry {
 
 export interface CustomerOverviewData {
   care: CareStatus;
+  health: CustomerHealth;
   churn: ChurnRisk;
   revenue: {
     by_year: { year: string; amount_vnd: number; paid_vnd: number }[];

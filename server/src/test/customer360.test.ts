@@ -117,6 +117,30 @@ test('nhip theo hang, ngay lap lai hang nam qua nam moi va 29/02', () => {
   assert.deepEqual(care.occurrencesIn([2, 29], '2027-02-01', '2027-03-01'), ['2027-02-28']);
 });
 
+test('suc khoe chuan dung nhip rieng va khong ha rui ro cong viec qua han', () => {
+  const low = care.customerHealthOf(db, {
+    id: 0,
+    care_tier: 'low',
+    created_at: day(-100),
+    last_activity_at: day(-40),
+    last_contact_at: day(-40),
+  });
+  assert.deepEqual(
+    [low.level, low.reason, low.care.cadence_days],
+    ['good', 'Đang trong nhịp chăm sóc', 90]
+  );
+
+  const taskRisk = care.customerHealthOf(db, {
+    id: 0,
+    care_tier: 'low',
+    created_at: day(-100),
+    last_activity_at: day(-40),
+    last_contact_at: day(-40),
+    overdue_task_count: 2,
+  });
+  assert.deepEqual([taskRisk.level, taskRisk.reason], ['risk', '2 công việc quá hạn']);
+});
+
 /* ---------- Tong quan + nguy co ---------- */
 
 test('tong quan: qua nhip lien he, hop dong sap het han, nguy co va dong thoi gian', async () => {
@@ -136,6 +160,8 @@ test('tong quan: qua nhip lien he, hop dong sap het han, nguy co va dong thoi gi
   assert.equal(o.care.cadence_days, 14);
   assert.equal(o.care.state, 'overdue');
   assert.equal(o.care.days_overdue, 6);
+  assert.equal(o.health.level, 'attention');
+  assert.equal(o.health.care.cadence_days, 14);
   assert.equal(o.churn.level, 'medium');
   assert.ok(o.churn.factors.some((f: string) => /hợp đồng hết hạn/.test(f)));
   assert.equal(o.expiring[0].kind, 'contract');
@@ -155,6 +181,9 @@ test('tong quan: qua nhip lien he, hop dong sap het han, nguy co va dong thoi gi
   const after = (await call('GET', `/api/customers/${id}/overview`)).data;
   assert.equal(after.care.cadence_source, 'custom');
   assert.equal(after.care.state, 'ok');
+  assert.equal(after.health.level, 'good');
+  const listed = (await call('GET', '/api/customers')).data as Array<Record<string, unknown>>;
+  assert.ok(listed.find((row) => row.id === id)?.health);
   assert.equal(
     (await call('PATCH', `/api/customers/${id}`, { care_tier: 'gold' })).status,
     400,

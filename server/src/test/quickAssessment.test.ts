@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import Database from 'better-sqlite3';
 import { migrate } from '../db/migrate.ts';
 import {
+  deleteQuickAnswer,
   getQuickAssessment,
   quickVerdictOf,
   saveQuickAnswers,
@@ -159,4 +160,29 @@ test('luu cau tra loi ghi de goi y; viec nen lam tiep uu tien nguoi duyet chi', 
     () => saveQuickAnswers(db, dealId, [{ question: 'need', answer: 'no' }], me),
     /đã chốt/
   );
+});
+
+test('bao mau thuan voi Nang cao va co the giu hoac xoa cau tra loi Co ban', () => {
+  const { db, me, dealId } = setup();
+  saveQuickAnswers(db, dealId, [{ question: 'need', answer: 'no' }], me);
+  db.prepare(
+    `UPDATE deal_quick_answers SET updated_at = '2020-01-01 00:00:00' WHERE deal_id = ? AND question = 'need'`
+  ).run(dealId);
+  db.prepare(
+    `INSERT INTO deal_scores (deal_id, factor, score, evidence) VALUES (?, 'need', 3, 'Nhu cầu đã được khách hàng xác nhận')`
+  ).run(dealId);
+
+  let item = getQuickAssessment(db, dealId).items.find((row) => row.question === 'need')!;
+  assert.equal(item.advanced_answer, 'yes');
+  assert.ok(item.advanced_updated_at);
+  assert.equal(item.conflict, true);
+
+  item = saveQuickAnswers(db, dealId, [{ question: 'need', answer: 'no' }], me).items.find(
+    (row) => row.question === 'need'
+  )!;
+  assert.notEqual(item.updated_at, '2020-01-01 00:00:00');
+  assert.equal(item.conflict, true);
+
+  item = deleteQuickAnswer(db, dealId, 'need').items.find((row) => row.question === 'need')!;
+  assert.deepEqual([item.answer, item.source, item.conflict], ['yes', 'derived', false]);
 });

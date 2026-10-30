@@ -7,7 +7,7 @@
  */
 import type { Database } from 'better-sqlite3';
 import { HttpError } from '../lib/validate.ts';
-import { getAssessment } from './assessmentService.ts';
+import { ASSESSMENT_GRID, getAssessment } from './assessmentService.ts';
 
 export const QUICK_QUESTIONS = [
   'need',
@@ -67,6 +67,9 @@ interface QuickItem {
   note: string;
   updated_at: string | null;
   updated_by_name: string | null;
+  advanced_answer: QuickAnswer | null;
+  advanced_updated_at: string | null;
+  conflict: boolean;
 }
 
 export interface QuickAssessment {
@@ -128,10 +131,42 @@ export function getQuickAssessment(db: Database, dealId: number): QuickAssessmen
       }[]
     ).map((row) => [row.question, row])
   );
+  const advancedStamps = new Map(
+    (
+      db
+        .prepare(
+          `SELECT kind || ':' || key AS source, MAX(updated_at) AS updated_at FROM (
+             SELECT 'factor' AS kind, factor AS key, scored_at AS updated_at FROM deal_scores
+              WHERE deal_id = ? AND status = 'confirmed'
+             UNION ALL
+             SELECT 'criterion', criterion, updated_at FROM deal_assessments
+              WHERE deal_id = ? AND status = 'confirmed'
+           ) GROUP BY kind, key`
+        )
+        .all(dealId, dealId) as { source: string; updated_at: string }[]
+    ).map((row) => [row.source, row.updated_at])
+  );
 
   const items: QuickItem[] = QUICK_QUESTIONS.map((question) => {
     const def = QUESTION_DEF[question];
     const row = rows.get(question);
+    /* Goi y tu o Nang cao: lay o tot nhat trong cac o duoc gan (cau "future" gop #17, #20). */
+    const scores = def.cells
+      .map((no) => advanced.grid.find((cell) => cell.no === no)?.score ?? null)
+      .filter((score): score is number => score !== null);
+    const derived = answerFromScore(scores.length ? Math.max(...scores) : null);
+    const advanced_updated_at =
+      def.cells
+        .map((no) => ASSESSMENT_GRID.find((cell) => cell.no === no)?.source)
+        .map((source) => (source ? advancedStamps.get(`${source.kind}:${source.key}`) : undefined))
+        .filter((stamp): stamp is string => stamp != null)
+        .sort()
+        .at(-1) ?? null;
+    const common = {
+      advanced_answer: derived,
+      advanced_updated_at,
+      conflict: row != null && derived != null && row.answer !== derived,
+    };
     if (row)
       return {
         question,
@@ -141,12 +176,8 @@ export function getQuickAssessment(db: Database, dealId: number): QuickAssessmen
         note: row.note,
         updated_at: row.updated_at,
         updated_by_name: row.updated_by_name,
+        ...common,
       };
-    /* Goi y tu o Nang cao: lay o tot nhat trong cac o duoc gan (cau "future" gop #17, #20). */
-    const scores = def.cells
-      .map((no) => advanced.grid.find((cell) => cell.no === no)?.score ?? null)
-      .filter((score): score is number => score !== null);
-    const derived = answerFromScore(scores.length ? Math.max(...scores) : null);
     return {
       question,
       group: def.group,
@@ -155,6 +186,7 @@ export function getQuickAssessment(db: Database, dealId: number): QuickAssessmen
       note: '',
       updated_at: null,
       updated_by_name: null,
+      ...common,
     };
   });
 
@@ -211,5 +243,21 @@ export function saveQuickAnswers(
         actorContactId
       );
   })();
+  return getQuickAssessment(db, dealId);
+}
+
+export function deleteQuickAnswer(
+  db: Database,
+  dealId: number,
+  question: QuickQuestion
+): QuickAssessment {
+  if (getAssessment(db, dealId).locked)
+    throw new HttpError(409, 'Cơ hội đã chốt nên đánh giá chỉ xem được, không sửa được', {
+      code: 'ASSESSMENT_LOCKED',
+    });
+  db.prepare(`DELETE FROM deal_quick_answers WHERE deal_id = ? AND question = ?`).run(
+    dealId,
+    question
+  );
   return getQuickAssessment(db, dealId);
 }

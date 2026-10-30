@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Flag, Plus, X } from 'lucide-react';
-import { api } from '../../api/client';
 import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
+import { createQuickTask } from '../../lib/quickTask';
 import { describeWhen, parseQuickTask } from '../../lib/quickTaskParser';
 import { useUiStore } from '../../stores/uiStore';
-import type { Card, Priority } from '../../types';
+import type { Priority } from '../../types';
 import { DatePicker } from '../common/DatePicker';
 import { Popover, PopoverItem, usePopover } from '../common/Popover';
 import { Button, FormError, focusRing } from '../common/ui';
@@ -55,27 +55,20 @@ export function TaskQuickAdd({ onClose }: { onClose: () => void }) {
   };
 
   const create = useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       title: string;
       priority: Priority;
       dueDate: string | null;
       remindAt: string | null;
-    }) => {
-      const card = await api.post<Card>('/api/cards', {
-        title: input.title,
-        priority: input.priority,
-        due_date: input.dueDate,
-      });
-      let reminderFailed = false;
-      if (input.remindAt) {
-        await api
-          .post('/api/reminders', { title: input.title, due_at: input.remindAt, card_id: card.id })
-          .catch(() => {
-            reminderFailed = true;
-          });
-      }
-      return { card, reminderFailed };
-    },
+    }) =>
+      createQuickTask(
+        {
+          title: input.title,
+          priority: input.priority,
+          due_date: input.dueDate,
+        },
+        input.remindAt
+      ),
     onSuccess: ({ card, reminderFailed }, input) => {
       invalidateCardViews(queryClient);
       void queryClient.invalidateQueries({ queryKey: ['reminders'] });
@@ -87,14 +80,14 @@ export function TaskQuickAdd({ onClose }: { onClose: () => void }) {
         const when = input.remindAt ? ` · nhắc ${describeWhen(input.remindAt)}` : '';
         pushToast(`Đã tạo “${input.title}”${when}`, 'success', action);
       }
+      reset();
+      inputRef.current?.focus();
     },
   });
 
   const submit = () => {
     if (!title || create.isPending) return;
     create.mutate({ title, priority, dueDate, remindAt });
-    reset();
-    inputRef.current?.focus();
   };
 
   return (

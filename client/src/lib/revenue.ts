@@ -1,4 +1,5 @@
 import type { RevenueLine, RevenueTotals } from '../types';
+import { addRevenueCellToTotals } from '@workflow/contracts';
 
 const EMPTY_TOTALS: RevenueTotals = {
   amount_vnd: 0,
@@ -52,6 +53,13 @@ export function sumTotals(list: (RevenueTotals | undefined)[]): RevenueTotals {
     out.stage_paid_vnd += item.stage_paid_vnd;
   }
   return out;
+}
+
+/** Tính tổng các ô doanh thu bằng cùng quy tắc mà máy chủ sử dụng. */
+export function totalsFromCells(cells: RevenueLine['months'][string][]): RevenueTotals {
+  const totals = { ...EMPTY_TOTALS };
+  for (const cell of cells) addRevenueCellToTotals(totals, cell);
+  return totals;
 }
 
 /** 'YYYY-MM' → 'T8/2026'. */

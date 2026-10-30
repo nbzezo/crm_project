@@ -85,6 +85,13 @@ test('sao luu chi giu WORKFLOW_BACKUP_KEEP ban moi nhat', async () => {
   assert.equal(left.filter((name) => /^app-.*\.db$/.test(name)).length, 3);
   assert.ok(left.includes('ghi-chu.txt'), 'khong dung toi tep khac');
   assert.deepEqual(pruneBackups(), []);
+
+  const marker = path.join(BACKUP_DIR, 'app-19990101-000000.db');
+  fs.writeFileSync(marker, 'backup local cu');
+  const temporary = await createBackupFile(db, { temporary: true });
+  assert.ok(fs.existsSync(marker), 'snapshot tam khong duoc prune backup local');
+  fs.rmSync(temporary.path);
+  fs.rmSync(marker);
 });
 
 test('gzipFile nen theo luong, giai nen ra dung ban CSDL', async () => {

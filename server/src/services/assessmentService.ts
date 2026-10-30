@@ -166,23 +166,21 @@ function criteriaOf(db: Database, dealId: number): Map<AssessmentCriterion, Crit
 
 /** #14 — da tung mua cua ta chua: co hoi thang khac hoac hop dong cua cung khach hang. */
 function existingRelationship(db: Database, dealId: number, customerId: number): number {
-  const won = (
+  const total = (
     db
       .prepare(
-        `SELECT COUNT(*) AS n FROM deals
-          WHERE customer_id = ? AND id <> ?
-            AND stage IN (SELECT key FROM pipeline_stages WHERE category = 'won')`
+        `SELECT COUNT(*) AS n FROM (
+           SELECT 'deal:' || id AS purchase_key FROM deals
+            WHERE customer_id = ? AND id <> ?
+              AND stage IN (SELECT key FROM pipeline_stages WHERE category = 'won')
+           UNION
+           SELECT CASE WHEN deal_id IS NULL THEN 'contract:' || id ELSE 'deal:' || deal_id END
+             FROM contracts
+            WHERE customer_id = ? AND (deal_id IS NULL OR deal_id <> ?)
+         )`
       )
-      .get(customerId, dealId) as { n: number }
+      .get(customerId, dealId, customerId, dealId) as { n: number }
   ).n;
-  const contracts = (
-    db
-      .prepare(
-        `SELECT COUNT(*) AS n FROM contracts WHERE customer_id = ? AND (deal_id IS NULL OR deal_id <> ?)`
-      )
-      .get(customerId, dealId) as { n: number }
-  ).n;
-  const total = won + contracts;
   if (total >= 2) return 3;
   return total === 1 ? 2 : 1;
 }
@@ -383,10 +381,15 @@ export function addDecision(
   assertOpen(db, dealId);
   const reviewDate = input.review_date || null;
   db.transaction(() => {
-    db.prepare(
-      `INSERT INTO deal_decisions (deal_id, decision, reason, review_date, author_kind, author_contact_id)
+    const decisionId = Number(
+      db
+        .prepare(
+          `INSERT INTO deal_decisions (deal_id, decision, reason, review_date, author_kind, author_contact_id)
        VALUES (?, ?, ?, ?, 'user', ?)`
-    ).run(dealId, input.decision, (input.reason ?? '').trim(), reviewDate, actorContactId);
+        )
+        .run(dealId, input.decision, (input.reason ?? '').trim(), reviewDate, actorContactId)
+        .lastInsertRowid
+    );
 
     /* Ngay xet lai di qua module Nhac hen da co — khong dung lich rieng. */
     if (input.remind && reviewDate) {
@@ -394,16 +397,24 @@ export function addDecision(
         title: string;
         customer_id: number;
       };
-      db.prepare(
-        `INSERT INTO reminders (title, note, due_at, customer_id, deal_id, owner_contact_id)
+      const reminderId = Number(
+        db
+          .prepare(
+            `INSERT INTO reminders (title, note, due_at, customer_id, deal_id, owner_contact_id)
          VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(
-        `Xem lại cơ hội: ${deal.title}`,
-        'Đến ngày xét lại quyết định Theo / Tạm dừng / Rút của cơ hội này.',
-        `${reviewDate}T09:00`,
-        deal.customer_id,
-        dealId,
-        actorContactId
+          )
+          .run(
+            `Xem lại cơ hội: ${deal.title}`,
+            'Đến ngày xét lại quyết định Theo / Tạm dừng / Rút của cơ hội này.',
+            `${reviewDate}T09:00`,
+            deal.customer_id,
+            dealId,
+            actorContactId
+          ).lastInsertRowid
+      );
+      db.prepare(`UPDATE deal_decisions SET payload = ? WHERE id = ?`).run(
+        JSON.stringify({ reminder_id: reminderId }),
+        decisionId
       );
     }
   })();
@@ -419,14 +430,46 @@ export function deleteDecision(
 ): Assessment {
   const row = db
     .prepare(
-      `SELECT author_kind, author_contact_id FROM deal_decisions WHERE id = ? AND deal_id = ?`
+      `SELECT author_kind, author_contact_id, review_date, payload
+         FROM deal_decisions WHERE id = ? AND deal_id = ?`
     )
     .get(decisionId, dealId) as
-    { author_kind: 'user' | 'ai'; author_contact_id: number | null } | undefined;
+    | {
+        author_kind: 'user' | 'ai';
+        author_contact_id: number | null;
+        review_date: string | null;
+        payload: string | null;
+      }
+    | undefined;
   if (!row) throw new HttpError(404, 'Không tìm thấy quyết định');
   if (row.author_kind === 'user' && row.author_contact_id !== actorContactId)
     throw new HttpError(403, 'Chỉ xóa được quyết định do chính bạn ghi');
-  db.prepare(`DELETE FROM deal_decisions WHERE id = ?`).run(decisionId);
+  db.transaction(() => {
+    let reminderId: number | null = null;
+    if (row.payload) {
+      try {
+        const payload = JSON.parse(row.payload) as { reminder_id?: unknown };
+        if (Number.isInteger(payload.reminder_id)) reminderId = Number(payload.reminder_id);
+      } catch {
+        /* Payload AI/du lieu cu khong phai JSON hop le: khong de no chan xoa quyet dinh. */
+      }
+    }
+    if (reminderId !== null) {
+      db.prepare(`DELETE FROM reminders WHERE id = ? AND deal_id = ?`).run(reminderId, dealId);
+    } else if (row.author_kind === 'user' && row.review_date) {
+      /* Du lieu truoc khi luu reminder_id: chi xoa mot reminder he thong khop day du. */
+      db.prepare(
+        `DELETE FROM reminders WHERE id = (
+           SELECT id FROM reminders
+            WHERE deal_id = ? AND owner_contact_id IS ? AND due_at = ?
+              AND title LIKE 'Xem lại cơ hội:%'
+              AND note = 'Đến ngày xét lại quyết định Theo / Tạm dừng / Rút của cơ hội này.'
+            ORDER BY id LIMIT 1
+         )`
+      ).run(dealId, row.author_contact_id, `${row.review_date}T09:00`);
+    }
+    db.prepare(`DELETE FROM deal_decisions WHERE id = ?`).run(decisionId);
+  })();
   return getAssessment(db, dealId);
 }
 

@@ -52,6 +52,42 @@ interface Page<T> {
   next_cursor: string | null;
 }
 
+test('/labels/:id/records: toi da 200 dong va cursor khong lap, khong sot', async () => {
+  const groupId = Number(
+    db.prepare(`INSERT INTO labels (name, color) VALUES ('Nhóm phân trang', '#000')`).run()
+      .lastInsertRowid
+  );
+  const labelId = Number(
+    db
+      .prepare(`INSERT INTO labels (name, color, parent_id) VALUES ('Nhãn phân trang', '#f00', ?) `)
+      .run(groupId).lastInsertRowid
+  );
+  const insertCustomer = db.prepare(`INSERT INTO customers (name) VALUES (?)`);
+  const link = db.prepare(
+    `INSERT INTO label_links (label_id, entity_type, entity_id) VALUES (?, 'customer', ?)`
+  );
+  db.transaction(() => {
+    for (let index = 1; index <= 205; index++) {
+      const customerId = Number(insertCustomer.run(`Khách ${index}`).lastInsertRowid);
+      link.run(labelId, customerId);
+    }
+  })();
+
+  const first = await get<Page<{ entity_type: string; id: number; title: string }>>(
+    `/api/labels/${labelId}/records?paged=1&limit=500`
+  );
+  assert.equal(first.status, 200);
+  assert.equal(first.data.items.length, 200);
+  assert.ok(first.data.next_cursor);
+
+  const second = await get<Page<{ entity_type: string; id: number; title: string }>>(
+    `/api/labels/${labelId}/records?paged=1&cursor=${encodeURIComponent(first.data.next_cursor!)}`
+  );
+  assert.equal(second.data.items.length, 5);
+  assert.equal(second.data.next_cursor, null);
+  assert.equal(new Set([...first.data.items, ...second.data.items].map((row) => row.id)).size, 205);
+});
+
 /** Bang rieng cho test, kem mot cot. Viec da xong gan `completed_at` lui `daysAgo` ngay. */
 const listId = (() => {
   const boardId = Number(

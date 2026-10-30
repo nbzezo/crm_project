@@ -1,11 +1,12 @@
 import os from 'node:os';
 import { Worker } from 'node:worker_threads';
-import { extractFile } from '../services/ai/textExtractCore.ts';
-import { parseWorkbook } from '../services/revenueWorkbookParse.ts';
+import { HttpError } from './validate.ts';
+import type { ReportQuery } from '../services/reportQueries.ts';
 
 export type WorkerJob =
   | { kind: 'extract-text'; filePath: string; ext: string; maxChars?: number }
-  | { kind: 'parse-revenue-workbook'; buffer: Uint8Array };
+  | { kind: 'parse-revenue-workbook'; buffer: Uint8Array }
+  | { kind: 'report-queries'; dbPath: string; queries: ReportQuery[] };
 
 type WorkerResponse =
   { id: number; ok: true; result: unknown } | { id: number; ok: false; message: string };
@@ -18,6 +19,7 @@ type Slot = { worker: Worker; pending?: { item: Pending; timer: NodeJS.Timeout; 
 
 const JOB_TIMEOUT_MS = 120_000;
 const IDLE_SHUTDOWN_MS = 30_000;
+const MAX_QUEUED_JOBS = 8;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 const maxWorkers = Math.max(1, Math.min(2, os.availableParallelism() - 1));
 let nextId = 1;
@@ -25,9 +27,8 @@ let queue: Pending[] = [];
 let slots: Slot[] = [];
 let disabled = process.env.WORKFLOW_WORKERS === 'off';
 
-function direct(job: WorkerJob): Promise<unknown> {
-  if (job.kind === 'extract-text') return extractFile(job.filePath, job.ext, job.maxChars);
-  return parseWorkbook(Buffer.from(job.buffer));
+function unavailable(message = 'Hệ thống xử lý tệp đang quá tải'): HttpError {
+  return new HttpError(503, message, { code: 'WORKER_POOL_BUSY' });
 }
 
 function workerUrl(): URL {
@@ -83,11 +84,9 @@ function tryCreateWorker(): void {
     attach(slot);
   } catch {
     disabled = true;
-    for (const slot of slots) void slot.worker.terminate();
-    slots = [];
     const pending = queue;
     queue = [];
-    for (const item of pending) void direct(item.job).then(item.resolve, item.reject);
+    for (const item of pending) item.reject(unavailable('Không khởi động được bộ xử lý tệp'));
   }
 }
 
@@ -123,7 +122,9 @@ function slotIsIdle(): boolean {
 }
 
 export function runInWorker<T>(job: WorkerJob): Promise<T> {
-  if (disabled) return direct(job) as Promise<T>;
+  if (disabled) return Promise.reject(unavailable('Bộ xử lý tệp đang tạm dừng'));
+  const hasCapacity = slots.some((slot) => !slot.pending) || slots.length < maxWorkers;
+  if (!hasCapacity && queue.length >= MAX_QUEUED_JOBS) return Promise.reject(unavailable());
   return new Promise<T>((resolve, reject) => {
     queue.push({ job, resolve: resolve as (value: unknown) => void, reject });
     tryCreateWorker();
@@ -131,7 +132,19 @@ export function runInWorker<T>(job: WorkerJob): Promise<T> {
   });
 }
 
+export function workerPoolStats() {
+  return {
+    workers: slots.length,
+    active: slots.filter((slot) => slot.pending).length,
+    queued: queue.length,
+    max_workers: maxWorkers,
+    max_queued: MAX_QUEUED_JOBS,
+    disabled,
+  };
+}
+
 export async function shutdownWorkerPool(): Promise<void> {
+  disabled = true;
   clearTimeout(idleTimer);
   const error = new Error('Worker pool đã dừng');
   for (const item of queue.splice(0)) item.reject(error);

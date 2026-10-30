@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import Database from 'better-sqlite3';
 import { buildTemplate, parseWorkbook } from '../services/revenueImport.ts';
 import { runInWorker, shutdownWorkerPool } from '../lib/workerPool.ts';
 
@@ -133,6 +134,19 @@ test('job lớn không chặn event loop luồng chính', async () => {
   await job;
 });
 
+test('tối đa hai job chạy và tám job chờ; job thứ 11 bị từ chối 503', async () => {
+  const large = path.join(dir, 'large.txt');
+  const results = await Promise.allSettled(
+    Array.from({ length: 11 }, () =>
+      runInWorker({ kind: 'extract-text', filePath: large, ext: '.txt', maxChars: 1 })
+    )
+  );
+  const rejected = results.filter((result) => result.status === 'rejected');
+  assert.equal(rejected.length, 1);
+  assert.equal((rejected[0] as PromiseRejectedResult).reason.status, 503);
+  assert.equal((rejected[0] as PromiseRejectedResult).reason.details.code, 'WORKER_POOL_BUSY');
+});
+
 test('parse workbook qua worker bằng kết quả trực tiếp', async () => {
   const buffer = await buildTemplate(
     2026,
@@ -145,4 +159,31 @@ test('parse workbook qua worker bằng kết quả trực tiếp', async () => {
   const expected = await parseWorkbook(buffer);
   const actual = await runInWorker({ kind: 'parse-revenue-workbook', buffer });
   assert.deepEqual(actual, expected);
+});
+
+test('report worker doc WAL bang ket noi readonly va tra ca batch', async () => {
+  const dbPath = path.join(dir, 'report.db');
+  const database = new Database(dbPath);
+  database.pragma('journal_mode = WAL');
+  database.exec(`CREATE TABLE metrics (value INTEGER); INSERT INTO metrics VALUES (2), (3)`);
+  database.close();
+
+  const result = await runInWorker<unknown[]>({
+    kind: 'report-queries',
+    dbPath,
+    queries: [
+      { mode: 'get', sql: 'SELECT SUM(value) AS total FROM metrics' },
+      { mode: 'all', sql: 'SELECT value FROM metrics ORDER BY value DESC' },
+    ],
+  });
+  assert.deepEqual(result, [{ total: 5 }, [{ value: 3 }, { value: 2 }]]);
+
+  await assert.rejects(
+    runInWorker({
+      kind: 'report-queries',
+      dbPath,
+      queries: [{ mode: 'get', sql: 'INSERT INTO metrics VALUES (4) RETURNING value' }],
+    }),
+    /readonly|read-only|write/i
+  );
 });

@@ -246,11 +246,48 @@ const endpoints = [
   '/views/tasks/counts',
   '/views/tasks?done=0&nudge=1',
   `/views/calendar?from=${day(-3)}&to=${day(38)}`,
+  `/views/timeline?from=${day(-30)}&to=${day(30)}`,
   `/revenues/lines?year=${year}`,
   `/revenues/summary?year=${year}`,
   `/revenues/kpi?year=${year}`,
   `/revenues/kpi?year=${year}&entries=none`,
 ];
+
+/* Timeline phai loc tren SQL: khong duoc tra viec co lich nam ngoai cua so yeu cau. */
+const timelineFrom = day(-30);
+const timelineTo = day(30);
+const timelineResponse = await fetch(
+  `${base}/views/timeline?from=${timelineFrom}&to=${timelineTo}`
+);
+const timeline = await timelineResponse.json();
+if (
+  !timelineResponse.ok ||
+  timeline.items.some(
+    (item) =>
+      (item.start_date ?? item.due_date) > timelineTo ||
+      (item.due_date ?? item.start_date) < timelineFrom
+  )
+) {
+  throw new Error('Timeline tra ve viec nam ngoai khoang from/to');
+}
+
+/* Cache miss report dung worker phai nhuong event loop de healthcheck van tra loi. */
+const reportMiss = fetch(`${base}/views/reports?from=2000-01-01&fresh=1`);
+await new Promise((resolve) => setImmediate(resolve));
+const healthStarted = performance.now();
+const health = await fetch(`${base}/health`);
+const healthMs = performance.now() - healthStarted;
+const report = await reportMiss;
+await report.arrayBuffer();
+if (!report.ok || !health.ok || healthMs > 1000) {
+  throw new Error(
+    `API bi chan khi report cache miss (report ${report.status}, health ${health.status}, ${healthMs.toFixed(0)} ms)`
+  );
+}
+console.log(
+  `Timeline trong khoang: ${timeline.items.length} viec; health khi report cache miss: ${healthMs.toFixed(0)} ms`
+);
+
 for (const endpoint of endpoints) {
   if (only && !only.some((prefix) => endpoint.startsWith(prefix))) continue;
   process.stdout.write(`${endpoint.padEnd(42)} `);

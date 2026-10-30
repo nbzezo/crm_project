@@ -1,4 +1,5 @@
 import type { Database } from 'better-sqlite3';
+import { startTrackedScheduler, type SchedulerHandle } from '../../lib/scheduler.ts';
 import { HttpError } from '../../lib/validate.ts';
 import { decryptSecret, encryptSecret } from '../ai/secretStore.ts';
 import { driveClientOf } from '../backup/driveBackup.ts';
@@ -393,24 +394,15 @@ export async function runDueContactSyncs(db: Database): Promise<number> {
   return done;
 }
 
-let scheduler: ReturnType<typeof setInterval> | null = null;
-/* Mot vong dong bo tai mot thoi diem: vong truoc (nhieu tai khoan, Google cham) chua
-   xong thi bo qua, khong mo vong thu hai chay chong len (1.37.1). */
-let syncing = false;
+let scheduler: SchedulerHandle | null = null;
 
 export function startGoogleContactsScheduler(db: Database) {
   if (scheduler) return scheduler;
-  const tick = () => {
-    if (syncing) return;
-    syncing = true;
-    runDueContactSyncs(db)
-      .catch((error) => console.error('[google-contacts] Quet lich loi:', error))
-      .finally(() => {
-        syncing = false;
-      });
-  };
-  scheduler = setInterval(tick, 30 * 60_000);
-  scheduler.unref();
-  setTimeout(tick, 60_000).unref();
+  scheduler = startTrackedScheduler({
+    intervalMs: 30 * 60_000,
+    initialDelayMs: 60_000,
+    job: () => runDueContactSyncs(db),
+    onError: (error) => console.error('[google-contacts] Quet lich loi:', error),
+  });
   return scheduler;
 }

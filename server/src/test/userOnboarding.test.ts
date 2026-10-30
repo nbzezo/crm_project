@@ -115,7 +115,7 @@ test('tao tai khoan kem vi tri va don vi — dang nhap vao co quyen ngay', async
     positions: [{ position_id: positionId('staff'), is_primary: true }],
   });
   assert.equal(res.status, 201);
-  assert.deepEqual(res.data.warnings, []);
+  assert.deepEqual(res.data.warnings, ['invite_failed']);
   assert.equal(res.data.org_unit_id, phongP1);
   assert.equal(res.data.org_unit_name, 'Phòng P1');
   const positions = res.data.positions as { position_name: string; is_primary: boolean }[];
@@ -154,7 +154,7 @@ test('khong chon vi tri van tao duoc, kem canh bao', async () => {
     full_name: 'Chưa phân quyền',
   });
   assert.equal(res.status, 201);
-  assert.deepEqual(res.data.warnings, ['no_position']);
+  assert.deepEqual(res.data.warnings, ['no_position', 'invite_failed']);
   assert.deepEqual(res.data.positions, []);
 });
 

@@ -81,6 +81,22 @@ export function QuickAssessmentWizard({ deal, onDone }: { deal: Deal; onDone: ()
       onDone();
     },
   });
+  const resolveConflict = useMutation({
+    mutationFn: ({ question, useAdvanced }: { question: QuickQuestion; useAdvanced: boolean }) => {
+      const item = current![question];
+      return useAdvanced
+        ? api.del<QuickAssessment>(`/api/deals/${deal.id}/quick-assessment/${question}`)
+        : api.put<QuickAssessment>(`/api/deals/${deal.id}/quick-assessment`, {
+            answers: [
+              { question, answer: item.answer ?? 'unsure', note: item.note, source: 'user' },
+            ],
+          });
+    },
+    onSuccess: (next) => {
+      qc.setQueryData(['deal', deal.id, 'quick-assessment'], next);
+      setDraft(null);
+    },
+  });
   const assist = useMutation({
     mutationFn: () =>
       api.post<QuickAssistResult>(`/api/ai/assist/deal/${deal.id}/quick-assessment`, { story }),
@@ -118,6 +134,44 @@ export function QuickAssessmentWizard({ deal, onDone }: { deal: Deal; onDone: ()
     return (
       <div className="space-y-4">
         <Panel title="Xem lại">
+          {quick.items.some((item) => item.conflict) && (
+            <div className="mb-4 space-y-2 rounded-control border border-tr-warning/50 bg-tr-warning/10 p-3">
+              <p className="text-sm font-semibold text-tr-text">
+                Có câu trả lời khác đánh giá Nâng cao
+              </p>
+              {quick.items
+                .filter((item) => item.conflict)
+                .map((item) => (
+                  <div key={item.question} className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="mr-auto text-tr-subtle">
+                      {QUICK_QUESTION_TEXT[item.question].text}: Cơ bản{' '}
+                      {ANSWER_LABELS[item.answer ?? 'unsure']}, Nâng cao{' '}
+                      {ANSWER_LABELS[item.advanced_answer ?? 'unsure']}
+                    </span>
+                    <Button
+                      size="sm"
+                      disabled={resolveConflict.isPending}
+                      onClick={() =>
+                        resolveConflict.mutate({ question: item.question, useAdvanced: false })
+                      }
+                    >
+                      Giữ Cơ bản
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={resolveConflict.isPending}
+                      onClick={() =>
+                        resolveConflict.mutate({ question: item.question, useAdvanced: true })
+                      }
+                    >
+                      Dùng Nâng cao
+                    </Button>
+                  </div>
+                ))}
+              <FormError error={resolveConflict.error} />
+            </div>
+          )}
           <Review draft={current} onEdit={(i) => setStep(i)} />
           <div className="mt-4 flex gap-2">
             <Button onClick={() => setStep(0)}>Làm lại từ câu 1</Button>

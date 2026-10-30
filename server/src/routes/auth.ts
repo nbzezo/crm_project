@@ -19,7 +19,11 @@ import {
   purgeExpiredTokens,
   resolveToken,
 } from '../services/auth/tokens.ts';
-import { appBaseUrl, sendMail } from '../services/email/emailService.ts';
+import {
+  configuredAppBaseUrl,
+  sendMail,
+  setEmailLastError,
+} from '../services/email/emailService.ts';
 import { resetEmail } from '../services/email/templates.ts';
 
 const router = Router();
@@ -39,9 +43,20 @@ const router = Router();
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 8;
 const attempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_LIMIT_KEYS = 50_000;
+let rateLimitOperations = 0;
+
+function maintainRateLimits(now: number): void {
+  rateLimitOperations += 1;
+  if (rateLimitOperations % 256 === 0) {
+    for (const [key, entry] of attempts) if (entry.resetAt < now) attempts.delete(key);
+  }
+  while (attempts.size >= MAX_RATE_LIMIT_KEYS) attempts.delete(attempts.keys().next().value!);
+}
 
 function hitRateLimit(key: string, max = MAX_ATTEMPTS): boolean {
   const now = Date.now();
+  maintainRateLimits(now);
   const entry = attempts.get(key);
   if (!entry || entry.resetAt < now) {
     attempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
@@ -57,13 +72,6 @@ function clearRateLimit(...keys: string[]): void {
 
 function promisify(fn: (cb: (err?: unknown) => void) => void): Promise<void> {
   return new Promise((resolve, reject) => fn((err) => (err ? reject(err) : resolve())));
-}
-
-/** Goc URL ma nguoi dung dang mo, dung khi chua khai bao app_base_url o Cai dat. */
-function requestOrigin(req: Request): string {
-  const proto = req.protocol;
-  const host = req.get('host');
-  return host ? `${proto}://${host}` : 'http://localhost:5173';
 }
 
 async function startSession(req: Request, userId: number, username: string): Promise<void> {
@@ -261,8 +269,16 @@ router.post('/forgot-password', async (req, res, next) => {
     purgeExpiredTokens();
     const user = findUserByLogin(email);
     if (user && user.is_active && user.email) {
+      const baseUrl = configuredAppBaseUrl(db);
+      if (!baseUrl) {
+        const message = 'Chưa khai báo URL CRM nên chưa thể gửi liên kết đặt lại mật khẩu';
+        setEmailLastError(db, message);
+        console.error(`[auth] ${message}`);
+        res.status(204).end();
+        return;
+      }
       const { token } = issueToken(user.id, 'reset');
-      const link = `${appBaseUrl(db, requestOrigin(req))}/reset-password?token=${token}`;
+      const link = `${baseUrl}/reset-password?token=${token}`;
       /* Nuot loi gui thu: mot su co SMTP khong duoc phep bien thanh 500, vi 500 o
          day lai la mot tin hieu "email nay co that". Loi da duoc ghi vao
          email_settings.last_error va hien o man Cai dat. */

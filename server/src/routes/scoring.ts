@@ -26,6 +26,7 @@ import {
 } from '../lib/crm.ts';
 import {
   QUICK_QUESTIONS,
+  deleteQuickAnswer,
   getQuickAssessment,
   saveQuickAnswers,
 } from '../services/quickAssessmentService.ts';
@@ -256,6 +257,14 @@ router.put('/deals/:id/quick-assessment', (req, res) => {
   assertDealScope(req, dealId, 'update');
   const body = parseBody(quickSchema, req);
   res.json(saveQuickAnswers(db, dealId, body.answers, actorContactId(req)));
+});
+
+router.delete('/deals/:id/quick-assessment/:question', (req, res) => {
+  const dealId = intParam(req.params.id);
+  assertDealScope(req, dealId, 'update');
+  const question = z.enum(QUICK_QUESTIONS).safeParse(req.params.question);
+  if (!question.success) throw new HttpError(422, 'Câu đánh giá không hợp lệ');
+  res.json(deleteQuickAnswer(db, dealId, question.data));
 });
 
 /* ---------- Nhom ra quyet dinh (F-03) ---------- */

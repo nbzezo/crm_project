@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { groupLinesByCustomer } from './revenue';
-import type { RevenueLine } from '../types';
+import { groupLinesByCustomer, totalsFromCells } from './revenue';
+import type { RevenueCell, RevenueLine } from '../types';
 
 function line(
   id: number,
@@ -45,5 +45,27 @@ describe('groupLinesByCustomer', () => {
       line(4, 5, 10, 3),
     ]);
     expect(group.lines.map((l) => l.id)).toEqual([1, 4, 3, 2]);
+  });
+});
+
+describe('totalsFromCells', () => {
+  it('cộng đúng từng stage rời nhau và forecast ban đầu', () => {
+    const cells = (['forecast', 'reconciled', 'invoiced', 'paid'] as const).map(
+      (stage, index): RevenueCell => ({
+        amount_vnd: (index + 1) * 10,
+        forecast_vnd: 5,
+        stage,
+        note: '',
+      })
+    );
+
+    expect(totalsFromCells(cells)).toEqual({
+      amount_vnd: 100,
+      forecast_vnd: 20,
+      stage_forecast_vnd: 10,
+      stage_reconciled_vnd: 20,
+      stage_invoiced_vnd: 30,
+      stage_paid_vnd: 40,
+    });
   });
 });

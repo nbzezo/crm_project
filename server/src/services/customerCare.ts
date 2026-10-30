@@ -111,22 +111,32 @@ export interface CareStatus {
   state: 'ok' | 'due_soon' | 'overdue' | 'never';
 }
 
-export function careStatusOf(
+export interface CustomerHealthInput {
+  id: number;
+  care_tier?: string | null;
+  care_cadence_days?: number | null;
+  created_at: string;
+  last_activity_at?: string | null;
+  last_contact_at?: string | null;
+  overdue_task_count?: number | null;
+  overdue_next_action_count?: number | null;
+  deals_without_next_action_count?: number | null;
+}
+
+export interface CustomerHealth {
+  level: 'good' | 'attention' | 'risk' | 'new';
+  label: string;
+  reason: string;
+  care: CareStatus;
+}
+
+function careStatusFrom(
   db: Database,
-  customer: {
-    id: number;
-    care_tier?: string | null;
-    care_cadence_days?: number | null;
-    created_at: string;
-  }
+  customer: CustomerHealthInput,
+  last: string | null,
+  today = todayOf(db)
 ): CareStatus {
-  const today = todayOf(db);
   const cadence = cadenceOf(customer.care_tier, customer.care_cadence_days);
-  const last = (
-    db
-      .prepare(`SELECT MAX(occurred_at) AS at FROM interactions WHERE customer_id = ?`)
-      .get(customer.id) as { at: string | null }
-  ).at;
   const base = (last ?? customer.created_at).slice(0, 10);
   const due = addDaysStr(base, cadence.days);
   const overdue = daysBetweenStr(due, today);
@@ -142,6 +152,94 @@ export function careStatusOf(
     state:
       !last && overdue > 0 ? 'never' : overdue > 0 ? 'overdue' : overdue >= -3 ? 'due_soon' : 'ok',
   };
+}
+
+export function careStatusOf(
+  db: Database,
+  customer: {
+    id: number;
+    care_tier?: string | null;
+    care_cadence_days?: number | null;
+    created_at: string;
+  }
+): CareStatus {
+  const last = (
+    db
+      .prepare(`SELECT MAX(occurred_at) AS at FROM interactions WHERE customer_id = ?`)
+      .get(customer.id) as { at: string | null }
+  ).at;
+  return careStatusFrom(db, customer, last);
+}
+
+export function customerHealthOf(
+  db: Database,
+  customer: CustomerHealthInput,
+  today = todayOf(db)
+): CustomerHealth {
+  const care = careStatusFrom(db, customer, customer.last_contact_at ?? null, today);
+  const overdueTasks = customer.overdue_task_count ?? 0;
+  const overdueActions = customer.overdue_next_action_count ?? 0;
+  const missingActions = customer.deals_without_next_action_count ?? 0;
+  const inactiveDays = Math.max(
+    0,
+    daysBetweenStr((customer.last_activity_at ?? customer.created_at).slice(0, 10), today)
+  );
+  const neverContacted = !customer.last_activity_at;
+  let health: Omit<CustomerHealth, 'care'>;
+  let inactivityOnly = false;
+
+  if (overdueTasks >= 2)
+    health = { level: 'risk', label: 'Rủi ro', reason: `${overdueTasks} công việc quá hạn` };
+  else if (overdueActions > 0)
+    health = { level: 'risk', label: 'Rủi ro', reason: 'Việc tiếp theo đã quá hạn' };
+  else if (inactiveDays > 30) {
+    inactivityOnly = true;
+    health = {
+      level: 'risk',
+      label: 'Rủi ro',
+      reason: customer.last_activity_at
+        ? `${inactiveDays} ngày chưa tương tác`
+        : 'Chưa tương tác từ khi tạo',
+    };
+  } else if (neverContacted) {
+    health =
+      inactiveDays < 7
+        ? { level: 'new', label: 'Chưa đủ dữ liệu', reason: `Mới tạo ${inactiveDays} ngày trước` }
+        : {
+            level: 'attention',
+            label: 'Nguội',
+            reason: `Chưa tương tác lần nào sau ${inactiveDays} ngày — cần liên hệ`,
+          };
+  } else if (overdueTasks === 1)
+    health = { level: 'attention', label: 'Cần chú ý', reason: '1 công việc quá hạn' };
+  else if (missingActions > 0)
+    health = {
+      level: 'attention',
+      label: 'Cần chú ý',
+      reason: `${missingActions} cơ hội chưa có việc tiếp theo`,
+    };
+  else if (inactiveDays >= 14) {
+    inactivityOnly = true;
+    health = {
+      level: 'attention',
+      label: 'Cần chú ý',
+      reason: `${inactiveDays} ngày chưa tương tác`,
+    };
+  } else health = { level: 'good', label: 'Tốt', reason: 'Đang được chăm sóc' };
+
+  if (care.state !== 'overdue' && care.state !== 'never') {
+    if (inactivityOnly)
+      health = { level: 'good', label: 'Tốt', reason: 'Đang trong nhịp chăm sóc' };
+  } else if (!(health.level === 'risk' && !inactivityOnly)) {
+    const reason = care.last_contact_at
+      ? `Quá nhịp liên hệ ${care.days_overdue} ngày (nhịp ${care.cadence_days} ngày)`
+      : 'Chưa tương tác lần nào';
+    health =
+      care.days_overdue * 2 >= care.cadence_days || care.state === 'never'
+        ? { level: 'risk', label: 'Rủi ro', reason }
+        : { level: 'attention', label: 'Cần chú ý', reason };
+  }
+  return { ...health, care };
 }
 
 /* ---------- Nguy co mat khach (diem tinh, khong can AI) ---------- */

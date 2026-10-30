@@ -1,4 +1,5 @@
 import type { Database } from 'better-sqlite3';
+import { startTrackedScheduler, type SchedulerHandle } from '../../lib/scheduler.ts';
 import { getTelegramConfig, sendTelegramMessage } from './telegramService.ts';
 import { runFocusDigests } from './focusDigest.ts';
 
@@ -215,16 +216,15 @@ export function notifyShareViewTelegram(db: Database, text: string): void {
   })();
 }
 
-let scheduler: ReturnType<typeof setInterval> | null = null;
+let scheduler: SchedulerHandle | null = null;
 
 export function startTelegramNotifierScheduler(db: Database) {
   if (scheduler) return scheduler;
-  scheduler = setInterval(() => {
-    runDueTelegramChecks(db).catch((error) => console.error('[telegram] Quet dinh ky loi:', error));
-  }, 5 * 60_000);
-  scheduler.unref();
-  setTimeout(() => {
-    runDueTelegramChecks(db).catch((error) => console.error('[telegram] Quet dinh ky loi:', error));
-  }, 2_000).unref();
+  scheduler = startTrackedScheduler({
+    intervalMs: 5 * 60_000,
+    initialDelayMs: 2_000,
+    job: () => runDueTelegramChecks(db),
+    onError: (error) => console.error('[telegram] Quet dinh ky loi:', error),
+  });
   return scheduler;
 }

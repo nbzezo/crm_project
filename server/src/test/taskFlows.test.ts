@@ -453,6 +453,72 @@ test('sao chep the va viec lap lai chep quy trinh, dat lai chua xong', async () 
   assert.ok(nextSteps.every((s) => s.done_at === null));
 });
 
+test('bulk card atomic, gioi han 500 va tra danh sach flow dang chan', async () => {
+  await setEnabled(true, DOING_REVIEW);
+  const blocked = await newCard('Bulk con quy trinh');
+  const plain = await newCard('Bulk binh thuong');
+  await json('PATCH', `/api/cards/${blocked.id}`, { status: 'doing' });
+  await json('PATCH', `/api/cards/${plain.id}`, { status: 'doing' });
+  await addFlow(blocked.id, 'doing', ['Chua xong']);
+
+  const rejected = await json('PATCH', '/api/cards/bulk', {
+    ids: [blocked.id, plain.id],
+    patch: { is_done: true },
+  });
+  assert.equal(rejected.status, 409);
+  assert.equal(rejected.data.code, 'BULK_FLOW_INCOMPLETE');
+  assert.deepEqual(
+    (rejected.data.blocked as { id: number; title: string }[]).map(({ id, title }) => ({
+      id,
+      title,
+    })),
+    [{ id: blocked.id, title: 'Bulk con quy trinh' }]
+  );
+  assert.equal(card(blocked.id).status, 'doing');
+  assert.equal(card(plain.id).status, 'doing', 'khong duoc cap nhat thanh cong mot phan');
+
+  const updated = await json('PATCH', '/api/cards/bulk', {
+    ids: [blocked.id, plain.id],
+    patch: { priority: 'urgent' },
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.data.updated, 2);
+  assert.equal(
+    (
+      db
+        .prepare(`SELECT COUNT(*) AS n FROM cards WHERE id IN (?, ?) AND priority = 'urgent'`)
+        .get(blocked.id, plain.id) as { n: number }
+    ).n,
+    2
+  );
+
+  const tooMany = await json('PATCH', '/api/cards/bulk', {
+    ids: Array.from({ length: 501 }, (_, index) => index + 1),
+    patch: { priority: 'low' },
+  });
+  assert.equal(tooMany.status, 400);
+
+  const deleteRejected = await json('DELETE', '/api/cards/bulk', {
+    ids: [plain.id, 999_999_999],
+  });
+  assert.equal(deleteRejected.status, 404);
+  assert.ok(db.prepare(`SELECT id FROM cards WHERE id = ?`).get(plain.id));
+
+  const deleted = await json('DELETE', '/api/cards/bulk', { ids: [blocked.id, plain.id] });
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.data.deleted, 2);
+  assert.equal(
+    (
+      db
+        .prepare(`SELECT COUNT(*) AS n FROM cards WHERE id IN (?, ?)`)
+        .get(blocked.id, plain.id) as {
+        n: number;
+      }
+    ).n,
+    0
+  );
+});
+
 /* ---------- Cau hinh ---------- */
 
 test('mau khong duoc tu chuyen ve chinh no', async () => {

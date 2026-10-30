@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, ChevronRight, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { api } from '../../api/client';
+import { api, bulkFlowBlockedTitles } from '../../api/client';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
@@ -190,21 +190,23 @@ function BulkBar({
   onClear: () => void;
 }) {
   const queryClient = useQueryClient();
+  const pushToast = useUiStore((state) => state.pushToast);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { data: assignees = [] } = useAssignees();
   const mutation = useMutation({
-    mutationFn: async (patch: Record<string, unknown>) => {
-      await Promise.all([...selected].map((id) => api.patch(`/api/cards/${id}`, patch)));
-    },
+    mutationFn: (patch: Record<string, unknown>) =>
+      api.patch('/api/cards/bulk', { ids: [...selected], patch }),
     onSuccess: () => {
       invalidateCardViews(queryClient);
       onDone();
     },
+    onError: (error) => {
+      const titles = bulkFlowBlockedTitles(error);
+      if (titles.length > 0) pushToast(`Chưa thể đổi trạng thái: ${titles.join(', ')}`, 'error');
+    },
   });
   const remove = useMutation({
-    mutationFn: async () => {
-      await Promise.all([...selected].map((id) => api.del(`/api/cards/${id}`)));
-    },
+    mutationFn: () => api.del('/api/cards/bulk', { ids: [...selected] }),
     onSuccess: () => {
       invalidateCardViews(queryClient);
       setDeleteOpen(false);

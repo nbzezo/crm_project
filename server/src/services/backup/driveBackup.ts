@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Database } from 'better-sqlite3';
+import { startTrackedScheduler, type SchedulerHandle } from '../../lib/scheduler.ts';
 import { FILES_DIR } from '../../db/connection.ts';
 import { createBackupFile, gzipFile } from '../../lib/backup.ts';
 import { HttpError } from '../../lib/validate.ts';
@@ -371,7 +372,7 @@ async function backupDatabase(
   token: string,
   dbFolder: string
 ): Promise<{ name: string; size: number }> {
-  const snapshot = await createBackupFile(db);
+  const snapshot = await createBackupFile(db, { temporary: true });
   const compressed = `${snapshot.path}.gz`;
   try {
     await gzipFile(snapshot.path);
@@ -600,17 +601,15 @@ export async function runDueDriveBackupCheck(db: Database): Promise<void> {
   }
 }
 
-let scheduler: ReturnType<typeof setInterval> | null = null;
+let scheduler: SchedulerHandle | null = null;
 
 export function startDriveBackupScheduler(db: Database) {
   if (scheduler) return scheduler;
-  const tick = () => {
-    runDueDriveBackupCheck(db).catch((error) =>
-      console.error('[drive-backup] Quet lich loi:', error)
-    );
-  };
-  scheduler = setInterval(tick, 5 * 60_000);
-  scheduler.unref();
-  setTimeout(tick, 30_000).unref();
+  scheduler = startTrackedScheduler({
+    intervalMs: 5 * 60_000,
+    initialDelayMs: 30_000,
+    job: () => runDueDriveBackupCheck(db),
+    onError: (error) => console.error('[drive-backup] Quet lich loi:', error),
+  });
   return scheduler;
 }

@@ -131,14 +131,22 @@ test('ket luan theo o ma tran va muc Dang dau tu', () => {
 
 test('#14 quan he san co va #15 ket noi nguoi anh huong suy tu du lieu', () => {
   const { db, dealId, customerId, me, other } = setup();
-  db.prepare(
-    `INSERT INTO deals (customer_id, title, stage) VALUES (?, 'Co hoi cu da thang', 'won')`
-  ).run(customerId);
+  const wonDealId = Number(
+    db
+      .prepare(
+        `INSERT INTO deals (customer_id, title, stage) VALUES (?, 'Co hoi cu da thang', 'won')`
+      )
+      .run(customerId).lastInsertRowid
+  );
+  db.prepare(`INSERT INTO contracts (customer_id, deal_id, name) VALUES (?, ?, 'Hop dong cu')`).run(
+    customerId,
+    wonDealId
+  );
   db.prepare(
     `INSERT INTO deal_committee (deal_id, contact_id, stance, influence) VALUES (?, ?, 'mentor', 5)`
   ).run(dealId, me);
   let a = getAssessment(db, dealId);
-  assert.equal(cell(a, 14).score, 2);
+  assert.equal(cell(a, 14).score, 2, 'deal va hop dong cua no chi la mot lan mua');
   assert.equal(cell(a, 15).score, 3);
   db.prepare(
     `INSERT INTO deal_committee (deal_id, contact_id, stance, influence) VALUES (?, ?, 'enemy', 4)`
@@ -166,6 +174,15 @@ test('quyet dinh: ghi kem nhac ngay xet lai, chi xoa duoc cua minh, co hoi da ch
   assert.throws(() => deleteDecision(db, dealId, id, other), /chính bạn/);
   a = deleteDecision(db, dealId, id, me);
   assert.equal(a.decisions.length, 0);
+  assert.equal(
+    (
+      db.prepare(`SELECT COUNT(*) AS n FROM reminders WHERE deal_id = ?`).get(dealId) as {
+        n: number;
+      }
+    ).n,
+    0,
+    'xoa quyet dinh phai xoa reminder do no tao'
+  );
 
   db.prepare(`UPDATE deals SET stage = 'won' WHERE id = ?`).run(dealId);
   assert.equal(getAssessment(db, dealId).locked, true);

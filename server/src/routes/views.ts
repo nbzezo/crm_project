@@ -1,10 +1,10 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { db } from '../db/connection.ts';
+import { DATABASE_PATH, db } from '../db/connection.ts';
 import { accessOf, actorContactId, requirePermission } from '../middleware/currentUser.ts';
 import { scopeFragment, scopeFragmentOrUnowned, scopeWhereOrUnowned } from '../lib/scope.ts';
 import { fold } from '../lib/viSearch.ts';
-import { QUADRANTS, STALE_DAYS } from '../lib/crm.ts';
+import { STALE_DAYS } from '../lib/crm.ts';
 import { allStages, finalOpenStageKeys } from '../lib/pipeline.ts';
 import { getScoringSettings } from '../lib/scoring.ts';
 import { HttpError, intParam, parseBody } from '../lib/validate.ts';
@@ -12,6 +12,18 @@ import { afterCursor, decodeCursor, pageLimit, toPage } from '../lib/paging.ts';
 import { cacheResponse } from '../lib/responseCache.ts';
 import { FLOW_PROGRESS_COLUMNS } from '../services/taskFlowService.ts';
 import { addDaysIso, isRealDate, todayLocal } from '../lib/dates.ts';
+import { runReportQueries } from '../services/reportRunner.ts';
+import {
+  buildPipelineHealthReport,
+  type PipelineHealthRow,
+} from '../services/pipelineHealthReport.ts';
+import { buildDashboardReport } from '../services/dashboardReport.ts';
+import {
+  buildScoreWinLoss,
+  mergeAssigneeReports,
+  type AssigneeReportRow,
+  type ClosedScoreRow,
+} from '../services/reportsReport.ts';
 
 const router = Router();
 
@@ -746,10 +758,19 @@ router.get('/calendar', (req, res) => {
 });
 
 /** Du lieu cho trang Dong thoi gian. */
+const TIMELINE_MAX_DAYS = 366;
+
 router.get('/timeline', (req, res) => {
   const groupBy = req.query.groupBy === 'customer' ? 'customer' : 'board';
   const boardId = req.query.board_id ? Number(req.query.board_id) : null;
   const projectId = req.query.project_id ? Number(req.query.project_id) : null;
+  const today = todayLocal();
+  const fromRaw = String(req.query.from ?? '');
+  const from = isRealDate(fromRaw) ? fromRaw : addDaysIso(today, -183);
+  const toRaw = String(req.query.to ?? '');
+  const maxTo = addDaysIso(from, TIMELINE_MAX_DAYS);
+  const to = isRealDate(toRaw) ? (toRaw > maxTo ? maxTo : toRaw) : addDaysIso(today, 183);
+  if (to < from) throw new HttpError(422, '`to` phải từ hoặc sau `from`');
   // Xem trong mot bang thi nhom theo danh sach cho de theo doi
   const groupByList = boardId !== null && req.query.groupBy !== 'customer';
 
@@ -761,10 +782,12 @@ router.get('/timeline', (req, res) => {
       `${TASK_SELECT}
         WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0 AND k.parent_id IS NULL
           AND (k.start_date IS NOT NULL OR k.due_date IS NOT NULL)
+          AND COALESCE(k.start_date, k.due_date) <= ?
+          AND COALESCE(k.due_date, k.start_date) >= ?
           ${scope}
         ORDER BY COALESCE(k.start_date, k.due_date), k.due_date`
     )
-    .all(...scopeArgs) as Record<string, unknown>[];
+    .all(to, from, ...scopeArgs) as Record<string, unknown>[];
 
   const unscheduled = db
     .prepare(
@@ -776,9 +799,9 @@ router.get('/timeline', (req, res) => {
     )
     .all(...scopeArgs) as Record<string, unknown>[];
 
-  const visibleIds = new Set(scheduled.map((k) => k.id as number));
-
   res.json({
+    from,
+    to,
     items: scheduled.map((k) => ({
       id: k.id,
       title: k.title,
@@ -828,23 +851,39 @@ router.get('/timeline', (req, res) => {
      * `violated` tinh o day thay vi o client: quy tac "viec truoc chua xong ma
      * viec sau da bat dau" la quy tac nghiep vu, khong phai chi tiet trinh bay.
      */
-    dependencies: (
-      db
-        .prepare(
-          `SELECT d.predecessor_id, d.successor_id,
+    dependencies: db
+      .prepare(
+        `WITH visible AS MATERIALIZED (
+             SELECT k.id
+               FROM cards k
+               JOIN lists l ON l.id = k.list_id
+               JOIN boards b ON b.id = l.board_id
+              WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0
+                AND k.parent_id IS NULL
+                AND (k.start_date IS NOT NULL OR k.due_date IS NOT NULL)
+                AND COALESCE(k.start_date, k.due_date) <= ?
+                AND COALESCE(k.due_date, k.start_date) >= ?
+                ${scope}
+           )
+           SELECT d.predecessor_id, d.successor_id,
                   (p.is_done = 0 AND s.start_date IS NOT NULL
                    AND s.start_date <= date('now','localtime')) AS violated
              FROM card_dependencies d
+             JOIN visible vp ON vp.id = d.predecessor_id
+             JOIN visible vs ON vs.id = d.successor_id
              JOIN cards p ON p.id = d.predecessor_id
              JOIN cards s ON s.id = d.successor_id`
-        )
-        .all() as { predecessor_id: number; successor_id: number; violated: number }[]
-    ).filter((edge) => visibleIds.has(edge.predecessor_id) && visibleIds.has(edge.successor_id)),
+      )
+      .all(to, from, ...scopeArgs) as {
+      predecessor_id: number;
+      successor_id: number;
+      violated: number;
+    }[],
   });
 });
 
 /** Dashboard ca nhan theo FR-DSH-01..06. */
-router.get('/dashboard', cacheResponse, (req, res) => {
+router.get('/dashboard', cacheResponse, async (req, res) => {
   const openTaskCounts = db
     .prepare(
       `SELECT
@@ -1050,9 +1089,10 @@ router.get('/dashboard', cacheResponse, (req, res) => {
    * Dong `assignee_contact_id IS NULL` duoc giu lai co y: viec chua giao la thu can
    * xu ly som nhat, an di thi khong ai thay chung ton tai.
    */
-  const workload = db
-    .prepare(
-      `SELECT k.assignee_contact_id, ac.full_name AS assignee_name, (ac.id = ?) AS is_me,
+  const [workload] = await runReportQueries(db, DATABASE_PATH, [
+    {
+      mode: 'all',
+      sql: `SELECT k.assignee_contact_id, ac.full_name AS assignee_name, (ac.id = ?) AS is_me,
               ac.phone AS assignee_phone, ac.zalo AS assignee_zalo, ac.email AS assignee_email,
               k.assignee_org_id, ao.name AS assignee_org_name, ao.org_kind AS assignee_org_kind,
               COUNT(*) AS open_count,
@@ -1068,69 +1108,56 @@ router.get('/dashboard', cacheResponse, (req, res) => {
          LEFT JOIN customers ao ON ao.id = k.assignee_org_id
         WHERE b.is_archived = 0 AND k.is_archived = 0 AND k.is_done = 0${taskScope(req)}
         GROUP BY k.assignee_contact_id
-        ORDER BY overdue_count DESC, open_count DESC`
-    )
-    .all(actorContactId(req));
+        ORDER BY overdue_count DESC, open_count DESC`,
+      params: [actorContactId(req)],
+    },
+  ]);
 
-  res.json({
-    kpi: {
-      open_opportunity_count: pipeline.open_count,
-      pipeline_vnd: pipeline.pipeline_vnd,
-      weighted_pipeline_vnd: Math.round(pipeline.weighted_vnd),
-      closing_this_month_count: closingThisMonth.count,
-      closing_this_month_vnd: closingThisMonth.sum_vnd,
-      overdue_task_count: taskCounts.overdue_count ?? 0,
-      expiring_contract_count: expiringContracts.length,
-    },
-    task_counts: {
-      overdue: taskCounts.overdue_count ?? 0,
-      today: taskCounts.due_today_count ?? 0,
-      tomorrow: taskCounts.due_tomorrow_count ?? 0,
-      week: taskCounts.due_week_count ?? 0,
-      open: taskCounts.open_count ?? 0,
-      // O KPI "Việc hôm nay" tren Tong quan: tien do trong ngay, khong chi viec con mo.
-      done_today: taskCounts.done_today_count ?? 0,
-    },
-    tasks: tasksByBucket,
-    workload,
-    pipeline_totals,
-    attention,
-    expiring_contracts: {
-      d30: expiringContracts.filter((c) => c.days_left <= 30),
-      d60: expiringContracts.filter((c) => c.days_left > 30 && c.days_left <= 60),
-      d90: expiringContracts.filter((c) => c.days_left > 60),
-      all: expiringContracts,
-    },
-    upcoming_reminders: db
-      .prepare(
-        `SELECT r.*, k.title AS card_title, c.name AS customer_name
+  const upcomingReminders = db
+    .prepare(
+      `SELECT r.*, k.title AS card_title, c.name AS customer_name
            FROM reminders r
            LEFT JOIN cards k ON k.id = r.card_id
            LEFT JOIN customers c ON c.id = r.customer_id
           WHERE r.is_done = 0
             ${scopeFragmentOrUnowned(req, 'tasks', 'read', 'r.owner_contact_id')}
           ORDER BY r.due_at LIMIT 5`
-      )
-      .all(),
-    recent_interactions: db
-      .prepare(
-        `SELECT i.*, c.name AS customer_name FROM interactions i
+    )
+    .all();
+  const recentInteractions = db
+    .prepare(
+      `SELECT i.*, c.name AS customer_name FROM interactions i
            JOIN customers c ON c.id = i.customer_id
           ORDER BY i.occurred_at DESC LIMIT 5`
-      )
-      .all(),
-    recent_boards: db
-      .prepare(
-        `SELECT b.id, b.name, b.color, b.background, c.name AS customer_name,
+    )
+    .all();
+  const recentBoards = db
+    .prepare(
+      `SELECT b.id, b.name, b.color, b.background, c.name AS customer_name,
                 (SELECT COUNT(*) FROM cards k JOIN lists l ON l.id = k.list_id
                   WHERE l.board_id = b.id AND k.is_done = 0 AND k.is_archived = 0) AS card_count
            FROM boards b LEFT JOIN customers c ON c.id = b.customer_id
           WHERE b.is_archived = 0
             ${scopeFragmentOrUnowned(req, 'boards', 'read', 'b.owner_contact_id')}
           ORDER BY b.updated_at DESC LIMIT 4`
-      )
-      .all(),
-  });
+    )
+    .all();
+
+  res.json(
+    buildDashboardReport({
+      taskCounts: taskCounts as Parameters<typeof buildDashboardReport>[0]['taskCounts'],
+      pipeline,
+      closingThisMonth,
+      tasks: tasksByBucket,
+      workload,
+      pipelineTotals: pipeline_totals,
+      attention,
+      expiringContracts,
+      upcomingReminders,
+      recentInteractions,
+      recentBoards,
+    })
+  );
 });
 
 /**
@@ -1177,12 +1204,12 @@ router.get('/matrix', (req, res) => {
  * nay: phan pipeline dang duoc tinh vao forecast truyen thong nhung khong vuot noi
  * bo loc veto + staleness. Xac suat theo giai doan KHONG bi dong toi.
  */
-router.get('/pipeline-health', cacheResponse, (req, res) => {
+router.get('/pipeline-health', cacheResponse, async (req, res) => {
   const settings = getScoringSettings(db);
-
-  const rows = db
-    .prepare(
-      `SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
+  const [rows, declining] = (await runReportQueries(db, DATABASE_PATH, [
+    {
+      mode: 'all',
+      sql: `SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
               c.name AS customer_name,
               CAST(julianday(date('now','localtime')) - julianday(substr(d.created_at,1,10))
                    AS INTEGER) AS deal_age_days,
@@ -1191,65 +1218,11 @@ router.get('/pipeline-health', cacheResponse, (req, res) => {
          FROM deals d
          JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
          JOIN deal_scorecard s ON s.deal_id = d.id
-        WHERE d.stage_category = 'open'${dealScope(req)}`
-    )
-    .all() as {
-    id: number;
-    value_vnd: number;
-    probability: number;
-    quadrant: string;
-    deal_age_days: number;
-    score_age_days: number | null;
-    v1_no_event: number;
-    v2_no_economic: number;
-    v3_shaped: number;
-  }[];
-
-  /**
-   * Cua so an han cho co hoi vua tao.
-   *
-   * `score_age_days === null` nghia la CHUA CHAM DIEM LAN NAO, nen moi deal vua
-   * tao deu dinh co STALE ngay lap tuc va bi tinh vao "thoi phong pipeline". Voi
-   * mot he thong con it deal, mot co hoi tao ba giay truoc du de day chi so len
-   * 100% — con so do khong noi len dieu gi ve chat luong pipeline, chi noi rang
-   * nguoi dung chua kip cham diem.
-   */
-  const GRACE_DAYS = 7;
-
-  const blockedBy = (row: (typeof rows)[number]): string[] => {
-    const flags: string[] = [];
-    if (row.v1_no_event) flags.push('V1_NO_COMPELLING_EVENT');
-    if (row.v2_no_economic) flags.push('V2_NO_ECONOMIC_BUYER');
-    if (row.v3_shaped && settings.v3Mode === 'veto') flags.push('V3_COMPETITOR_SHAPED');
-    const unscoredButNew = row.score_age_days === null && row.deal_age_days < GRACE_DAYS;
-    if (!unscoredButNew && (row.score_age_days === null || row.score_age_days > settings.staleDays))
-      flags.push('STALE');
-    return flags;
-  };
-
-  let stageWeighted = 0;
-  let filteredWeighted = 0;
-  const quadrantTotals: Record<string, { count: number; sum_vnd: number }> = {};
-  for (const q of QUADRANTS) quadrantTotals[q] = { count: 0, sum_vnd: 0 };
-  const excluded: Record<string, unknown>[] = [];
-
-  for (const row of rows) {
-    const weighted = Math.round((row.value_vnd * row.probability) / 100);
-    stageWeighted += weighted;
-    quadrantTotals[row.quadrant].count += 1;
-    quadrantTotals[row.quadrant].sum_vnd += row.value_vnd;
-
-    const flags = blockedBy(row);
-    if (flags.length === 0) filteredWeighted += weighted;
-    else excluded.push({ ...row, weighted_vnd: weighted, blocked_by: flags });
-  }
-
-  excluded.sort((a, b) => (b.weighted_vnd as number) - (a.weighted_vnd as number));
-
-  // F-18: deal dang tut diem trong 30 ngay gan nhat
-  const declining = db
-    .prepare(
-      `SELECT d.id, d.title, c.name AS customer_name, d.value_vnd, d.stage,
+        WHERE d.stage_category = 'open'${dealScope(req)}`,
+    },
+    {
+      mode: 'all',
+      sql: `SELECT d.id, d.title, c.name AS customer_name, d.value_vnd, d.stage,
               h.factor, h.old_score, h.new_score, h.changed_at
          FROM deal_score_history h
          JOIN deals d ON d.id = h.deal_id
@@ -1257,26 +1230,16 @@ router.get('/pipeline-health', cacheResponse, (req, res) => {
         WHERE d.stage_category = 'open'
           AND h.old_score IS NOT NULL AND h.new_score < h.old_score
           AND date(h.changed_at) >= date('now','localtime','-30 days')
-        ORDER BY h.changed_at DESC LIMIT 20`
-    )
-    .all();
+          ${dealScope(req)}
+        ORDER BY h.changed_at DESC LIMIT 20`,
+    },
+  ])) as [PipelineHealthRow[], unknown[]];
 
-  res.json({
-    stage_weighted_vnd: stageWeighted,
-    filtered_weighted_vnd: filteredWeighted,
-    inflation_vnd: stageWeighted - filteredWeighted,
-    inflation_ratio: stageWeighted === 0 ? 0 : (stageWeighted - filteredWeighted) / stageWeighted,
-    open_count: rows.length,
-    excluded_count: excluded.length,
-    quadrant_totals: quadrantTotals,
-    excluded: excluded.slice(0, 20),
-    declining,
-    settings: { stale_days: settings.staleDays, v3_mode: settings.v3Mode },
-  });
+  res.json(buildPipelineHealthReport(rows, declining, settings));
 });
 
 /** So lieu tong hop cho trang Bao cao. */
-router.get('/reports', cacheResponse, (req, res) => {
+router.get('/reports', cacheResponse, async (req, res) => {
   const defaultFrom = db.prepare(`SELECT date('now','localtime','-6 months') AS d`).get() as {
     d: string;
   };
@@ -1366,40 +1329,8 @@ router.get('/reports', cacheResponse, (req, res) => {
         WHERE closed_at IS NOT NULL AND score_snapshot IS NOT NULL
           AND substr(closed_at, 1, 10) BETWEEN ? AND ?${dealScope(req, '')}`
     )
-    .all(from, to) as {
-    stage_category: string;
-    lost_reason: string | null;
-    score_snapshot: string;
-  }[];
-
-  const byQuadrant: Record<string, { won: number; lost: number }> = {};
-  for (const q of QUADRANTS) byQuadrant[q] = { won: 0, lost: 0 };
-  /** F-16: ly do thua x yeu to thap nhat luc chot — o lech la bang chung rubric bi cham sai. */
-  const lostReasonByFactor: Record<string, Record<string, number>> = {};
-
-  for (const row of closedWithScores) {
-    let snapshot: {
-      quadrant: string;
-      scores: Record<string, { score: number }>;
-    };
-    try {
-      snapshot = JSON.parse(row.score_snapshot);
-    } catch {
-      continue;
-    }
-    if (byQuadrant[snapshot.quadrant])
-      byQuadrant[snapshot.quadrant][row.stage_category === 'won' ? 'won' : 'lost'] += 1;
-
-    if (row.stage_category === 'lost' && snapshot.scores) {
-      const entries = Object.entries(snapshot.scores);
-      if (entries.length > 0) {
-        const lowest = entries.reduce((a, b) => (b[1].score < a[1].score ? b : a));
-        const reason = row.lost_reason ?? 'other';
-        lostReasonByFactor[reason] ??= {};
-        lostReasonByFactor[reason][lowest[0]] = (lostReasonByFactor[reason][lowest[0]] ?? 0) + 1;
-      }
-    }
-  }
+    .all(from, to) as ClosedScoreRow[];
+  const scoreWinLoss = buildScoreWinLoss(closedWithScores);
 
   const top_customers = db
     .prepare(
@@ -1437,19 +1368,6 @@ router.get('/reports', cacheResponse, (req, res) => {
   /* Hai lan doc thay vi mot lan quet ca lich su viec (1.38.1): viec DANG MO di chi muc mot
      phan idx_cards_open_due, viec XONG TRONG KY di idx_cards_done_completed theo khoang
      completed_at. Ket qua giong het cau cu (mot dong moi nguoi co viec mo hoac xong trong ky). */
-  type AssigneeRow = {
-    contact_id: number | null;
-    assignee_name: string | null;
-    is_me: number | null;
-    org_name: string | null;
-    org_kind: string | null;
-    completed: number;
-    open_count: number;
-    overdue_count: number;
-    due_week_count: number;
-    week_hours: number;
-    estimated_count: number;
-  };
   const assigneeColumns = `k.assignee_contact_id AS contact_id, ac.full_name AS assignee_name,
               (ac.id = @me) AS is_me, ao.name AS org_name, ao.org_kind`;
   const assigneeFrom = `FROM cards k
@@ -1475,7 +1393,7 @@ router.get('/reports', cacheResponse, (req, res) => {
         WHERE k.is_done = 0 AND k.is_archived = 0 AND b.is_archived = 0${taskScope(req)}
         GROUP BY k.assignee_contact_id`
     )
-    .all({ me: actorContactId(req) }) as AssigneeRow[];
+    .all({ me: actorContactId(req) }) as AssigneeReportRow[];
   const doneByAssignee = db
     .prepare(
       `SELECT ${assigneeColumns}, COUNT(*) AS completed
@@ -1484,26 +1402,8 @@ router.get('/reports', cacheResponse, (req, res) => {
           AND k.completed_at >= @from AND k.completed_at < date(@to, '+1 day')${taskScope(req)}
         GROUP BY k.assignee_contact_id`
     )
-    .all({ me: actorContactId(req), from, to }) as AssigneeRow[];
-  const assigneeRows = new Map<number | null, AssigneeRow>(
-    openByAssignee.map((row) => [row.contact_id, row])
-  );
-  for (const row of doneByAssignee) {
-    const open = assigneeRows.get(row.contact_id);
-    if (open) open.completed = row.completed;
-    else
-      assigneeRows.set(row.contact_id, {
-        ...row,
-        open_count: 0,
-        overdue_count: 0,
-        due_week_count: 0,
-        week_hours: 0,
-        estimated_count: 0,
-      });
-  }
-  const by_assignee = [...assigneeRows.values()].sort(
-    (a, b) => b.overdue_count - a.overdue_count || b.open_count - a.open_count
-  );
+    .all({ me: actorContactId(req), from, to }) as AssigneeReportRow[];
+  const by_assignee = mergeAssigneeReports(openByAssignee, doneByAssignee);
 
   /**
    * Tien do theo DU AN — cho ban bao cao rut gon cua nhom Du an. Chi gom viec tren
@@ -1511,9 +1411,13 @@ router.get('/reports', cacheResponse, (req, res) => {
    * vi cong viec: thay du an nhung khong thay bang nao cua no thi khong co dong.
    */
   const projectScope = scopeFragmentOrUnowned(req, 'projects', 'read', 'p.owner_contact_id');
-  const by_project = db
-    .prepare(
-      `SELECT p.id, p.name, p.status, p.plan_end,
+  const [by_project, projects_by_status, slip_distribution] = await runReportQueries(
+    db,
+    DATABASE_PATH,
+    [
+      {
+        mode: 'all',
+        sql: `SELECT p.id, p.name, p.status, p.plan_end,
               SUM(CASE WHEN k.is_done = 1 AND k.completed_at >= ? AND k.completed_at < date(?, '+1 day')
                        THEN 1 ELSE 0 END) AS completed,
               SUM(CASE WHEN k.is_done = 1 THEN 1 ELSE 0 END) AS done_total,
@@ -1534,30 +1438,27 @@ router.get('/reports', cacheResponse, (req, res) => {
          JOIN cards k ON k.list_id = l.id AND k.is_archived = 0
         WHERE p.is_archived = 0 AND p.status NOT IN ('done','cancelled')${projectScope}${taskScope(req)}
         GROUP BY p.id
-        ORDER BY overdue_count DESC, open_count DESC, p.name`
-    )
-    .all(from, to);
-
-  const projects_by_status = db
-    .prepare(
-      `SELECT p.status, COUNT(*) AS count FROM projects p
+        ORDER BY overdue_count DESC, open_count DESC, p.name`,
+        params: [from, to],
+      },
+      {
+        mode: 'all',
+        sql: `SELECT p.status, COUNT(*) AS count FROM projects p
         WHERE p.is_archived = 0${projectScope}
-        GROUP BY p.status`
-    )
-    .all();
-
-  /** Phan bo so lan doi han — duoi cang dai thi ke hoach cang khong dang tin. */
-  const slip_distribution = db
-    .prepare(
-      `SELECT slips, COUNT(*) AS task_count FROM (
+        GROUP BY p.status`,
+      },
+      {
+        mode: 'all',
+        sql: `SELECT slips, COUNT(*) AS task_count FROM (
          SELECT (SELECT COUNT(*) FROM card_due_changes dc WHERE dc.card_id = k.id) AS slips
            FROM cards k
            JOIN lists l ON l.id = k.list_id
            JOIN boards b ON b.id = l.board_id
           WHERE k.is_archived = 0 AND b.is_archived = 0 AND k.due_date IS NOT NULL${taskScope(req)}
-       ) GROUP BY slips ORDER BY slips`
-    )
-    .all();
+       ) GROUP BY slips ORDER BY slips`,
+      },
+    ]
+  );
 
   res.json({
     from,
@@ -1578,8 +1479,7 @@ router.get('/reports', cacheResponse, (req, res) => {
     /* F-10 / F-16 — chi co y nghia khi da du so deal chot; duoi nguong thi
        giao dien chi hien so dem, khong dua khuyen nghi hieu chinh nguong (C11). */
     score_winloss: {
-      by_quadrant: byQuadrant,
-      lost_reason_by_factor: lostReasonByFactor,
+      ...scoreWinLoss,
       scored_closed_count: closedWithScores.length,
       min_deals: getScoringSettings(db).winlossMinDeals,
     },

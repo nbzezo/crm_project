@@ -148,15 +148,14 @@ export default function DealDetailPage() {
         : assessment
           ? VERDICT_INFO[assessment.verdict]
           : { label: 'Chưa đủ dữ liệu', tone: 'neutral' as const };
-  /* Nen dam du tuong phan voi chu trang (>= 4.5:1) vi nhan chu nho. */
-  const verdictColor =
+  const verdictTone =
     verdictLabel.tone === 'success'
-      ? '#087a08'
+      ? 'bg-tr-success text-tr-on-success'
       : verdictLabel.tone === 'warning'
-        ? '#8a5a00'
+        ? 'bg-tr-warning text-tr-surface'
         : verdictLabel.tone === 'danger'
-          ? '#b42318'
-          : '#5e6c84';
+          ? 'bg-tr-danger text-tr-on-danger'
+          : 'bg-tr-muted text-tr-surface';
 
   return (
     <div className="p-4 md:p-6">
@@ -181,8 +180,7 @@ export default function DealDetailPage() {
           <>
             {/* Khong dung ColorBadge (nowrap): nhan ket luan dai phai xuong dong tren dien thoai. */}
             <span
-              className="inline-flex max-w-full rounded-2xl px-2 py-0.5 text-xs font-medium"
-              style={{ backgroundColor: verdictColor, color: '#fff' }}
+              className={`inline-flex max-w-full rounded-2xl px-2 py-0.5 text-xs font-medium ${verdictTone}`}
             >
               Đánh giá: {verdictLabel.label}
             </span>

@@ -1,12 +1,15 @@
 name: Deploy to lxc-crm
 
 on:
-  push:
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: self-hosted
     timeout-minutes: 30
     steps:
@@ -14,8 +17,11 @@ jobs:
         run: |
           set -e
           rm -rf ./src src.tar.gz
-          BASE_URL="https://github.com/nbzezo/crm_project/archive/refs/heads/main.tar.gz"
+          SHA="${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}"
+          test -n "$SHA"
+          BASE_URL="https://github.com/nbzezo/crm_project/archive/${SHA}.tar.gz"
           PROXY_URL="https://gh-proxy.com/${BASE_URL}"
+          echo "Deploying tested commit: $SHA"
 
           # Thu truc tiep, do toc do; neu < 0.5 MB/s hoac loi thi chuyen sang proxy
           SPEED=$(curl -fsSL --max-time 25 -o src.tar.gz -w '%{speed_download}' "$BASE_URL" 2>/dev/null || echo 0)

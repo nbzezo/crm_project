@@ -28,7 +28,8 @@ const { db, closeDatabase, FILES_DIR, BACKUP_DIR } = await import('../db/connect
 const { ensureAdminUser } = await import('../services/auth/bootstrapAdmin.ts');
 const { setPassword } = await import('../services/auth/users.ts');
 const { runDueDriveBackupCheck } = await import('../services/backup/driveBackup.ts');
-const { driveRetry, DRIVE_FILE_SCOPE } = await import('../services/backup/driveApi.ts');
+const { driveRetry, driveTimeout, DRIVE_FILE_SCOPE } =
+  await import('../services/backup/driveApi.ts');
 
 await ensureAdminUser();
 driveRetry.baseDelayMs = 0;
@@ -61,6 +62,7 @@ const drive = {
   quotaOnEverything: false,
   /** So lan PUT dau tien tra 503 truoc khi thanh cong. */
   transientFailures: 0,
+  hangNext: false,
 };
 
 function reset() {
@@ -70,6 +72,7 @@ function reset() {
   drive.quotaOnFiles = false;
   drive.quotaOnEverything = false;
   drive.transientFailures = 0;
+  drive.hangNext = false;
 }
 
 function add(partial: Partial<FakeFile> & { name: string }): FakeFile {
@@ -117,6 +120,14 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   }
   const method = init?.method ?? 'GET';
   drive.calls.push(`${method} ${url}`);
+  if (drive.hangNext && url.startsWith('https://www.googleapis.com/')) {
+    drive.hangNext = false;
+    return new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (!signal) return reject(new Error('request thieu AbortSignal'));
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  }
   const parsed = new URL(url);
 
   /* --- OAuth --- */
@@ -483,6 +494,28 @@ test('lan dau: tao thu muc, day ban sao CSDL da nen va moi tep, kem ten goc', as
   );
 
   assert.equal(fs.readdirSync(BACKUP_DIR).length, backupsBefore, 'khong de lai ban chup tam');
+});
+
+test('Drive treo bi timeout va luon nha khoa running cho lan sau', async () => {
+  await signInAdmin();
+  const attempts = driveRetry.attempts;
+  const timeout = driveTimeout.metadataMs;
+  try {
+    driveRetry.attempts = 1;
+    driveTimeout.metadataMs = 10;
+    drive.hangNext = true;
+    const failed = await runBackup();
+    assert.equal(failed.running, false);
+    assert.match(String(failed.last_error), /Timeout|aborted|quá lâu/i);
+
+    const recovered = await runBackup();
+    assert.equal(recovered.running, false);
+    assert.equal(recovered.last_error, null);
+  } finally {
+    driveRetry.attempts = attempts;
+    driveTimeout.metadataMs = timeout;
+    drive.hangNext = false;
+  }
 });
 
 test('lan sau chi day tep MOI, khong tai lai tep cu', async () => {

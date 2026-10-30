@@ -35,6 +35,7 @@ import {
   VETO_LABELS,
 } from '../../i18n/scoring';
 import { formatDate } from '../../lib/format';
+import { scoreTrendSeries } from '../../lib/scoreTrend';
 import type {
   EvidenceSource,
   Factor,
@@ -326,21 +327,7 @@ function ScoreSummary({
  * thì cảnh báo "một yếu tố giảm ≥ 2 bậc" của F-07 không có chỗ nào nhìn thấy diễn biến.
  */
 function ScoreTrend({ history }: { history: ScoreHistoryEntry[] }) {
-  const BANT: Factor[] = ['budget', 'authority', 'need', 'timeline'];
-  const current: Partial<Record<string, number>> = {};
-  const series: { at: string; bant: number; p4: number }[] = [];
-
-  for (const entry of history) {
-    if (entry.new_score === null) continue; // dòng ghi đè cổng giai đoạn, không phải điểm
-    current[entry.factor] = entry.new_score;
-    let bant = 0;
-    let p4 = 0;
-    for (const [factor, score] of Object.entries(current)) {
-      if (BANT.includes(factor as Factor)) bant += score ?? 0;
-      else p4 += score ?? 0;
-    }
-    series.push({ at: entry.changed_at, bant, p4 });
-  }
+  const series = scoreTrendSeries(history);
   if (series.length < 2) return null;
 
   const path = (key: 'bant' | 'p4') =>

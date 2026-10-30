@@ -37,8 +37,21 @@ import { linkedBranch, taskBranch } from '../lib/linkedScope.ts';
 import { documentScope } from '../lib/documentScope.ts';
 import type { PermissionResource } from '@workflow/contracts';
 import { todayLocal } from '../lib/dates.ts';
+import { telemetrySnapshot } from '../lib/telemetry.ts';
+import { workerPoolStats } from '../lib/workerPool.ts';
+import { responseCacheStats } from '../lib/responseCache.ts';
+import { schedulerStats } from '../lib/scheduler.ts';
 
 const router = Router();
+
+router.get('/telemetry', requirePermission('settings.app', 'read'), (_req, res) => {
+  res.json({
+    ...telemetrySnapshot(),
+    worker_pool: workerPoolStats(),
+    cache: responseCacheStats(),
+    scheduler: schedulerStats(),
+  });
+});
 
 /*
  * Danh sach bang duoc xuat qua GET /export.

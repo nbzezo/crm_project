@@ -13,7 +13,7 @@ export const RUNTIME_DATA_DIR = configuredDataDir ? path.resolve(configuredDataD
 export const BACKUP_DIR = path.join(RUNTIME_DATA_DIR, 'backups');
 export const FILES_DIR = path.join(RUNTIME_DATA_DIR, 'files');
 const configuredDbPath = process.env.WORKFLOW_DB_PATH;
-const DB_PATH = configuredDbPath
+export const DATABASE_PATH = configuredDbPath
   ? configuredDbPath === ':memory:'
     ? configuredDbPath
     : path.resolve(configuredDbPath)
@@ -22,7 +22,7 @@ const DB_PATH = configuredDbPath
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
 fs.mkdirSync(FILES_DIR, { recursive: true });
 
-function openDatabase(dbPath = DB_PATH): Database.Database {
+function openDatabase(dbPath = DATABASE_PATH): Database.Database {
   if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const database = new Database(dbPath);
   database.pragma('journal_mode = WAL');

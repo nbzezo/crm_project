@@ -26,17 +26,19 @@ function contact(patch: Partial<Contact> = {}): Contact {
 }
 
 function overview(care: Partial<CareStatus>): CustomerOverviewData {
+  const fullCare: CareStatus = {
+    tier: 'standard',
+    cadence_days: 30,
+    cadence_source: 'tier',
+    last_contact_at: '2026-09-01',
+    next_contact_due: '2026-10-01',
+    days_overdue: -5,
+    state: 'ok',
+    ...care,
+  };
   return {
-    care: {
-      tier: 'standard',
-      cadence_days: 30,
-      cadence_source: 'tier',
-      last_contact_at: '2026-09-01',
-      next_contact_due: '2026-10-01',
-      days_overdue: -5,
-      state: 'ok',
-      ...care,
-    },
+    care: fullCare,
+    health: { level: 'good', label: 'Tốt', reason: 'Đang trong nhịp chăm sóc', care: fullCare },
   } as CustomerOverviewData;
 }
 
@@ -81,25 +83,9 @@ describe('stakeholderWarnings', () => {
 });
 
 describe('healthWithCadence', () => {
-  const inactive = { level: 'risk' as const, label: 'Rủi ro', reason: '40 ngày chưa tương tác' };
-  it('khách ít ưu tiên (nhịp 90) không bị chấm rủi ro chỉ vì 40 ngày chưa liên hệ', () => {
-    expect(healthWithCadence(inactive, overview({ tier: 'low', cadence_days: 90 })).level).toBe(
-      'good'
-    );
-  });
-  it('khách VIP quá nhịp: quá nửa nhịp là rủi ro, ít hơn là cần chú ý', () => {
-    const good = { level: 'good' as const, label: 'Tốt', reason: 'Đang được chăm sóc' };
-    expect(
-      healthWithCadence(good, overview({ cadence_days: 14, days_overdue: 10, state: 'overdue' }))
-        .level
-    ).toBe('risk');
-    expect(
-      healthWithCadence(good, overview({ cadence_days: 14, days_overdue: 3, state: 'overdue' }))
-        .level
-    ).toBe('attention');
-  });
-  it('rủi ro vì việc quá hạn thì giữ nguyên', () => {
-    const tasks = { level: 'risk' as const, label: 'Rủi ro', reason: '2 công việc quá hạn' };
-    expect(healthWithCadence(tasks, overview({ state: 'overdue', days_overdue: 1 }))).toBe(tasks);
+  it('mọi màn hình ưu tiên kết quả chuẩn do backend trả về', () => {
+    const data = overview({ tier: 'low', cadence_days: 90 });
+    const legacy = { level: 'risk' as const, label: 'Rủi ro', reason: '40 ngày chưa tương tác' };
+    expect(healthWithCadence(legacy, data)).toBe(data.health);
   });
 });

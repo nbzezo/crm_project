@@ -122,7 +122,10 @@ export default function CustomersPage() {
     queryFn: () => api.get<Customer[]>('/api/customers'),
   });
 
-  const labelMap = useLabelMap('customer');
+  const labelMap = useLabelMap(
+    'customer',
+    allCustomers.map((customer) => customer.id)
+  );
 
   const { data: deleteImpact } = useQuery({
     queryKey: ['customer', deleteTarget?.id, 'impact'],
@@ -385,7 +388,7 @@ export default function CustomersPage() {
                   {view.label}
                   {/* Duoi md luoi o so lieu bi an (chiem tron man hinh dau), so dem
                       chuyen vao chip cung bo loc. */}
-                  <span className="ml-1 tabular-nums opacity-80 md:hidden">
+                  <span className="ml-1 tabular-nums md:hidden">
                     {SMART_VIEW_COUNT[view.value](summary)}
                   </span>
                 </button>

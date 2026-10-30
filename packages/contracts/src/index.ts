@@ -126,6 +126,45 @@ export type ServiceStatus = (typeof SERVICE_STATUSES)[number];
 export const REVENUE_STAGES = ['forecast', 'reconciled', 'invoiced', 'paid'] as const;
 export type RevenueStage = (typeof REVENUE_STAGES)[number];
 
+export interface RevenueCellAmounts {
+  amount_vnd: number;
+  forecast_vnd: number;
+  stage: RevenueStage;
+}
+
+export interface RevenueTotals {
+  amount_vnd: number;
+  forecast_vnd: number;
+  stage_forecast_vnd: number;
+  stage_reconciled_vnd: number;
+  stage_invoiced_vnd: number;
+  stage_paid_vnd: number;
+}
+
+/** Cộng một ô vào tổng; switch cố ý exhaustive để stage mới không bị tính nhầm là paid. */
+export function addRevenueCellToTotals(totals: RevenueTotals, cell: RevenueCellAmounts): void {
+  totals.amount_vnd += cell.amount_vnd;
+  totals.forecast_vnd += cell.forecast_vnd;
+  switch (cell.stage) {
+    case 'forecast':
+      totals.stage_forecast_vnd += cell.amount_vnd;
+      break;
+    case 'reconciled':
+      totals.stage_reconciled_vnd += cell.amount_vnd;
+      break;
+    case 'invoiced':
+      totals.stage_invoiced_vnd += cell.amount_vnd;
+      break;
+    case 'paid':
+      totals.stage_paid_vnd += cell.amount_vnd;
+      break;
+    default: {
+      const exhaustive: never = cell.stage;
+      throw new Error(`Giai đoạn doanh thu không hợp lệ: ${exhaustive}`);
+    }
+  }
+}
+
 export const LABEL_ENTITIES = ['card', 'customer', 'deal', 'contact', 'contract'] as const;
 export type LabelEntity = (typeof LABEL_ENTITIES)[number];
 

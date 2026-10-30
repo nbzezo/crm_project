@@ -16,7 +16,7 @@ import {
   birthdaySchema,
   applyAftercare,
   careEventsBetween,
-  careStatusOf,
+  customerHealthOf,
   churnRiskOf,
   customerTimeline,
   expiringItems,
@@ -25,6 +25,7 @@ import {
   suggestionStats,
   todayOf,
   type SuggestionRow,
+  type CustomerHealthInput,
 } from '../services/customerCare.ts';
 
 const router = Router();
@@ -107,6 +108,7 @@ const LIST_SQL = `
          COALESCE(s.open_pipeline_vnd, 0) AS open_pipeline_vnd,
          COALESCE(s.active_contract_count, 0) AS active_contract_count,
          s.last_activity_at AS last_activity_at,
+         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_contact_at,
          COALESCE(s.deals_without_next_action_count, 0) AS deals_without_next_action_count,
          (SELECT COUNT(*) FROM deals d
            WHERE d.customer_id = c.id AND d.stage_category = 'open'
@@ -120,6 +122,24 @@ const LIST_SQL = `
          s.next_reminder_due_at AS next_reminder_due_at
     FROM customers c
     LEFT JOIN customer_stats s ON s.customer_id = c.id`;
+
+type CustomerListRow = CustomerHealthInput & Record<string, unknown>;
+
+function withHealth(customer: CustomerListRow, today = todayOf(db)) {
+  return { ...customer, health: customerHealthOf(db, customer, today) };
+}
+
+function customerResponse(
+  id: number
+): CustomerListRow & { health: ReturnType<typeof customerHealthOf> } {
+  flushCustomerStats(db);
+  return withHealth(
+    required(
+      db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
+      'Không tìm thấy khách hàng'
+    ) as CustomerListRow
+  );
+}
 
 /* Moi route `/:id/...` cua khach hang (tac dong khi xoa, them nguoi lien he, lich su
    tuong tac...) kiem pham vi o day; route rieng van co the kiem chat hon. */
@@ -160,7 +180,10 @@ router.get('/', (req, res) => {
   const select = req.query.fields === 'basic' ? 'SELECT c.* FROM customers c' : LIST_SQL;
   if (select === LIST_SQL) flushCustomerStats(db);
   const sql = `${select} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY c.name COLLATE NOCASE`;
-  res.json(db.prepare(sql).all(...params));
+  const rows = db.prepare(sql).all(...params);
+  if (select !== LIST_SQL) return void res.json(rows);
+  const today = todayOf(db);
+  res.json((rows as CustomerListRow[]).map((row) => withHealth(row, today)));
 });
 
 /**
@@ -263,16 +286,19 @@ router.post('/', (req, res) => {
   body.industry = assertPicklistValue(db, 'customer_industry', body.industry);
   body.size = assertPicklistValue(db, 'customer_size', body.size);
   body.source = assertPicklistValue(db, 'customer_source', body.source);
-  res.status(201).json(insertCustomer(body, defaultOwner(req)));
+  const customer = insertCustomer(body, defaultOwner(req));
+  res.status(201).json(customerResponse(customer.id));
 });
 
 router.get('/:id/full', (req, res) => {
   const id = intParam(req.params.id);
   flushCustomerStats(db);
-  const customer = required(
-    db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
-    'Không tìm thấy khách hàng'
-  ) as Record<string, unknown>;
+  const customer = withHealth(
+    required(
+      db.prepare(`${LIST_SQL} WHERE c.id = ?`).get(id),
+      'Không tìm thấy khách hàng'
+    ) as CustomerListRow
+  );
   /* Pham vi doc da kiem o router.param('id') — cung luat voi danh sach (ban ghi vo chu van mo duoc). */
 
   /* Kem don vi va VI TRI cua tung nguoi.
@@ -423,9 +449,11 @@ function loadInScope(
 router.get('/:id/overview', (req, res) => {
   const customer = loadInScope(req, intParam(req.params.id), 'read');
   const today = todayOf(db);
-  const care = careStatusOf(db, customer);
+  const health = customerResponse(customer.id).health;
+  const care = health.care;
   res.json({
     care,
+    health,
     churn: churnRiskOf(db, customer.id, care),
     revenue: revenueSummary(db, customer.id),
     expiring: expiringItems(db, customer.id),
@@ -560,7 +588,7 @@ router.patch('/:id', (req, res) => {
     (merged as Record<string, unknown>).care_cadence_days ?? null,
     id
   );
-  res.json(db.prepare(`SELECT * FROM customers WHERE id = ?`).get(id));
+  res.json(customerResponse(id));
 });
 
 /** BR-09: bao truoc so ban ghi lien quan se bi xoa theo. */

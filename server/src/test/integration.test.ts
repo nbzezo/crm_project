@@ -1046,9 +1046,72 @@ test('du an suy tu bang, khong con cot rieng tren the', async () => {
   assert.equal(fromProject.status, 201);
   assert.equal(fromProject.data.project_id, projectId);
 
-  // Cac dang xem pham vi theo du an.
-  const timeline = await json('GET', `/api/views/timeline?project_id=${projectId}`);
+  // Timeline chi doc khoang dang xem; dependency co dau ngoai khoang khong duoc tai.
+  const fromProjectId = Number(fromProject.data.id);
+  db.prepare(`UPDATE cards SET start_date = ?, due_date = ? WHERE id = ?`).run(
+    '2026-05-01',
+    '2026-05-03',
+    cardId
+  );
+  db.prepare(`UPDATE cards SET start_date = ?, due_date = ? WHERE id = ?`).run(
+    '2026-05-04',
+    '2026-05-06',
+    fromProjectId
+  );
+  const outside = await json('POST', '/api/cards', {
+    title: 'Viec ngoai cua so timeline',
+    project_id: projectId,
+    start_date: '2028-01-01',
+    due_date: '2028-01-02',
+  });
+  const outsideId = Number(outside.data.id);
+  db.prepare(`INSERT INTO card_dependencies (predecessor_id, successor_id) VALUES (?, ?)`).run(
+    cardId,
+    fromProjectId
+  );
+  db.prepare(`INSERT INTO card_dependencies (predecessor_id, successor_id) VALUES (?, ?)`).run(
+    fromProjectId,
+    outsideId
+  );
+
+  const timeline = await json(
+    'GET',
+    `/api/views/timeline?project_id=${projectId}&from=2026-05-01&to=2026-05-31`
+  );
   assert.equal(timeline.status, 200);
+  assert.deepEqual(
+    (timeline.data.items as { id: number }[]).map((item) => item.id).sort((a, b) => a - b),
+    [cardId, fromProjectId].sort((a, b) => a - b)
+  );
+  assert.deepEqual(
+    (timeline.data.dependencies as { predecessor_id: number; successor_id: number }[]).map(
+      ({ predecessor_id, successor_id }) => ({ predecessor_id, successor_id })
+    ),
+    [{ predecessor_id: cardId, successor_id: fromProjectId }]
+  );
+  const capped = await json(
+    'GET',
+    `/api/views/timeline?project_id=${projectId}&from=2026-01-01&to=2028-01-01`
+  );
+  assert.equal(capped.data.to, '2027-01-02');
+  assert.equal(
+    (await json('GET', '/api/views/timeline?from=2026-05-02&to=2026-05-01')).status,
+    422
+  );
+
+  const insertUnscheduled = db.prepare(
+    `INSERT INTO cards (list_id, title, position) VALUES (?, ?, ?)`
+  );
+  db.transaction(() => {
+    for (let i = 0; i < 101; i += 1) insertUnscheduled.run(listIn, `Chua xep ${i}`, i);
+  })();
+  const withUnscheduled = await json(
+    'GET',
+    `/api/views/timeline?project_id=${projectId}&from=2026-05-01&to=2026-05-31`
+  );
+  assert.equal((withUnscheduled.data.unscheduled as unknown[]).length, 100);
+
+  // Cac dang xem pham vi theo du an.
   const tasks = await fetch(`${baseUrl}/api/views/tasks?project_id=${projectId}`);
   const rows = (await tasks.json()) as { project_id: number | null }[];
   assert.ok(rows.length >= 2);

@@ -22,6 +22,10 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 /** Doi giua cac lan thu lai khi Google tra 429/5xx. Test dat ve 0 de khong cho. */
 export const driveRetry = { attempts: 3, baseDelayMs: 1000 };
+export const driveTimeout = { metadataMs: 30_000, transferMs: 5 * 60_000 };
+
+const metadataSignal = () => AbortSignal.timeout(driveTimeout.metadataMs);
+const transferSignal = () => AbortSignal.timeout(driveTimeout.transferMs);
 
 export interface DriveFile {
   id: string;
@@ -117,6 +121,7 @@ export async function createFolder(
           mimeType: FOLDER_MIME,
           ...(parentId ? { parents: [parentId] } : {}),
         }),
+        signal: metadataSignal(),
       }),
     'tạo thư mục'
   );
@@ -130,6 +135,7 @@ export async function folderUsable(token: string, folderId: string): Promise<boo
     () =>
       fetch(`${FILES_URL}/${encodeURIComponent(folderId)}?fields=id,trashed`, {
         headers: { authorization: `Bearer ${token}` },
+        signal: metadataSignal(),
       }),
     'kiểm tra thư mục'
   );
@@ -169,6 +175,7 @@ export async function uploadFile(
           method: 'POST',
           headers: json(token),
           body: metadata,
+          signal: transferSignal(),
         }),
       'tải tệp lên'
     );
@@ -186,6 +193,7 @@ export async function uploadFile(
         'x-upload-content-length': String(size),
       },
       body: metadata,
+      signal: metadataSignal(),
     });
     if (!session.ok) return session;
     const location = session.headers.get('location');
@@ -195,6 +203,7 @@ export async function uploadFile(
       headers: { 'content-type': mime, 'content-length': String(size) },
       body: Readable.toWeb(fs.createReadStream(input.filePath)) as unknown as ReadableStream,
       duplex: 'half',
+      signal: transferSignal(),
     } as RequestInit);
   }, 'tải tệp lên');
   if (!response.ok) throw await driveError(response, 'tải tệp lên');
@@ -214,7 +223,11 @@ export async function listFolder(token: string, folderId: string): Promise<Drive
     });
     if (pageToken) params.set('pageToken', pageToken);
     const response = await fetchWithRetry(
-      () => fetch(`${FILES_URL}?${params}`, { headers: { authorization: `Bearer ${token}` } }),
+      () =>
+        fetch(`${FILES_URL}?${params}`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: metadataSignal(),
+        }),
       'liệt kê thư mục'
     );
     if (!response.ok) throw await driveError(response, 'liệt kê thư mục');
@@ -231,6 +244,7 @@ export async function deleteFile(token: string, fileId: string): Promise<void> {
       fetch(`${FILES_URL}/${encodeURIComponent(fileId)}`, {
         method: 'DELETE',
         headers: { authorization: `Bearer ${token}` },
+        signal: metadataSignal(),
       }),
     'xoá tệp'
   );
@@ -248,6 +262,7 @@ export async function downloadFile(
     () =>
       fetch(`${FILES_URL}/${encodeURIComponent(fileId)}?alt=media`, {
         headers: { authorization: `Bearer ${token}` },
+        signal: transferSignal(),
       }),
     'tải tệp về'
   );

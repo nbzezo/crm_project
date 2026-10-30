@@ -19,10 +19,22 @@ function labelLinksKey(entityType: LabelEntity, entityId: number) {
  * Dung cho danh sach (Khach hang, Co hoi): mot truy van cho ca trang, thay vi
  * them cot nhan vao API cua tung module.
  */
-export function useLabelMap(entityType: LabelEntity) {
+export function useLabelMap(entityType: LabelEntity, entityIds: number[]) {
+  const ids = [...new Set(entityIds)].sort((a, b) => a - b);
   const { data } = useQuery({
-    queryKey: ['label-links', entityType, 'map'],
-    queryFn: () => api.get<Record<string, Label[]>>(`/api/labels/links/${entityType}`),
+    queryKey: ['label-links', entityType, 'map', ids],
+    queryFn: async () => {
+      const maps = await Promise.all(
+        Array.from({ length: Math.ceil(ids.length / 500) }, (_, index) => {
+          const batch = ids.slice(index * 500, index * 500 + 500);
+          return api.get<Record<string, Label[]>>(
+            `/api/labels/links/${entityType}?ids=${batch.join(',')}`
+          );
+        })
+      );
+      return Object.assign({}, ...maps) as Record<string, Label[]>;
+    },
+    enabled: ids.length > 0,
   });
   return data ?? {};
 }

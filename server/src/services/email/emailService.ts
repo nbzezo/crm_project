@@ -286,6 +286,15 @@ export function appBaseUrl(db: Database, fallback?: string): string {
   return (fallback ?? 'http://localhost:5173').replace(/\/+$/, '');
 }
 
+/**
+ * Goc URL duoc quan tri vien khai bao de dat vao lien ket mang token bi mat.
+ * Khong duoc suy tu Host header: ke tan cong co the dieu khien header do.
+ */
+export function configuredAppBaseUrl(db: Database): string | null {
+  const configured = row(db).app_base_url.trim();
+  return configured ? configured.replace(/\/+$/, '') : null;
+}
+
 function createTransport(config: EmailSettingsRow): Transporter {
   const auth = config.username
     ? { user: config.username, pass: decryptPassword(config) }
