@@ -20,6 +20,14 @@ jobs:
       - run: npm run check:ui
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run build -w @workflow/contracts
+      - name: Test server
+        run: |
+          set -o pipefail
+          npm test -w server 2>&1 | tee server-test.log
+      - name: Report server test failure
+        if: failure()
+        run: tail -n 200 server-test.log >> "$GITHUB_STEP_SUMMARY"
+      - run: npm test -w client
       - run: npm run build
       - run: npm run test:e2e
