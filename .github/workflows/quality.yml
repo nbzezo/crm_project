@@ -27,7 +27,13 @@ jobs:
           npm test -w server 2>&1 | tee server-test.log
       - name: Report server test failure
         if: failure()
-        run: tail -n 200 server-test.log >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          tail -n 200 server-test.log >> "$GITHUB_STEP_SUMMARY"
+          tail -n 40 server-test.log | while IFS= read -r line; do
+            line="${line//'%'/'%25'}"
+            line="${line//$'\r'/'%0D'}"
+            echo "::error title=Server test log::$line"
+          done
       - run: npm test -w client
       - run: npm run build
       - run: npm run test:e2e
