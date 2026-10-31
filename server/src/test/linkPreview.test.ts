@@ -56,12 +56,15 @@ test('may chu noi bo khong bi goi toi', async () => {
     res.setHeader('Content-Type', 'text/html');
     res.end('<title>Bi mat</title>');
   });
-  await new Promise<void>((resolve) => server.listen(80, '127.0.0.1', resolve)).catch(() => null);
+  await new Promise<void>((resolve) => {
+    server.once('error', resolve);
+    server.listen(80, '127.0.0.1', resolve);
+  });
   await assert.rejects(() => getLinkPreview('http://127.0.0.1/'));
   /* Ten mien tro ve 127.0.0.1 cung bi chan o buoc tra DNS. */
   assert.equal(await getLinkPreview('http://localtest.me/'), null);
   assert.equal(hits, 0);
-  server.close();
+  if (server.listening) server.close();
 });
 
 test('doc Open Graph, roi ve <title> va the description', () => {
