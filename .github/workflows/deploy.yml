@@ -64,12 +64,20 @@ jobs:
 
       - name: Rebuild and restart containers
         run: |
+          set -o pipefail
           # nginx.conf duoc bind-mount theo TUNG TEP, ma Docker gan mount vao inode
           # chu khong phai duong dan. Buoc rsync o tren ghi file tam roi rename de len,
           # tao ra mot inode moi — container nginx dang chay van doc inode cu, nen ca
           # `nginx -s reload` lan `docker compose restart nginx` deu khong thay noi dung
           # moi. Chi tao lai container moi gan lai mount, nen phai --force-recreate.
-          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build && docker compose up -d --force-recreate nginx'
+          ssh root@10.10.10.5 'cd /opt/crm && docker compose up -d --build && docker compose up -d --force-recreate nginx' 2>&1 | tee deploy.log
+
+      - name: Report deploy failure
+        if: failure()
+        run: |
+          test -f deploy.log || exit 0
+          tail -n 200 deploy.log >> "$GITHUB_STEP_SUMMARY"
+          tail -n 20 deploy.log | sed 's/%/%25/g; s/\r/%0D/g; s/^/::error::/'
 
       - name: Health check
         run: |
