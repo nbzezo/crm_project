@@ -375,8 +375,8 @@ export function TaskTable({
   };
 
   if (tasks.length === 0) {
-    /* `onClearFilters` chi duoc truyen khi THUC SU co bo loc dang bat — xem
-       TasksPage. Khong co thi day la he thong chua co viec nao, va loi khuyen
+    /* `onClearFilters` chi duoc truyen khi THUC SU co bo loc dang bat.
+       Khong co thi day la he thong chua co viec nao, va loi khuyen
        "noi bo loc" se dan nguoi dung vao ngo cut. */
     return onClearFilters ? (
       <EmptyState

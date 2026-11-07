@@ -14,9 +14,18 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-11-07';
+export const APP_UPDATED_AT = '2026-11-08';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.42.1',
+    date: '2026-11-08',
+    title: 'Hướng dẫn trang Công việc đúng với giao diện hiện tại',
+    changes: [
+      'Bài hướng dẫn "Công việc" mô tả đúng giao diện hiện tại: các phạm vi ở cột trái (Đang mở, Được giao, Tôi đã tạo, Đang theo dõi, Hoàn thành, Hoạt động), dạng xem đã lưu, ba dạng xem Danh sách / Kanban / Lịch và các cách nhóm. Bài cũng nói rõ khác biệt: Kanban ở trang Công việc gom việc từ mọi luồng, còn Bảng – Luồng việc xem các bước của một quy trình.',
+      'Dọn mã cũ của trang Công việc không còn dùng. Giao diện không thay đổi.',
+    ],
+  },
   {
     version: '1.42.0',
     date: '2026-11-07',

@@ -232,7 +232,7 @@ const inputBase =
   'tr-field-control w-full rounded-control border border-tr-border bg-tr-list px-3 py-2 text-tr-text outline-none transition-[border-color,box-shadow] duration-150 hover:border-tr-primary/20 focus:border-tr-primary focus:ring-2 focus:ring-tr-primary/15 disabled:cursor-not-allowed disabled:bg-tr-hover disabled:text-tr-muted aria-invalid:border-tr-danger aria-invalid:focus:ring-tr-danger';
 
 // ComponentProps<'input'> (thay vi InputHTMLAttributes) de `ref` duoc chap nhan dung kieu —
-// can cho cac o quick-add tu refocus sau khi luu (vd TasksPage.tsx QuickAddRow).
+// can cho cac o quick-add tu refocus sau khi luu.
 export function Input({ className = '', ...props }: ComponentProps<'input'>) {
   return <input {...props} className={`${inputBase} ${className}`} />;
 }

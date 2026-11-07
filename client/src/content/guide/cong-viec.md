@@ -2,17 +2,35 @@ Trang **Công việc** là danh sách mọi việc bạn thấy được, bất 
 khi bạn muốn nhìn theo *người* và *hạn*; dùng [bảng – luồng việc](/huong-dan?bai=bang-luong-viec)
 khi bạn muốn nhìn theo *quy trình*.
 
-![Trang Công việc ở dạng cây với việc cha và việc con](/guide/img/cong-viec-cay.jpg)
+![Trang Công việc ở dạng Danh sách với việc cha và việc con](/guide/img/cong-viec-cay.jpg)
 
-## Hai dạng xem trong cùng một màn hình
+## Chọn phạm vi ở cột bên trái
+
+| Phạm vi | Gồm |
+|---|---|
+| **Đang mở** | Việc chưa xong mà bạn liên quan |
+| **Được giao** | Việc giao cho bạn |
+| **Tôi đã tạo** | Việc bạn tạo ra, kể cả giao cho người khác |
+| **Đang theo dõi** | Việc bạn bấm theo dõi |
+| **Hoàn thành** | Việc đã xong |
+| **Hoạt động** | Dòng thay đổi gần đây trên các việc |
+
+Dưới phạm vi là các **dạng xem đã lưu**: lưu lại bộ lọc, cách nhóm và cột đang dùng để mở lại sau.
+
+## Ba dạng xem trong cùng một màn hình
 
 | Dạng | Mạnh ở |
 |---|---|
-| **Dạng cây** | Việc cha – việc con, thêm nhanh, nhóm theo người hoặc theo trạng thái |
-| **Dạng bảng** | Sắp xếp theo cột kiểu bảng tính, so sánh nhiều việc một lúc |
+| **Danh sách** | Việc cha – việc con, sắp xếp, chọn cột hiển thị, chọn nhiều việc để đổi hàng loạt |
+| **Kanban** | Kéo thả giữa các cột theo cách nhóm đang chọn |
+| **Lịch** | Xem việc theo ngày hạn |
 
-Ở dạng cây: bấm mũi tên để mở hoặc thu việc con, bấm vào tên để sửa tại chỗ, và đổi ưu tiên / ngày
-bắt đầu / hạn / khách hàng ngay trên dòng mà không cần mở thẻ.
+Cả ba dùng chung cách **nhóm**: theo hạn, trạng thái, ưu tiên, người phụ trách, luồng việc, khách
+hàng, hoặc không nhóm. Ở dạng Danh sách, bấm mũi tên để mở hoặc thu việc con, bấm vào tên để sửa
+tại chỗ.
+
+> **Mẹo** Kanban ở đây gom việc từ **mọi** luồng. Muốn xem các bước của **một** quy trình thì mở
+> luồng việc đó trên trang Bảng – Luồng việc.
 
 ## Vòng đời của một công việc
 
