@@ -9,7 +9,7 @@ Các mục chia thành ba nhóm theo loại việc:
 
 | Nhóm | Dùng khi |
 |---|---|
-| **Bàn làm việc** | Việc hằng ngày của bạn: bảng tin, công việc, nhắc người khác, lịch, hiệu suất |
+| **Bàn làm việc** | Việc hằng ngày của bạn: bảng tin, công việc, đôn đốc, lịch, hiệu suất |
 | **Kinh doanh** | Khách hàng, cơ hội, sức khỏe pipeline, hợp đồng, doanh thu, tổ chức & nhân sự |
 | **Dự án** | Dự án, bảng – luồng việc, dòng thời gian, tài liệu, báo cáo |
 

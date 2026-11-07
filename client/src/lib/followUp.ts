@@ -10,7 +10,7 @@ import type { TaskRow } from '../types';
 export const NUDGE_HORIZON_DAYS = 3;
 
 /**
- * Việc "Nhắc người khác" — bỏ việc của chính người đang xem; việc chưa giao
+ * Việc "Đôn đốc" — bỏ việc của chính người đang xem; việc chưa giao
  * vẫn giữ vì không có ai để nhắc. Chờ khách không tự vào danh sách: chỉ việc
  * có hạn trong NUDGE_HORIZON_DAYS ngày hoặc đang bị chặn mới được chọn.
  */

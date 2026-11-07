@@ -49,6 +49,23 @@ Một dự án chỉ có một luồng thì luồng đó là **ngầm** — khô
 > **Cảnh báo** **Giai đoạn** của *cơ hội* (stage trong pipeline bán hàng) là khái niệm của phần Kinh
 > doanh, không liên quan gì đến giai đoạn của dự án.
 
+## Nhắc, đôn đốc, sự kiện, mốc (1.42.0)
+
+Mỗi khái niệm một tên, để chữ "nhắc" hay "sự kiện" không còn chỉ nhiều thứ khác nhau:
+
+| Tên hiển thị | Là gì | Tên cũ |
+|---|---|---|
+| **Nhắc hẹn** | Lời nhắc gửi cho **chính bạn** vào một giờ: nhắc hẹn, nhắc của sự kiện lịch, nhắc của ghi chú nhanh — đều bật cùng một popup | Nhắc việc |
+| **Đôn đốc** | Bạn nhắc **người khác** làm việc của họ, có nhật ký số lần | Nhắc người khác |
+| **Sự kiện** | Một mục trên **Lịch** của bạn | |
+| **Sự kiện nhóm** | Bài đăng loại sự kiện trên **Bảng tin**, có trả lời tham gia | Sự kiện |
+| **Mốc thúc đẩy** | Ràng buộc **của khách** buộc họ phải quyết định trước một ngày (phần chấm điểm cơ hội) | Sự kiện bắt buộc |
+| **Giai đoạn bán hàng** | Mục Cài đặt cấu hình các giai đoạn của pipeline | Quy trình bán hàng |
+| **Nội bộ & đối tác** | Danh bạ các tổ chức không phải khách hàng: công ty mình, đối tác, nhà cung cấp | Tổ chức & nhân sự |
+
+"Quy trình" từ nay chỉ dùng cho các **bước** bên trong một công việc (xem bảng trên). "Sơ đồ tổ chức"
+trong Cài đặt là cây phòng ban của công ty mình, khác với danh bạ *Nội bộ & đối tác*.
+
 ## Trạng thái công việc
 
 | Khái niệm | Nghĩa |

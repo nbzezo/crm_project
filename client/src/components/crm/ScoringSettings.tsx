@@ -67,7 +67,7 @@ export function ScoringSettings() {
         Cổng giai đoạn (điểm BANT tối thiểu để vào từng giai đoạn) nay đặt cùng chỗ với các giai
         đoạn, ở{' '}
         <Link to="/settings?tab=pipeline" className="text-tr-primary underline">
-          Cài đặt → Quy trình bán hàng
+          Cài đặt → Giai đoạn bán hàng
         </Link>
         .
       </p>

@@ -73,6 +73,25 @@ gian**, cột chia việc theo **trạng thái** bên trong một luồng, còn 
 việc của một trạng thái thành các **bước** của riêng công việc đó. "Giai đoạn" của cơ hội
 (stage) là khái niệm của Kinh doanh, không liên quan.
 
+## Nhắc, đôn đốc, sự kiện, mốc (1.42.0)
+
+Rà soát chồng chéo 07.11.2026: chữ "nhắc" chỉ ba thứ, "sự kiện" chỉ ba thứ, "quy trình" chỉ hai
+thứ, và "Tổ chức & nhân sự" dễ nhầm với "Sơ đồ tổ chức". Đổi thành:
+
+| Khái niệm (dữ liệu) | Tên hiển thị | Tên cũ |
+|---|---|---|
+| `reminders`, `calendar_events.reminder_minutes`, `quick_notes.reminder_at`, loại lịch `reminder` | **Nhắc hẹn** (nhắc cho chính mình; chung một popup từ 1.42.0) | Nhắc việc |
+| `task_nudges`, trang `/follow-up` | **Đôn đốc** (nhắc người khác, có nhật ký) | Nhắc người khác |
+| `calendar_events` | **Sự kiện** | |
+| `feed_posts.kind = 'event'` | **Sự kiện nhóm** | Sự kiện |
+| `deal_events` (compelling event) | **Mốc thúc đẩy**; mốc được đánh dấu chính là **Mốc chính** | Sự kiện bắt buộc |
+| Cài đặt → tab `pipeline` | **Giai đoạn bán hàng** | Quy trình bán hàng |
+| Trang `/org-directory` (tổ chức `own`, `partner`, `vendor`) | **Nội bộ & đối tác** | Tổ chức & nhân sự |
+
+Giữ nguyên: **Quy trình** chỉ còn nghĩa `card_flow` (bước của một công việc); **Sơ đồ tổ chức** là
+cây phòng ban trong Cài đặt. Slug bài hướng dẫn (`nhac-nguoi-khac`) và đường dẫn trang giữ nguyên
+để link cũ không gãy; Cài đặt vẫn tìm được bằng từ khoá "quy trình bán hàng".
+
 ## Khi thêm thuật ngữ mới
 
 Đặt chuỗi vào `client/src/i18n/vi.ts` chứ không viết thẳng vào JSX, rồi bổ sung một dòng

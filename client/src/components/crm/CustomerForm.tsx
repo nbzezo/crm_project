@@ -41,7 +41,7 @@ const EMPTY = {
 type Duplicate = { id: number; name: string; tax_code: string | null; website: string | null };
 
 /**
- * Form hồ sơ tổ chức — dùng chung cho màn Khách hàng và màn Tổ chức & nhân sự.
+ * Form hồ sơ tổ chức — dùng chung cho màn Khách hàng và màn Nội bộ & đối tác.
  *
  * `showOrgKind` chỉ bật ở màn danh bạ: trong luồng CRM, mọi bản ghi tạo ra đều là
  * khách hàng nên bày thêm một ô "loại tổ chức" chỉ tạo cơ hội chọn nhầm.

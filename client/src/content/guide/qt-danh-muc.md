@@ -21,9 +21,9 @@ Với mỗi mục bạn **thêm, đổi tên, sắp xếp (mũi tên lên xuốn
 
 Mọi thay đổi lưu ngay và có hiệu lực với mọi người.
 
-## Quy trình bán hàng
+## Giai đoạn bán hàng
 
-![Cài đặt → Quy trình bán hàng với các giai đoạn](/guide/img/cai-dat-quy-trinh-ban-hang.jpg)
+![Cài đặt → Giai đoạn bán hàng với các giai đoạn](/guide/img/cai-dat-quy-trinh-ban-hang.jpg)
 
 Thêm / đổi tên / đổi màu / sắp xếp / ẩn giai đoạn. Mỗi giai đoạn khai được:
 

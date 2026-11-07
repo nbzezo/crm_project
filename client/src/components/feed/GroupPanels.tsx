@@ -422,7 +422,10 @@ export function GroupEvents({ groupId }: { groupId?: number }) {
   if (events.isLoading) return <p className="text-sm text-tr-muted">Đang tải…</p>;
   if ((events.data ?? []).length === 0)
     return (
-      <EmptyState message="Chưa có sự kiện sắp tới" hint="Đăng bài loại Sự kiện để mời cả nhóm." />
+      <EmptyState
+        message="Chưa có sự kiện sắp tới"
+        hint="Đăng bài loại Sự kiện nhóm để mời cả nhóm."
+      />
     );
   return (
     <ul className="space-y-2">
@@ -463,7 +466,7 @@ export function EventRow({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-tr-text">
-          {event.body.split('\n')[0] || 'Sự kiện'}
+          {event.body.split('\n')[0] || 'Sự kiện nhóm'}
         </span>
         <span className="block truncate text-xs text-tr-subtle">
           {formatEventTime(event.event_start_at, event.event_end_at).split(' · ')[1]}

@@ -364,7 +364,7 @@ export default function PerformancePage() {
       ) : screen === 'me' && !meInScope ? (
         <EmptyState
           message="Chưa có số liệu của riêng bạn."
-          hint="Tài khoản của bạn cần được gắn với một người trong Tổ chức & nhân sự để có số liệu của chính mình."
+          hint="Tài khoản của bạn cần được gắn với một người trong Nội bộ & đối tác để có số liệu của chính mình."
         />
       ) : (
         <>

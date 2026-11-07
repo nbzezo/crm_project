@@ -122,9 +122,9 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
 
   {
     key: 'pipeline',
-    label: 'Quy trình bán hàng',
+    label: 'Giai đoạn bán hàng',
     description: 'Các giai đoạn một cơ hội đi qua trên Kanban và điều kiện vào từng giai đoạn.',
-    keywords: 'giai đoạn pipeline kanban bant cổng xác suất poc cơ hội',
+    keywords: 'giai đoạn pipeline kanban bant cổng xác suất poc cơ hội quy trình bán hàng',
     icon: Workflow,
     group: SETTINGS_GROUPS.sales,
     permission: 'settings.app:read',

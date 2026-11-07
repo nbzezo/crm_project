@@ -1,5 +1,5 @@
 /**
- * Cài đặt → Quy trình bán hàng (1.26.0).
+ * Cài đặt → Giai đoạn bán hàng (1.26.0; truoc 1.42.0 ten "Quy trình bán hàng").
  *
  * Mỗi giai đoạn của pipeline là một dòng cấu hình: tên, màu, xác suất gợi ý, và các
  * thuộc tính quyết định hành vi — cổng điểm BANT, phủ quyết "chưa gặp người duyệt

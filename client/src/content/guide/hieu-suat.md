@@ -33,4 +33,4 @@ ngoài sẽ luôn có nhiều lần dời hạn hơn.
 ## Liên quan
 
 - [Công việc](/huong-dan?bai=cong-viec) — nơi sửa hạn, ước lượng và trạng thái
-- [Nhắc người khác](/huong-dan?bai=nhac-nguoi-khac) — khi khối lượng của ai đó đang bị kẹt
+- [Đôn đốc](/huong-dan?bai=nhac-nguoi-khac) — khi khối lượng của ai đó đang bị kẹt

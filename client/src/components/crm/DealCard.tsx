@@ -195,7 +195,7 @@ export function pickDealSignal(deal: Deal): DealSignal | null {
       tone: 'warning',
       others: [],
     });
-  /* Giai đoạn có đặt "số ngày tối đa" (Cài đặt → Quy trình bán hàng) thì vượt mức đó
+  /* Giai đoạn có đặt "số ngày tối đa" (Cài đặt → Giai đoạn bán hàng) thì vượt mức đó
      là cảnh báo thật; không đặt thì giữ mốc nhắc nhẹ 21 ngày như trước. */
   const maxDays = stageMeta(deal.stage)?.max_days_in_stage ?? null;
   if (!closed && (deal.days_in_stage ?? 0) >= (maxDays ?? STAGE_AGE_DAYS))

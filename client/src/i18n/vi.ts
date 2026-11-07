@@ -36,10 +36,10 @@ export const t = {
     tasks: 'Công việc',
     /* MOT ten cho moi man hinh, dung chung cho sidebar, tieu de trang va
        document.title (xem ROUTE_TITLES trong main.tsx). Truoc day moi cho mot
-       ten: bam "Nhắc người khác" o sidebar thi trang mo ra ten cung ten voi man hinh,
+       ten: bam "Đôn đốc" o sidebar thi trang mo ra ten cung ten voi man hinh,
        va noi bo goi hai ten khac nhau cho cung mot man. */
-    followUp: 'Nhắc người khác',
-    orgDirectory: 'Tổ chức & nhân sự',
+    followUp: 'Đôn đốc',
+    orgDirectory: 'Nội bộ & đối tác',
     myContacts: 'Danh bạ cá nhân',
     ai: 'Trợ lý AI',
     quickNotes: 'Ghi nhanh',
@@ -874,7 +874,7 @@ export const t = {
     task: 'Công việc',
     meeting: 'Cuộc họp',
     call: 'Cuộc gọi',
-    reminder: 'Nhắc việc',
+    reminder: 'Nhắc hẹn',
     appointment: 'Lịch hẹn',
     deadline: 'Deadline',
     other: 'Khác',
@@ -933,7 +933,7 @@ export const t = {
     pageSubtitle: 'Cấu hình nhãn, chấm điểm cơ hội, trợ lý AI và dữ liệu hệ thống',
     tabLabels: 'Nhãn',
     tabPicklists: 'Danh mục',
-    tabPipeline: 'Quy trình bán hàng',
+    tabPipeline: 'Giai đoạn bán hàng',
     tabProfile: 'Hồ sơ cấu hình',
     tabScoring: 'Chấm điểm cơ hội',
     tabHandover: 'Bàn giao',
@@ -1192,7 +1192,7 @@ export const STAGE_COLORS: Record<Stage, string> = {
   lost: '#d03b3b',
 };
 
-/** Màu giai đoạn chưa đặt màu (giai đoạn tự thêm ở Cài đặt → Quy trình bán hàng). */
+/** Màu giai đoạn chưa đặt màu (giai đoạn tự thêm ở Cài đặt → Giai đoạn bán hàng). */
 export const STAGE_FALLBACK_COLOR = '#8590a2';
 
 /** Mau bieu do mot chuoi so lieu (truc mang danh tinh, khong phai mau). */

@@ -53,7 +53,7 @@ const KIND_BADGE: Partial<Record<FeedPost['kind'], string>> = {
   announcement: 'Thông báo',
   poll: 'Khảo sát',
   question: 'Hỏi đáp',
-  event: 'Sự kiện',
+  event: 'Sự kiện nhóm',
 };
 
 /** Cap nhat bai trong moi danh sach dang dem — khong tai lai ca bang tin sau moi lan bam. */

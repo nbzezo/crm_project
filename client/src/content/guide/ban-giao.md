@@ -31,7 +31,7 @@ chưa — mục không bắt buộc là lời nhắc, không phải rào chắn.
 | Tình trạng | Hệ thống làm gì |
 |---|---|
 | Trong hạn | Không cảnh báo |
-| Quá SLA mà hồ sơ chưa đủ | Sinh cảnh báo ở Tổng quan và màn Nhắc người khác |
+| Quá SLA mà hồ sơ chưa đủ | Sinh cảnh báo ở Tổng quan và màn Đôn đốc |
 | Quá **gấp đôi** SLA | Cảnh báo nâng lên mức **nghiêm trọng** |
 
 ## Ai sửa được bộ mẫu

@@ -45,9 +45,9 @@ Mỗi người liên hệ có: chức vụ, phòng ban, Zalo, LinkedIn, **vai tr
 độ quan hệ**. Hai ô cuối nuôi phần nhóm ra quyết định ở
 [Đánh giá cơ hội](/huong-dan?bai=danh-gia-co-hoi).
 
-## Tổ chức & nhân sự
+## Nội bộ & đối tác
 
-Màn hình *Tổ chức & nhân sự* là cùng một sổ danh bạ, nhìn ở góc khác: ngoài khách hàng, nó chứa cả
+Màn hình *Nội bộ & đối tác* là cùng một sổ danh bạ, nhìn ở góc khác: ngoài khách hàng, nó chứa cả
 **công ty tôi**, **đối tác** và **nhà cung cấp**, phân biệt bằng loại tổ chức.
 
 - Chỉ tổ chức loại **Khách hàng** mới vào pipeline, doanh thu và báo cáo CRM.

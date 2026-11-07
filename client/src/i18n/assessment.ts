@@ -76,7 +76,7 @@ export const CELL_INFO: Record<number, { label: string; questions: string[] }> =
     ],
   },
   5: {
-    label: 'Hậu quả / lợi ích (sự kiện bắt buộc)',
+    label: 'Hậu quả / lợi ích (mốc thúc đẩy)',
     questions: [
       'Nếu khách không làm gì thì chuyện gì xảy ra?',
       'Có hạn chót để khách ra quyết định không? Nếu dự án chậm thì sao?',
@@ -323,14 +323,13 @@ export const VERDICT_INFO: Record<
   },
   nurture: {
     label: 'Nuôi dưỡng',
-    advice:
-      'Có quan hệ và phù hợp nhưng khách chưa sẵn sàng. Giữ liên lạc, theo dõi sự kiện bắt buộc.',
+    advice: 'Có quan hệ và phù hợp nhưng khách chưa sẵn sàng. Giữ liên lạc, theo dõi mốc thúc đẩy.',
     tone: 'neutral',
   },
   nurture_strategic: {
     label: 'Nuôi dưỡng — khách chiến lược',
     advice:
-      'Khách chưa sẵn sàng nhưng rất đáng giá. Giữ quan hệ đều đặn ở cấp lãnh đạo, sẵn sàng khi có sự kiện bắt buộc.',
+      'Khách chưa sẵn sàng nhưng rất đáng giá. Giữ quan hệ đều đặn ở cấp lãnh đạo, sẵn sàng khi có mốc thúc đẩy.',
     tone: 'neutral',
   },
   deprioritize: {

@@ -3,9 +3,9 @@ hồ sơ khách hàng nào. Nó tách hẳn khỏi sổ danh bạ dùng chung c�
 
 ![Trang Danh bạ cá nhân](/guide/img/danh-ba-ca-nhan.jpg)
 
-## Khác gì Tổ chức & nhân sự
+## Khác gì Nội bộ & đối tác
 
-| | Danh bạ cá nhân | [Tổ chức & nhân sự](/huong-dan?bai=khach-hang) |
+| | Danh bạ cá nhân | [Nội bộ & đối tác](/huong-dan?bai=khach-hang) |
 |---|---|---|
 | Ai thấy | Chỉ bạn | Mọi người trong phạm vi quyền |
 | Dùng để | Lưu số của người bạn hay liên lạc | Gắn vào cơ hội, hợp đồng, công việc |

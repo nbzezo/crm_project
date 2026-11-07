@@ -154,7 +154,7 @@ export function CommitteeSimple({ deal }: { deal: Deal }) {
         </details>
       </Panel>
       <p className="text-sm text-tr-muted">
-        Sự kiện bắt buộc và đối thủ:{' '}
+        Mốc thúc đẩy và đối thủ:{' '}
         <button
           type="button"
           className="text-tr-primary hover:underline"

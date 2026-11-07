@@ -55,7 +55,7 @@ const GROUPS: { key: Group; label: string; effect: string }[] = [
   { key: 'contracts', label: 'Hợp đồng', effect: 'Xóa vĩnh viễn' },
   { key: 'cards', label: 'Công việc', effect: 'Xóa vĩnh viễn, kèm việc con' },
   { key: 'interactions', label: 'Hoạt động', effect: 'Xóa vĩnh viễn' },
-  { key: 'reminders', label: 'Nhắc việc', effect: 'Xóa vĩnh viễn' },
+  { key: 'reminders', label: 'Nhắc hẹn', effect: 'Xóa vĩnh viễn' },
 ];
 
 const LINK_LABEL: Record<LinkKind, string> = {

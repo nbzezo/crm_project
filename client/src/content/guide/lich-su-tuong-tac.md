@@ -42,4 +42,4 @@ AI viết luôn **chờ bạn duyệt** trước khi lưu — xem [Trợ lý AI]
 
 - [Khách hàng và người liên hệ](/huong-dan?bai=khach-hang)
 - [Đánh giá cơ hội](/huong-dan?bai=danh-gia-co-hoi)
-- [Nhắc người khác](/huong-dan?bai=nhac-nguoi-khac)
+- [Đôn đốc](/huong-dan?bai=nhac-nguoi-khac)

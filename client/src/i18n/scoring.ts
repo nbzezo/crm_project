@@ -47,8 +47,8 @@ export const RUBRICS: Record<Factor, [string, string, string, string]> = {
   timeline: [
     'Không có mốc thời gian, hoặc "khi nào tiện".',
     'Có mong muốn thời gian chung chung ("trong năm nay") do sales suy đoán.',
-    'Có sự kiện bắt buộc được nêu nhưng chưa xác nhận ngày cụ thể.',
-    'Sự kiện bắt buộc có ngày cụ thể, khách xác nhận, và lịch triển khai ngược đã được thống nhất.',
+    'Có mốc thúc đẩy được nêu nhưng chưa xác nhận ngày cụ thể.',
+    'Mốc thúc đẩy có ngày cụ thể, khách xác nhận, và lịch triển khai ngược đã được thống nhất.',
   ],
   price: [
     'Giá ta cao hơn đáng kể mặt bằng và không có khác biệt biện minh được; hoặc hoàn toàn không biết mặt bằng.',
@@ -171,7 +171,7 @@ export const QUADRANT_ACTIONS: Record<Quadrant, string> = {
 
 export const VETO_LABELS: Record<VetoCode, { title: string; message: string }> = {
   V1_NO_COMPELLING_EVENT: {
-    title: 'Không có sự kiện bắt buộc',
+    title: 'Không có mốc thúc đẩy',
     message: 'Cơ hội sẽ trượt kỳ. Không đưa vào dự báo doanh thu.',
   },
   V2_NO_ECONOMIC_BUYER: {
@@ -190,11 +190,11 @@ export const VETO_LABELS: Record<VetoCode, { title: string; message: string }> =
  */
 export const BLOCKED_REASONS: Record<string, { text: string; tab: 'committee' | 'score' }> = {
   event_missing: {
-    text: 'Chưa có sự kiện bắt buộc nào. Tạo sự kiện để chấm Thời gian trên 1 điểm.',
+    text: 'Chưa có mốc thúc đẩy nào. Tạo mốc để chấm Thời gian trên 1 điểm.',
     tab: 'committee',
   },
   event_unconfirmed: {
-    text: 'Sự kiện bắt buộc chưa được khách xác nhận ngày cụ thể — tối đa 2 điểm.',
+    text: 'Mốc thúc đẩy chưa được khách xác nhận ngày cụ thể — tối đa 2 điểm.',
     tab: 'committee',
   },
   economic_buyer_missing: {

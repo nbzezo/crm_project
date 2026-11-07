@@ -40,7 +40,7 @@ Thẻ tóm tắt ở trên luôn hiện tình trạng dạng `0 Có · 10 Chưa 
 
 Ngoài ra điểm tối đa còn bị ràng buộc bởi dữ liệu có thật:
 
-- Chưa có sự kiện bắt buộc được khách xác nhận → không chấm Thời gian 3 điểm được.
+- Chưa có mốc thúc đẩy được khách xác nhận → không chấm Thời gian 3 điểm được.
 - Chưa gặp người duyệt ngân sách → Quyền hạn tối đa 2.
 
 > **Lưu ý** Đây là chỗ nhiều người thấy vướng nhất, và nó cố ý vướng. Một điểm số ai cũng tự cho
@@ -74,7 +74,7 @@ Kéo sang **Thất bại** không bao giờ bị chặn.
 ## Những phần đi kèm
 
 - **Người liên quan** — vai trò trong quyết định, thái độ, ai là champion, ai chưa được tiếp xúc.
-- **Sự kiện bắt buộc** — một mốc khách đã xác nhận, kèm **lịch triển khai ngược** tính lùi từ mốc đó.
+- **Mốc thúc đẩy** — một mốc buộc khách phải quyết định, đã được khách xác nhận, kèm **lịch triển khai ngược** tính lùi từ mốc đó.
 - **Đối thủ** — ai đang cung cấp, ai đã tham gia soạn tiêu chí thầu.
 
 Sau khi ghi một cuộc gọi, hệ thống hỏi luôn *"cuộc trao đổi này thay đổi yếu tố nào?"* để điểm không

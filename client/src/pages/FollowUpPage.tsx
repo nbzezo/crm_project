@@ -59,7 +59,7 @@ interface Group {
 }
 
 /**
- * Màn “Nhắc người khác”: gom việc của người khác/chưa giao đang cần một cú hích.
+ * Màn “Đôn đốc”: gom việc của người khác/chưa giao đang cần một cú hích.
  *
  * Ứng dụng không có kênh gửi ra ngoài (không SMTP, không Zalo API) nên trang này
  * KHÔNG gửi gì cả — nó soạn sẵn nội dung, mở `zalo.me`/`mailto:` hoặc copy vào
@@ -99,8 +99,8 @@ export default function FollowUpPage() {
         <ErrorState onRetry={() => refetch()} />
       ) : groups.length === 0 ? (
         <EmptyState
-          message="Không có việc nào cần nhắc."
-          hint={`Không có việc giao cho người khác hoặc chưa giao nào quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày hay bị chặn. Việc của chính bạn xem ở màn Công việc. Khi có việc cần nhắc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
+          message="Không có việc nào cần đôn đốc."
+          hint={`Không có việc giao cho người khác hoặc chưa giao nào quá hạn, sắp đến hạn trong ${NUDGE_HORIZON_DAYS} ngày hay bị chặn. Việc của chính bạn xem ở màn Công việc. Khi có việc cần đôn đốc, ứng dụng soạn sẵn nội dung để bạn copy hoặc mở Zalo/email — nó không tự gửi thay bạn.`}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
@@ -111,7 +111,7 @@ export default function FollowUpPage() {
               action={
                 group.contactId !== null ? (
                   <Button size="sm" onClick={() => setDrafting(group)}>
-                    <Sparkles size={14} aria-hidden="true" /> Soạn lời nhắc
+                    <Sparkles size={14} aria-hidden="true" /> Soạn tin đôn đốc
                   </Button>
                 ) : undefined
               }
@@ -188,9 +188,9 @@ function NudgeCount({ count, lastAt }: { count?: number; lastAt?: string | null 
   return (
     <span
       className="shrink-0 rounded-full bg-tr-hover px-2 py-0.5 text-xs text-tr-muted"
-      title={`Đã nhắc ${count} lần${since}`}
+      title={`Đã đôn đốc ${count} lần${since}`}
     >
-      đã nhắc {count}
+      đã đôn đốc {count}
       {since}
     </span>
   );
@@ -239,14 +239,14 @@ function NudgeDialog({ group, onClose }: { group: Group | null; onClose: () => v
     onSuccess: () => {
       invalidateCardViews(queryClient);
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      pushToast(`Đã ghi nhận nhắc ${group?.tasks.length ?? 0} việc`, 'success');
+      pushToast(`Đã ghi nhận đôn đốc ${group?.tasks.length ?? 0} việc`, 'success');
       onClose();
     },
   });
 
   const copy = async () => {
     await navigator.clipboard.writeText(message);
-    pushToast('Đã copy nội dung nhắc', 'success');
+    pushToast('Đã copy nội dung đôn đốc', 'success');
   };
 
   return (
@@ -254,7 +254,7 @@ function NudgeDialog({ group, onClose }: { group: Group | null; onClose: () => v
       open={open}
       onClose={onClose}
       width="max-w-2xl"
-      title={`Nhắc ${group?.name ?? ''}`}
+      title={`Đôn đốc ${group?.name ?? ''}`}
       footer={
         <>
           <Button onClick={copy} disabled={!message.trim()}>
@@ -294,7 +294,7 @@ function NudgeDialog({ group, onClose }: { group: Group | null; onClose: () => v
             onClick={() => record.mutate()}
           >
             <Check size={15} aria-hidden="true" />
-            {record.isPending ? t.common.saving : 'Đã nhắc — ghi nhật ký'}
+            {record.isPending ? t.common.saving : 'Đã đôn đốc — ghi nhật ký'}
           </Button>
         </>
       }
@@ -345,8 +345,8 @@ function NudgeDialog({ group, onClose }: { group: Group | null; onClose: () => v
       </Field>
 
       <p className="mt-2 text-xs text-tr-muted">
-        Ứng dụng không gửi tin thay bạn. Bấm “Đã nhắc” sau khi thực sự gửi để{' '}
-        {group?.tasks.length ?? 0} việc trong nhóm này được ghi vào nhật ký nhắc.
+        Ứng dụng không gửi tin thay bạn. Bấm “Đã đôn đốc” sau khi thực sự gửi để{' '}
+        {group?.tasks.length ?? 0} việc trong nhóm này được ghi vào nhật ký đôn đốc.
       </p>
     </Modal>
   );

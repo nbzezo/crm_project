@@ -1,5 +1,5 @@
 /**
- * F-03 — Bản đồ nhóm ra quyết định, sự kiện bắt buộc và đối thủ.
+ * F-03 — Bản đồ nhóm ra quyết định, mốc thúc đẩy và đối thủ.
  *
  * Ba khối này nằm chung một tab vì chúng là **dữ liệu nền của rubric**: không có
  * chúng thì AUTHORITY, RELATIONSHIP, TIMELINE, PRICE và PROCESS đều bị chặn trần điểm.
@@ -359,7 +359,7 @@ function PoliticsBlock({ dealId }: { dealId: number }) {
   );
 }
 
-/* ---------- Sự kiện bắt buộc ---------- */
+/* ---------- Mốc thúc đẩy ---------- */
 
 function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
   const dealId = deal.id;
@@ -412,15 +412,15 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
     deal.expected_close_date > primary.event_date;
 
   return (
-    <Panel title="Sự kiện bắt buộc">
+    <Panel title="Mốc thúc đẩy">
       <p className="mb-2 text-xs text-tr-muted">
-        Ràng buộc <strong>của khách</strong> — dời được thì không phải sự kiện bắt buộc. Khác với
-        Việc tiếp theo, vốn là việc của ta.
+        Ràng buộc <strong>của khách</strong> — dời được thì không phải mốc thúc đẩy. Khác với Việc
+        tiếp theo, vốn là việc của ta.
       </p>
 
       {closeAfterEvent && (
         <Warning
-          text={`Ngày dự kiến chốt (${formatDate(deal.expected_close_date)}) muộn hơn sự kiện bắt buộc (${formatDate(primary.event_date)}).`}
+          text={`Ngày dự kiến chốt (${formatDate(deal.expected_close_date)}) muộn hơn mốc thúc đẩy (${formatDate(primary.event_date)}).`}
         />
       )}
 
@@ -431,14 +431,14 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
               <span className="min-w-0 flex-1 text-tr-text">{event.description}</span>
               {event.is_primary === 1 && (
                 <span className="rounded bg-tr-hover px-1.5 py-0.5 text-xs text-tr-subtle">
-                  Sự kiện chính
+                  Mốc chính
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => remove.mutate(event.id)}
                 className={`rounded p-1 text-tr-muted hover:text-tr-danger ${focusRing}`}
-                aria-label="Xóa sự kiện"
+                aria-label="Xóa mốc"
               >
                 <Trash2 size={13} />
               </button>
@@ -472,7 +472,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
         <div className="flex flex-wrap gap-2">
           <Select
             value={form.event_type}
-            aria-label="Loại sự kiện"
+            aria-label="Loại mốc"
             onChange={(e) => setForm({ ...form, event_type: e.target.value })}
             className="w-auto"
           >
@@ -485,7 +485,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
           <Input
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Mô tả sự kiện…"
+            placeholder="Mô tả mốc…"
             className="min-w-[10rem] flex-1"
           />
           <DateInput

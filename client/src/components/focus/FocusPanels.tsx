@@ -141,7 +141,7 @@ export function AttentionPanel({
 
 const REASON_LABEL: Record<WaitingItem['reason'], string> = {
   assigned: 'giao cho bạn',
-  nudged: 'đã nhắc bạn',
+  nudged: 'đã đôn đốc bạn',
   approval: 'chờ bạn duyệt',
   delegated: 'bạn đã giao',
   watching: 'bạn đang theo dõi',
@@ -194,7 +194,7 @@ export function WaitingPanel({ data }: { data: FocusData }) {
                     {[
                       item.person_name,
                       REASON_LABEL[item.reason],
-                      item.nudge_count > 0 ? `nhắc ${item.nudge_count} lần` : null,
+                      item.nudge_count > 0 ? `đôn đốc ${item.nudge_count} lần` : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}

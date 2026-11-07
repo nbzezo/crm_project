@@ -298,7 +298,7 @@ router.delete('/tasks/saved-views/:id', (req, res) => {
 const NUDGE_HORIZON_DAYS = 3;
 
 /**
- * Viec "Nhắc người khác" — cung luat voi `selectNeedsNudge` o client.
+ * Viec "Đôn đốc" — cung luat voi `selectNeedsNudge` o client.
  *
  * Bo viec cua chinh nguoi dang xem: tu v38 viec khong chon nguoi phu trach duoc
  * giao cho nguoi tao, nen truoc day phan lon danh sach la viec cua minh va man

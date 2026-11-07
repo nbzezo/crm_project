@@ -19,7 +19,7 @@ Góc trên bên phải có ngày hiện tại, nút **AI Brief** (nhờ AI tóm 
 |---|---|
 | **Việc hôm nay** | Số việc đến hạn hôm nay, kèm số đã xong |
 | **Quá hạn** | Việc đã qua hạn, kèm "cũ nhất N ngày" |
-| **Nhắc người khác** | Số việc đang nằm ở người khác cần bạn nhắc |
+| **Đôn đốc** | Số việc đang nằm ở người khác cần bạn đôn đốc |
 | **Pipeline** | Tổng giá trị cơ hội đang mở, kèm **giá trị có trọng số** |
 
 > **Lưu ý** Tổng pipeline và pipeline **có trọng số** (cộng giá trị × xác suất) được phép chênh nhau

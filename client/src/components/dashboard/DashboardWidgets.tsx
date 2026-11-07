@@ -136,7 +136,7 @@ export function KpiSummary({
   data: DashboardData;
   onOpenTasks: (bucket: 'today' | 'overdue') => void;
 }) {
-  /* Chung query voi badge "Nhắc người khác" o sidebar/thanh tab (navConfig) nen
+  /* Chung query voi badge "Đôn đốc" o sidebar/thanh tab (navConfig) nen
      React Query gop thanh mot request. */
   const { data: taskCounts } = useTaskCounts({ staleTime: 60_000 });
   const followUpCount = taskCounts?.nudge ?? 0;
@@ -860,7 +860,7 @@ function attentionItems(data: DashboardData): AttentionItem[] {
   add(data.attention.score_veto, { label: 'Chưa tính vào dự báo doanh thu', group: 'quality' });
   add(data.attention.score_stale, { label: 'Điểm quá hạn', group: 'quality' });
   add(data.attention.score_reshape, { label: 'Cần tái định hình', group: 'quality' });
-  add(data.attention.event_near, { label: 'Sự kiện bắt buộc sắp tới', group: 'quality' });
+  add(data.attention.event_near, { label: 'Mốc thúc đẩy sắp tới', group: 'quality' });
   add(data.attention.stage_score_gap, { label: 'Giai đoạn cao, BANT thấp', group: 'quality' });
 
   return [...map.values()].sort((a, b) => {

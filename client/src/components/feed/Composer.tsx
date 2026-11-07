@@ -32,7 +32,7 @@ const KIND_LABEL: Record<PostKind, string> = {
   announcement: 'Thông báo',
   poll: 'Khảo sát',
   question: 'Hỏi đáp',
-  event: 'Sự kiện',
+  event: 'Sự kiện nhóm',
 };
 
 interface PickedLink {
@@ -217,7 +217,7 @@ export function Composer({
           />
           <QuickKind
             icon={<CalendarDays size={16} aria-hidden="true" />}
-            label="Sự kiện"
+            label="Sự kiện nhóm"
             onClick={() => {
               setKind('event');
               setExpanded(true);

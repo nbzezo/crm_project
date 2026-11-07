@@ -161,7 +161,7 @@ const HOME_FILTERS: { value: FeedFilter; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
   { value: 'announcements', label: 'Thông báo' },
   { value: 'questions', label: 'Hỏi đáp' },
-  { value: 'events', label: 'Sự kiện' },
+  { value: 'events', label: 'Sự kiện nhóm' },
   { value: 'attachments', label: 'Có tài liệu' },
   { value: 'mine', label: 'Bài của tôi' },
 ];
@@ -229,7 +229,7 @@ function RightRail({ groupId }: { groupId?: number }) {
     <aside aria-label="Thông tin bên lề" className="hidden w-72 shrink-0 space-y-4 xl:block">
       <section className="rounded-panel border border-tr-border bg-tr-card p-4">
         <div className="mb-2 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-tr-text">Sự kiện sắp tới</h2>
+          <h2 className="text-sm font-semibold text-tr-text">Sự kiện nhóm sắp tới</h2>
           <Link to="/calendar" className={`text-xs text-tr-primary hover:underline ${focusRing}`}>
             Lịch
           </Link>
@@ -401,7 +401,7 @@ const TAB_TITLE: Record<GroupTab, string> = {
   posts: 'Thảo luận',
   announcements: 'Thông báo',
   files: 'Tài liệu',
-  events: 'Sự kiện',
+  events: 'Sự kiện nhóm',
   members: 'Thành viên',
   tasks: 'Công việc từ bài viết',
   pending: 'Bài chờ duyệt',

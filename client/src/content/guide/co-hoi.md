@@ -22,7 +22,7 @@ Mặc định có 8 giai đoạn:
 Tiềm năng → Đang tiếp cận → Đang trao đổi → **PoC / Thử nghiệm** → Gửi báo giá → Đàm phán →
 Thành công / Thất bại
 
-Danh sách này **cấu hình được** ở *Cài đặt → Quy trình bán hàng*: đổi tên, màu, thứ tự, xác suất gợi
+Danh sách này **cấu hình được** ở *Cài đặt → Giai đoạn bán hàng*: đổi tên, màu, thứ tự, xác suất gợi
 ý và số ngày tối đa cho mỗi giai đoạn. Thành công và Thất bại là giai đoạn hệ thống, không xóa được.
 
 ## Chuyển giai đoạn

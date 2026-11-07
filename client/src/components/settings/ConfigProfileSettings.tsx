@@ -1,7 +1,7 @@
 /**
  * Cài đặt → Hồ sơ cấu hình (1.27.0).
  *
- * Xuất toàn bộ cấu hình nghiệp vụ (danh mục, quy trình bán hàng, chấm điểm, bàn
+ * Xuất toàn bộ cấu hình nghiệp vụ (danh mục, giai đoạn bán hàng, chấm điểm, bàn
  * giao, triển khai, vị trí & quyền) thành một tệp JSON, và nhập lại ở bản cài khác.
  * Nhập luôn qua hai bước: chạy thử để xem những gì sẽ đổi, rồi mới áp dụng.
  * Không xoá gì — mục chỉ có ở bản cài này được giữ nguyên.
@@ -69,7 +69,7 @@ export function ConfigProfileSettings() {
     <div className="space-y-4">
       <Panel title="Xuất hồ sơ cấu hình">
         <p className="mb-3 text-sm text-tr-subtle">
-          Một tệp JSON gồm danh mục, quy trình bán hàng, chấm điểm, bàn giao, triển khai, vị trí và
+          Một tệp JSON gồm danh mục, giai đoạn bán hàng, chấm điểm, bàn giao, triển khai, vị trí và
           quyền — không có dữ liệu khách hàng nào. Dùng để dựng bản cài cho khách mới, hoặc chép cấu
           hình đã tinh chỉnh sang bản cài khác.
         </p>

@@ -40,7 +40,7 @@ export function MobileTabBar() {
     allowed('tasks:read') && counts?.nudge && counts.nudge > 0
       ? {
           to: '/follow-up',
-          label: 'Nhắc',
+          label: 'Đôn đốc',
           icon: BellRing,
           badge: counts?.nudge ?? 0,
         }

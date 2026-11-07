@@ -160,7 +160,7 @@ export function FeedGroupNav({ group }: { group: GroupDetail }) {
     { to: base, label: 'Thảo luận', icon: MessagesSquare, end: true },
     { to: `${base}/announcements`, label: 'Thông báo', icon: Megaphone },
     { to: `${base}/files`, label: 'Tài liệu', icon: FileText, count: group.counts.files },
-    { to: `${base}/events`, label: 'Sự kiện', icon: CalendarDays },
+    { to: `${base}/events`, label: 'Sự kiện nhóm', icon: CalendarDays },
     { to: `${base}/members`, label: 'Thành viên', icon: Users, count: group.member_count },
     { to: `${base}/tasks`, label: 'Công việc từ bài viết', icon: ListChecks },
   ];

@@ -139,9 +139,10 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   },
   {
     slug: 'nhac-nguoi-khac',
-    title: 'Nhắc người khác',
-    summary: 'Gom việc quá hạn, đang chờ, và ghi nhật ký đã nhắc ai lúc nào.',
-    keywords: 'nhắc người khác follow up theo dõi quá hạn chờ khách bị chặn nhật ký nhắc zalo',
+    title: 'Đôn đốc',
+    summary: 'Gom việc quá hạn, đang chờ ở người khác, và ghi nhật ký đã đôn đốc ai lúc nào.',
+    keywords:
+      'đôn đốc nhắc người khác follow up theo dõi quá hạn chờ khách bị chặn nhật ký nhắc zalo',
     icon: BellRing,
     chapter: GUIDE_CHAPTERS.daily,
   },
@@ -405,7 +406,7 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
     title: 'Danh mục và quy trình',
     summary: 'Sửa giai đoạn bán hàng, trạng thái công việc và các danh mục mà không cần lập trình.',
     keywords:
-      'danh mục picklist quy trình bán hàng giai đoạn trạng thái công việc nhãn gộp ẩn chấm điểm bàn giao triển khai',
+      'danh mục picklist giai đoạn bán hàng quy trình bán hàng pipeline giai đoạn trạng thái công việc nhãn gộp ẩn chấm điểm bàn giao triển khai',
     icon: FolderKanban,
     chapter: GUIDE_CHAPTERS.admin,
     permissionAny: ['settings.app:read'],

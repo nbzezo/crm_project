@@ -20,12 +20,13 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     version: '1.42.0',
     date: '2026-11-07',
-    title: 'Việc kế tiếp, biên bản họp và nhắc lịch không còn lệch nhau',
+    title: 'Việc kế tiếp, biên bản họp, nhắc lịch không còn lệch nhau; mỗi khái niệm một tên',
     changes: [
       'Hoàn thành một công việc đúng là "Việc kế tiếp" của cơ hội thì cơ hội tự cập nhật: lấy việc còn mở có hạn sớm nhất của cơ hội làm việc kế tiếp mới, hết việc thì để trống. Tổng quan, Sức khỏe pipeline và Khách hàng thôi báo "Việc kế tiếp quá hạn" cho việc đã làm xong. Việc kế tiếp bạn tự gõ khác tên công việc thì giữ nguyên.',
       'Biên bản họp (Trang tài liệu, mục đích Họp, có giờ họp đã qua) nay tính là một lần liên hệ với khách: cột Liên hệ cuối, nhịp chăm sóc, cảnh báo "Không tương tác >14 ngày" và tab Trọng tâm đều thấy. Biên bản gắn qua cơ hội hoặc dự án cũng tính cho khách của cơ hội, dự án đó. Ghi chú kế hoạch, đề xuất, hay buổi họp chưa diễn ra thì không tính.',
       'Popup "Đến giờ nhắc" nay bật lên cả cho nhắc của sự kiện lịch và nhắc của Ghi chú nhanh, không chỉ nhắc hẹn. Trước đây hai loại này chỉ hiện ở chuông hoặc Telegram. Mỗi dòng ghi rõ nguồn ("Sự kiện lúc 10:00", "Ghi chú nhanh") và có nút mở lịch hoặc mở ghi chú.',
       'Với nhắc của sự kiện lịch, Tắt hoặc Hoãn chỉ áp dụng cho mốc nhắc đó và chỉ cho chính bạn. Đổi giờ sự kiện thì nhắc bật lại theo giờ mới. Với Ghi chú nhanh, Hoãn đổi luôn giờ nhắc của ghi chú, Telegram cũng nhắc lại theo giờ mới.',
+      'Đổi tên để mỗi khái niệm chỉ có một tên: "Nhắc người khác" thành "Đôn đốc" (chữ "nhắc" từ nay chỉ dùng cho nhắc hẹn của chính bạn); loại lịch "Nhắc việc" thành "Nhắc hẹn"; "Sự kiện bắt buộc" của cơ hội thành "Mốc thúc đẩy"; sự kiện trên Bảng tin thành "Sự kiện nhóm"; Cài đặt "Quy trình bán hàng" thành "Giai đoạn bán hàng"; trang "Tổ chức & nhân sự" thành "Nội bộ & đối tác". Đường dẫn và dữ liệu không đổi, link cũ vẫn mở đúng chỗ.',
     ],
   },
   {
