@@ -1290,6 +1290,84 @@ router.post('/assist/meeting-note/:id/inline', async (req, res) => {
   }
 });
 
+const meetingNoteDiagramSchema = z.object({
+  kind: z.enum(['mindmap', 'flowchart']),
+  prompt: z.string().max(4000).default(''),
+});
+type MindmapTree = { topic: string; children?: MindmapTree[] };
+const mindmapTreeSchema: z.ZodType<MindmapTree> = z.lazy(() =>
+  z.object({
+    topic: z.string().trim().min(1).max(200),
+    children: z.array(mindmapTreeSchema).max(15).optional(),
+  })
+);
+
+/**
+ * AI dung so do tu noi dung trang (hoac mo ta nguoi dung go). Sơ đồ tư duy tra
+ * cay {topic, children}; sơ đồ logic tra Mermaid de hop thoai "văn bản thành sơ đồ"
+ * cua Excalidraw tu chuyen thanh hinh — client khong phai tu ve.
+ */
+router.post('/assist/meeting-note/:id/diagram', async (req, res) => {
+  try {
+    const id = intParam(req.params.id);
+    assertMeetingNoteInScope(req, id, 'update');
+    const note = getMeetingNote(db, id) as {
+      title: string;
+      content_text: string;
+      deal_id: number | null;
+      project_id: number | null;
+    };
+    const body = parseBody(meetingNoteDiagramSchema, req);
+    const request = body.prompt.trim();
+    if (!request && !note.content_text.trim()) {
+      throw new HttpError(400, 'Trang chưa có nội dung — hãy nhập mô tả sơ đồ cần vẽ');
+    }
+    const source =
+      (request ? `Yêu cầu: ${request}\n` : '') +
+      `Tiêu đề trang: ${note.title}\nNội dung trang:\n${note.content_text.slice(0, 15_000)}`;
+    const common = {
+      mode: 'fast' as const,
+      contextType: note.deal_id ? ('deal' as const) : ('project' as const),
+      contextId: note.deal_id ?? note.project_id ?? undefined,
+      maxOutputTokens: 1500,
+    };
+
+    if (body.kind === 'mindmap') {
+      const { data } = await runStructured(
+        db,
+        {
+          ...common,
+          task: 'meeting_note_mindmap',
+          system:
+            'Bạn dựng sơ đồ tư duy tiếng Việt. Chỉ dùng ý có trong yêu cầu hoặc nội dung đã cho, không bịa. Mỗi nhánh tối đa 8 từ, sâu tối đa 3 cấp dưới gốc.',
+          prompt:
+            'Trả JSON {"topic":"chủ đề gốc","children":[{"topic":"nhánh","children":[...]}]}.\n' +
+            source,
+        },
+        mindmapTreeSchema
+      );
+      res.json({ tree: data });
+      return;
+    }
+
+    const result = await runAi(db, {
+      ...common,
+      task: 'meeting_note_flowchart',
+      system:
+        'Bạn vẽ sơ đồ quy trình bằng Mermaid. Chỉ trả về mã Mermaid bắt đầu bằng "flowchart TD" hoặc "flowchart LR", không giải thích, không dấu ```. Nhãn bằng tiếng Việt, đặt trong ngoặc kép.',
+      prompt: source,
+    });
+    const mermaid = result.text
+      .trim()
+      .replace(/^```(?:mermaid)?\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
+    res.json({ mermaid });
+  } catch (error) {
+    asHttpError(error);
+  }
+});
+
 /**
  * Gemini gioi han ~20MB cho TOAN BO request chua `inline_data`, con multer cho
  * phep tai len 25MB (documents.ts). Chan som o day de nguoi dung nhan mot cau

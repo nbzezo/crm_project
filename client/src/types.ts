@@ -729,6 +729,8 @@ export interface MeetingNote {
   created_at: string;
   updated_at: string;
   attendees: MeetingNoteAttendee[];
+  /** false = nguoi xem chi doc duoc (mo che do chi xem). Thieu = sua duoc (vd. vua tao). */
+  can_edit?: boolean;
   /** Chi de hien thi (vd. trang "Ghi chu" liet ke tat ca) — khong dung de loc/ghi. */
   customer_name: string | null;
   deal_title: string | null;

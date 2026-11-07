@@ -17,7 +17,21 @@ Trình soạn thảo làm việc theo **khối**: mỗi đoạn, mỗi mục dan
 | `@` | Nhắc tên một **người liên hệ** |
 | `/` → sơ đồ | **Sơ đồ logic** (vẽ tay) hoặc **sơ đồ tư duy** |
 
-**Sơ đồ tư duy**: `Tab` thêm nhánh con, `Enter` thêm nhánh ngang.
+### Sơ đồ trong trang
+
+Trong trang, sơ đồ chỉ hiện **bản xem** (cuộn chuột vẫn cuộn trang). Bấm **Chỉnh sửa** hoặc nhấp
+đúp để mở khung vẽ **toàn màn hình**, vẽ xong bấm **Xong** để lưu.
+
+- **Sơ đồ tư duy**: `Tab` thêm nhánh con, `Enter` thêm nhánh ngang, chuột phải để có thêm lệnh.
+  Chọn **Bố cục** (toả hai bên, sang phải, sang trái, cây xuống dưới) và bảng màu ở thanh trên;
+  **Tạo bằng AI** dựng sơ đồ từ nội dung trang hoặc từ mô tả bạn gõ. Xuất được **PNG** và **SVG**.
+- **Dàn ý ↔ sơ đồ**: ở một danh sách gạch đầu dòng, bấm **⋮⋮** → **Chuyển thành sơ đồ tư duy**.
+  Ngược lại, bấm **Chuyển thành dàn ý** trên sơ đồ. Hoàn tác bằng `Ctrl+Z`.
+- **Sơ đồ logic**: chọn **Dùng mẫu…** (quy trình duyệt, chia làn theo bộ phận, sơ đồ tổ chức) để
+  bắt đầu nhanh. Trong menu công cụ của khung vẽ, **Text to diagram** nhờ AI vẽ từ mô tả, **Mermaid
+  to Excalidraw** dựng sơ đồ từ mã Mermaid. Thanh công cụ của khung vẽ này hiện bằng tiếng Anh.
+- Chữ trên sơ đồ được đưa vào **tìm kiếm** và **Tóm tắt bằng AI**.
+- Người chỉ có quyền xem trang thấy nhãn **Chỉ xem**: đọc được, không sửa được.
 
 ### Tham chiếu công việc
 

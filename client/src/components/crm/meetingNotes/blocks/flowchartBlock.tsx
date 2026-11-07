@@ -3,6 +3,7 @@ import { createReactBlockSpec, type DefaultReactSuggestionItem } from '@blocknot
 import { insertOrUpdateBlockForSlashMenu, type BlockNoteEditor } from '@blocknote/core';
 import { Workflow } from 'lucide-react';
 import { Skeleton } from '../../../common/ui';
+import { flowchartTexts } from './diagramData';
 
 /**
  * FlowchartCanvas import truc tiep '@excalidraw/excalidraw' o dinh module — thu
@@ -24,6 +25,21 @@ export const flowchartBlockSpec = createReactBlockSpec(
         <FlowchartCanvas block={props.block} editor={props.editor} />
       </Suspense>
     ),
+    /* Chu tren so do vao content_text (tim kiem, Tom tat AI) — xem mindmapBlock.tsx. */
+    toExternalHTML: (props) => {
+      const texts = flowchartTexts(props.block.props.data);
+      return texts.length > 0 ? (
+        <ul>
+          {texts.map((text, index) => (
+            <li key={index}>
+              <p>{text}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p />
+      );
+    },
   }
 )(); // createReactBlockSpec tra ve ham khoi tao (de nhan options) — goi ngay vi khong can options.
 

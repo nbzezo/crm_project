@@ -32,4 +32,20 @@ describe('deriveTitle', () => {
   it('tra ve rong khi ten suy ra trung ten hien tai (tranh vong lap)', () => {
     expect(deriveTitle('Ghi chú mới', 'Ghi chú mới')).toBe('');
   });
+
+  it('di theo dong dau trong luc go, khong chot o ky tu dau', () => {
+    const first = deriveTitle('Trang không tiêu đề', 'H');
+    expect(first).toBe('H');
+    expect(deriveTitle(first, 'Họp', first)).toBe('Họp');
+  });
+
+  it('dung han khi nguoi dung tu sua tieu de', () => {
+    expect(deriveTitle('Tên tôi đặt', 'Họp review', 'Họp')).toBe('');
+  });
+
+  it('bo ky hieu Markdown cua dong dau', () => {
+    expect(deriveTitle('Ghi chú mới', '# Họp **quý 4**')).toBe('Họp quý 4');
+    expect(deriveTitle('Ghi chú mới', '* [ ] Gọi \\_khách\\_')).toBe('Gọi _khách_');
+    expect(deriveTitle('Ghi chú mới', '1. Xem [báo giá](https://x.vn)')).toBe('Xem báo giá');
+  });
 });

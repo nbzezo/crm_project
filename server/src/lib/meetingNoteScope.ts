@@ -64,3 +64,16 @@ export function assertMeetingNoteInScope(
     .get(id, ...scope.params);
   if (!row) throw new HttpError(404, 'Không tìm thấy trang tài liệu');
 }
+
+/**
+ * Nguoi xem co sua duoc trang nay khong — de giao dien mo che do chi xem thay vi
+ * cho go roi bao "Lưu thất bại". Chi la goi y hien thi; PATCH van tu kiem.
+ */
+export function canEditMeetingNote(req: Request, id: number): boolean {
+  try {
+    assertMeetingNoteInScope(req, id, 'update');
+    return true;
+  } catch {
+    return false;
+  }
+}

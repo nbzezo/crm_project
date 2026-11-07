@@ -4,7 +4,11 @@ import { db } from '../db/connection.ts';
 import { intParam, parseBody } from '../lib/validate.ts';
 import { defaultOwner } from '../lib/scope.ts';
 import { decodeCursor, pageLimit } from '../lib/paging.ts';
-import { assertMeetingNoteInScope, meetingNoteScope } from '../lib/meetingNoteScope.ts';
+import {
+  assertMeetingNoteInScope,
+  canEditMeetingNote,
+  meetingNoteScope,
+} from '../lib/meetingNoteScope.ts';
 import {
   createMeetingNote,
   getMeetingNote,
@@ -27,16 +31,15 @@ function optionalIntQuery(value: unknown): number | undefined {
 }
 
 router.get('/', (req, res) => {
-  res.json(
-    listMeetingNotes(
-      db,
-      {
-        deal_id: optionalIntQuery(req.query.deal_id),
-        project_id: optionalIntQuery(req.query.project_id),
-      },
-      meetingNoteScope(req, 'read')
-    )
+  const notes = listMeetingNotes(
+    db,
+    {
+      deal_id: optionalIntQuery(req.query.deal_id),
+      project_id: optionalIntQuery(req.query.project_id),
+    },
+    meetingNoteScope(req, 'read')
   );
+  res.json(notes.map((note) => note && { ...note, can_edit: canEditMeetingNote(req, note.id) }));
 });
 
 const PURPOSES = new Set(['blank', 'meeting', 'plan', 'proposal', 'report', 'process', 'decision']);
@@ -84,7 +87,7 @@ router.post('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const id = intParam(req.params.id);
   assertMeetingNoteInScope(req, id, 'read');
-  res.json(getMeetingNote(db, id));
+  res.json({ ...getMeetingNote(db, id), can_edit: canEditMeetingNote(req, id) });
 });
 
 router.patch('/:id', (req, res) => {

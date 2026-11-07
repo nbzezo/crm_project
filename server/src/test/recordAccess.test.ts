@@ -1118,6 +1118,13 @@ const PROBES: Probe[] = [
   {
     file: 'ai',
     method: 'post',
+    route: '/assist/meeting-note/:id/diagram',
+    url: `/api/ai/assist/meeting-note/${meetingNoteId}/diagram`,
+    body: { kind: 'mindmap', prompt: 'x' },
+  },
+  {
+    file: 'ai',
+    method: 'post',
     route: '/actions/:id/approve',
     url: `/api/ai/actions/${proposalId}/approve`,
   },

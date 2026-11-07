@@ -45,6 +45,7 @@ export function MeetingNoteEditor({
   onDeleted: () => void;
 }) {
   const queryClient = useQueryClient();
+  const canEdit = note.can_edit !== false;
   const pushToast = useUiStore((s) => s.pushToast);
   const queryKey = useRef(['meeting-notes', links] as const);
 
@@ -66,6 +67,8 @@ export function MeetingNoteEditor({
   const bodyRef = useRef({ contentJson: note.content_json, contentText: note.content_text });
   const [bodyVersion, setBodyVersion] = useState(0);
   const skipNextSave = useRef(true);
+  /** Tieu de lan gan nhat do he thong tu dat — con trung thi van coi la "chua tu dat ten". */
+  const autoTitle = useRef('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'pending' | 'saving' | 'error'>('saved');
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef<Promise<void> | null>(null);
@@ -140,8 +143,9 @@ export function MeetingNoteEditor({
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     if (purpose === 'blank') {
-      const derived = deriveTitle(title, bodyRef.current.contentText);
+      const derived = deriveTitle(title, bodyRef.current.contentText, autoTitle.current);
       if (derived) {
+        autoTitle.current = derived;
         setTitle(derived);
         return;
       }
@@ -266,12 +270,17 @@ export function MeetingNoteEditor({
             khong chac class nao thang). */}
         <input
           value={title}
+          readOnly={!canEdit}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Tiêu đề trang"
           aria-label="Tiêu đề trang"
           className={`flex-1 rounded-control border border-transparent bg-transparent px-1.5 py-1 text-xl font-bold tracking-tight text-tr-text outline-none transition-colors placeholder:font-normal placeholder:text-tr-muted hover:border-tr-border hover:bg-tr-hover focus:border-tr-primary/50 focus:bg-tr-hover ${focusRing}`}
         />
-        {saveStatus === 'error' ? (
+        {!canEdit ? (
+          <span className="shrink-0 rounded-full bg-tr-hover px-2 py-0.5 text-xs text-tr-subtle">
+            Chỉ xem
+          </span>
+        ) : saveStatus === 'error' ? (
           <button
             type="button"
             className="shrink-0 text-xs text-tr-danger underline"
@@ -292,86 +301,92 @@ export function MeetingNoteEditor({
           label={title.trim() || 'Trang tài liệu'}
           size={16}
         />
-        <IconButton label="Xoá trang" tone="danger" onClick={() => setConfirmDelete(true)}>
-          <Trash2 size={16} />
-        </IconButton>
+        {canEdit && (
+          <IconButton label="Xoá trang" tone="danger" onClick={() => setConfirmDelete(true)}>
+            <Trash2 size={16} />
+          </IconButton>
+        )}
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-2 text-tr-subtle">
-          Mục đích
-          <select
-            value={purpose}
-            onChange={(event) => setPurpose(event.target.value as DocumentPurpose)}
-            className={`rounded-control border border-tr-border bg-tr-panel px-2 py-1 text-tr-text ${focusRing}`}
-          >
-            {DOCUMENT_TEMPLATES.map((template) => (
-              <option key={template.key} value={template.key}>
-                {template.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <details className="mb-3" onToggle={(event) => setLinksOpen(event.currentTarget.open)}>
-        <summary className="cursor-pointer text-sm text-tr-subtle">
-          Liên kết Khách hàng / Cơ hội / Dự án
-        </summary>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          <div className="text-xs text-tr-subtle">
-            Khách hàng
-            <Combobox
-              value={customerId ?? ''}
-              onChange={(value) => setCustomerId(value || null)}
-              options={customers.map((item) => ({ id: item.id, label: item.name }))}
-              ariaLabel="Khách hàng của trang"
-            />
-          </div>
-          <div className="text-xs text-tr-subtle">
-            Cơ hội
-            <Combobox
-              value={dealId ?? ''}
-              onChange={(value) => setDealId(value || null)}
-              options={deals.map((item) => ({ id: item.id, label: item.title }))}
-              ariaLabel="Cơ hội của trang"
-            />
-          </div>
-          <div className="text-xs text-tr-subtle">
-            Dự án
-            <Combobox
-              value={projectId ?? ''}
-              onChange={(value) => setProjectId(value || null)}
-              options={projects.map((item) => ({ id: item.id, label: item.name }))}
-              ariaLabel="Dự án của trang"
-            />
-          </div>
+      {/* disabled tren fieldset khoa moi o nhap ben trong mot lan (che do chi xem). */}
+      <fieldset disabled={!canEdit} className="contents">
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2 text-tr-subtle">
+            Mục đích
+            <select
+              value={purpose}
+              onChange={(event) => setPurpose(event.target.value as DocumentPurpose)}
+              className={`rounded-control border border-tr-border bg-tr-panel px-2 py-1 text-tr-text ${focusRing}`}
+            >
+              {DOCUMENT_TEMPLATES.map((template) => (
+                <option key={template.key} value={template.key}>
+                  {template.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      </details>
 
-      {purpose === 'meeting' && (
-        <details className="mb-3" open={note.purpose_key === 'meeting'}>
-          <summary className="cursor-pointer text-sm text-tr-subtle">Chi tiết cuộc họp</summary>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            {/* Boc trong div co chieu rong co dinh — o nhap ben trong luon tu ep
+        <details className="mb-3" onToggle={(event) => setLinksOpen(event.currentTarget.open)}>
+          <summary className="cursor-pointer text-sm text-tr-subtle">
+            Liên kết Khách hàng / Cơ hội / Dự án
+          </summary>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <div className="text-xs text-tr-subtle">
+              Khách hàng
+              <Combobox
+                value={customerId ?? ''}
+                onChange={(value) => setCustomerId(value || null)}
+                options={customers.map((item) => ({ id: item.id, label: item.name }))}
+                ariaLabel="Khách hàng của trang"
+              />
+            </div>
+            <div className="text-xs text-tr-subtle">
+              Cơ hội
+              <Combobox
+                value={dealId ?? ''}
+                onChange={(value) => setDealId(value || null)}
+                options={deals.map((item) => ({ id: item.id, label: item.title }))}
+                ariaLabel="Cơ hội của trang"
+              />
+            </div>
+            <div className="text-xs text-tr-subtle">
+              Dự án
+              <Combobox
+                value={projectId ?? ''}
+                onChange={(value) => setProjectId(value || null)}
+                options={projects.map((item) => ({ id: item.id, label: item.name }))}
+                ariaLabel="Dự án của trang"
+              />
+            </div>
+          </div>
+        </details>
+
+        {purpose === 'meeting' && (
+          <details className="mb-3" open={note.purpose_key === 'meeting'}>
+            <summary className="cursor-pointer text-sm text-tr-subtle">Chi tiết cuộc họp</summary>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {/* Boc trong div co chieu rong co dinh — o nhap ben trong luon tu ep
             w-full (xem inputBase o ui.tsx), truyen chieu rong thang vao no se bi
             w-full de (hai class Tailwind cung sua width, thu tu trong CSS bien
             dich quyet dinh chu khong phai thu tu viet trong className). */}
-            <div className="w-72">
-              <DateTimeInput
-                value={meetingAt || null}
-                onChange={(value) => setMeetingAt(value ?? '')}
-                aria-label="Thời gian họp"
-              />
+              <div className="w-72">
+                <DateTimeInput
+                  value={meetingAt || null}
+                  onChange={(value) => setMeetingAt(value ?? '')}
+                  aria-label="Thời gian họp"
+                />
+              </div>
+              <AttendeesField value={attendeeIds} onChange={setAttendeeIds} />
             </div>
-            <AttendeesField value={attendeeIds} onChange={setAttendeeIds} />
-          </div>
-        </details>
-      )}
+          </details>
+        )}
+      </fieldset>
 
       <LazyMeetingNoteBody
         noteId={note.id}
         autoFocus={autoFocus}
+        editable={canEdit}
         initialContentJson={note.content_json}
         customerId={customerId}
         dealId={dealId}
@@ -479,15 +494,28 @@ const DEFAULT_NOTE_TITLES = [
   'Trang không tiêu đề',
 ];
 
+/** Dong dau cua ban Markdown (content_text), bo ky hieu de muc / danh sach / nhan manh. */
+function firstPlainLine(markdown: string): string {
+  const line = markdown.trim().split('\n')[0] ?? '';
+  return line
+    .replace(/^\s*(#{1,6}\s+|>\s*|[*+-]\s+(\[[ xX]\]\s+)?|\d+\.\s+)/, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(?<!\\)(\*\*|__|~~|\*|_|`)(.+?)(?<!\\)\1/g, '$2')
+    .replace(/\\([\\`*_{}[\]()#+\-.!>~|])/g, '$1')
+    .trim();
+}
+
 /**
- * Tieu de suy ra tu cau dau cua noi dung, hoac '' neu khong nen doi.
- * Tra ve '' khi nguoi dung da tu dat ten, khi noi dung con rong, hoac khi ten
- * suy ra trung voi ten hien tai (tranh vong lap effect).
+ * Tieu de suy ra tu dong dau cua noi dung, hoac '' neu khong nen doi.
+ * Chi doi khi tieu de con la ten mac dinh HOAC van la ten he thong tu dat lan
+ * truoc (`lastAuto`) — nho vay tieu de di theo dong dau trong luc go, thay vi
+ * chot o ky tu dau tien. Nguoi dung tu sua tieu de thi dung han.
  */
-export function deriveTitle(current: string, contentText: string): string {
-  if (!DEFAULT_NOTE_TITLES.includes(current.trim())) return '';
-  const first = contentText.trim().split('\n')[0]?.trim() ?? '';
+export function deriveTitle(current: string, contentText: string, lastAuto = ''): string {
+  const cur = current.trim();
+  if (!DEFAULT_NOTE_TITLES.includes(cur) && (!lastAuto || cur !== lastAuto)) return '';
+  const first = firstPlainLine(contentText);
   if (!first) return '';
   const derived = first.length > 80 ? `${first.slice(0, 80)}…` : first;
-  return derived === current.trim() ? '' : derived;
+  return derived === cur ? '' : derived;
 }

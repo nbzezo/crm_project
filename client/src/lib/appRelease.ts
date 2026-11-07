@@ -18,6 +18,20 @@ export const APP_UPDATED_AT = '2026-11-08';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.43.0',
+    date: '2026-11-08',
+    title: 'Sơ đồ tư duy và sơ đồ logic: xem gọn trong trang, vẽ toàn màn hình',
+    changes: [
+      'Sơ đồ trong Trang tài liệu nay chỉ hiện bản xem gọn: cuộn chuột trên sơ đồ vẫn cuộn trang, mở trang không còn tự lưu. Bấm "Chỉnh sửa" hoặc nhấp đúp để vẽ trong khung toàn màn hình, bấm "Xong" để lưu.',
+      'Sơ đồ tư duy: chọn bố cục toả hai bên, sang phải, sang trái hoặc cây xuống dưới; menu chuột phải bằng tiếng Việt; xuất PNG và SVG; nút "Tạo bằng AI" dựng sơ đồ từ nội dung trang hoặc từ mô tả bạn gõ. Màu sơ đồ nay theo đúng giao diện sáng/tối đang dùng.',
+      'Đổi qua lại dàn ý và sơ đồ tư duy: ở danh sách gạch đầu dòng, bấm ⋮⋮ → "Chuyển thành sơ đồ tư duy"; trên sơ đồ, bấm "Chuyển thành dàn ý".',
+      'Sơ đồ logic: có sẵn mẫu Quy trình duyệt, Chia làn theo bộ phận, Sơ đồ tổ chức. Trong menu công cụ của khung vẽ, "Text to diagram" nhờ AI vẽ từ mô tả, "Mermaid to Excalidraw" dựng sơ đồ từ mã Mermaid. Thanh công cụ của khung vẽ vẫn hiện bằng tiếng Anh vì thư viện vẽ chưa có đủ bản tiếng Việt.',
+      'Chữ trên sơ đồ tư duy và sơ đồ logic nay được đưa vào tìm kiếm và Tóm tắt bằng AI.',
+      'Người chỉ có quyền xem một trang tài liệu nay thấy nhãn "Chỉ xem" và không gõ được nữa, thay vì gõ xong mới gặp "Lưu thất bại".',
+      'Sửa lỗi trang trắng tự đặt tên theo ký tự đầu tiên gõ vào: tiêu đề nay đi theo dòng đầu trong lúc gõ (bỏ ký hiệu đề mục, gạch đầu dòng) cho tới khi bạn tự đổi tên.',
+    ],
+  },
+  {
     version: '1.42.1',
     date: '2026-11-08',
     title: 'Hướng dẫn trang Công việc đúng với giao diện hiện tại',

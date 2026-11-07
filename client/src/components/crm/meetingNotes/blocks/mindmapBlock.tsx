@@ -3,6 +3,21 @@ import { createReactBlockSpec, type DefaultReactSuggestionItem } from '@blocknot
 import { insertOrUpdateBlockForSlashMenu, type BlockNoteEditor } from '@blocknote/core';
 import { BrainCircuit } from 'lucide-react';
 import { Skeleton } from '../../../common/ui';
+import { mindmapOutline, parseMindmap, type TopicTree } from './diagramData';
+
+function OutlineList({ trees }: { trees: TopicTree[] }) {
+  return (
+    <ul>
+      {trees.map((tree, index) => (
+        <li key={index}>
+          {/* Chu phai nam trong <p>: chu tran trong <li> bi mat khi BlockNote doi sang Markdown. */}
+          <p>{tree.topic}</p>
+          {tree.children && tree.children.length > 0 && <OutlineList trees={tree.children} />}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
  * MindmapCanvas import truc tiep 'mind-elixir' o dinh module — tach rieng file de
@@ -32,6 +47,13 @@ export const mindmapBlockSpec = createReactBlockSpec(
         <MindmapCanvas block={props.block} editor={props.editor} />
       </Suspense>
     ),
+    /* Ban xuat HTML/Markdown (content_text): danh sach long nhau cac nhanh — de
+       tim kiem va Tom tat AI doc duoc chu tren so do. Thieu ham nay BlockNote
+       dung `render`, tuc Suspense o tren, va chi xuat ra khung trong. */
+    toExternalHTML: (props) => {
+      const doc = parseMindmap(props.block.props.data);
+      return doc ? <OutlineList trees={[mindmapOutline(doc)]} /> : <p />;
+    },
   }
 )(); // createReactBlockSpec tra ve ham khoi tao (de nhan options) — goi ngay vi khong can options.
 

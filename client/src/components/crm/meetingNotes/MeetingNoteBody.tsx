@@ -28,6 +28,8 @@ import { flowchartBlockSpec, flowchartSlashMenuItem } from './blocks/flowchartBl
 import { mentionInlineContentSpec, mentionMenuItems } from './blocks/mentionInline';
 import { taskRefInlineContentSpec } from './blocks/taskRefInline';
 import { taskSlashMenuItem } from './blocks/taskSlashMenuItem';
+import { DiagramNoteContext } from './blocks/DiagramFullscreen';
+import { NoteSideMenu } from './blocks/outlineToMindmap';
 
 /**
  * Schema o pham vi module — dinh nghia mot lan, dung chung cho moi ghi chu. Chi
@@ -75,6 +77,7 @@ function parseInitialContent(json: string): PartialBlock[] | undefined {
 export default function MeetingNoteBody({
   noteId,
   autoFocus = false,
+  editable = true,
   initialContentJson,
   customerId,
   dealId,
@@ -83,6 +86,8 @@ export default function MeetingNoteBody({
 }: {
   noteId: number;
   autoFocus?: boolean;
+  /** false = chi xem (nguoi khong co quyen sua trang): an cong cu soan, AI, ghi am. */
+  editable?: boolean;
   initialContentJson: string;
   customerId: number | null;
   dealId: number | null;
@@ -95,14 +100,14 @@ export default function MeetingNoteBody({
   /* Cung ly do voi QuickNoteBody: BlockNote mac dinh chay tieng Anh. */
   const editor = useCreateBlockNote({ schema, initialContent, dictionary: vi });
   useEffect(() => {
-    if (!autoFocus) return;
+    if (!autoFocus || !editable) return;
     const frame = requestAnimationFrame(() => {
       const firstParagraph = editor.document.find((block) => block.type === 'paragraph');
       if (firstParagraph) editor.setTextCursorPosition(firstParagraph, 'start');
       editor.focus();
     });
     return () => cancelAnimationFrame(frame);
-  }, [autoFocus, editor]);
+  }, [autoFocus, editable, editor]);
   const { data: contacts = [] } = useAssignees();
   const [hasSelection, setHasSelection] = useState(false);
   const [pending, setPending] = useState<Instruction | null>(null);
@@ -164,35 +169,39 @@ export default function MeetingNoteBody({
   };
 
   return (
-    <div>
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <Sparkles size={13} className="shrink-0 text-tr-primary" aria-hidden="true" />
-        {INSTRUCTIONS.map((item) => (
-          <Button
-            key={item.key}
-            size="sm"
-            disabled={pending !== null || (item.needsSelection && !hasSelection)}
-            onClick={() => runInline(item.key)}
-          >
-            {pending === item.key ? 'Đang xử lý…' : item.label}
-          </Button>
-        ))}
-        <span className="mx-1 h-4 w-px shrink-0 bg-tr-border" aria-hidden="true" />
-        <VoiceNoteRecorder
-          linkTarget={{ meeting_note_id: noteId }}
-          onInsertText={(text) => editor.insertInlineContent(text)}
-          onInsertAudio={({ url, name }) => {
-            const cursor = editor.getTextCursorPosition();
-            editor.insertBlocks([{ type: 'audio', props: { url, name } }], cursor.block, 'after');
-          }}
-        />
-      </div>
+    <DiagramNoteContext.Provider value={editable ? noteId : null}>
+      {editable && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <Sparkles size={13} className="shrink-0 text-tr-primary" aria-hidden="true" />
+          {INSTRUCTIONS.map((item) => (
+            <Button
+              key={item.key}
+              size="sm"
+              disabled={pending !== null || (item.needsSelection && !hasSelection)}
+              onClick={() => runInline(item.key)}
+            >
+              {pending === item.key ? 'Đang xử lý…' : item.label}
+            </Button>
+          ))}
+          <span className="mx-1 h-4 w-px shrink-0 bg-tr-border" aria-hidden="true" />
+          <VoiceNoteRecorder
+            linkTarget={{ meeting_note_id: noteId }}
+            onInsertText={(text) => editor.insertInlineContent(text)}
+            onInsertAudio={({ url, name }) => {
+              const cursor = editor.getTextCursorPosition();
+              editor.insertBlocks([{ type: 'audio', props: { url, name } }], cursor.block, 'after');
+            }}
+          />
+        </div>
+      )}
       {aiError && <p className="mb-2 text-xs text-tr-danger">{aiError}</p>}
       <div className="meeting-note-canvas document-editor-canvas rounded-panel border border-tr-border bg-tr-list">
         <BlockNoteView
           editor={editor}
+          editable={editable}
           theme={isDark ? 'dark' : 'light'}
           slashMenu={false}
+          sideMenu={false}
           onChange={() =>
             onChange({
               contentJson: JSON.stringify(editor.document),
@@ -209,11 +218,14 @@ export default function MeetingNoteBody({
               khoi, chen lien ket... ma khong phai tu viet lai. Can giua (thay vi
               sat le trai) de thang hang voi cot noi dung da gioi han be rong o
               tren (xem .meeting-note-canvas trong index.css). */}
-          <div className="document-editor-toolbar flex justify-center border-b border-tr-border px-1 py-1">
-            <FormattingToolbar />
-          </div>
+          {editable && (
+            <div className="document-editor-toolbar flex justify-center border-b border-tr-border px-1 py-1">
+              <FormattingToolbar />
+            </div>
+          )}
+          <NoteSideMenu />
         </BlockNoteView>
       </div>
-    </div>
+    </DiagramNoteContext.Provider>
   );
 }
