@@ -698,7 +698,7 @@ test('giao viec cho nguoi cua to chuc khac roi loc theo nguoi phu trach', async 
   expect(nudge.ok()).toBeTruthy();
 
   await page.reload();
-  await expect(page.getByText(/đã nhắc 1/).first()).toBeVisible();
+  await expect(page.getByText(/đã đôn đốc 1/).first()).toBeVisible();
 });
 
 test('du an gom bang va cong viec, suc khoe hien tren danh sach', async ({
