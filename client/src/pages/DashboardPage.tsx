@@ -306,7 +306,14 @@ function OverviewDashboard({ tabs }: { tabs: ReactNode }) {
       <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-5">
         <DashboardHeader refreshing={isFetching} onRefresh={() => void refetch()} />
         {tabs}
-        <ErrorState onRetry={() => void refetch()} />
+        {/* Bang cua tab phai co mat ca luc loi/dang tai — tab tro aria-controls toi no. */}
+        <section
+          id="dashboard-panel-overview"
+          role="tabpanel"
+          aria-labelledby="dashboard-tab-overview"
+        >
+          <ErrorState onRetry={() => void refetch()} />
+        </section>
       </div>
     );
 
@@ -319,20 +326,27 @@ function OverviewDashboard({ tabs }: { tabs: ReactNode }) {
       >
         <DashboardHeader refreshing onRefresh={() => void refetch()} />
         {tabs}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-12">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton
-              key={index}
-              className={`rounded-panel ${index === 0 ? 'col-span-2 h-40 md:col-span-8 md:row-span-2' : 'h-[76px] md:col-span-4'}`}
-            />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-          <Skeleton className="h-72 rounded-panel lg:col-span-7" />
-          <Skeleton className="h-72 rounded-panel lg:col-span-5" />
-          <Skeleton className="h-56 rounded-panel lg:col-span-7" />
-          <Skeleton className="h-56 rounded-panel lg:col-span-5" />
-        </div>
+        <section
+          id="dashboard-panel-overview"
+          role="tabpanel"
+          aria-labelledby="dashboard-tab-overview"
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-12">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton
+                key={index}
+                className={`rounded-panel ${index === 0 ? 'col-span-2 h-40 md:col-span-8 md:row-span-2' : 'h-[76px] md:col-span-4'}`}
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+            <Skeleton className="h-72 rounded-panel lg:col-span-7" />
+            <Skeleton className="h-72 rounded-panel lg:col-span-5" />
+            <Skeleton className="h-56 rounded-panel lg:col-span-7" />
+            <Skeleton className="h-56 rounded-panel lg:col-span-5" />
+          </div>
+        </section>
       </div>
     );
 

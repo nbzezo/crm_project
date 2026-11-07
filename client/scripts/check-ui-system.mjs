@@ -25,6 +25,10 @@ const HEX_ALLOWED_FILES = new Set(
     ['components', 'layout', 'ThemeToggle.tsx'],
     ['components', 'calendar', 'calendarModel.ts'],
     ['components', 'crm', 'meetingNotes', 'blocks', 'MindmapCanvas.tsx'],
+    // Mau nam trong du lieu ban ve Excalidraw (nen xuat anh, nen lan cua mau) —
+    // Excalidraw tu dao mau o che do toi, khong phai mau giao dien.
+    ['components', 'crm', 'meetingNotes', 'blocks', 'FlowchartCanvas.tsx'],
+    ['components', 'crm', 'meetingNotes', 'blocks', 'flowchartTemplates.ts'],
     ['i18n', 'vi.ts'],
     ['i18n', 'scoring.ts'],
     ['lib', 'backgrounds.ts'],

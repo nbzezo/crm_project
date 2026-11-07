@@ -1145,8 +1145,16 @@ test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
      duoc menu slash. Tach ra cung dung y do cua test hon — can biet TUNG canvas
      tu render duoc, khong phai ca hai phai cung ton tai mot luc. */
   const blocks = [
-    { title: 'Sơ đồ tư duy', canvas: 'me-root' },
-    { title: 'Sơ đồ logic', canvas: '.excalidraw' },
+    {
+      title: 'Sơ đồ tư duy',
+      canvas: 'me-root',
+      preview: () => page.locator('.bn-editor me-root'),
+    },
+    {
+      title: 'Sơ đồ logic',
+      canvas: '.excalidraw',
+      preview: () => page.getByRole('button', { name: 'Sơ đồ trống — bấm để vẽ' }),
+    },
   ];
 
   for (const block of blocks) {
@@ -1172,7 +1180,13 @@ test('ghi chu hop: chen khoi So do tu duy va So do logic', async ({ page }) => {
        phan tu do THU VIEN dung len (`me-root` cua mind-elixir, `.excalidraw`),
        khong phai div boc ngoai cua block — div boc van co mat ke ca khi canvas
        ben trong chet, nen no khong chung minh duoc dieu gi. */
-    await expect(page.locator(block.canvas)).toBeVisible({ timeout: 20_000 });
+    /* Khoi moi chen (chua co du lieu) tu mo khung sua toan man hinh (1.43.0); bam
+       Xong thi trong trang con ban xem. */
+    const fullscreen = page.getByRole('dialog', { name: block.title });
+    await expect(fullscreen.locator(block.canvas)).toBeVisible({ timeout: 20_000 });
+    await fullscreen.getByRole('button', { name: 'Xong' }).click();
+    await expect(fullscreen).toHaveCount(0);
+    await expect(block.preview()).toBeVisible({ timeout: 20_000 });
 
     await expect(page.getByText('Trang này gặp lỗi')).toHaveCount(0);
   }

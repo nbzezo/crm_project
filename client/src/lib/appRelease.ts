@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-11-08';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.43.1',
+    date: '2026-11-08',
+    title: 'Tab Tổng quan đọc đúng bằng trình đọc màn hình khi đang tải',
+    changes: [
+      'Khi Tổng quan đang tải hoặc tải lỗi, tab "Tổng quan" nay trỏ đúng tới vùng nội dung của nó, trình đọc màn hình không còn báo liên kết hỏng. Giao diện không đổi.',
+      'Bản này đưa lên máy chủ toàn bộ thay đổi sơ đồ của 1.43.0 (lần trước bị bước kiểm tra tự động chặn trước khi deploy).',
+    ],
+  },
+  {
     version: '1.43.0',
     date: '2026-11-08',
     title: 'Sơ đồ tư duy và sơ đồ logic: xem gọn trong trang, vẽ toàn màn hình',
