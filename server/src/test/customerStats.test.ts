@@ -211,3 +211,68 @@ test('customer stats khop oracle, trigger SQL va rebuild', async () => {
   assert.equal(newRow?.open_deal_count, 0);
   assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM stats_dirty`).get() as { n: number }).n, 0);
 });
+
+test('ba số sống của danh sách (GROUP BY) khớp truy vấn con, cả hai nhánh lọc id và quét bảng', async () => {
+  const board = Number(
+    db.prepare(`INSERT INTO boards (name) VALUES ('Song')`).run().lastInsertRowid
+  );
+  const list = Number(
+    db.prepare(`INSERT INTO lists (board_id, name, position) VALUES (?, 'L', 1)`).run(board)
+      .lastInsertRowid
+  );
+  const live = customer('Khach so song');
+  const card = db.prepare(
+    `INSERT INTO cards (list_id, customer_id, title, position, is_done, is_archived, due_date)
+     VALUES (?, ?, 'v', 1, ?, ?, ?)`
+  );
+  card.run(list, live, 0, 0, '2000-01-01');
+  card.run(list, live, 0, 0, '2000-01-02');
+  card.run(list, live, 1, 0, '2000-01-01');
+  card.run(list, live, 0, 1, '2000-01-01');
+  card.run(list, live, 0, 0, '2999-01-01');
+  db.prepare(
+    `INSERT INTO deals (customer_id, title, stage, value_vnd, next_action, next_action_date) VALUES (?, 'Tre', 'negotiating', 1, 'x', '2000-01-01')`
+  ).run(live);
+  db.prepare(
+    `INSERT INTO interactions (customer_id, type, occurred_at, summary) VALUES (?, 'call', '2026-03-04 10:00', 'a'), (?, 'call', '2026-01-01', 'b')`
+  ).run(live, live);
+  db.prepare(`UPDATE customers SET search_text = 'khach so song' WHERE id = ?`).run(live);
+  for (let i = 0; i < 520; i += 1) customer(`Khach dem ${i}`);
+
+  type Row = {
+    id: number;
+    overdue_task_count: number;
+    last_contact_at: string | null;
+    overdue_next_action_count: number;
+  };
+  const expected = (id: number) =>
+    db
+      .prepare(
+        `SELECT c.id,
+           (SELECT COUNT(*) FROM cards k WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
+              AND k.due_date IS NOT NULL AND k.due_date < date('now','localtime')) AS overdue_task_count,
+           (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_contact_at,
+           (SELECT COUNT(*) FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'open'
+              AND d.next_action_date IS NOT NULL AND d.next_action_date < date('now','localtime')) AS overdue_next_action_count
+         FROM customers c WHERE c.id = ?`
+      )
+      .get(id) as Row;
+
+  const pick = (row: Row) => ({
+    id: row.id,
+    overdue_task_count: row.overdue_task_count,
+    last_contact_at: row.last_contact_at,
+    overdue_next_action_count: row.overdue_next_action_count,
+  });
+  const all = (await call('GET', '/api/customers')).data as Row[];
+  assert.ok(all.length > 500);
+  for (const row of all) assert.deepEqual(pick(row), expected(row.id));
+  const mine = all.find((row) => row.id === live)!;
+  assert.equal(mine.overdue_task_count, 2);
+  assert.equal(mine.last_contact_at, '2026-03-04 10:00');
+  assert.equal(mine.overdue_next_action_count, 1);
+
+  const searched = (await call('GET', `/api/customers?q=${encodeURIComponent('so song')}`))
+    .data as Row[];
+  assert.deepEqual(searched.map(pick), [expected(live)]);
+});

@@ -625,6 +625,8 @@ export interface RevenueComparisonResponse {
 export interface RevenueLinesResponse {
   year: number;
   lines: RevenueLine[];
+  /** Chi co khi bang dang tai noi khuc (1.41.0); tong chan bang chua du. */
+  progress?: { loaded: number; total: number };
 }
 
 export interface RevenueSummary {

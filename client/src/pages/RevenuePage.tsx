@@ -29,6 +29,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { api, qs } from '../api/client';
+import { loadRevenueLinesInChunks, type RevenueLineChunk } from '../lib/revenueChunks';
 import { ChartDataTable } from '../components/common/ChartDataTable';
 import { RevenueCustomerFilter } from '../components/crm/RevenueCustomerFilter';
 import { RevenueLineActions } from '../components/crm/RevenueLineActions';
@@ -304,8 +305,22 @@ export default function RevenuePage() {
   const { data, isLoading } = useQuery({
     queryKey: listKey,
     enabled: view !== 'kpi',
-    queryFn: () => api.get<RevenueLinesResponse>(`/api/revenues/lines${qs({ year, ...filters })}`),
+    /* Tai theo khuc (1.41.0): 10.000 dong cua ca cong ty la 21 MB trong mot request. Khuc
+       dau hien ngay, cac khuc sau noi vao; luc chua du thi `progress` bao cho bang biet. */
+    queryFn: ({ signal }) =>
+      loadRevenueLinesInChunks(
+        (limit, offset) =>
+          api.get<RevenueLineChunk>(
+            `/api/revenues/lines${qs({ year, ...filters, limit, offset })}`,
+            { signal }
+          ),
+        (partial) => {
+          if (!signal.aborted) queryClient.setQueryData<RevenueLinesResponse>(listKey, partial);
+        },
+        signal
+      ),
   });
+  const loadingMore = data?.progress;
   const lines = useMemo(() => sortByTotal(data?.lines ?? [], totalSort), [data, totalSort]);
   const customerGroups = useMemo(() => {
     const groups = groupLinesByCustomer(lines);
@@ -412,6 +427,12 @@ export default function RevenuePage() {
         { period: input.period, amount_vnd: input.amount_vnd, stage: input.stage }
       ),
     onSuccess: (cell) => {
+      /* Bang con dang noi khuc: va vao ban tam se bi khuc cuoi ghi de — tai lai cho chac. */
+      if (queryClient.getQueryData<RevenueLinesResponse>(listKey)?.progress) {
+        queryClient.invalidateQueries({ queryKey: listKey });
+        refreshTotals();
+        return;
+      }
       queryClient.setQueryData<RevenueLinesResponse>(listKey, (old) =>
         old
           ? {
@@ -982,6 +1003,13 @@ export default function RevenuePage() {
           </Panel>
 
           {/* Bảng nhập doanh thu 12 tháng */}
+          {loadingMore && (
+            <p role="status" className="text-xs text-tr-muted">
+              Đang tải {loadingMore.loaded.toLocaleString('vi-VN')} /{' '}
+              {loadingMore.total.toLocaleString('vi-VN')} dòng doanh thu — tổng chân bảng sẽ đủ khi
+              tải xong.
+            </p>
+          )}
           {isLoading ? (
             <div className="rounded-panel border border-tr-border bg-tr-panel">
               <SkeletonRows rows={6} cols={6} />
@@ -1261,26 +1289,29 @@ export default function RevenuePage() {
         ) : (
           <>
             <p className="mb-2 text-xs text-tr-muted">
-              Áp dụng cho {lines.length} dòng đang hiển thị, chỉ với tháng đã có số liệu.
+              {loadingMore
+                ? 'Bảng đang tải dở, đợi tải xong rồi mới chuyển trạng thái hàng loạt.'
+                : `Áp dụng cho ${lines.length} dòng đang hiển thị, chỉ với tháng đã có số liệu.`}
             </p>
-            {REVENUE_STAGE_ORDER.map((stage) => (
-              <PopoverItem
-                key={stage}
-                icon={
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
-                  />
-                }
-                onClick={() => {
-                  bulkStage.mutate({ period: periodOf(year, bulkMonth), stage });
-                  bulkPopover.close();
-                  setBulkMonth(null);
-                }}
-              >
-                {t.revenueStage[stage]}
-              </PopoverItem>
-            ))}
+            {!loadingMore &&
+              REVENUE_STAGE_ORDER.map((stage) => (
+                <PopoverItem
+                  key={stage}
+                  icon={
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: REVENUE_STAGE_COLORS[stage] }}
+                    />
+                  }
+                  onClick={() => {
+                    bulkStage.mutate({ period: periodOf(year, bulkMonth), stage });
+                    bulkPopover.close();
+                    setBulkMonth(null);
+                  }}
+                >
+                  {t.revenueStage[stage]}
+                </PopoverItem>
+              ))}
           </>
         )}
       </Popover>

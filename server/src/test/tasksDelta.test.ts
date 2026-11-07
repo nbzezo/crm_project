@@ -124,7 +124,58 @@ test('fields=list giữ cột chính và làm rỗng dữ liệu dài', async ()
 
 test('validate since và limit; mặc định vẫn trả mảng', async () => {
   assert.equal((await request('/api/views/tasks?delta=1&since=abc')).status, 400);
-  assert.equal((await request('/api/views/tasks?delta=1&limit=5')).status, 400);
+  assert.equal(
+    (await request('/api/views/tasks?delta=1&limit=5&since=2001-01-01%2000:00:00')).status,
+    400
+  );
+  assert.equal((await request('/api/views/tasks?delta=1&limit=0')).status, 400);
+  assert.equal((await request('/api/views/tasks?delta=1&limit=5001')).status, 400);
+  assert.equal((await request('/api/views/tasks?delta=1&limit=5&before_id=abc')).status, 400);
   const normal = await request<unknown>('/api/views/tasks');
   assert.ok(Array.isArray(normal.data));
+});
+
+test('tải theo khúc: đủ mọi việc, không trùng, có tổng và server_time ở khúc đầu', async () => {
+  const extra = Array.from({ length: 5 }, (_, i) => card(`Viec khuc ${i}`));
+  const all = await request<{ ids: number[] }>('/api/views/tasks?done=0&delta=1');
+  type Chunk = {
+    items: { id: number; title: string; label_ids: unknown }[];
+    next_before_id: number | null;
+    total: number | null;
+    server_time: string;
+  };
+  const first = await request<Chunk>('/api/views/tasks?done=0&delta=1&fields=list&limit=2');
+  assert.equal(first.status, 200);
+  assert.equal(first.data.total, all.data.ids.length);
+  assert.match(first.data.server_time, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  assert.equal(first.data.items.length, 2);
+  assert.ok(Array.isArray(first.data.items[0].label_ids));
+  const seen = first.data.items.map((row) => row.id);
+  let next = first.data.next_before_id;
+  let rounds = 0;
+  while (next !== null) {
+    const page = await request<Chunk>(
+      `/api/views/tasks?done=0&delta=1&fields=list&limit=2&before_id=${next}`
+    );
+    assert.equal(page.data.total, null);
+    assert.ok(page.data.items.every((row) => row.id < next!));
+    seen.push(...page.data.items.map((row) => row.id));
+    next = page.data.next_before_id;
+    rounds += 1;
+    assert.ok(rounds < 20);
+  }
+  assert.equal(new Set(seen).size, seen.length);
+  assert.deepEqual(
+    [...seen].sort((a, b) => a - b),
+    all.data.ids
+  );
+  for (const id of extra) assert.ok(seen.includes(id));
+});
+
+test('tải theo khúc giữ bộ lọc', async () => {
+  const chunk = await request<{ items: { id: number }[]; total: number }>(
+    `/api/views/tasks?done=0&delta=1&limit=100&q=${encodeURIComponent('khuc 3')}`
+  );
+  assert.equal(chunk.data.total, 1);
+  assert.equal(chunk.data.items.length, 1);
 });

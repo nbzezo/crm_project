@@ -28,7 +28,7 @@ import { vi } from 'date-fns/locale';
 import { api, qs } from '../../api/client';
 import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { useTaskStatuses } from '../../lib/taskStatuses';
-import { mergeTaskDelta } from '../../lib/taskDelta';
+import { loadTasksInChunks, mergeTaskDelta, type TaskChunk } from '../../lib/taskDelta';
 import { useAuthStore } from '../../stores/authStore';
 import {
   countActiveTaskFilters,
@@ -138,6 +138,8 @@ interface WorkspaceTaskData {
   rows: TaskRow[];
   serverTime: string;
   fullAt: number;
+  /** Chi co khi lan tai day du con dang noi khuc. */
+  progress?: { loaded: number; total: number };
 }
 
 function useWorkspaceTasks(scope: TaskScope) {
@@ -150,7 +152,7 @@ function useWorkspaceTasks(scope: TaskScope) {
   const queryKey = ['tasks', 'workspace', scope, params] as const;
   const recent = useQuery<WorkspaceTaskData>({
     queryKey,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const previous = queryClient.getQueryData<WorkspaceTaskData | TaskRow[]>(queryKey);
       const canDelta =
         previous != null &&
@@ -158,6 +160,7 @@ function useWorkspaceTasks(scope: TaskScope) {
         Array.isArray(previous.rows) &&
         typeof previous.serverTime === 'string' &&
         typeof previous.fullAt === 'number' &&
+        previous.progress === undefined &&
         Date.now() - previous.fullAt < 30 * 60 * 1000;
       if (canDelta) {
         const delta = await api.get<{
@@ -173,10 +176,26 @@ function useWorkspaceTasks(scope: TaskScope) {
           fullAt: previous.fullAt,
         };
       }
-      const full = await api.get<{ items: TaskRow[]; server_time: string }>(
-        `/api/views/tasks${qs({ ...params, recent_days: RECENT_DAYS, fields: 'list', delta: 1 })}`
+      /* Tai day du theo khuc (1.41.0): khuc dau hien ngay, cac khuc sau noi vao va bao
+         tien do. `fullAt: 0` o ban tam de lan hoi ke khong lay ban do lam goc cho delta. */
+      const full = await loadTasksInChunks(
+        (limit, beforeId) =>
+          api.get<TaskChunk>(
+            `/api/views/tasks${qs({ ...params, recent_days: RECENT_DAYS, fields: 'list', delta: 1, limit, before_id: beforeId ?? undefined })}`,
+            { signal }
+          ),
+        (rows, total) => {
+          if (signal.aborted) return;
+          queryClient.setQueryData<WorkspaceTaskData>(queryKey, {
+            rows,
+            serverTime: '',
+            fullAt: 0,
+            progress: { loaded: rows.length, total },
+          });
+        },
+        signal
       );
-      return { rows: full.items, serverTime: full.server_time, fullAt: Date.now() };
+      return { rows: full.rows, serverTime: full.serverTime, fullAt: Date.now() };
     },
     enabled: scope !== 'activity',
   });
@@ -222,6 +241,7 @@ function useWorkspaceTasks(scope: TaskScope) {
   return {
     data: rows,
     isLoading: recent.isLoading,
+    progress: recent.data?.progress,
     error: recent.error,
     refetch: () => {
       queryClient.setQueryData<WorkspaceTaskData>(queryKey, (current) =>
@@ -604,7 +624,7 @@ export function TasksWorkspace() {
   const resetFilters = useUiStore((state) => state.resetTaskFilters);
   const filterPopover = usePopover();
   const columnPopover = usePopover();
-  const { data: tasks, isLoading, error, refetch, older } = useWorkspaceTasks(scope);
+  const { data: tasks, isLoading, error, refetch, older, progress } = useWorkspaceTasks(scope);
   /* Moc tai viec da xong cu hon 30 ngay. O che do Danh sach, no chi hien khi danh
      sach da ve het cac dong dang co (TaskWorkspaceList ve dan tung dot). */
   const olderSentinel = older.enabled ? (
@@ -759,7 +779,9 @@ export function TasksWorkspace() {
                   <p className="text-xs text-tr-muted">
                     {scope === 'activity'
                       ? 'Dòng thời gian thay đổi trên các công việc bạn có quyền xem'
-                      : `${isLoading ? 'Đang tải' : tasks.length} công việc`}
+                      : progress
+                        ? `Đang tải ${progress.loaded.toLocaleString('vi-VN')} / ${progress.total.toLocaleString('vi-VN')} công việc`
+                        : `${isLoading ? 'Đang tải' : tasks.length} công việc`}
                   </p>
                 </div>
               </div>

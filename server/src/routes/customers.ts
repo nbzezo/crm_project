@@ -93,27 +93,21 @@ function orgKindFilter(raw: unknown, alias = 'c'): { sql: string; params: unknow
   return { sql: `${alias}.org_kind = 'customer'`, params: [] };
 }
 
-const LIST_SQL = `
+const LIST_SQL_TEMPLATE = `
   SELECT c.id, c.name, c.short_name, c.tax_code, c.industry, c.address, c.website, c.phone,
          c.email, c.size, c.source, c.status, c.notes, c.created_at, c.updated_at,
          c.org_kind, c.owner_contact_id, c.care_tier, c.care_cadence_days,
          COALESCE(s.open_deal_count, 0) AS open_deal_count,
          COALESCE(s.deal_count, 0) AS deal_count,
          COALESCE(s.open_task_count, 0) AS open_task_count,
-         (SELECT COUNT(*) FROM cards k
-           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
-             AND k.due_date IS NOT NULL
-             AND k.due_date < date('now','localtime')) AS overdue_task_count,
+         {{overdue_task_count}},
          COALESCE(s.total_won_vnd, 0) AS total_won_vnd,
          COALESCE(s.open_pipeline_vnd, 0) AS open_pipeline_vnd,
          COALESCE(s.active_contract_count, 0) AS active_contract_count,
          s.last_activity_at AS last_activity_at,
-         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_contact_at,
+         {{last_contact_at}},
          COALESCE(s.deals_without_next_action_count, 0) AS deals_without_next_action_count,
-         (SELECT COUNT(*) FROM deals d
-           WHERE d.customer_id = c.id AND d.stage_category = 'open'
-             AND d.next_action_date IS NOT NULL
-             AND d.next_action_date < date('now','localtime')) AS overdue_next_action_count,
+         {{overdue_next_action_count}},
          s.next_deal_action AS next_deal_action,
          s.next_deal_action_date AS next_deal_action_date,
          s.next_task_title AS next_task_title,
@@ -122,6 +116,73 @@ const LIST_SQL = `
          s.next_reminder_due_at AS next_reminder_due_at
     FROM customers c
     LEFT JOIN customer_stats s ON s.customer_id = c.id`;
+
+/* Ba so "song" phu thuoc hom nay (hoac doc thang tu bang lon) nen khong nam trong
+   customer_stats. Ban mot khach hang dung truy van con; danh sach (1.41.0) dat cho trong
+   rong roi dien bang ba cau GROUP BY — truy van con theo tung khach chay 5.000 lan x 3. */
+const LIVE_SUBQUERIES = {
+  overdue_task_count: `(SELECT COUNT(*) FROM cards k
+           WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
+             AND k.due_date IS NOT NULL
+             AND k.due_date < date('now','localtime')) AS overdue_task_count`,
+  last_contact_at: `(SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_contact_at`,
+  overdue_next_action_count: `(SELECT COUNT(*) FROM deals d
+           WHERE d.customer_id = c.id AND d.stage_category = 'open'
+             AND d.next_action_date IS NOT NULL
+             AND d.next_action_date < date('now','localtime')) AS overdue_next_action_count`,
+};
+const LIVE_PLACEHOLDERS = {
+  overdue_task_count: '0 AS overdue_task_count',
+  last_contact_at: 'NULL AS last_contact_at',
+  overdue_next_action_count: '0 AS overdue_next_action_count',
+};
+function listSql(columns: Record<keyof typeof LIVE_SUBQUERIES, string>): string {
+  return LIST_SQL_TEMPLATE.replace(
+    /\{\{(\w+)\}\}/g,
+    (_, key: keyof typeof LIVE_SUBQUERIES) => columns[key]
+  );
+}
+const LIST_SQL = listSql(LIVE_SUBQUERIES);
+const LIST_ROWS_SQL = listSql(LIVE_PLACEHOLDERS);
+
+/** Danh sach ngan (tim kiem, pham vi hep) loc theo id; danh sach dai quet ca bang mot lan. */
+const LIVE_BY_ID_MAX = 500;
+
+function attachLiveCounts(rows: Record<string, unknown>[]): void {
+  if (rows.length === 0) return;
+  const ids = rows.map((row) => Number(row.id));
+  const byId = rows.length <= LIVE_BY_ID_MAX;
+  const filter = (column: string) =>
+    byId ? ` AND ${column} IN (${ids.map(() => '?').join(',')})` : '';
+  const args = byId ? ids : [];
+  const counts = (sql: string) =>
+    new Map(
+      (db.prepare(sql).all(...args) as { id: number; v: number | string }[]).map((r) => [r.id, r.v])
+    );
+  const overdueTasks = counts(
+    `SELECT customer_id AS id, COUNT(*) AS v FROM cards
+      WHERE is_done = 0 AND is_archived = 0 AND due_date IS NOT NULL
+        AND due_date < date('now','localtime') AND customer_id IS NOT NULL${filter('customer_id')}
+      GROUP BY customer_id`
+  );
+  const lastContact = counts(
+    `SELECT customer_id AS id, MAX(occurred_at) AS v FROM interactions
+      WHERE customer_id IS NOT NULL${filter('customer_id')}
+      GROUP BY customer_id`
+  );
+  const overdueActions = counts(
+    `SELECT customer_id AS id, COUNT(*) AS v FROM deals
+      WHERE stage_category = 'open' AND next_action_date IS NOT NULL
+        AND next_action_date < date('now','localtime')${filter('customer_id')}
+      GROUP BY customer_id`
+  );
+  for (const row of rows) {
+    const id = Number(row.id);
+    row.overdue_task_count = overdueTasks.get(id) ?? 0;
+    row.last_contact_at = lastContact.get(id) ?? null;
+    row.overdue_next_action_count = overdueActions.get(id) ?? 0;
+  }
+}
 
 type CustomerListRow = CustomerHealthInput & Record<string, unknown>;
 
@@ -177,13 +238,17 @@ router.get('/', (req, res) => {
   /* `fields=basic`: chi cot goc, bo 16 truy van con dem co hoi / viec / hop dong. Dung
      cho o chon khach hang (mo the viec, tao viec, loc bang...) — chi can ten. Ban day
      du ton hang giay khi co vai nghin khach, va may chu mot luong bat moi nguoi cho. */
-  const select = req.query.fields === 'basic' ? 'SELECT c.* FROM customers c' : LIST_SQL;
-  if (select === LIST_SQL) flushCustomerStats(db);
+  const select = req.query.fields === 'basic' ? 'SELECT c.* FROM customers c' : LIST_ROWS_SQL;
+  if (select === LIST_ROWS_SQL) flushCustomerStats(db);
   const sql = `${select} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY c.name COLLATE NOCASE`;
-  const rows = db.prepare(sql).all(...params);
-  if (select !== LIST_SQL) return void res.json(rows);
+  const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];
+  if (select !== LIST_ROWS_SQL) return void res.json(rows);
+  attachLiveCounts(rows);
   const today = todayOf(db);
-  res.json((rows as CustomerListRow[]).map((row) => withHealth(row, today)));
+  /* Gan thang vao dong vua doc thay vi `{ ...row, health }`: sao 37 cot x 5.000 khach la
+     mot ban sao thu hai cua ca danh sach, chiem phan lon thoi gian cua route nay. */
+  for (const row of rows as CustomerListRow[]) row.health = customerHealthOf(db, row, today);
+  res.json(rows);
 });
 
 /**

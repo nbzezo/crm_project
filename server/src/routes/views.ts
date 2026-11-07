@@ -446,12 +446,12 @@ router.get('/tasks', (req, res) => {
   }
 
   const delta = req.query.delta === '1';
-  if (delta && req.query.limit !== undefined) {
-    throw new HttpError(400, 'Không dùng limit cùng delta');
-  }
   const since = req.query.since;
   if (since !== undefined && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(String(since))) {
     throw new HttpError(400, 'Mốc thời gian không hợp lệ');
+  }
+  if (delta && req.query.limit !== undefined && since !== undefined) {
+    throw new HttpError(400, 'Không dùng limit cùng delta');
   }
 
   if (delta) {
@@ -460,6 +460,15 @@ router.get('/tasks', (req, res) => {
         server_time: string;
       }
     ).server_time;
+    /* Lan tai DAY DU theo tung khuc (1.41.0). Giam doc toan cong ty co ~48.000 viec mo
+       o quy mo 1x: mot request 56 MB giu luong chinh hon 1 giay — moi nguoi khac phai
+       cho. Chia theo id giam dan (`before_id`) thi moi khuc chi vai chuc ms, request
+       cua nguoi khac chen vao giua duoc, va man hinh ve ngay khuc dau. Khach giu
+       `server_time` cua KHUC DAU lam moc `since` cho lan hoi phan thay doi sau do. */
+    if (req.query.limit !== undefined) {
+      res.json(taskChunk(req, where, params, serverTime));
+      return;
+    }
     const itemWhere = [...where];
     const itemParams = [...params];
     if (since !== undefined) {
@@ -503,6 +512,73 @@ router.get('/tasks', (req, res) => {
 
   res.json(attachPersonalTaskState(attachLabels(rows), actorContactId(req)));
 });
+
+/** Khuc lon nhat cua lan tai day du theo khuc — 4.000 dong ~ 4,7 MB JSON, ~60 ms. */
+const TASK_CHUNK_MAX = 5000;
+
+function taskChunk(req: Request, baseWhere: string[], baseParams: unknown[], serverTime: string) {
+  const limit = Number(req.query.limit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > TASK_CHUNK_MAX) {
+    throw new HttpError(400, `Số dòng mỗi lần tải phải từ 1 đến ${TASK_CHUNK_MAX}`);
+  }
+  const beforeRaw = req.query.before_id;
+  const beforeId = beforeRaw === undefined || beforeRaw === '' ? null : Number(beforeRaw);
+  if (beforeId !== null && (!Number.isInteger(beforeId) || beforeId < 1)) {
+    throw new HttpError(400, 'Mốc tải tiếp không hợp lệ');
+  }
+  const where = [...baseWhere];
+  const params = [...baseParams];
+  /* Tong so chi tinh o khuc dau — de man hinh ghi "Đang tải 4.000 / 48.000 việc". */
+  const total =
+    beforeId === null
+      ? (
+          db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM cards k
+                 JOIN lists l ON l.id = k.list_id
+                 JOIN boards b ON b.id = l.board_id
+                WHERE ${where.join(' AND ')}`
+            )
+            .get(...params) as { n: number }
+        ).n
+      : null;
+  if (beforeId !== null) {
+    where.push(`k.id < ?`);
+    params.push(beforeId);
+  }
+  /* Hai buoc nhu /tasks/older: chon id bang truy van gon roi moi lay du cot, de 8 truy
+     van con chi chay cho dong cua khuc nay. */
+  const ids = (
+    db
+      .prepare(
+        `SELECT k.id FROM cards k
+           JOIN lists l ON l.id = k.list_id
+           JOIN boards b ON b.id = l.board_id
+          WHERE ${where.join(' AND ')}
+          ORDER BY k.id DESC
+          LIMIT ?`
+      )
+      .all(...params, limit + 1) as { id: number }[]
+  ).map((row) => row.id);
+  const more = ids.length > limit;
+  const pageIds = more ? ids.slice(0, limit) : ids;
+  const rows =
+    pageIds.length === 0
+      ? []
+      : (db
+          .prepare(
+            `${req.query.fields === 'list' ? TASK_SELECT_LIST : TASK_SELECT}
+              WHERE k.id IN (${pageIds.map(() => '?').join(',')})
+              ORDER BY k.is_done, k.due_date IS NULL, k.due_date, k.id DESC`
+          )
+          .all(...pageIds) as Record<string, unknown>[]);
+  return {
+    items: attachPersonalTaskState(attachLabels(rows), actorContactId(req)),
+    next_before_id: more ? pageIds[pageIds.length - 1] : null,
+    total,
+    server_time: serverTime,
+  };
+}
 
 /**
  * Viec da xong CU HON `days` ngay, tung trang, moi nhat truoc — phan "tai dan khi

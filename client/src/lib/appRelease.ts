@@ -14,9 +14,20 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-10-19';
+export const APP_UPDATED_AT = '2026-11-07';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.41.0',
+    date: '2026-11-07',
+    title: 'Công việc, Doanh thu, Khách hàng mở nhanh hơn khi dữ liệu lớn',
+    changes: [
+      'Màn Công việc hiện ngay vài trăm việc đầu tiên rồi tải tiếp phần còn lại, dòng tiêu đề ghi "Đang tải 4.000 / 48.000 công việc" cho tới khi đủ. Trước đây người xem toàn công ty phải chờ cả danh sách (hàng chục MB) mới thấy dòng đầu tiên.',
+      'Bảng Doanh thu cũng tải dần như vậy và báo đang tải bao nhiêu dòng. Trong lúc tải dở, dòng tổng chân bảng chưa đủ và nút chuyển trạng thái hàng loạt theo tháng tạm khoá, tải xong mới dùng được.',
+      'Khi nhiều người cùng mở Công việc hoặc Doanh thu, người khác không còn bị khựng hơn một giây mỗi lần, vì máy chủ trả từng phần nhỏ thay vì một khối lớn.',
+      'Danh sách Khách hàng mở nhanh hơn khoảng một phần ba ở dữ liệu lớn; số việc quá hạn, việc tiếp theo quá hạn và lần liên hệ gần nhất vẫn như cũ.',
+    ],
+  },
   {
     version: '1.40.1',
     date: '2026-10-19',

@@ -274,3 +274,32 @@ test('loc nhieu khach hang o cot Khach hang', async () => {
   const junk = await call('GET', '/api/revenues/lines?year=2026&customer_ids=abc,,');
   assert.equal(junk.status, 200);
 });
+
+test('bảng dòng tải theo khúc: cùng thứ tự và cùng số liệu với tải một lần', async () => {
+  const full = await call('GET', '/api/revenues/lines?year=2026');
+  const ids: number[] = [];
+  const first = await call('GET', '/api/revenues/lines?year=2026&limit=1');
+  assert.equal(first.status, 200);
+  assert.equal(first.data.total, full.data.lines.length);
+  ids.push(...first.data.lines.map((l: { id: number }) => l.id));
+  let next: number | null = first.data.next_offset;
+  while (next !== null) {
+    const page = await call('GET', `/api/revenues/lines?year=2026&limit=1&offset=${next}`);
+    assert.equal(page.data.total, null);
+    ids.push(...page.data.lines.map((l: { id: number }) => l.id));
+    next = page.data.next_offset;
+  }
+  assert.deepEqual(
+    ids,
+    full.data.lines.map((l: { id: number }) => l.id)
+  );
+  const chunkA = (await call('GET', '/api/revenues/lines?year=2026&limit=5000')).data.lines.find(
+    (l: { id: number }) => l.id === lineA
+  );
+  const fullA = full.data.lines.find((l: { id: number }) => l.id === lineA);
+  assert.deepEqual(chunkA, fullA);
+
+  assert.equal((await call('GET', '/api/revenues/lines?year=2026&limit=0')).status, 400);
+  assert.equal((await call('GET', '/api/revenues/lines?year=2026&limit=5001')).status, 400);
+  assert.equal((await call('GET', '/api/revenues/lines?year=2026&limit=5&offset=-1')).status, 400);
+});

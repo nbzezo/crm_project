@@ -322,21 +322,83 @@ function attachMonths<L extends Record<string, unknown>>(
 /* ---------- Dong dich vu (khach hang x dich vu dang su dung) ---------- */
 
 /** Dong theo bo loc; khi co `group`, chi giu dong co it nhat mot thang thuoc nhom do. */
-function selectLines(req: Request, year: number) {
+const LINE_ORDER = `ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE, cs.id`;
+const LINE_FROM = LINE_SELECT.slice(LINE_SELECT.indexOf('FROM customer_services'));
+const LINE_SELECT_BY_IDS = LINE_SELECT.replace(
+  'FROM customer_services cs',
+  'FROM json_each(?) page CROSS JOIN customer_services cs ON cs.id = page.value'
+);
+
+/** Khuc lon nhat cua lan tai bang dong theo khuc — 2.000 dong ~ 4 MB JSON. */
+const LINE_CHUNK_MAX = 5000;
+
+interface LineChunk {
+  offset: number;
+  limit: number;
+}
+
+/**
+ * `?limit=&offset=` (1.41.0): tai bang dong theo khuc cho man Doanh thu — 10.000 dong
+ * cua ca cong ty la 21 MB va giu luong chinh hon nua giay. Dung OFFSET thay vi con tro
+ * vi thu tu la (ten khach, ten dich vu, id) voi ten dich vu co the NULL; tap dong chi
+ * vai chuc nghin nen OFFSET tren cau chi chon id van re. Neu co dong them/xoa giua hai
+ * khuc, phia hien thi bo trung theo id va lan tai lai sau se khop.
+ */
+function lineChunkOf(req: Request): LineChunk | null {
+  if (req.query.limit === undefined) return null;
+  const limit = Number(req.query.limit);
+  const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+  if (!Number.isInteger(limit) || limit < 1 || limit > LINE_CHUNK_MAX) {
+    throw new HttpError(400, `Số dòng mỗi lần tải phải từ 1 đến ${LINE_CHUNK_MAX}`);
+  }
+  if (!Number.isInteger(offset) || offset < 0)
+    throw new HttpError(400, 'Mốc tải tiếp không hợp lệ');
+  return { limit, offset };
+}
+
+function selectLines(req: Request, year: number, chunk: LineChunk | null = null) {
   const only = parseGroupFilter(req.query.group);
   const { sql, params } = buildFilters(req);
-  const lines = db
-    .prepare(
-      `${LINE_SELECT} ${sql}
-        ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE, cs.id`
-    )
-    .all(...params) as Record<string, unknown>[];
+  let lines: Record<string, unknown>[];
+  let total: number | null = null;
+  let nextOffset: number | null = null;
+  if (chunk) {
+    if (chunk.offset === 0) {
+      total = (
+        db.prepare(`SELECT COUNT(*) AS n ${LINE_FROM} ${sql}`).get(...params) as { n: number }
+      ).n;
+    }
+    const ids = (
+      db
+        .prepare(`SELECT cs.id ${LINE_FROM} ${sql} ${LINE_ORDER} LIMIT ? OFFSET ?`)
+        .all(...params, chunk.limit + 1, chunk.offset) as { id: number }[]
+    ).map((row) => row.id);
+    const pageIds = ids.slice(0, chunk.limit);
+    if (ids.length > chunk.limit) nextOffset = chunk.offset + chunk.limit;
+    /* Di tu danh sach id (CROSS JOIN giu `page` o vong ngoai). Viet `cs.id IN (...)` thi
+       SQLite chon duyet khach hang truoc roi do tung id — 5.000 x 2.000 lan tra, ~800 ms
+       moi khuc thay vi ~4 ms. */
+    lines =
+      pageIds.length === 0
+        ? []
+        : (db.prepare(`${LINE_SELECT_BY_IDS} ${LINE_ORDER}`).all(JSON.stringify(pageIds)) as Record<
+            string,
+            unknown
+          >[]);
+  } else {
+    lines = db.prepare(`${LINE_SELECT} ${sql} ${LINE_ORDER}`).all(...params) as Record<
+      string,
+      unknown
+    >[];
+  }
   const attached = attachMonths(lines, year, only);
   /* "Chi dong con cong no": con tien o buoc xuat hoa don ma chua thu, tinh tren
      cac thang thuoc nhom dang xem — cung cach giao dien tinh cot Cong no. */
   const debtOnly = req.query.has_debt === '1';
   return {
     only,
+    total,
+    nextOffset,
     lines: attached.filter(
       (line) =>
         (!only || Object.values(line.groups).some((g) => only.has(g))) &&
@@ -375,7 +437,10 @@ function assertLinesAccess(
 
 router.get('/lines', (req, res) => {
   const year = resolveYear(req.query.year);
-  res.json({ year, lines: selectLines(req, year).lines });
+  const chunk = lineChunkOf(req);
+  const result = selectLines(req, year, chunk);
+  if (!chunk) return void res.json({ year, lines: result.lines });
+  res.json({ year, lines: result.lines, total: result.total, next_offset: result.nextOffset });
 });
 
 router.post('/lines', (req, res) => {
