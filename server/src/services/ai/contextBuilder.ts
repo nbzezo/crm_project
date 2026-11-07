@@ -90,7 +90,7 @@ export function buildSearchContext(db: Database, query: string, scopes: AiScopes
       .prepare(
         `SELECT d.id, d.title, d.stage, d.value_vnd, d.next_action, d.next_action_date,
                 c.name AS customer_name,
-                (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.deal_id = d.id) AS last_interaction
+                (SELECT MAX(i.occurred_at) FROM customer_touchpoints i WHERE i.deal_id = d.id) AS last_interaction
            FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
           WHERE (d.search_text LIKE ? OR c.search_text LIKE ?)${deals.sql}
           ORDER BY d.updated_at DESC LIMIT 12`

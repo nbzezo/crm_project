@@ -123,7 +123,7 @@ const DEAL_ATTENTION_SELECT = `
   SELECT d.id, d.title, d.stage, d.value_vnd, d.probability, d.expected_close_date,
          d.next_action, d.next_action_date, c.name AS customer_name,
          CAST(julianday('now','localtime') -
-              julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.deal_id = d.id),
+              julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM customer_touchpoints i WHERE i.deal_id = d.id),
                                  substr(d.created_at,1,10))) AS INTEGER) AS days_idle
     FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
    WHERE d.stage_category = 'open'`;

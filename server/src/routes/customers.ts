@@ -125,7 +125,7 @@ const LIVE_SUBQUERIES = {
            WHERE k.customer_id = c.id AND k.is_done = 0 AND k.is_archived = 0
              AND k.due_date IS NOT NULL
              AND k.due_date < date('now','localtime')) AS overdue_task_count`,
-  last_contact_at: `(SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_contact_at`,
+  last_contact_at: `(SELECT MAX(i.occurred_at) FROM customer_touchpoints i WHERE i.customer_id = c.id) AS last_contact_at`,
   overdue_next_action_count: `(SELECT COUNT(*) FROM deals d
            WHERE d.customer_id = c.id AND d.stage_category = 'open'
              AND d.next_action_date IS NOT NULL
@@ -166,7 +166,7 @@ function attachLiveCounts(rows: Record<string, unknown>[]): void {
       GROUP BY customer_id`
   );
   const lastContact = counts(
-    `SELECT customer_id AS id, MAX(occurred_at) AS v FROM interactions
+    `SELECT customer_id AS id, MAX(occurred_at) AS v FROM customer_touchpoints
       WHERE customer_id IS NOT NULL${filter('customer_id')}
       GROUP BY customer_id`
   );

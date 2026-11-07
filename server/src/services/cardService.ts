@@ -13,6 +13,7 @@ import { computeMovePosition, nextPosition, STEP } from '../lib/position.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { HttpError, required } from '../lib/validate.ts';
 import { logTaskActivity } from './taskActivity.ts';
+import { syncDealNextActionAfterDone } from './dealNextAction.ts';
 import {
   copyFlows,
   enterStatus,
@@ -713,8 +714,15 @@ export function setCardStatus(
   /* `status` (cot) luu Y NGHIA cua trang thai: moi luat ben duoi — is_done, bi
      chan, viec lap lai — doc y nghia chu khong doc ten trang thai. */
   const kind: CardStatus = getTaskStatus(db, status)?.kind ?? kindOf(db, status);
+  const completing = kind === 'done' && previousKind !== 'done';
 
   db.transaction(() => {
+    applyCardStatus();
+    /* Sau ca viec lap lai: ban ke tiep (cung tieu de, han moi) duoc chon lam next action. */
+    if (completing && card.deal_id != null) syncDealNextActionAfterDone(db, id);
+  })();
+
+  function applyCardStatus(): void {
     /*
      * Chieu nguoc lai cua moveCard: doi trang thai keo the sang cot mang dung
      * nghia do (v19), neu bang co cot nhu vay va the chua o day.
@@ -825,5 +833,5 @@ export function setCardStatus(
 
     // Ban vua dong khong con lap nua — neu khong, hoan thanh lai se sinh trung.
     db.prepare(`UPDATE cards SET recur_rule = NULL, recur_until = NULL WHERE id = ?`).run(id);
-  })();
+  }
 }

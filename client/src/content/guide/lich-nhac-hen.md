@@ -32,6 +32,11 @@ Một công việc có hai mốc thời gian khác nhau:
 Khi tới giờ của **Nhắc lúc**, hệ thống bật một popup giữa màn hình — không phải một dòng nhỏ ở góc
 dễ bị bỏ qua. Trên popup bạn hoãn lại hoặc đánh dấu hoàn thành ngay.
 
+Popup gom cả ba loại nhắc: nhắc hẹn, nhắc của **sự kiện lịch** (đặt "nhắc trước N phút" trên sự
+kiện) và nhắc của **ghi chú nhanh**. Mỗi dòng ghi rõ nguồn, ví dụ "Sự kiện lúc 10:00" hay "Ghi chú
+nhanh", kèm nút mở lịch hoặc mở ghi chú. Với sự kiện lịch, **Tắt** hay **Hoãn** chỉ áp dụng cho
+mốc nhắc đó và chỉ cho riêng bạn; đổi giờ sự kiện thì nhắc bật lại theo giờ mới.
+
 > **Lưu ý** Mọi mốc giờ tính theo múi giờ **Việt Nam (Asia/Ho_Chi_Minh)**. Nếu bạn thấy giờ lệch
 > đúng 7 tiếng, báo quản trị: đó là dấu hiệu máy chủ đang chạy múi giờ UTC.
 

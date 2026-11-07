@@ -38,6 +38,13 @@ Nút tóm tắt cho AI đọc cả ghi chú và trả về:
 Ngoài ra có bốn thao tác viết **inline** trên đoạn đang chọn: *Viết tiếp · Sửa ngữ pháp · Viết lại ·
 Rút gọn*.
 
+## Biên bản họp tính là một lần liên hệ
+
+Ghi chú có mục đích **Họp** và giờ họp đã qua được tính là một lần liên hệ với khách, giống một
+tương tác: cột Liên hệ cuối, nhịp chăm sóc và cảnh báo "Không tương tác >14 ngày" đều thấy. Ghi chú
+gắn qua cơ hội hoặc dự án thì tính cho khách của cơ hội hoặc dự án đó. Chỉ **ngày họp** được dùng;
+nội dung ghi chú vẫn riêng tư như dưới đây.
+
 ## Ghi âm
 
 Nút ghi âm nằm ngay trong trình soạn thảo — xem

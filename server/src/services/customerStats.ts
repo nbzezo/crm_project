@@ -7,7 +7,7 @@ export const STATS_COLUMNS_SQL = `
          (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'won') AS total_won_vnd,
          (SELECT COALESCE(SUM(d.value_vnd), 0) FROM deals d WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_pipeline_vnd,
          (SELECT COUNT(*) FROM contracts k WHERE k.customer_id = c.id AND k.status = 'active') AS active_contract_count,
-         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.customer_id = c.id) AS last_activity_at,
+         (SELECT MAX(i.occurred_at) FROM customer_touchpoints i WHERE i.customer_id = c.id) AS last_activity_at,
          (SELECT COUNT(*) FROM deals d
            WHERE d.customer_id = c.id AND d.stage_category = 'open'
              AND trim(COALESCE(d.next_action, '')) = '') AS deals_without_next_action_count,

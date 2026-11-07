@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlarmClock, Building2, ChevronDown, ExternalLink, X } from 'lucide-react';
 import { api } from '../../api/client';
@@ -12,7 +13,11 @@ import { Popover, usePopover } from '../common/Popover';
 import { Button, focusRing } from '../common/ui';
 import { useDialog } from '../common/useDialog';
 
+/** Nguon cua mot nhac (1.42.0): nhac hen, nhac cua su kien lich, nhac cua Ghi chu nhanh. */
+type DueSource = 'reminder' | 'event' | 'quick_note';
+
 interface DueReminder {
+  source: DueSource;
   id: number;
   title: string;
   note: string;
@@ -22,12 +27,36 @@ interface DueReminder {
   card_is_done: number | null;
   customer_name: string | null;
   deal_title: string | null;
+  event_start_at: string | null;
 }
 
 type Action = { type: 'dismiss' } | { type: 'complete-task' } | { type: 'snooze'; until: string };
 
 /** Hoan doi gio la mot lan nhac moi — khoa gom ca gio. */
-const keyOf = (r: DueReminder) => `${r.id}@${r.due_at}`;
+const keyOf = (r: DueReminder) => `${r.source}-${r.id}@${r.due_at}`;
+
+/** Nhan nguon va ngu canh ngan: su kien thi kem gio bat dau, ghi chu nhanh thi ghi ro. */
+function contextOf(r: DueReminder): string {
+  const parts: string[] = [];
+  if (r.source === 'event' && r.event_start_at) {
+    const start = r.event_start_at;
+    parts.push(
+      `Sự kiện lúc ${start.slice(0, 10) === todayStr() ? start.slice(11, 16) : formatDateTime(start)}`
+    );
+  }
+  if (r.source === 'quick_note') parts.push('Ghi chú nhanh');
+  if (r.customer_name) parts.push(r.customer_name);
+  if (r.deal_title) parts.push(r.deal_title);
+  return parts.join(' · ');
+}
+
+/** Nut mo ban ghi goc: viec, lich hoac ghi chu nhanh. */
+function openLabelOf(r: DueReminder): string | null {
+  if (r.card_id !== null) return 'Mở việc';
+  if (r.source === 'event') return 'Mở lịch';
+  if (r.source === 'quick_note') return 'Mở ghi chú';
+  return null;
+}
 
 /** Viec con mo thi nut chinh la "Xong việc" (hoan thanh ca viec), khong thi chi tat nhac. */
 const hasOpenTask = (r: DueReminder) => r.card_id !== null && !r.card_is_done;
@@ -78,13 +107,15 @@ function chime() {
 /**
  * Popup giua man hinh khi nhac hen cua minh toi gio (1.16.0).
  *
- * Nguon la `GET /api/reminders/due`, hoi lai moi 20 giay va khi quay lai tab.
+ * Nguon la `GET /api/reminders/due`, hoi lai moi 30 giay va khi quay lai tab. Tu
+ * 1.42.0 gom ca nhac cua su kien lich va cua Ghi chu nhanh — truoc do hai loai nay
+ * chi bao qua chuong / Telegram nen dat nhac ma khong bao gio thay bat len.
  * Mot nhac: hien chi tiet. Tu hai nhac tro len (vd. nhieu viec cung dat 9:00):
  * hien danh sach, moi dong co nut rieng, cuoi popup co Hoan / Tat tat ca — de
  * khong phai bam qua tung cai mot.
  *
- * Nhac chi het khi nguoi dung chon: Xong / Tat (is_done = 1) hoac Hoan (doi
- * `due_at`). Dong bang X hay Escape la Hoan tat ca 10 phut — khong co cach nao
+ * Nhac chi het khi nguoi dung chon: Xong / Tat hoac Hoan, ca hai qua
+ * `POST /api/reminders/due/<nguon>-<id>` (may chu tu ghi vao dung bang cua nguon). Dong bang X hay Escape la Hoan tat ca 10 phut — khong co cach nao
  * lam mat loi nhac ma khong co chu dich. Telegram tu gui lai khi doi gio vi
  * khoa da gui gom ca `due_at` (telegramNotifier.ts).
  *
@@ -95,6 +126,8 @@ export function DueReminderPopup() {
   const locked = useLockStore((s) => s.locked);
   const queryClient = useQueryClient();
   const openCard = useUiStore((s) => s.openCard);
+  const openQuickNotesBoard = useUiStore((s) => s.openQuickNotesBoard);
+  const navigate = useNavigate();
   const pushToast = useUiStore((s) => s.pushToast);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -163,8 +196,9 @@ export function DueReminderPopup() {
     mutationFn: async ({ reminders, action }: { reminders: DueReminder[]; action: Action }) => {
       const results = await Promise.allSettled(
         reminders.map(async (reminder) => {
+          const key = `${reminder.source}-${reminder.id}`;
           if (action.type === 'snooze') {
-            await api.patch(`/api/reminders/${reminder.id}`, { due_at: action.until });
+            await api.post(`/api/reminders/due/${key}`, { action: 'snooze', until: action.until });
             return;
           }
           if (action.type === 'complete-task' && hasOpenTask(reminder)) {
@@ -172,7 +206,7 @@ export function DueReminderPopup() {
               done: true,
             });
           }
-          await api.patch(`/api/reminders/${reminder.id}`, { is_done: true });
+          await api.post(`/api/reminders/due/${key}`, { action: 'dismiss' });
         })
       );
       const failed = reminders.filter((_, i) => results[i].status === 'rejected');
@@ -191,6 +225,9 @@ export function DueReminderPopup() {
       void queryClient.invalidateQueries({ queryKey: ['reminders'] });
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
       invalidateCalendar(queryClient);
+      if (reminders.some((r) => r.source === 'quick_note')) {
+        void queryClient.invalidateQueries({ queryKey: ['quick-notes'] });
+      }
       const cardIds = new Set(reminders.map((r) => r.card_id).filter((id) => id !== null));
       for (const cardId of cardIds) {
         void queryClient.invalidateQueries({ queryKey: ['card', cardId] });
@@ -220,7 +257,9 @@ export function DueReminderPopup() {
   const snoozeAll = (until: string) => run(queue, { type: 'snooze', until });
   const openTask = (reminder: DueReminder) => {
     run([reminder], { type: 'dismiss' });
-    openCard(reminder.card_id as number);
+    if (reminder.card_id !== null) openCard(reminder.card_id);
+    else if (reminder.source === 'quick_note') openQuickNotesBoard({ focusId: reminder.id });
+    else if (reminder.source === 'event') void navigate('/calendar');
   };
 
   /* Focus vao khung popup chu KHONG vao nut dau tien: popup bat len giua luc
@@ -327,7 +366,8 @@ interface ItemProps {
 
 /** Mot nhac: chi tiet day du va nut lon. */
 function SingleReminder({ reminder, onAction, onOpen }: ItemProps) {
-  const context = [reminder.customer_name, reminder.deal_title].filter(Boolean).join(' · ');
+  const context = contextOf(reminder);
+  const openLabel = openLabelOf(reminder);
   const showCardTitle = reminder.card_title && reminder.card_title !== reminder.title;
 
   return (
@@ -358,9 +398,9 @@ function SingleReminder({ reminder, onAction, onOpen }: ItemProps) {
             Đã xong
           </Button>
         )}
-        {reminder.card_id !== null && (
+        {openLabel && (
           <Button variant="ghost" onClick={onOpen}>
-            <ExternalLink size={14} aria-hidden="true" /> Mở việc
+            <ExternalLink size={14} aria-hidden="true" /> {openLabel}
           </Button>
         )}
       </div>
@@ -373,12 +413,12 @@ function ReminderRow({ reminder, onAction, onOpen }: ItemProps) {
   const snoozePop = usePopover();
   const sub = [
     reminder.card_title !== reminder.title ? reminder.card_title : null,
-    reminder.customer_name,
-    reminder.deal_title,
+    contextOf(reminder),
   ]
     .filter(Boolean)
     .join(' · ');
   const name = reminder.title;
+  const openLabel = openLabelOf(reminder);
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2.5">
@@ -427,8 +467,8 @@ function ReminderRow({ reminder, onAction, onOpen }: ItemProps) {
         >
           Hoãn <ChevronDown size={12} aria-hidden="true" />
         </Button>
-        {reminder.card_id !== null && (
-          <Button size="sm" variant="ghost" aria-label={`Mở việc: ${name}`} onClick={onOpen}>
+        {openLabel && (
+          <Button size="sm" variant="ghost" aria-label={`${openLabel}: ${name}`} onClick={onOpen}>
             <ExternalLink size={13} aria-hidden="true" />
           </Button>
         )}

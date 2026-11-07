@@ -163,3 +163,162 @@ test('so voi gio trinh duyet khi may chu lech mui gio (container UTC)', async ()
   const bad = (await call('GET', '/api/reminders/due?now=abc')).data as { id: number }[];
   assert.ok(!bad.some((r) => r.id === id));
 });
+
+/* 1.42.0: popup gom ca nhac cua su kien lich va cua Ghi chu nhanh. */
+/** Tai khoan admin cua test chua gan nhan su — gan mot lan (trang thai popup luu theo nguoi). */
+let linkedContact: number | null = null;
+function myContactId(): number {
+  if (linkedContact !== null) return linkedContact;
+  const ownOrg = Number(
+    db.prepare(`INSERT INTO customers (name, org_kind) VALUES ('Công ty mình', 'own')`).run()
+      .lastInsertRowid
+  );
+  linkedContact = Number(
+    db
+      .prepare(`INSERT INTO contacts (customer_id, full_name, is_active) VALUES (?, 'Admin', 1)`)
+      .run(ownOrg).lastInsertRowid
+  );
+  db.prepare(`UPDATE users SET contact_id = ? WHERE email = 'admin@congty.vn'`).run(linkedContact);
+  return linkedContact;
+}
+
+type DueItem = { source: string; id: number; title: string; due_at: string };
+const dueItems = async (now?: string) =>
+  (await call('GET', `/api/reminders/due${now ? `?now=${encodeURIComponent(now)}` : ''}`))
+    .data as DueItem[];
+const has = (rows: DueItem[], source: string, id: number) =>
+  rows.some((r) => r.source === source && r.id === id);
+
+test('nhac cua su kien lich: hien khi toi moc, tat / hoan theo tung moc', async () => {
+  const me = myContactId();
+  const event = (startInMinutes: number, owner: number | null) =>
+    Number(
+      db
+        .prepare(
+          `INSERT INTO calendar_events (title, start_at, end_at, reminder_minutes, owner_contact_id)
+           VALUES ('Họp khách', ?, ?, 15, ?)`
+        )
+        .run(localAt(`${startInMinutes} minutes`), localAt(`${startInMinutes + 60} minutes`), owner)
+        .lastInsertRowid
+    );
+  const mine = event(10, me); // moc nhac = -5 phut
+  const later = event(40, me); // moc nhac = +25 phut
+  const otherOwner = Number(
+    db
+      .prepare(`INSERT INTO contacts (customer_id, full_name, is_active) VALUES (?, 'Người B', 1)`)
+      .run(db.prepare(`INSERT INTO customers (name) VALUES ('Công ty B')`).run().lastInsertRowid)
+      .lastInsertRowid
+  );
+  const others = event(10, otherOwner);
+
+  let rows = await dueItems();
+  assert.ok(has(rows, 'event', mine), 'su kien cua minh da toi moc');
+  assert.ok(!has(rows, 'event', later), 'chua toi moc');
+  assert.ok(!has(rows, 'event', others), 'su kien cua nguoi khac');
+  assert.equal(
+    rows.find((r) => r.source === 'event' && r.id === mine)?.due_at,
+    localAt('-5 minutes')
+  );
+
+  // Hoan: roi khoi popup cho toi gio hoan, roi bat lai voi due_at = gio hoan.
+  const until = localAt('+20 minutes');
+  assert.equal(
+    (await call('POST', `/api/reminders/due/event-${mine}`, { action: 'snooze', until })).status,
+    200
+  );
+  assert.ok(!has(await dueItems(), 'event', mine));
+  const atSnooze = (await dueItems(localAt('+21 minutes'))).find(
+    (r) => r.source === 'event' && r.id === mine
+  );
+  assert.equal(atSnooze?.due_at, until);
+
+  // Tat: het nhac cho moc nay.
+  assert.equal(
+    (await call('POST', `/api/reminders/due/event-${mine}`, { action: 'dismiss' })).status,
+    200
+  );
+  assert.ok(!has(await dueItems(localAt('+21 minutes')), 'event', mine));
+
+  // Doi gio su kien = moc nhac moi: bat lai.
+  db.prepare(`UPDATE calendar_events SET start_at = ?, end_at = ? WHERE id = ?`).run(
+    localAt('+5 minutes'),
+    localAt('+65 minutes'),
+    mine
+  );
+  rows = await dueItems();
+  assert.ok(has(rows, 'event', mine), 'doi gio thi nhac bat lai');
+
+  // Khong thao tac duoc tren su kien cua nguoi khac.
+  assert.equal(
+    (await call('POST', `/api/reminders/due/event-${others}`, { action: 'dismiss' })).status,
+    404
+  );
+  db.prepare(`DELETE FROM calendar_events WHERE id IN (?, ?, ?)`).run(mine, later, others);
+});
+
+test('nhac cua Ghi chu nhanh: hien ca khi Telegram da bao, tat / hoan ghi vao chinh ghi chu', async () => {
+  const me = myContactId();
+  const note = (title: string, at: string, status: string, owner = me) =>
+    Number(
+      db
+        .prepare(
+          `INSERT INTO quick_notes (title, content_text, reminder_at, reminder_status, owner_contact_id)
+           VALUES (?, 'Nội dung', ?, ?, ?)`
+        )
+        .run(title, at, status, owner).lastInsertRowid
+    );
+  const triggered = note('Gọi lại chị Lan', localAt('-2 minutes'), 'triggered');
+  const pending = note('', localAt('-1 minutes'), 'pending');
+  const completed = note('Đã xong', localAt('-3 minutes'), 'completed');
+  const future = note('Chưa tới', localAt('+30 minutes'), 'pending');
+
+  const rows = await dueItems();
+  assert.ok(has(rows, 'quick_note', triggered));
+  assert.equal(
+    rows.find((r) => r.source === 'quick_note' && r.id === pending)?.title,
+    'Ghi chú không tiêu đề'
+  );
+  assert.ok(!has(rows, 'quick_note', completed));
+  assert.ok(!has(rows, 'quick_note', future));
+
+  await call('POST', `/api/reminders/due/quick_note-${triggered}`, { action: 'dismiss' });
+  const until = localAt('+15 minutes');
+  await call('POST', `/api/reminders/due/quick_note-${pending}`, { action: 'snooze', until });
+  const state = db
+    .prepare(
+      `SELECT id, reminder_at, reminder_status FROM quick_notes WHERE id IN (?, ?) ORDER BY id`
+    )
+    .all(triggered, pending);
+  assert.deepEqual(state, [
+    { id: triggered, reminder_at: localAt('-2 minutes'), reminder_status: 'completed' },
+    { id: pending, reminder_at: until, reminder_status: 'pending' },
+  ]);
+  const after = await dueItems();
+  assert.ok(!has(after, 'quick_note', triggered) && !has(after, 'quick_note', pending));
+
+  assert.equal(
+    (await call('POST', `/api/reminders/due/quick_note-999999`, { action: 'dismiss' })).status,
+    404
+  );
+  assert.equal((await call('POST', `/api/reminders/due/abc-1`, { action: 'dismiss' })).status, 400);
+});
+
+test('POST /due/reminder-<id> thay cho PATCH: tat va hoan nhac hen', async () => {
+  const created = await call('POST', '/api/reminders', {
+    title: 'Nhắc qua khóa chung',
+    due_at: localAt('-1 minutes'),
+  });
+  const id = Number((created.data as { id: number }).id);
+  assert.ok(has(await dueItems(), 'reminder', id));
+  await call('POST', `/api/reminders/due/reminder-${id}`, {
+    action: 'snooze',
+    until: localAt('+10 minutes'),
+  });
+  assert.ok(!has(await dueItems(), 'reminder', id));
+  await call('POST', `/api/reminders/due/reminder-${id}`, { action: 'dismiss' });
+  assert.equal(
+    (db.prepare(`SELECT is_done FROM reminders WHERE id = ?`).get(id) as { is_done: number })
+      .is_done,
+    1
+  );
+});

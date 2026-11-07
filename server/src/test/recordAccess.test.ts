@@ -167,8 +167,10 @@ const fieldId = insert(
   boardId
 );
 const eventId = insert(
-  `INSERT INTO calendar_events (title, start_at, end_at, owner_contact_id)
-   VALUES ('Lịch N1', '2030-01-02T09:00', '2030-01-02T10:00', ?)`,
+  /* Co dat nhac: probe POST /api/reminders/due/event-<id> phai bi chan vi CHU, khong phai vi
+     su kien khong co nhac. */
+  `INSERT INTO calendar_events (title, start_at, end_at, reminder_minutes, owner_contact_id)
+   VALUES ('Lịch N1', '2030-01-02T09:00', '2030-01-02T10:00', 15, ?)`,
   owner
 );
 const reminderId = insert(
@@ -489,6 +491,28 @@ const PROBES: Probe[] = [
     body: { title: 'N2' },
   },
   { file: 'reminders', method: 'delete', route: '/:id', url: `/api/reminders/${reminderId}` },
+  /* Popup nhac (1.42.0): tat / hoan nhac cua nguoi khac — ca ba nguon. */
+  {
+    file: 'reminders',
+    method: 'post',
+    route: '/due/:key',
+    url: `/api/reminders/due/reminder-${reminderId}`,
+    body: { action: 'dismiss' },
+  },
+  {
+    file: 'reminders',
+    method: 'post',
+    route: '/due/:key',
+    url: `/api/reminders/due/event-${eventId}`,
+    body: { action: 'dismiss' },
+  },
+  {
+    file: 'reminders',
+    method: 'post',
+    route: '/due/:key',
+    url: `/api/reminders/due/quick_note-${quickNoteId}`,
+    body: { action: 'dismiss' },
+  },
   {
     file: 'notifications',
     method: 'patch',

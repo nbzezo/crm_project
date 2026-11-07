@@ -98,9 +98,9 @@ const dealPatchSchema = dealSchema.partial().extend({
  */
 const DEAL_SELECT = `
   SELECT d.*, c.name AS customer_name, ct.full_name AS contact_name,
-         (SELECT MAX(i.occurred_at) FROM interactions i WHERE i.deal_id = d.id) AS last_activity_at,
+         (SELECT MAX(i.occurred_at) FROM customer_touchpoints i WHERE i.deal_id = d.id) AS last_activity_at,
          CAST(julianday('now','localtime') -
-              julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.deal_id = d.id),
+              julianday(COALESCE((SELECT MAX(substr(i.occurred_at,1,10)) FROM customer_touchpoints i WHERE i.deal_id = d.id),
                                  substr(d.created_at,1,10))) AS INTEGER) AS days_idle,
          (SELECT COUNT(*) FROM quotations q WHERE q.deal_id = d.id) AS quotation_count,
          (SELECT COUNT(*) FROM contracts k WHERE k.deal_id = d.id) AS contract_count,

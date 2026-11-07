@@ -40,6 +40,11 @@ Kanban).
 **Next Action** là bước tiếp theo bạn sẽ làm, kèm **ngày thực hiện**. Đây là ô quan trọng nhất của
 một cơ hội: cơ hội không có Next Action sẽ nổi lên ở trang Tổng quan như một dấu hiệu bị bỏ rơi.
 
+Khi ghi tương tác và chọn tạo công việc, Next Action và công việc mang cùng một tên. Hoàn thành
+công việc đó thì cơ hội tự lấy việc còn mở có hạn sớm nhất của nó làm Next Action mới; không còn
+việc nào thì Next Action để trống để bạn đặt bước tiếp theo. Next Action bạn tự gõ khác tên công
+việc thì không bị đổi.
+
 ## Tạm dừng
 
 Cờ **Tạm dừng** gắn thêm vào bất kỳ giai đoạn nào, kèm **lý do** và **ngày hẹn xem lại**.

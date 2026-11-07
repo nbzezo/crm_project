@@ -49,7 +49,7 @@ function scan(db: Database, automation: AutomationRow): NotificationInput[] {
         `SELECT d.id, d.title, d.value_vnd, d.stage, c.name AS customer_name,
                 MAX(i.occurred_at) AS last_interaction
            FROM deals d JOIN customers c ON c.id = d.customer_id AND c.org_kind = 'customer'
-           LEFT JOIN interactions i ON i.deal_id = d.id
+           LEFT JOIN customer_touchpoints i ON i.deal_id = d.id
           WHERE d.stage_category = 'open' AND d.value_vnd >= ?
           GROUP BY d.id
          HAVING COALESCE(MAX(i.occurred_at), d.created_at) < datetime('now','localtime', ?)

@@ -74,7 +74,7 @@ function oracle(customerId: number): Record<string, unknown> {
       `SELECT COUNT(*) AS value FROM contracts k WHERE k.customer_id = ? AND k.status = 'active'`
     ).value,
     last_activity_at: get(
-      `SELECT MAX(i.occurred_at) AS value FROM interactions i WHERE i.customer_id = ?`
+      `SELECT MAX(i.occurred_at) AS value FROM customer_touchpoints i WHERE i.customer_id = ?`
     ).value,
     deals_without_next_action_count: get(
       `SELECT COUNT(*) AS value FROM deals d WHERE d.customer_id = ? AND d.stage_category = 'open' AND trim(COALESCE(d.next_action, '')) = ''`

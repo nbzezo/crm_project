@@ -165,7 +165,7 @@ export function careStatusOf(
 ): CareStatus {
   const last = (
     db
-      .prepare(`SELECT MAX(occurred_at) AS at FROM interactions WHERE customer_id = ?`)
+      .prepare(`SELECT MAX(occurred_at) AS at FROM customer_touchpoints WHERE customer_id = ?`)
       .get(customer.id) as { at: string | null }
   ).at;
   return careStatusFrom(db, customer, last);

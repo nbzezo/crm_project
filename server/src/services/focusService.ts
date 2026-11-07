@@ -1033,7 +1033,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
       `SELECT * FROM (
          SELECT d.id, d.title, d.value_vnd, d.customer_id, c.name AS customer_name,
                 CAST(julianday(?) - julianday(COALESCE(
-                  (SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.deal_id = d.id),
+                  (SELECT MAX(substr(i.occurred_at,1,10)) FROM customer_touchpoints i WHERE i.deal_id = d.id),
                   substr(d.created_at,1,10))) AS INTEGER) AS days_idle
            ${DEAL_FROM} AND COALESCE(d.on_hold, 0) = 0)
         WHERE days_idle >= ? ORDER BY value_vnd DESC LIMIT 6`
@@ -1059,7 +1059,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
     .prepare(
       `SELECT * FROM (
          SELECT c.id, c.name, c.care_tier, ${cadenceSql('c')} AS cadence,
-                (SELECT MAX(substr(i.occurred_at,1,10)) FROM interactions i WHERE i.customer_id = c.id) AS last_contact,
+                (SELECT MAX(substr(i.occurred_at,1,10)) FROM customer_touchpoints i WHERE i.customer_id = c.id) AS last_contact,
                 (SELECT COALESCE(SUM(d.value_vnd),0) FROM deals d
                   WHERE d.customer_id = c.id AND d.stage_category = 'open') AS open_vnd
            FROM customers c
