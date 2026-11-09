@@ -1087,7 +1087,8 @@ export function TasksWorkspace() {
             </div>
           )}
 
-          <div className="tr-scroll min-h-0 flex-1 overflow-auto p-3 lg:p-5">
+          {/* md:pb-28 nhu PageShell: chua cho nut "Tạo nhanh" de dong cuoi cuon ra khoi nut. */}
+          <div className="tr-scroll min-h-0 flex-1 overflow-auto p-3 md:pb-28 lg:p-5 lg:pb-28">
             {scope === 'activity' ? (
               <ActivityFeed />
             ) : isLoading ? (

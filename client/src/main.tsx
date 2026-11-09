@@ -179,12 +179,7 @@ const router = createBrowserRouter([
       {
         path: 'tasks',
         element: <TasksPage />,
-        handle: {
-          permission: 'tasks:read',
-          title: t.nav.tasks,
-          visibleHeading: true,
-          hideQuickCreate: true,
-        },
+        handle: { permission: 'tasks:read', title: t.nav.tasks, visibleHeading: true },
       },
       {
         path: 'projects',

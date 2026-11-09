@@ -14,9 +14,17 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-11-08';
+export const APP_UPDATED_AT = '2026-11-09';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.43.2',
+    date: '2026-11-09',
+    title: 'Nút Tạo nhanh hiện lại ở trang Công việc',
+    changes: [
+      'Trên máy tính, nút Tạo nhanh (+) ở góc dưới bên phải nay hiện cả ở trang Công việc: tạo Cơ hội, Khách hàng, Trang tài liệu hay Ghi chú nhanh mà không phải rời trang.',
+    ],
+  },
   {
     version: '1.43.1',
     date: '2026-11-08',
