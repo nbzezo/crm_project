@@ -31,8 +31,8 @@ export function convertListToMindmap(
   if (index < 0) return;
   let start = index;
   let end = index;
-  while (start > 0 && LIST_TYPES.has(siblings[start - 1].type ?? '')) start--;
-  while (end < siblings.length - 1 && LIST_TYPES.has(siblings[end + 1].type ?? '')) end++;
+  while (start > 0 && LIST_TYPES.has(siblings[start - 1]?.type ?? '')) start--;
+  while (end < siblings.length - 1 && LIST_TYPES.has(siblings[end + 1]?.type ?? '')) end++;
   const run = siblings.slice(start, end + 1);
   const doc = treeToMindmap(listBlocksToTree(run, 'Chủ đề'));
   editor.replaceBlocks(

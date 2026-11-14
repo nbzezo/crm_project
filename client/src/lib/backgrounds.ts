@@ -24,9 +24,12 @@ export const BOARD_GRADIENTS = [
 
 export const ALL_BACKGROUNDS = [...BOARD_COLORS, ...BOARD_GRADIENTS];
 
+/** Mau mac dinh cua bang: BOARD_COLORS[0] nhung da bo `undefined` khoi kieu. */
+const DEFAULT_BOARD_COLOR = BOARD_COLORS[0] ?? '#0079bf';
+
 /** Lớp tối đủ để chữ trắng trên cả màu sáng nhất của gradient đạt WCAG AA. */
 export function boardScrim(value: string | null | undefined): string {
-  const colors = (value || BOARD_COLORS[0]).match(/#[0-9a-f]{6}/gi) ?? [BOARD_COLORS[0]];
+  const colors = (value || DEFAULT_BOARD_COLOR).match(/#[0-9a-f]{6}/gi) ?? [DEFAULT_BOARD_COLOR];
   const luminance = (hex: string, alpha: number) => {
     const channels = [1, 3, 5].map(
       (start) => (parseInt(hex.slice(start, start + 2), 16) * (1 - alpha)) / 255
@@ -34,7 +37,7 @@ export function boardScrim(value: string | null | undefined): string {
     const linear = channels.map((channel) =>
       channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
     );
-    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+    return (linear[0] ?? 0) * 0.2126 + (linear[1] ?? 0) * 0.7152 + (linear[2] ?? 0) * 0.0722;
   };
   let low = 0;
   let high = 1;
@@ -48,7 +51,7 @@ export function boardScrim(value: string | null | undefined): string {
 
 /** Style nen cho bang — nhan ca ma mau lan chuoi gradient. */
 export function backgroundStyle(value: string | null | undefined): React.CSSProperties {
-  const background = value || BOARD_COLORS[0];
+  const background = value || DEFAULT_BOARD_COLOR;
   return background.startsWith('linear-gradient')
     ? { backgroundImage: background }
     : { backgroundColor: background };

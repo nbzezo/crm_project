@@ -220,7 +220,7 @@ export function BoardView({
     dragSnapshot.current = cloneBoard(board);
     if (data?.type === 'card') {
       const found = locateCard(board, data.cardId as number);
-      if (found) setActiveCard(board.lists[found.listIdx].cards[found.cardIdx]);
+      if (found) setActiveCard(board.lists[found.listIdx]?.cards[found.cardIdx] ?? null);
     } else if (data?.type === 'list') {
       setActiveListName(board.lists.find((l) => l.id === data.listId)?.name ?? null);
     }
@@ -239,22 +239,20 @@ export function BoardView({
     const next = cloneBoard(board);
     const from = locateCard(next, cardId);
     if (!from) return;
-    if (next.lists[from.listIdx].id === targetListId) return;
+    const fromList = next.lists[from.listIdx];
+    if (!fromList || fromList.id === targetListId) return;
 
     const toIdx = next.lists.findIndex((l) => l.id === targetListId);
     if (toIdx < 0) return;
+    const toList = next.lists[toIdx];
+    if (!toList) return;
 
-    const [moved] = next.lists[from.listIdx].cards.splice(from.cardIdx, 1);
+    const [moved] = fromList.cards.splice(from.cardIdx, 1);
+    if (!moved) return;
     moved.list_id = targetListId;
     const overCardIdx =
-      overData?.type === 'card'
-        ? next.lists[toIdx].cards.findIndex((c) => c.id === overData.cardId)
-        : -1;
-    next.lists[toIdx].cards.splice(
-      overCardIdx >= 0 ? overCardIdx : next.lists[toIdx].cards.length,
-      0,
-      moved
-    );
+      overData?.type === 'card' ? toList.cards.findIndex((c) => c.id === overData.cardId) : -1;
+    toList.cards.splice(overCardIdx >= 0 ? overCardIdx : toList.cards.length, 0, moved);
     setBoard(next);
   }
 
@@ -286,8 +284,8 @@ export function BoardView({
 
       moveList.mutate({
         listId,
-        beforeId: newIdx > 0 ? next.lists[newIdx - 1].id : null,
-        afterId: newIdx < next.lists.length - 1 ? next.lists[newIdx + 1].id : null,
+        beforeId: newIdx > 0 ? (next.lists[newIdx - 1]?.id ?? null) : null,
+        afterId: newIdx < next.lists.length - 1 ? (next.lists[newIdx + 1]?.id ?? null) : null,
       });
       return;
     }
@@ -316,37 +314,42 @@ export function BoardView({
       return;
     }
 
+    const fromList = next.lists[from.listIdx];
+    const toList = next.lists[toIdx];
+    if (!fromList || !toList) {
+      restoreDragSnapshot();
+      return;
+    }
+
     if (from.listIdx === toIdx) {
-      const cards = next.lists[toIdx].cards;
+      const cards = toList.cards;
       const overIdx =
         overData?.type === 'card'
           ? cards.findIndex((c) => c.id === overData.cardId)
           : cards.length - 1;
       if (overIdx >= 0 && overIdx !== from.cardIdx) {
-        next.lists[toIdx].cards = arrayMove(cards, from.cardIdx, overIdx);
+        toList.cards = arrayMove(cards, from.cardIdx, overIdx);
       }
     } else {
-      const [moved] = next.lists[from.listIdx].cards.splice(from.cardIdx, 1);
+      const [moved] = fromList.cards.splice(from.cardIdx, 1);
+      if (!moved) {
+        restoreDragSnapshot();
+        return;
+      }
       moved.list_id = targetListId;
       const overIdx =
-        overData?.type === 'card'
-          ? next.lists[toIdx].cards.findIndex((c) => c.id === overData.cardId)
-          : -1;
-      next.lists[toIdx].cards.splice(
-        overIdx >= 0 ? overIdx : next.lists[toIdx].cards.length,
-        0,
-        moved
-      );
+        overData?.type === 'card' ? toList.cards.findIndex((c) => c.id === overData.cardId) : -1;
+      toList.cards.splice(overIdx >= 0 ? overIdx : toList.cards.length, 0, moved);
     }
     setBoard(next);
 
-    const finalCards = next.lists[toIdx].cards;
+    const finalCards = toList.cards;
     const idx = finalCards.findIndex((c) => c.id === cardId);
     moveCard.mutate({
       cardId,
       listId: targetListId,
-      beforeId: idx > 0 ? finalCards[idx - 1].id : null,
-      afterId: idx < finalCards.length - 1 ? finalCards[idx + 1].id : null,
+      beforeId: idx > 0 ? (finalCards[idx - 1]?.id ?? null) : null,
+      afterId: idx < finalCards.length - 1 ? (finalCards[idx + 1]?.id ?? null) : null,
     });
   }
 
@@ -418,8 +421,8 @@ export function BoardView({
       setBoard(next);
       moveList.mutate({
         listId,
-        beforeId: newIdx > 0 ? next.lists[newIdx - 1].id : null,
-        afterId: newIdx < next.lists.length - 1 ? next.lists[newIdx + 1].id : null,
+        beforeId: newIdx > 0 ? (next.lists[newIdx - 1]?.id ?? null) : null,
+        afterId: newIdx < next.lists.length - 1 ? (next.lists[newIdx + 1]?.id ?? null) : null,
       });
       requestAnimationFrame(() => {
         const viewport = scrollRef.current;

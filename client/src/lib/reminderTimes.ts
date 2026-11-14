@@ -18,8 +18,12 @@ function morningOf(date: Date): Date {
 }
 
 /** Moc chon khi dat nhac cho mot viec. `dueDate` la han chot dang 'YYYY-MM-DD'. */
-export function reminderPresets(now: Date, dueDate?: string | null): ReminderPreset[] {
-  const presets: ReminderPreset[] = [
+export function reminderPresets(
+  now: Date,
+  dueDate?: string | null
+): [ReminderPreset, ReminderPreset, ReminderPreset, ...ReminderPreset[]] {
+  /* Tuple khong rong: ba moc dau luon co, nen [0]/[1] khong con la `undefined`. */
+  const presets: [ReminderPreset, ReminderPreset, ReminderPreset, ...ReminderPreset[]] = [
     { label: '15 phút nữa', value: toLocal(addMinutes(now, 15)) },
     { label: '1 giờ nữa', value: toLocal(addMinutes(now, 60)) },
     { label: '9:00 sáng mai', value: toLocal(morningOf(addDays(now, 1))) },
@@ -36,7 +40,7 @@ export function reminderPresets(now: Date, dueDate?: string | null): ReminderPre
 }
 
 /** Moc hoan nhac tren popup. */
-export function snoozePresets(now: Date): ReminderPreset[] {
+export function snoozePresets(now: Date): [ReminderPreset, ...ReminderPreset[]] {
   return [
     { label: '10 phút', value: toLocal(addMinutes(now, 10)) },
     { label: '30 phút', value: toLocal(addMinutes(now, 30)) },

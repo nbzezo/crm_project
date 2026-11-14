@@ -83,7 +83,7 @@ export function formatDateTime(value: string | null | undefined): string {
 
 export function formatMonth(month: string): string {
   const [y, m] = month.split('-');
-  return `T${Number(m)}/${y.slice(2)}`;
+  return `T${Number(m)}/${(y ?? '').slice(2)}`;
 }
 
 /** Ngay hom nay theo gio may, dang 'YYYY-MM-DD'. */

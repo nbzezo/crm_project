@@ -18,7 +18,7 @@ export const TASK_STATUSES_KEY = ['task-statuses'] as const;
 /** Sáu trạng thái dựng sẵn — dùng khi danh sách chưa tải xong, để không hiện khoá thô. */
 const FALLBACK: TaskStatusDef[] = CARD_STATUSES.map((kind, index) => ({
   key: kind,
-  label: t.cardStatus[kind],
+  label: t.cardStatus[kind] ?? kind,
   color: null,
   kind,
   position: (index + 1) * 1024,

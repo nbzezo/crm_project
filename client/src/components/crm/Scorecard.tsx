@@ -341,7 +341,7 @@ function ScoreTrend({ history }: { history: ScoreHistoryEntry[] }) {
 
   const last = series[series.length - 1];
   const first = series[0];
-  const delta = last.bant + last.p4 - (first.bant + first.p4);
+  const delta = last && first ? last.bant + last.p4 - (first.bant + first.p4) : 0;
 
   return (
     <div className="mt-3 flex items-center gap-3 border-t border-tr-border pt-3">

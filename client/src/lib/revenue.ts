@@ -98,11 +98,15 @@ export function groupLinesByCustomer(lines: RevenueLine[]): RevenueCustomerGroup
     if (list) list.push(line);
     else byCustomer.set(line.customer_id, [line]);
   }
-  return [...byCustomer.entries()].map(([customer_id, list]) => ({
-    customer_id,
-    customer_name: list[0].customer_name,
-    lines: [...list].sort(byContract),
-    contract_count: new Set(list.map((l) => l.contract_id).filter((id) => id !== null)).size,
-    service_count: new Set(list.map((l) => l.service_id).filter((id) => id !== null)).size,
-  }));
+  return [...byCustomer.entries()].flatMap(([customer_id, list]) => {
+    const [first] = list;
+    if (!first) return [];
+    return {
+      customer_id,
+      customer_name: first.customer_name,
+      lines: [...list].sort(byContract),
+      contract_count: new Set(list.map((l) => l.contract_id).filter((id) => id !== null)).size,
+      service_count: new Set(list.map((l) => l.service_id).filter((id) => id !== null)).size,
+    };
+  });
 }

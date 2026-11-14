@@ -60,7 +60,9 @@ export function RevenueGroupOverview({
   if (!comparison?.totals) {
     for (const line of comparison?.lines ?? []) {
       for (const [period, value] of Object.entries(line.projection)) {
-        projected[line.groups[period]] += value.value;
+        const group = line.groups[period];
+        if (group === undefined) continue;
+        projected[group] = (projected[group] ?? 0) + value.value;
       }
       projectedTotal += line.projected_total_vnd;
       prevTotal += line.prev_total_vnd;
@@ -96,7 +98,7 @@ export function RevenueGroupOverview({
                   style={{ backgroundColor: REVENUE_GROUP_COLORS[group] }}
                   aria-hidden="true"
                 />
-                Doanh thu {t.revenueGroup[group].toLowerCase()}
+                Doanh thu {(t.revenueGroup[group] ?? '').toLowerCase()}
               </div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-tr-text">
                 {formatVND(amount)}

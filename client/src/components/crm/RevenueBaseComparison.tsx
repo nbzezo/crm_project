@@ -376,8 +376,10 @@ export function RevenueBaseComparison({
               </tr>
             </TableHead>
             <tbody className="divide-y divide-tr-border">
-              {lines.slice(0, rows.limit).map((line, i) => {
-                const view = views[i];
+              {lines.slice(0, rows.limit).map((line) => {
+                /* Tinh truc tiep tu `line` thay vi tra `views[i]`: cung mot ket qua
+                   nhung bo duoc truy cap theo chi so. */
+                const view = viewOf(line, mode, current);
                 return (
                   <tr key={line.line_id} className="group hover:bg-tr-hover">
                     <td className="sticky left-0 z-10 bg-tr-panel px-3 py-1.5 group-hover:bg-tr-hover">

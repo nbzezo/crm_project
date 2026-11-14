@@ -22,7 +22,7 @@ interface QuickNoteColor {
  * co sac do rieng cho light/dark va van giu chu tuong phan cao. Giu nguyen key
  * de tat ca ghi chu cu doi dien mao ma khong can migrate du lieu.
  */
-export const QUICK_NOTE_COLORS: QuickNoteColor[] = [
+export const QUICK_NOTE_COLORS: [QuickNoteColor, ...QuickNoteColor[]] = [
   {
     key: 'yellow',
     name: 'Vàng',
@@ -129,5 +129,5 @@ export function colorForNote(id: number, override?: QuickNoteColorKey | null): Q
     const found = BY_KEY.get(override);
     if (found) return found;
   }
-  return QUICK_NOTE_COLORS[id % QUICK_NOTE_COLORS.length];
+  return QUICK_NOTE_COLORS[id % QUICK_NOTE_COLORS.length] ?? QUICK_NOTE_COLORS[0];
 }

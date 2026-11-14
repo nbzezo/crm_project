@@ -112,5 +112,5 @@ export function ThemeOptionItems({ onPicked }: { onPicked: () => void }) {
 /** Ten giao dien dang dung — hien canh muc Giao dien trong menu tai khoan. */
 export function useThemeLabel(): string {
   const mode = useThemeStore((s) => s.mode);
-  return (OPTIONS.find((option) => option.mode === mode) ?? OPTIONS[1]).label;
+  return (OPTIONS.find((option) => option.mode === mode) ?? OPTIONS[1])?.label ?? '';
 }

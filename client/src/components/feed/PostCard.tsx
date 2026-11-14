@@ -986,7 +986,7 @@ function CreateTaskDialog({
   onClose: () => void;
   onCreated: (post: FeedPost, cardId: number) => void;
 }) {
-  const [title, setTitle] = useState(post.body.split('\n')[0].slice(0, 200));
+  const [title, setTitle] = useState((post.body.split('\n')[0] ?? '').slice(0, 200));
   const [assignee, setAssignee] = useState<number | ''>('');
   const [due, setDue] = useState('');
   const members = useQuery({

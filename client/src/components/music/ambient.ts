@@ -206,12 +206,12 @@ function startLofi(audio: AudioContext, out: GainNode): () => void {
   let timer = 0;
   const playBar = () => {
     const t = audio.currentTime + 0.05;
-    const chord = CHORDS[bar % CHORDS.length];
+    const chord = CHORDS[bar % CHORDS.length] ?? [];
     chord.forEach((n, i) => note(midiHz(n), t + i * 0.03, BAR * 1.1, 0.07));
-    note(midiHz(chord[0] - 12), t, BAR, 0.09);
+    note(midiHz((chord[0] ?? 0) - 12), t, BAR, 0.09);
     for (let beat = 0; beat < 4; beat += 1) {
       if (Math.random() < 0.45) {
-        const pick = MELODY[Math.floor(Math.random() * MELODY.length)];
+        const pick = MELODY[Math.floor(Math.random() * MELODY.length)] ?? 0;
         note(midiHz(pick), t + beat * (BAR / 4) + Math.random() * 0.1, 1.2, 0.045);
       }
     }

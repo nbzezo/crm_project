@@ -115,7 +115,8 @@ function DashboardTabs({
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();
     const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    onChange(tabs[next].value);
+    const nextTab = tabs[next];
+    if (nextTab) onChange(nextTab.value);
     refs.current[next]?.focus();
   };
   return (

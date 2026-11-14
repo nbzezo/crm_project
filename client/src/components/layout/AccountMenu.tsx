@@ -40,7 +40,9 @@ function initials(name: string | null, email: string | null): string {
   const source = name?.trim() || email?.split('@')[0] || '?';
   const words = source.split(/\s+/).filter(Boolean);
   if (words.length >= 2) {
-    return (words[words.length - 2][0] + words[words.length - 1][0]).toLocaleUpperCase('vi');
+    return (
+      (words[words.length - 2]?.[0] ?? '') + (words[words.length - 1]?.[0] ?? '')
+    ).toLocaleUpperCase('vi');
   }
   return source.slice(0, 2).toLocaleUpperCase('vi');
 }

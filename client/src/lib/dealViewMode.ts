@@ -28,7 +28,9 @@ export function dealTabsFor(mode: DealViewMode) {
 }
 export function resolveDealTab(mode: DealViewMode, requested: string | null | undefined): DealTab {
   const tabs = dealTabsFor(mode);
-  return tabs.some((tab) => tab.key === requested) ? (requested as DealTab) : tabs[0].key;
+  const [fallback] = tabs;
+  if (!fallback) return requested as DealTab;
+  return tabs.some((tab) => tab.key === requested) ? (requested as DealTab) : fallback.key;
 }
 export function influenceBucket(n: number): 'low' | 'medium' | 'high' {
   return n <= 2 ? 'low' : n === 3 ? 'medium' : 'high';

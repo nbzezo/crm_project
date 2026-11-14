@@ -191,7 +191,7 @@ export function SearchBox() {
                     panelRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]');
                   if (!rows?.length) return;
                   event.preventDefault();
-                  (event.key === 'ArrowDown' ? rows[0] : rows[rows.length - 1]).focus();
+                  (event.key === 'ArrowDown' ? rows[0] : rows[rows.length - 1])?.focus();
                 }}
                 placeholder={t.search.placeholder}
                 aria-label={t.search.placeholder}

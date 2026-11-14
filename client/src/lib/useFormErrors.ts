@@ -27,7 +27,9 @@ export function useFormErrors() {
     if (issues.length === 0) return true;
     // Doi React ve xong roi moi focus: luc do o nhap da co aria-invalid nen
     // trinh doc man hinh doc kem ca trang thai loi chu khong chi ten truong.
-    requestAnimationFrame(() => document.getElementById(issues[0].id)?.focus());
+    const firstId = issues[0]?.id;
+    if (firstId !== undefined)
+      requestAnimationFrame(() => document.getElementById(firstId)?.focus());
     return false;
   };
 

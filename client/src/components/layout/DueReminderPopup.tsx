@@ -162,9 +162,9 @@ export function DueReminderPopup() {
     fresh.forEach((r) => announced.current.add(keyOf(r)));
     chime();
     if (document.hidden && desktopEnabled()) {
-      const first = fresh[0];
+      const [first] = fresh;
       const n =
-        fresh.length === 1
+        fresh.length === 1 && first
           ? new Notification(`🔔 ${first.title}`, {
               body: first.card_title ?? (first.note || 'Đến giờ nhắc'),
               tag: `due-reminder-${keyOf(first)}`,
@@ -172,7 +172,7 @@ export function DueReminderPopup() {
             })
           : new Notification(`🔔 ${fresh.length} lời nhắc đến giờ`, {
               body: fresh.map((r) => `• ${r.title}`).join('\n'),
-              tag: `due-reminder-batch-${keyOf(first)}`,
+              tag: `due-reminder-batch-${first ? keyOf(first) : ''}`,
               requireInteraction: true,
             });
       n.onclick = () => {
@@ -209,7 +209,7 @@ export function DueReminderPopup() {
           await api.post(`/api/reminders/due/${key}`, { action: 'dismiss' });
         })
       );
-      const failed = reminders.filter((_, i) => results[i].status === 'rejected');
+      const failed = reminders.filter((_, i) => results[i]?.status === 'rejected');
       if (failed.length > 0) {
         // Chi tra lai nhung dong loi; dong da luu thi de chung bien mat.
         markHandled(failed, false);
@@ -242,8 +242,8 @@ export function DueReminderPopup() {
           'success'
         );
       } else if (action.type === 'complete-task') {
-        const r = reminders[0];
-        pushToast(`Đã hoàn thành “${r.card_title ?? r.title}”`, 'success');
+        const [r] = reminders;
+        if (r) pushToast(`Đã hoàn thành “${r.card_title ?? r.title}”`, 'success');
       } else if (many) {
         pushToast(`Đã tắt ${reminders.length} lời nhắc`, 'success');
       }

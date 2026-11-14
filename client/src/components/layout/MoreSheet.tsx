@@ -62,7 +62,7 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
           <Icon size={20} aria-hidden="true" />
           {(badges[item.to] ?? 0) > 0 && (
             <span className="absolute -right-2 -top-1 rounded-full bg-tr-danger px-1 text-[10px] text-white">
-              {badges[item.to] > 9 ? '9+' : badges[item.to]}
+              {(badges[item.to] ?? 0) > 9 ? '9+' : badges[item.to]}
             </span>
           )}
         </span>

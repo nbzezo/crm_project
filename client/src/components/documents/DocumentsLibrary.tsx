@@ -772,7 +772,8 @@ export function DocumentsLibrary({
         onCancel={() => setPendingAction(null)}
         onConfirm={() => {
           if (pendingAction?.type === 'trash') trash.mutate(pendingAction.ids);
-          if (pendingAction?.type === 'permanent') permanentDelete.mutate(pendingAction.ids[0]);
+          if (pendingAction?.type === 'permanent' && pendingAction.ids[0] !== undefined)
+            permanentDelete.mutate(pendingAction.ids[0]);
           setPendingAction(null);
         }}
       />

@@ -374,7 +374,10 @@ export default function DealDetailPage() {
                         lưu trên cơ hội — nên không có gì để lệch.
                       */}
                         <dl className="space-y-2">
-                          <Row label="Trạng thái" value={t.projectStatus[deal.project.status]} />
+                          <Row
+                            label="Trạng thái"
+                            value={t.projectStatus[deal.project.status] ?? null}
+                          />
                           <Row
                             label="Tiến độ"
                             value={`${deal.project.progress_pct}% · ${deal.project.task_done}/${deal.project.task_total} việc`}

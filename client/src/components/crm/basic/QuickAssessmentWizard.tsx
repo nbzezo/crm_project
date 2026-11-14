@@ -191,6 +191,7 @@ export function QuickAssessmentWizard({ deal, onDone }: { deal: Deal; onDone: ()
       </div>
     );
   const q = questions[step];
+  if (q === undefined) return null;
   const item = current[q];
   return (
     <div className="space-y-4">

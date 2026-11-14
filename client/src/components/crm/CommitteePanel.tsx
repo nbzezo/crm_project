@@ -132,7 +132,7 @@ function MembersBlock({
   )?.blocked_by;
   const relationshipWarning =
     relationshipBlockedBy === 'single_threaded' || relationshipBlockedBy === 'coverage_thin'
-      ? BLOCKED_REASONS[relationshipBlockedBy].text
+      ? (BLOCKED_REASONS[relationshipBlockedBy]?.text ?? null)
       : null;
 
   return (
@@ -334,10 +334,10 @@ function PoliticsBlock({ dealId }: { dealId: number }) {
           <div key={no}>
             <details className="mb-1.5">
               <summary className={`cursor-pointer text-xs text-tr-muted ${focusRing}`}>
-                Câu hỏi gợi ý (#{no} {CELL_INFO[no].label})
+                Câu hỏi gợi ý (#{no} {CELL_INFO[no]?.label ?? ''})
               </summary>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-tr-subtle">
-                {CELL_INFO[no].questions.map((q) => (
+                {(CELL_INFO[no]?.questions ?? []).map((q) => (
                   <li key={q}>{q}</li>
                 ))}
               </ul>

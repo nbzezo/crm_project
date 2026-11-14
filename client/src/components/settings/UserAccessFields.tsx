@@ -155,8 +155,9 @@ export function PositionPicker({
       return;
     }
     const rest = value.filter((row) => row.position_id !== positionId);
-    if (rest.length > 0 && !rest.some((row) => row.is_primary))
-      rest[0] = { ...rest[0], is_primary: true };
+    const [firstRow] = rest;
+    if (firstRow && !rest.some((row) => row.is_primary))
+      rest[0] = { ...firstRow, is_primary: true };
     onChange(rest);
   };
 

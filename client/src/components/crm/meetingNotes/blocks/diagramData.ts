@@ -100,7 +100,8 @@ export function listBlocksToTree(blocks: BlockLike[], rootTopic: string): TopicT
     return { topic: topic || '…', children };
   };
   const items = blocks.map(walk).filter((c): c is TopicTree => c !== null);
-  if (items.length === 1) return items[0];
+  const [onlyItem] = items;
+  if (items.length === 1 && onlyItem) return onlyItem;
   return { topic: rootTopic, children: items };
 }
 

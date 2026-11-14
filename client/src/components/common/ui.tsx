@@ -478,16 +478,19 @@ export function ColorBadge({
   children,
   small,
 }: {
-  color: string;
+  /** Cac bang mau trang thai la Record<string, string> (trang thai them duoc tu
+   *  cau hinh) nen khoa co the thieu — khi do dung mau trung tinh. */
+  color: string | undefined;
   children: ReactNode;
   small?: boolean;
 }) {
+  const bg = color ?? '#8590a2';
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap ${
         small ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs'
       }`}
-      style={{ backgroundColor: color, color: contrastInk(color) }}
+      style={{ backgroundColor: bg, color: contrastInk(bg) }}
     >
       {children}
     </span>

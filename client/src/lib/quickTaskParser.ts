@@ -123,7 +123,7 @@ export function parseQuickTask(input: string, now: Date = new Date()): QuickTask
       const isThu = m[0].startsWith('thu');
       if (isThu && !accentOk(start, start + 3, 'thứ')) return;
       if (!take(start, start + m[0].length)) return;
-      const target = m[1] ? WEEKDAY_WORDS[m[1]] : m[2] ? Number(m[2]) - 1 : 0;
+      const target = m[1] ? (WEEKDAY_WORDS[m[1]] ?? 0) : m[2] ? Number(m[2]) - 1 : 0;
       const today = getDay(now); // 0 = CN
       if (m[3]) {
         // Tuan sau: tinh tu thu Hai cua tuan sau.
@@ -154,7 +154,7 @@ export function parseQuickTask(input: string, now: Date = new Date()): QuickTask
   // 4. Tu chi ngay: "hom nay", "ngay mai", "mai", "ngay mot", "mot", "ngay kia".
   each(/\b(hom nay|ngay mai|mai|ngay mot|mot|ngay kia)\b/g, (m) => {
     if (st.day) return;
-    const word = m[1];
+    const word = m[1] ?? '';
     const start = m.index;
     const end = start + m[0].length;
     if (word.endsWith('mot') && !accentOk(end - 3, end, 'mốt')) return;
@@ -236,7 +236,7 @@ export function parseQuickTask(input: string, now: Date = new Date()): QuickTask
     .replace(/\s+/g, ' ')
     .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '')
     .trim();
-  if (title) title = title[0].toUpperCase() + title.slice(1);
+  if (title) title = (title[0] ?? '').toUpperCase() + title.slice(1);
 
   return {
     title,
@@ -249,7 +249,7 @@ export function parseQuickTask(input: string, now: Date = new Date()): QuickTask
 /** Nhan ngan cho ban xem truoc: "Hôm nay 15:00", "Mai 09:00", "T6 10/10 14:00". */
 export function describeWhen(value: string, now: Date = new Date()): string {
   const [datePart, timePart] = value.split('T');
-  const [y, m, d] = datePart.split('-').map(Number);
+  const [y = NaN, m = NaN, d = NaN] = (datePart ?? '').split('-').map(Number);
   const target = new Date(y, m - 1, d);
   const diff = Math.round((target.getTime() - startOfDay(now).getTime()) / 86_400_000);
   const dayLabel =
@@ -257,6 +257,6 @@ export function describeWhen(value: string, now: Date = new Date()): string {
       ? 'Hôm nay'
       : diff === 1
         ? 'Mai'
-        : `${['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][target.getDay()]} ${pad(d)}/${pad(m)}`;
+        : `${['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][target.getDay()] ?? ''} ${pad(d)}/${pad(m)}`;
   return timePart ? `${dayLabel} ${timePart}` : dayLabel;
 }

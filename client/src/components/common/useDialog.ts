@@ -110,6 +110,10 @@ export function useDialog({
       }
       const first = items[0];
       const last = items[items.length - 1];
+      if (!first || !last) {
+        e.preventDefault();
+        return;
+      }
       const active = document.activeElement as HTMLElement | null;
 
       if (!node.contains(active)) {

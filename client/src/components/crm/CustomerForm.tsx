@@ -295,7 +295,8 @@ export function CustomerForm({
           </Field>
         ) : (
           <div className="flex items-end pb-2 text-xs text-tr-muted">
-            Trạng thái CRM không áp dụng cho {t.orgKind[form.org_kind].toLocaleLowerCase('vi')}.
+            Trạng thái CRM không áp dụng cho{' '}
+            {(t.orgKind[form.org_kind] ?? '').toLocaleLowerCase('vi')}.
           </div>
         )}
         {form.org_kind === 'customer' && (

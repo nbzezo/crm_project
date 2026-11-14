@@ -176,7 +176,8 @@ export function Combobox({
                 setCreateError(null);
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && filtered.length > 0) select(filtered[0].id);
+                const firstOption = filtered[0];
+                if (e.key === 'Enter' && firstOption) select(firstOption.id);
               }}
               placeholder={searchPlaceholder}
               className="w-full rounded-control border border-tr-border bg-tr-list py-1.5 pl-8 pr-2 text-sm text-tr-text outline-none focus:border-tr-primary"

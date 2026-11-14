@@ -328,7 +328,9 @@ export function QuickNotesBoard() {
     const fromIndex = notes.findIndex((n) => n.id === active.id);
     const toIndex = notes.findIndex((n) => n.id === over.id);
     if (fromIndex < 0 || toIndex < 0) return;
-    if (notes[fromIndex].is_pinned !== notes[toIndex].is_pinned) return;
+    const fromNote = notes[fromIndex];
+    const toNote = notes[toIndex];
+    if (!fromNote || !toNote || fromNote.is_pinned !== toNote.is_pinned) return;
 
     const reordered = arrayMove(notes, fromIndex, toIndex);
     queryClient.setQueryData(queryKey, reordered);
@@ -337,12 +339,12 @@ export function QuickNotesBoard() {
     move.mutate({
       id: active.id as number,
       beforeId:
-        idx > 0 && reordered[idx - 1].is_pinned === reordered[idx].is_pinned
-          ? reordered[idx - 1].id
+        idx > 0 && reordered[idx - 1]?.is_pinned === reordered[idx]?.is_pinned
+          ? (reordered[idx - 1]?.id ?? null)
           : null,
       afterId:
-        idx < reordered.length - 1 && reordered[idx + 1].is_pinned === reordered[idx].is_pinned
-          ? reordered[idx + 1].id
+        idx < reordered.length - 1 && reordered[idx + 1]?.is_pinned === reordered[idx]?.is_pinned
+          ? (reordered[idx + 1]?.id ?? null)
           : null,
     });
   }

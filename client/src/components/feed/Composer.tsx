@@ -79,7 +79,8 @@ export function Composer({
     if (fixedGroupId) setGroupId(fixedGroupId);
   }, [fixedGroupId]);
   useEffect(() => {
-    if (!fixedGroupId && groupId === null && groups.length > 0) setGroupId(groups[0].id);
+    const firstGroup = groups[0];
+    if (!fixedGroupId && groupId === null && firstGroup) setGroupId(firstGroup.id);
   }, [fixedGroupId, groupId, groups]);
 
   const group = useQuery({

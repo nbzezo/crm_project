@@ -290,7 +290,7 @@ function TasksTab({ project }: { project: ProjectDetail }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {boards.length === 1 && (
+        {boards.length === 1 && boards[0] && (
           <Link
             to={`/boards/${boards[0].id}`}
             className={`inline-flex items-center gap-1.5 rounded-control px-2 py-1.5 text-sm text-tr-subtle transition hover:bg-tr-hover ${focusRing}`}

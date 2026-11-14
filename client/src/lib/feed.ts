@@ -473,13 +473,15 @@ export function linkHref(link: { type: LinkType; id: number }): string | null {
 export function initials(name: string | null | undefined): string {
   const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return '?';
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[words.length - 2][0] + words[words.length - 1][0]).toUpperCase();
+  if (words.length === 1) return (words[0] ?? '').slice(0, 2).toUpperCase();
+  return (
+    (words[words.length - 2]?.[0] ?? '') + (words[words.length - 1]?.[0] ?? '')
+  ).toUpperCase();
 }
 
 /** Mau on dinh theo id — de mot nguoi / mot nhom luon cung mot mau (bang mau nhan chung). */
 export function colorFor(id: number, explicit?: string | null): string {
-  return explicit || LABEL_PALETTE[Math.abs(id) % (LABEL_PALETTE.length - 1)];
+  return explicit || (LABEL_PALETTE[Math.abs(id) % (LABEL_PALETTE.length - 1)] ?? '');
 }
 
 /** "2 giờ trước", "Hôm qua 14:05", "12/10 09:00". Nhan chuoi 'YYYY-MM-DD HH:MM:SS' gio dia phuong. */
@@ -505,7 +507,7 @@ export function relativeTime(value: string, now = new Date()): string {
 export function formatEventTime(start: string | null, end: string | null): string {
   if (!start) return '';
   const [date, time] = start.split('T');
-  const [y, m, d] = date.split('-');
+  const [y, m, d] = (date ?? '').split('-');
   const endTime = end
     ? end.split('T')[0] === date
       ? end.split('T')[1]

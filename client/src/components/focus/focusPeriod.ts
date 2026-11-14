@@ -88,11 +88,11 @@ const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const WEEKDAYS_LONG = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 
 export function weekdayShort(date: string): string {
-  return WEEKDAYS[parseISO(date).getDay()];
+  return WEEKDAYS[parseISO(date).getDay()] ?? '';
 }
 
 export function weekdayLong(date: string): string {
-  return WEEKDAYS_LONG[parseISO(date).getDay()];
+  return WEEKDAYS_LONG[parseISO(date).getDay()] ?? '';
 }
 
 export function dayMonth(date: string): string {

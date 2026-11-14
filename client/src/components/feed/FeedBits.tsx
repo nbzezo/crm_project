@@ -308,7 +308,8 @@ export function MentionTextarea({
   const detect = (text: string, caret: number) => {
     const before = text.slice(0, caret);
     const match = /(?:^|\s)@([\p{L}\d]*(?:\s[\p{L}\d]*)?)$/u.exec(before);
-    setQuery(match && match[1].length <= 30 ? match[1] : null);
+    const mention = match?.[1];
+    setQuery(mention !== undefined && mention.length <= 30 ? mention : null);
   };
 
   const choose = (candidate: Candidate) => {
@@ -364,7 +365,8 @@ export function MentionTextarea({
             }
             if (event.key === 'Enter' || event.key === 'Tab') {
               event.preventDefault();
-              choose(candidates[active]);
+              const candidate = candidates[active];
+              if (candidate) choose(candidate);
               return;
             }
             if (event.key === 'Escape') {

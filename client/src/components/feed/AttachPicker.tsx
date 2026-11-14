@@ -334,7 +334,7 @@ export function AttachPicker({
                 <p className="rounded-control bg-tr-warning/20 px-3 py-2 text-xs text-tr-text">
                   {linked.length === 1 ? 'Tệp này' : `${linked.length} tệp`} đang gắn với{' '}
                   <b>
-                    {[linked[0].customer_name, linked[0].deal_title, linked[0].contract_name]
+                    {[linked[0]?.customer_name, linked[0]?.deal_title, linked[0]?.contract_name]
                       .filter(Boolean)
                       .join(' · ')}
                   </b>

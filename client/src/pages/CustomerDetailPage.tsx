@@ -612,15 +612,17 @@ export default function CustomerDetailPage() {
         </p>
         {impact && (
           <ul className="mt-2 space-y-0.5 text-sm text-tr-subtle">
-            {[
-              ['contacts', 'người liên hệ'],
-              ['deals', 'cơ hội'],
-              ['contracts', 'hợp đồng'],
-              ['quotations', 'báo giá'],
-              ['documents', 'tài liệu'],
-              ['services', 'dòng dịch vụ & doanh thu'],
-              ['interactions', 'tương tác'],
-            ].map(([key, label]) =>
+            {(
+              [
+                ['contacts', 'người liên hệ'],
+                ['deals', 'cơ hội'],
+                ['contracts', 'hợp đồng'],
+                ['quotations', 'báo giá'],
+                ['documents', 'tài liệu'],
+                ['services', 'dòng dịch vụ & doanh thu'],
+                ['interactions', 'tương tác'],
+              ] as [string, string][]
+            ).map(([key, label]) =>
               impact[key] ? (
                 <li key={key}>
                   • {impact[key]} {label}

@@ -454,7 +454,7 @@ export function EventRow({
   compact?: boolean;
 }) {
   const [date] = event.event_start_at.split('T');
-  const [, month, day] = date.split('-');
+  const [, month, day] = (date ?? '').split('-');
   return (
     <Link
       to={`/feed/posts/${event.id}`}

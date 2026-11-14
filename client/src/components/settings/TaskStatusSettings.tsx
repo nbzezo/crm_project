@@ -77,7 +77,11 @@ export function TaskStatusSettings() {
     const keys = list.map((status) => status.key);
     const target = index + delta;
     if (target < 0 || target >= keys.length) return;
-    [keys[index], keys[target]] = [keys[target], keys[index]];
+    const a = keys[index];
+    const b = keys[target];
+    if (a === undefined || b === undefined) return;
+    keys[index] = b;
+    keys[target] = a;
     reorder.mutate(keys);
   };
   const toggleActive = (status: TaskStatusDef) => {

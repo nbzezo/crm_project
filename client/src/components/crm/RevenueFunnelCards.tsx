@@ -35,24 +35,24 @@ export function RevenueFunnelCards({
     color?: string;
     hint?: string;
   }[] = [
-    { key: 'amount', label: t.revenueFunnel.amount, value: total.amount },
+    { key: 'amount', label: t.revenueFunnel.amount ?? '', value: total.amount },
     {
       key: 'reconciled',
-      label: t.revenueFunnel.reconciled,
+      label: t.revenueFunnel.reconciled ?? '',
       value: total.reconciled,
       color: REVENUE_STAGE_COLORS.reconciled,
       hint: t.revenueFunnelHint.reconciled,
     },
     {
       key: 'invoiced',
-      label: t.revenueFunnel.invoiced,
+      label: t.revenueFunnel.invoiced ?? '',
       value: total.invoiced,
       color: REVENUE_STAGE_COLORS.invoiced,
       hint: t.revenueFunnelHint.invoiced,
     },
     {
       key: 'paid',
-      label: t.revenueFunnel.paid,
+      label: t.revenueFunnel.paid ?? '',
       value: total.paid,
       color: REVENUE_STAGE_COLORS.paid,
     },

@@ -110,7 +110,7 @@ function turnsOf(messages: AiChatMessage[]): ChatTurn[] {
   const turns: ChatTurn[] = [];
   for (let i = 0; i < messages.length; i++) {
     const current = messages[i];
-    if (current.role !== 'user') continue;
+    if (!current || current.role !== 'user') continue;
     const reply = messages[i + 1];
     if (!reply || reply.role !== 'assistant') continue;
     turns.push({

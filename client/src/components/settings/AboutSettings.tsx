@@ -65,8 +65,8 @@ export function AboutSettings() {
               >
                 Phiên bản {minor}.x
                 <span className="text-xs font-normal text-tr-muted">
-                  {releases.length} bản · {formatDate(releases[releases.length - 1].date)} –{' '}
-                  {formatDate(releases[0].date)}
+                  {releases.length} bản · {formatDate(releases[releases.length - 1]?.date ?? '')} –{' '}
+                  {formatDate(releases[0]?.date ?? '')}
                 </span>
               </summary>
               <div className="mt-3">

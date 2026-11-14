@@ -159,12 +159,12 @@ export function buildUnitTree(units: PerfUnit[], people: PersonPerf[]): UnitNode
  */
 export function collapseSingleChains(roots: UnitNode[]): UnitNode[] {
   let current = roots;
-  while (
-    current.length === 1 &&
-    current[0].members.length === 0 &&
-    current[0].children.length === 1
-  )
-    current = current[0].children;
+  for (;;) {
+    const [only] = current;
+    if (current.length !== 1 || !only || only.members.length !== 0 || only.children.length !== 1)
+      break;
+    current = only.children;
+  }
   return current;
 }
 

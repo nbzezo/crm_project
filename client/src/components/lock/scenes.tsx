@@ -47,7 +47,7 @@ export function SceneBackdrop({ scene, thumb = false }: { scene: LockScene; thum
 }
 
 /* Tieu de hai dong cua the chao — doi theo ngay, khong doi moi lan mo khoa. */
-const HEADLINES: [string, string][] = [
+const HEADLINES: [[string, string], ...[string, string][]] = [
   ['Một khoảng lặng.', 'Rồi ta bắt đầu lại.'],
   ['Thở chậm lại.', 'Mọi việc vẫn ổn.'],
   ['Nghỉ một chút.', 'Làm việc tốt hơn.'],
@@ -57,7 +57,7 @@ const HEADLINES: [string, string][] = [
   ['Một khoảng riêng.', 'Một ngày tập trung.'],
 ];
 
-const QUOTES = [
+const QUOTES: [string, ...string[]] = [
   'Hít một hơi thật sâu. Mọi việc vẫn ở đó, chờ bạn quay lại.',
   'Nghỉ một chút không làm bạn chậm lại, nó giúp bạn đi xa hơn.',
   'Uống một ngụm nước, nhìn ra xa, thả lỏng vai.',
@@ -73,9 +73,9 @@ function dayOfYear(date: Date): number {
 }
 
 export function headlineOfDay(date: Date): [string, string] {
-  return HEADLINES[dayOfYear(date) % HEADLINES.length];
+  return HEADLINES[dayOfYear(date) % HEADLINES.length] ?? HEADLINES[0];
 }
 
 export function quoteOfDay(date: Date): string {
-  return QUOTES[dayOfYear(date) % QUOTES.length];
+  return QUOTES[dayOfYear(date) % QUOTES.length] ?? QUOTES[0];
 }

@@ -197,7 +197,11 @@ export function TaskFlowSettings() {
                 disabled={!canEdit || index === 0}
                 onClick={() => {
                   const next = [...template.steps];
-                  [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                  const prev = next[index - 1];
+                  const cur = next[index];
+                  if (prev === undefined || cur === undefined) return;
+                  next[index - 1] = cur;
+                  next[index] = prev;
                   setSteps(next);
                 }}
                 aria-label={`Đưa bước ${index + 1} lên`}
@@ -210,7 +214,11 @@ export function TaskFlowSettings() {
                 disabled={!canEdit || index === template.steps.length - 1}
                 onClick={() => {
                   const next = [...template.steps];
-                  [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                  const after = next[index + 1];
+                  const cur = next[index];
+                  if (after === undefined || cur === undefined) return;
+                  next[index + 1] = cur;
+                  next[index] = after;
                   setSteps(next);
                 }}
                 aria-label={`Đưa bước ${index + 1} xuống`}

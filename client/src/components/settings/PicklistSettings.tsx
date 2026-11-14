@@ -22,8 +22,10 @@ import { focusRing } from '../common/ui';
 import { usePermission } from '../../lib/permissions';
 import { CRM_CONFIG_QUERY_KEY, usePicklist } from '../../lib/crmConfig';
 
+type PicklistMeta = { key: PicklistKey; title: string; hint: string };
+
 /** Tên và giải thích của từng danh mục, theo thứ tự hiện trên màn hình. */
-export const PICKLIST_META: { key: PicklistKey; title: string; hint: string }[] = [
+export const PICKLIST_META: [PicklistMeta, ...PicklistMeta[]] = [
   {
     key: 'lost_reason',
     title: 'Lý do thất bại',
@@ -150,7 +152,11 @@ function PicklistEditor({ list, title, hint }: { list: PicklistKey; title: strin
     const ids = items.map((item) => item.id);
     const target = index + delta;
     if (target < 0 || target >= ids.length) return;
-    [ids[index], ids[target]] = [ids[target], ids[index]];
+    const a = ids[index];
+    const b = ids[target];
+    if (a === undefined || b === undefined) return;
+    ids[index] = b;
+    ids[target] = a;
     reorder.mutate(ids);
   };
 

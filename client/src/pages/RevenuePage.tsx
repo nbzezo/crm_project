@@ -345,17 +345,18 @@ export default function RevenuePage() {
   const tableRows = useMemo<TableRow[]>(
     () =>
       groupByCustomer
-        ? customerGroups.flatMap((g): TableRow[] =>
-            g.lines.length === 1
-              ? [{ kind: 'line', line: g.lines[0], grouped: false }]
+        ? customerGroups.flatMap((g): TableRow[] => {
+            const [onlyLine] = g.lines;
+            return g.lines.length === 1 && onlyLine
+              ? [{ kind: 'line', line: onlyLine, grouped: false }]
               : collapsed.has(g.customer_id)
                 ? [{ kind: 'header', group: g }]
                 : [
                     { kind: 'header', group: g },
                     ...g.lines.map((line): TableRow => ({ kind: 'line', line, grouped: true })),
                     { kind: 'add', group: g },
-                  ]
-          )
+                  ];
+          })
         : lines.map((line): TableRow => ({ kind: 'line', line, grouped: false })),
     [collapsed, customerGroups, groupByCustomer, lines]
   );
@@ -570,7 +571,7 @@ export default function RevenuePage() {
         {line.service_name || <span className="text-tr-muted">— chưa gán —</span>}
       </td>
       <td className="px-3 py-1.5">
-        <StatusChip status={line.status}>{t.serviceStatus[line.status]}</StatusChip>
+        <StatusChip status={line.status}>{t.serviceStatus[line.status] ?? line.status}</StatusChip>
       </td>
       <td
         className="bg-tr-surface px-3 py-1.5 text-right font-semibold tabular-nums text-tr-text"
@@ -600,7 +601,7 @@ export default function RevenuePage() {
             monthLabel={`T${m}`}
             outOfGroup={
               outOfGroup(line, period)
-                ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period]]}`
+                ? `Tháng này thuộc nhóm ${t.revenueGroup[line.groups[period] ?? 'new'] ?? ''}`
                 : undefined
             }
             onAmount={(amount_vnd) => saveAmount(line, period, amount_vnd)}
@@ -1403,7 +1404,7 @@ function GroupBadge({
   }
   const label =
     sequence.length > 1
-      ? `${t.revenueGroup[sequence[0]]} → Nền từ ${formatPeriod(line.anchor.base_from)}`
+      ? `${t.revenueGroup[sequence[0] ?? 'new'] ?? ''} → Nền từ ${formatPeriod(line.anchor.base_from)}`
       : t.revenueGroup[sequence[0] ?? 'new'];
   return (
     <button

@@ -563,7 +563,7 @@ export function ReportsContent({ variant = 'all' }: { variant?: 'all' | 'project
                 <DonutWithLegend
                   data={interactionData}
                   colors={interactionData.map(
-                    (_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]
+                    (_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length] ?? ''
                   )}
                   unit="lần"
                 />
@@ -685,7 +685,7 @@ function ScoreWinLoss({ data }: { data: ReportsData['score_winloss'] }) {
                       </th>
                       <td className="py-1.5">
                         <span className="flex flex-wrap gap-1.5">
-                          {Object.entries(data.lost_reason_by_factor[reason]).map(
+                          {Object.entries(data.lost_reason_by_factor[reason] ?? {}).map(
                             ([factor, count]) => (
                               <span
                                 key={factor}

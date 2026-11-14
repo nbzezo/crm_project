@@ -98,7 +98,11 @@ export function PipelineSettings() {
     const ids = open.map((stage) => stage.id);
     const target = index + delta;
     if (target < 0 || target >= ids.length) return;
-    [ids[index], ids[target]] = [ids[target], ids[index]];
+    const a = ids[index];
+    const b = ids[target];
+    if (a === undefined || b === undefined) return;
+    ids[index] = b;
+    ids[target] = a;
     reorder.mutate(ids);
   };
 

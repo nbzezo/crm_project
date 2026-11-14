@@ -90,13 +90,13 @@ export function toBlocks(source: string): Block[] {
     const last = blocks[blocks.length - 1];
 
     if (heading) {
-      blocks.push({ kind: 'heading', lines: [heading[1]] });
+      blocks.push({ kind: 'heading', lines: [heading[1] ?? ''] });
     } else if (bullet) {
-      if (last?.kind === 'bullets') last.lines.push(bullet[1]);
-      else blocks.push({ kind: 'bullets', lines: [bullet[1]] });
+      if (last?.kind === 'bullets') last.lines.push(bullet[1] ?? '');
+      else blocks.push({ kind: 'bullets', lines: [bullet[1] ?? ''] });
     } else if (numbered) {
-      if (last?.kind === 'numbers') last.lines.push(numbered[1]);
-      else blocks.push({ kind: 'numbers', lines: [numbered[1]] });
+      if (last?.kind === 'numbers') last.lines.push(numbered[1] ?? '');
+      else blocks.push({ kind: 'numbers', lines: [numbered[1] ?? ''] });
     } else if ((last?.kind === 'bullets' || last?.kind === 'numbers') && last.lines.length > 0) {
       /* Dong thuong ngay sau mot gach dau dong (khong co dong trong ngan cach)
          la phan ĐUÔI cua chinh gach dau dong do — mo hinh xuong dong vi dong
@@ -134,7 +134,7 @@ export function AnswerText({ text }: { text: string }) {
         if (block.kind === 'heading') {
           return (
             <h3 key={key} className="text-sm font-semibold text-tr-text">
-              {inline(block.lines[0], key)}
+              {inline(block.lines[0] ?? '', key)}
             </h3>
           );
         }

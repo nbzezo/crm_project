@@ -172,10 +172,12 @@ function Blocks({ blocks }: { blocks: PublicBlock[] }) {
         );
         switch (block.type) {
           case 'heading': {
-            const cls = ['text-xl font-bold', 'text-lg font-semibold', 'text-base font-semibold'][
-              (block.level ?? 1) - 1
-            ];
-            const Tag = (['h2', 'h3', 'h4'] as const)[(block.level ?? 1) - 1];
+            const cls =
+              ['text-xl font-bold', 'text-lg font-semibold', 'text-base font-semibold'][
+                (block.level ?? 1) - 1
+              ] ?? 'text-base font-semibold';
+            /* May chu da kep level trong 1..3; `?? 'h2'` chi de bo `undefined` khoi kieu. */
+            const Tag = (['h2', 'h3', 'h4'] as const)[(block.level ?? 1) - 1] ?? 'h2';
             return (
               <div key={index} className="mt-4">
                 <Tag className={cls}>

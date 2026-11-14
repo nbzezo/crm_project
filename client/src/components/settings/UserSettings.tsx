@@ -809,7 +809,7 @@ export function UserSettings() {
         open={confirm?.kind === 'lock'}
         title={
           confirm?.kind === 'lock' && confirm.users.length === 1
-            ? `Khoá tài khoản ${confirm.users[0].full_name ?? confirm.users[0].username}?`
+            ? `Khoá tài khoản ${confirm.users[0]?.full_name ?? confirm.users[0]?.username}?`
             : `Khoá ${confirm?.kind === 'lock' ? confirm.users.length : 0} tài khoản?`
         }
         message="Người bị khoá:"
