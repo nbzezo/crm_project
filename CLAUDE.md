@@ -33,9 +33,31 @@ kế tiếp, gộp ghi chú của các thay đổi chưa có trong `RELEASE_NOTE
 
 ## Chạy kiểm tra
 
-- Máy chủ: `cd server && node scripts/run-tests.mjs`
-- Giao diện: `cd client && npx tsc --noEmit -p tsconfig.json && npx vitest run`
-- Lint: `npx eslint .` (phủ cả `e2e/`, `scripts/`, `packages/`, các file cấu hình — 627 file)
+**Cổng chặn thật nằm ở `.github/workflows/quality.yml`.** Deploy chỉ chạy sau khi workflow
+`Quality` thành công (`deploy.yml` nghe `workflow_run` với điều kiện
+`conclusion == 'success'`), nên Quality trượt là **không có gì lên máy chủ** — bản 1.44.0 và
+1.44.1 đã bị chặn đúng kiểu đó. Trước khi đẩy `main`, chạy đủ chín bước y như CI:
+
+```bash
+npm run format:check              # prettier --check . (TOÀN repo, không chỉ file vừa sửa)
+npm run check:ui                  # cấm mã màu nguyên bản ngoài theme/palettes.ts + kiểm tương phản
+npm run lint                      # eslint . --max-warnings=0 (CẢNH BÁO cũng làm trượt)
+npm run typecheck                 # contracts + server + client
+npm run build -w @workflow/contracts
+npm test -w server                # 596 test
+npm test -w client                # 233 test
+npm run build                     # có kiểm kích thước bundle
+npm run test:e2e                  # Playwright
+```
+
+Ba bước dễ bị bỏ sót nhất vì không có trong lệnh rút gọn: `format:check` (chạy cả repo),
+`check:ui` (chặn hex ngoài palette) và `build` (kiểm bundle).
+
+⚠️ **`npm run test:e2e` trong container đám mây không đáng tin.** Hai bài
+`notification center xu ly, hoan tac va mo dung ngu canh lich` và
+`quet a11y tren cac route chinh o ca theme sang va toi` trượt ngay cả trên commit mà CI báo
+xanh (đã kiểm chứng trên 960a83e / 1.43.2), do Chromium và thời gian chạy khác CI. 56 bài còn
+lại thì tin được. Nếu chỉ hai bài đó trượt, hãy để CI phán quyết.
 
 ## Dọn worktree trên Windows: tháo junction TRƯỚC khi xóa
 

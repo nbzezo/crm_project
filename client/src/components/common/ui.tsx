@@ -11,6 +11,7 @@ import type {
 import { AlertCircle, CalendarDays, Inbox } from 'lucide-react';
 import { PRIORITY_COLORS, t } from '../../i18n/vi';
 import type { Priority } from '../../types';
+import { STATUS_COLOR_PLACEHOLDER } from '../../theme/palettes';
 import {
   contrastInk,
   formatDate,
@@ -479,12 +480,14 @@ export function ColorBadge({
   small,
 }: {
   /** Cac bang mau trang thai la Record<string, string> (trang thai them duoc tu
-   *  cau hinh) nen khoa co the thieu — khi do dung mau trung tinh. */
+   *  cau hinh) nen khoa co the thieu — khi do dung mau trung tinh cua bang mau
+   *  (STATUS_COLOR_PLACEHOLDER), khong hard-code hex: check-ui-system.mjs chan
+   *  ma mau nguyen ban ngoai theme/palettes.ts. */
   color: string | undefined;
   children: ReactNode;
   small?: boolean;
 }) {
-  const bg = color ?? '#8590a2';
+  const bg = color ?? STATUS_COLOR_PLACEHOLDER;
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap ${

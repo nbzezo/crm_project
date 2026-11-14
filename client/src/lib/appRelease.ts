@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-11-14';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.44.2',
+    date: '2026-11-14',
+    title: 'Sửa lỗi chặn phát hành 1.44.0 và 1.44.1',
+    changes: [
+      'Hai bản 1.44.0 và 1.44.1 bị CI chặn nên chưa lên máy chủ. Bản này sửa nguyên nhân: màu dự phòng của nhãn trạng thái chưa được tô màu nay lấy từ bảng màu chung thay vì ghi trực tiếp trong mã. Giao diện không đổi — vẫn đúng màu xám trung tính như trước.',
+      'Các thay đổi của 1.44.0 và 1.44.1 lên máy chủ cùng bản này.',
+    ],
+  },
+  {
     version: '1.44.1',
     date: '2026-11-14',
     title: 'Nút sao chép hoạt động được khi máy chủ chạy HTTP',
