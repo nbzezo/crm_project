@@ -35,7 +35,7 @@ kế tiếp, gộp ghi chú của các thay đổi chưa có trong `RELEASE_NOTE
 
 - Máy chủ: `cd server && node scripts/run-tests.mjs`
 - Giao diện: `cd client && npx tsc --noEmit -p tsconfig.json && npx vitest run`
-- Lint: `npx eslint client/src server/src`
+- Lint: `npx eslint .` (phủ cả `e2e/`, `scripts/`, `packages/`, các file cấu hình — 627 file)
 
 ## Dọn worktree trên Windows: tháo junction TRƯỚC khi xóa
 
