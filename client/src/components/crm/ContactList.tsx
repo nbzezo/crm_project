@@ -210,10 +210,10 @@ export const ContactList = forwardRef<
   }, [open, editing?.id]);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+    void queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
     // Danh ba nguoi phu trach doc tu chinh bang contacts — khong nap lai thi cac o
     // chon giao viec van hien ten cu cho toi khi tai lai trang.
-    queryClient.invalidateQueries({ queryKey: ['assignees'] });
+    void queryClient.invalidateQueries({ queryKey: ['assignees'] });
   };
 
   const birthday = parseBirthdayInput(form.birthday);

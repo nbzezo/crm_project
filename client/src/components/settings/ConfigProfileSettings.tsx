@@ -42,8 +42,8 @@ export function ConfigProfileSettings() {
       setReport(result);
       if (!result.dry_run) {
         setConfirmApply(false);
-        queryClient.invalidateQueries();
-        queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
+        void queryClient.invalidateQueries();
+        void queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
         pushToast('Đã áp dụng hồ sơ cấu hình', 'success');
         setProfile(null);
       }

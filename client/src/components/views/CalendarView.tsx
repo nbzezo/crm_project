@@ -126,7 +126,7 @@ export function CalendarView({ boardId, projectId }: { boardId?: number; project
     // loi, neu khong su kien chi lang le nhay ve cho cu.
     onError: (err) => {
       pushToast(err instanceof Error ? err.message : t.common.saveError);
-      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      void queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 

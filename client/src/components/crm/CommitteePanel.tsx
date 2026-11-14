@@ -54,8 +54,8 @@ export function CommitteePanel({ deal, scorecard }: { deal: Deal; scorecard?: Sc
   const dealId = deal.id;
   const queryClient = useQueryClient();
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
-    queryClient.invalidateQueries({ queryKey: ['deals'] });
+    void queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+    void queryClient.invalidateQueries({ queryKey: ['deals'] });
   };
 
   return (
@@ -377,7 +377,7 @@ function EventsBlock({ deal, onChange }: { deal: Deal; onChange: () => void }) {
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+    void queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
     onChange();
   };
   const create = useMutation({
@@ -533,8 +533,8 @@ function BackwardPlan({ dealId }: { dealId: number }) {
         milestones: (data?.milestones ?? []).map(({ title, date }) => ({ title, date })),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['reminders'] });
       setExpanded(false);
     },
   });
@@ -601,7 +601,7 @@ function CompetitorsBlock({ dealId, onChange }: { dealId: number; onChange: () =
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+    void queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
     onChange();
   };
   const create = useMutation({

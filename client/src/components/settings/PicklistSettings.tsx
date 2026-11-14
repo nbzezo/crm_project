@@ -119,7 +119,7 @@ function PicklistEditor({ list, title, hint }: { list: PicklistKey; title: strin
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
   };
 
   const create = useMutation({

@@ -105,7 +105,7 @@ export function DocumentMetadataDrawer({
         expires_at: form!.expires_at || null,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
       onClose();
     },
   });

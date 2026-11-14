@@ -128,8 +128,8 @@ export function InteractionTimeline({
       }),
     onSuccess: (created) => {
       refresh();
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['board'] });
       if (created?.created_task_id) pushToast('Đã tạo công việc tiếp theo', 'success');
       // F-12: chỉ hoạt động thực tế mới làm thay đổi điểm (Mục 3.6) — hỏi ngay tại đây,
       // thay vì để người dùng chấm dồn một lần trước kỳ báo cáo.

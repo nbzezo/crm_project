@@ -62,7 +62,7 @@ export function DealActivitySidebar({
       setJustLogged(summary);
       // Sidebar doc `deal.activities` tu query cua trang cha — phai invalidate
       // dung key do thi danh sach moi cap nhat, invalidateCrmViews khong dong.
-      queryClient.invalidateQueries({ queryKey: ['deal', dealId, 'full'] });
+      void queryClient.invalidateQueries({ queryKey: ['deal', dealId, 'full'] });
       invalidateCrmViews(queryClient, customerId);
     },
   });

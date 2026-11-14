@@ -70,16 +70,16 @@ export function BoardMenu({
   const restoreCard = useMutation({
     mutationFn: (cardId: number) => api.patch(`/api/cards/${cardId}`, { is_archived: false }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board-archived', board.id] });
-      queryClient.invalidateQueries({ queryKey: ['board', board.id] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['project'] });
+      void queryClient.invalidateQueries({ queryKey: ['board-archived', board.id] });
+      void queryClient.invalidateQueries({ queryKey: ['board', board.id] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['project'] });
     },
   });
 
   const refreshBoard = () => {
-    queryClient.invalidateQueries({ queryKey: ['board', board.id] });
-    queryClient.invalidateQueries({ queryKey: ['boards'] });
+    void queryClient.invalidateQueries({ queryKey: ['board', board.id] });
+    void queryClient.invalidateQueries({ queryKey: ['boards'] });
   };
 
   const setBackground = useMutation({
@@ -100,16 +100,16 @@ export function BoardMenu({
     onSuccess: () => {
       refreshBoard();
       // Thẻ trong bảng vừa đổi project_id — mọi màn đọc theo dự án phải nạp lại.
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['project'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['project'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
   const addLabel = useMutation({
     mutationFn: () => api.post('/api/labels', { name: labelName.trim(), color: labelColor }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
+      void queryClient.invalidateQueries({ queryKey: ['labels'] });
       refreshBoard();
       setLabelName('');
     },
@@ -118,7 +118,7 @@ export function BoardMenu({
   const removeLabel = useMutation({
     mutationFn: (id: number) => api.del(`/api/labels/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
+      void queryClient.invalidateQueries({ queryKey: ['labels'] });
       refreshBoard();
     },
   });
@@ -126,7 +126,7 @@ export function BoardMenu({
   const removeBoard = useMutation({
     mutationFn: () => api.del(`/api/boards/${board.id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
       onDeleted();
     },
   });

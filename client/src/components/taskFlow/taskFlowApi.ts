@@ -39,7 +39,7 @@ export const taskFlowApi = {
 
 /** Quy trình đổi thì tiến độ trên thẻ, danh sách và có thể cả trạng thái đều đổi. */
 export function refreshAfterFlowChange(queryClient: QueryClient, cardId: number): void {
-  queryClient.invalidateQueries({ queryKey: ['card', cardId] });
+  void queryClient.invalidateQueries({ queryKey: ['card', cardId] });
   invalidateCardViews(queryClient);
 }
 

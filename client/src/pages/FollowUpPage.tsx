@@ -238,15 +238,19 @@ function NudgeDialog({ group, onClose }: { group: Group | null; onClose: () => v
     },
     onSuccess: () => {
       invalidateCardViews(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       pushToast(`Đã ghi nhận đôn đốc ${group?.tasks.length ?? 0} việc`, 'success');
       onClose();
     },
   });
 
   const copy = async () => {
-    await navigator.clipboard.writeText(message);
-    pushToast('Đã copy nội dung đôn đốc', 'success');
+    try {
+      await navigator.clipboard.writeText(message);
+      pushToast('Đã copy nội dung đôn đốc', 'success');
+    } catch {
+      pushToast('Trình duyệt không cho sao chép — hãy chọn và sao chép thủ công.');
+    }
   };
 
   return (

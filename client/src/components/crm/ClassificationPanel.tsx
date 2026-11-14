@@ -39,8 +39,8 @@ export function ClassificationPanel({
     onSuccess: () => {
       setPicked(null);
       setReason('');
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 

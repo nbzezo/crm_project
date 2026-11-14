@@ -83,7 +83,7 @@ export function useQuickNoteMutations() {
   const restore = useMutation({
     mutationFn: (id: number) => api.post<QuickNote>(`/api/quick-notes/${id}/restore`),
     onSuccess: () => {
-      invalidate();
+      void invalidate();
       pushToast('Đã khôi phục ghi chú', 'success');
     },
   });
@@ -92,7 +92,7 @@ export function useQuickNoteMutations() {
   const permanentlyDelete = useMutation({
     mutationFn: (id: number) => api.del(`/api/quick-notes/${id}/permanent`),
     onSuccess: () => {
-      invalidate();
+      void invalidate();
       pushToast('Đã xoá vĩnh viễn ghi chú', 'success');
     },
   });
@@ -105,7 +105,7 @@ export function useQuickNoteMutations() {
     mutationFn: (id: number) =>
       api.post<{ discarded: boolean }>(`/api/quick-notes/${id}/discard-if-empty`),
     onSuccess: (result) => {
-      if (result.discarded) invalidate();
+      if (result.discarded) void invalidate();
     },
   });
 
@@ -129,7 +129,7 @@ export function useQuickNoteMutations() {
     mutationFn: (vars: { id: number; archived: boolean }) =>
       api.post<QuickNote>(`/api/quick-notes/${vars.id}/archive`, { archived: vars.archived }),
     onSuccess: (_note, vars) => {
-      invalidate();
+      void invalidate();
       pushToast(vars.archived ? 'Đã lưu trữ ghi chú' : 'Đã bỏ lưu trữ ghi chú', 'success');
     },
   });
@@ -148,7 +148,7 @@ export function useQuickNoteMutations() {
     mutationFn: (vars: { id: number; cardId: number }) =>
       api.post<QuickNote>(`/api/quick-notes/${vars.id}/convert/task`, { card_id: vars.cardId }),
     onSuccess: () => {
-      invalidate();
+      void invalidate();
       pushToast('Đã tạo công việc từ ghi chú', 'success');
     },
   });
@@ -159,7 +159,7 @@ export function useQuickNoteMutations() {
       links: { customer_id?: number | null; deal_id?: number | null; project_id?: number | null };
     }) => api.post<QuickNote>(`/api/quick-notes/${vars.id}/convert/crm-note`, vars.links),
     onSuccess: () => {
-      invalidate();
+      void invalidate();
       pushToast('Đã tạo trang tài liệu', 'success');
     },
   });

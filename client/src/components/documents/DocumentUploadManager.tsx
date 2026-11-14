@@ -222,7 +222,7 @@ export function DocumentUploadManager({
         )
       );
       xhrRef.current = null;
-      if (ok) queryClient.invalidateQueries({ queryKey: ['documents'] });
+      if (ok) void queryClient.invalidateQueries({ queryKey: ['documents'] });
     };
     xhr.onerror = () => {
       setQueue((current) =>

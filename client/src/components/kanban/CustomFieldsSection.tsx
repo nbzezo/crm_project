@@ -34,8 +34,8 @@ export function CustomFieldsSection({
   const [confirmDelete, setConfirmDelete] = useState<CardFieldValue | null>(null);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['card', cardId] });
-    queryClient.invalidateQueries({ queryKey: ['card-fields'] });
+    void queryClient.invalidateQueries({ queryKey: ['card', cardId] });
+    void queryClient.invalidateQueries({ queryKey: ['card-fields'] });
     invalidateCardViews(queryClient);
   };
 

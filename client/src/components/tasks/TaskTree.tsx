@@ -136,7 +136,7 @@ export function TaskTree({
 
   const refresh = () => {
     invalidateCardViews(queryClient);
-    queryClient.invalidateQueries({ queryKey: ['customer'] });
+    void queryClient.invalidateQueries({ queryKey: ['customer'] });
     onChanged?.();
   };
 

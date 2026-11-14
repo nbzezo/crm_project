@@ -357,7 +357,7 @@ function MindmapEditor({
       const rootEl = instance.map.querySelector<Topic>('me-root>me-tpc');
       if (rootEl) {
         instance.selectNode(rootEl);
-        instance.beginEdit(rootEl);
+        void instance.beginEdit(rootEl);
       }
     }
 

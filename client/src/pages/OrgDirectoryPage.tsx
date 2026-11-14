@@ -165,8 +165,8 @@ export default function OrgDirectoryPage() {
   const removeOrg = useMutation({
     mutationFn: (id: number) => api.del(`/api/customers/${id}`),
     onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: ['orgs'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      void queryClient.invalidateQueries({ queryKey: ['orgs'] });
+      void queryClient.invalidateQueries({ queryKey: ['customers'] });
       setExpandedId((current) => (current === id ? null : current));
     },
   });

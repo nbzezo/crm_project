@@ -27,8 +27,8 @@ export function HandoverPanel({ dealId }: { dealId: number }) {
      và trang chi tiết — nên làm mới cả hai chứ không chỉ riêng checklist. */
   const refresh = (next: HandoverState) => {
     queryClient.setQueryData(['deal', dealId, 'handover'], next);
-    queryClient.invalidateQueries({ queryKey: ['deal', dealId, 'full'] });
-    queryClient.invalidateQueries({ queryKey: ['deals'] });
+    void queryClient.invalidateQueries({ queryKey: ['deal', dealId, 'full'] });
+    void queryClient.invalidateQueries({ queryKey: ['deals'] });
   };
 
   const applyTemplate = useMutation({

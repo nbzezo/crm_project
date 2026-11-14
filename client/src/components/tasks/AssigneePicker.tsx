@@ -76,7 +76,7 @@ function useQuickCreateAssignee(
     const created = await api.post<Contact>(`/api/customers/${ownOrgId}/contacts`, {
       full_name: fullName,
     });
-    queryClient.invalidateQueries({ queryKey: ['assignees'] });
+    void queryClient.invalidateQueries({ queryKey: ['assignees'] });
     return { id: created.id, label: created.full_name };
   };
 }

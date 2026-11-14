@@ -81,15 +81,15 @@ export default function ProjectDetailPage() {
   const archive = useMutation({
     mutationFn: () => api.patch(`/api/projects/${id}`, { is_archived: !project?.is_archived }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project', id] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['project', id] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 
   const remove = useMutation({
     mutationFn: () => api.del(`/api/projects/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
       window.location.assign('/projects');
     },
   });
@@ -262,7 +262,7 @@ function TasksTab({ project }: { project: ProjectDetail }) {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['project', project.id] });
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
       composeTask();
     },
   });
@@ -485,8 +485,8 @@ function Phases({ project }: { project: ProjectDetail }) {
     onSuccess: () => {
       setName('');
       setDate(null);
-      refresh();
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void refresh();
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
     },
   });
 

@@ -142,7 +142,7 @@ export function useDealStageMove(opts: {
         onOpenScorecard={() => {
           const dealId = pendingGate?.vars.dealId;
           setPendingGate(null);
-          if (dealId) navigate(`/deals/${dealId}`);
+          if (dealId) void navigate(`/deals/${dealId}`);
         }}
         onOverride={() => {
           if (!pendingGate) return;

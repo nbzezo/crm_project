@@ -686,7 +686,7 @@ export function TasksWorkspace() {
         config: { scope, mode, sort, group, columns, filters } satisfies TaskWorkspaceConfig,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', 'saved-views'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks', 'saved-views'] });
       setSavingView(false);
       setViewName('');
       setViewShared(false);

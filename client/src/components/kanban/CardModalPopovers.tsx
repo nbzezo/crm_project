@@ -65,7 +65,7 @@ export function LabelsPopover({ card, pop, onDone }: Props) {
   const save = useMutation({
     mutationFn: (ids: number[]) => api.put(`/api/cards/${card.id}/labels`, { label_ids: ids }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['card', card.id] });
+      void queryClient.invalidateQueries({ queryKey: ['card', card.id] });
       onDone();
     },
   });

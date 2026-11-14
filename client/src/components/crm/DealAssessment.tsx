@@ -718,8 +718,8 @@ export function DecisionPanel({
   /* Chuyen sang That bai doi giai doan va khoa danh gia — tai lai ca co hoi lan danh sach. */
   const { move, dialogs } = useDealStageMove({
     invalidate: () => {
-      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
     },
   });
 

@@ -105,8 +105,8 @@ export default function BoardPage() {
   const patchBoard = useMutation({
     mutationFn: (patch: Record<string, unknown>) => api.patch(`/api/boards/${id}`, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', id] });
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['board', id] });
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
     },
   });
 

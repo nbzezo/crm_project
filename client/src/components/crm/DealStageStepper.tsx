@@ -36,8 +36,8 @@ export function DealStageStepper({ deal }: { deal: Deal }) {
   const queryClient = useQueryClient();
   const { move, dialogs } = useDealStageMove({
     invalidate: () => {
-      queryClient.invalidateQueries({ queryKey: ['deal', deal.id, 'full'] });
-      queryClient.invalidateQueries({ queryKey: ['deal', deal.id, 'scorecard'] });
+      void queryClient.invalidateQueries({ queryKey: ['deal', deal.id, 'full'] });
+      void queryClient.invalidateQueries({ queryKey: ['deal', deal.id, 'scorecard'] });
       invalidateCrmViews(queryClient, deal.customer_id);
     },
   });

@@ -124,10 +124,10 @@ export default function ContractsPage() {
   const renew = useMutation({
     mutationFn: (id: number) => api.post<{ id: number }>(`/api/contracts/${id}/renew`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
       pushToast('Đã tạo cơ hội gia hạn trong pipeline', 'success');
-      navigate('/pipeline');
+      void navigate('/pipeline');
     },
   });
 

@@ -15,7 +15,7 @@ export function ChecklistSection({ cardId, items }: { cardId: number; items: Che
   const [adding, setAdding] = useState(false);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['card', cardId] });
+    void queryClient.invalidateQueries({ queryKey: ['card', cardId] });
     invalidateCardViews(queryClient);
   };
 

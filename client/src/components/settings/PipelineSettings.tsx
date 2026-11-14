@@ -57,11 +57,11 @@ export function PipelineSettings() {
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: CRM_CONFIG_QUERY_KEY });
     /* Kanban, Tổng quan, Báo cáo đọc cột theo giai đoạn. */
-    queryClient.invalidateQueries({ queryKey: ['deals'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    queryClient.invalidateQueries({ queryKey: ['scoring-settings'] });
+    void queryClient.invalidateQueries({ queryKey: ['deals'] });
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    void queryClient.invalidateQueries({ queryKey: ['scoring-settings'] });
   };
 
   const create = useMutation({

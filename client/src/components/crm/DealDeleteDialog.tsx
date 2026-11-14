@@ -115,7 +115,7 @@ export function DealDeleteDialog({
     mutationFn: () => api.del(`/api/deals/${dealId}`, { delete: selected }),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['deal', dealId] });
-      navigate('/pipeline');
+      void navigate('/pipeline');
       // Xóa chạm tới nhiều loại bản ghi (tài liệu, việc, báo giá…) — làm mới tất cả.
       void queryClient.invalidateQueries();
     },

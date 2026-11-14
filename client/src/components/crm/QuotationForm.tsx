@@ -80,7 +80,7 @@ export function QuotationForm({
     },
     onSuccess: () => {
       invalidateCrmViews(queryClient, Number(customerId));
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       onClose();
     },
   });

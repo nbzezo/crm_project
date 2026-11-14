@@ -71,7 +71,7 @@ export function DeliverySettings() {
       queryClient.setQueryData(['settings', 'delivery'], next);
       setLoaded(next);
       // Phân loại của mọi dự án đọc từ ngưỡng này nên phải nạp lại.
-      queryClient.invalidateQueries({ queryKey: ['project'] });
+      void queryClient.invalidateQueries({ queryKey: ['project'] });
       pushToast('Đã lưu cấu hình triển khai', 'success');
     },
   });

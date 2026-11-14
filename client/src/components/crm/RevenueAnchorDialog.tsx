@@ -60,7 +60,7 @@ export function RevenueAnchorDialog({
   const save = useMutation({
     mutationFn: () => api.put(`/api/revenues/lines/${line.id}/anchor?year=${year}`, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['revenues'] });
+      void queryClient.invalidateQueries({ queryKey: ['revenues'] });
       onClose();
     },
   });

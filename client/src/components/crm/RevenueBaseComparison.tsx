@@ -136,7 +136,7 @@ export function RevenueBaseComparison({
       setFillMessage(
         `Đã điền ${result.filled} dòng. ${result.no_data} dòng không có dữ liệu năm ${year - 1}. Dòng đã nhập tay được giữ nguyên.`
       );
-      queryClient.invalidateQueries({ queryKey: ['revenues'] });
+      void queryClient.invalidateQueries({ queryKey: ['revenues'] });
     },
   });
 

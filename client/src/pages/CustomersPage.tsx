@@ -136,7 +136,7 @@ export default function CustomersPage() {
   const removeCustomer = useMutation({
     mutationFn: (id: number) => api.del(`/api/customers/${id}`),
     onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      void queryClient.invalidateQueries({ queryKey: ['customers'] });
       setSelectedCustomer((current) => (current?.id === id ? null : current));
     },
   });

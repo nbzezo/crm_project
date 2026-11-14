@@ -23,8 +23,8 @@ export function QuickNoteAttachments({ noteId }: { noteId: number }) {
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['documents', 'quick-note', noteId] });
-    queryClient.invalidateQueries({ queryKey: ['quick-notes'] });
+    void queryClient.invalidateQueries({ queryKey: ['documents', 'quick-note', noteId] });
+    void queryClient.invalidateQueries({ queryKey: ['quick-notes'] });
   };
 
   const upload = useMutation({

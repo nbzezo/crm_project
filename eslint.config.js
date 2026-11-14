@@ -50,6 +50,26 @@ export default tseslint.config(
   },
   {
     files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        // Cac rule can thong tin kieu (no-floating-promises, no-misused-promises)
+        // chi chay duoc khi co projectService. `allowDefaultProject` liet ke cac
+        // file cau hinh/cong cu khong nam trong tsconfig nao.
+        projectService: {
+          allowDefaultProject: [
+            'playwright.config.ts',
+            'client/vite.config.ts',
+            'e2e/auth.setup.ts',
+            'e2e/app.spec.ts',
+            'scripts/guide-shots/capture.spec.ts',
+            'scripts/guide-shots/auth.setup.ts',
+            'scripts/guide-shots/playwright.config.ts',
+            'scripts/guide-shots/shots.ts',
+          ],
+        },
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       'no-undef': 'off',
       'no-unused-vars': 'off',
@@ -57,6 +77,23 @@ export default tseslint.config(
       // null va undefined) — idiom dung nhat quan 253 cho, xem docs/misra-compliance.md.
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/no-explicit-any': 'error',
+      // MISRA Rule 17.7: gia tri tra ve phai duoc dung, hoac loai bo tuong minh
+      // bang `void`. Hai mien tru duoc ghi trong docs/misra-compliance.md:
+      //  - `test()` cua node:test tra ve Promise do chinh test runner quan ly;
+      //  - thuoc tinh JSX (onClick, onSubmit...): React bo qua gia tri tra ve cua
+      //    handler, va cac handler trong du an deu da tu bao bang try/catch.
+      '@typescript-eslint/no-floating-promises': [
+        'error',
+        {
+          allowForKnownSafeCalls: [
+            { from: 'package', package: 'node:test', name: ['test', 'it', 'describe'] },
+          ],
+        },
+      ],
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        { checksVoidReturn: { attributes: false } },
+      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },

@@ -67,9 +67,9 @@ export function LabelManager() {
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['labels'] });
-    queryClient.invalidateQueries({ queryKey: ['label-links'] });
-    queryClient.invalidateQueries({ queryKey: ['board'] });
+    void queryClient.invalidateQueries({ queryKey: ['labels'] });
+    void queryClient.invalidateQueries({ queryKey: ['label-links'] });
+    void queryClient.invalidateQueries({ queryKey: ['board'] });
   };
 
   const remove = useMutation({

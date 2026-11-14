@@ -197,7 +197,7 @@ export function DealForm({
       if (!deal && saved && typeof saved === 'object') onCreated?.(saved as Deal);
       invalidateCrmViews(queryClient, Number(customerId));
       // Gắn/gỡ dự án đổi cả trang dự án — nơi cơ hội nguồn được hiển thị.
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
       onClose();
     },
   });

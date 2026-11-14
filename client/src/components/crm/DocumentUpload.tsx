@@ -58,8 +58,8 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-      queryClient.invalidateQueries({ queryKey: ['customer'] });
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer'] });
       pushToast('Đã tải tài liệu lên', 'success');
     },
     onError: (error) => pushToast(error instanceof Error ? error.message : 'Tải tệp thất bại'),
@@ -68,8 +68,8 @@ export function DocumentPanel({ links, title }: { links: Links; title?: string }
   const remove = useMutation({
     mutationFn: (id: number) => api.del(`/api/documents/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-      queryClient.invalidateQueries({ queryKey: ['customer'] });
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer'] });
     },
   });
 

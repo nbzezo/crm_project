@@ -60,7 +60,7 @@ export function RiskRegister({ projectId, risks }: { projectId: number; risks: P
     onSuccess: () => {
       setCreating(false);
       setForm(EMPTY);
-      refresh();
+      void refresh();
     },
   });
 

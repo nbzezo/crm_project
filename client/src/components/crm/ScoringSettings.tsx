@@ -39,10 +39,10 @@ export function ScoringSettings() {
         winloss_min_deals: next.winlossMinDeals,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scoring-settings'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['pipeline-health'] });
+      void queryClient.invalidateQueries({ queryKey: ['scoring-settings'] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['pipeline-health'] });
       pushToast('Đã lưu cấu hình chấm điểm', 'success');
     },
   });

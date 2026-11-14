@@ -39,7 +39,7 @@ export function EventDrawer({
     if (!item.link) return;
     onClose();
     if (item.link.kind === 'card') openCard(item.link.cardId);
-    else navigate(item.link.to);
+    else void navigate(item.link.to);
   };
 
   return (

@@ -72,7 +72,7 @@ export function EntityLabels({
       api.put<Label[]>(`/api/labels/links/${entityType}/${entityId}`, { label_ids: ids }),
     onSuccess: (rows) => {
       queryClient.setQueryData(labelLinksKey(entityType, entityId), rows);
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
+      void queryClient.invalidateQueries({ queryKey: ['labels'] });
       onChanged?.();
     },
   });

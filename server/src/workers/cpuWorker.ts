@@ -6,7 +6,12 @@ import type { WorkerJob } from '../lib/workerPool.ts';
 
 if (!parentPort) throw new Error('Worker phải chạy cùng parentPort');
 
-parentPort.on('message', async ({ id, job }: { id: number; job: WorkerJob }) => {
+/**
+ * Listener cua parentPort phai tra ve void, nen phan async duoc tach ra day va
+ * listener chi `void` no. Ham nay tu bao moi loi thanh postMessage nen khong
+ * bao gio reject (MISRA Rule 17.7: gia tri tra ve duoc loai bo tuong minh).
+ */
+async function handleMessage({ id, job }: { id: number; job: WorkerJob }): Promise<void> {
   try {
     const result =
       job.kind === 'extract-text'
@@ -22,4 +27,8 @@ parentPort.on('message', async ({ id, job }: { id: number; job: WorkerJob }) => 
       message: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+parentPort.on('message', (payload: { id: number; job: WorkerJob }) => {
+  void handleMessage(payload);
 });

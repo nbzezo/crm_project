@@ -95,7 +95,7 @@ export function SearchBox() {
   const openRecent = (item: RecentResult) => {
     if (item.kind === 'card') openCard(Number(item.id));
     else if (item.kind === 'quickNote') openQuickNotesBoard({ focusId: Number(item.id) });
-    else navigate(String(item.id));
+    else void navigate(String(item.id));
     close();
   };
 
@@ -265,7 +265,7 @@ export function SearchBox() {
                     <Row
                       key={tab.key}
                       onClick={() => {
-                        navigate(`/settings?tab=${tab.key}`);
+                        void navigate(`/settings?tab=${tab.key}`);
                         close();
                       }}
                       primary={tab.label}
@@ -281,7 +281,7 @@ export function SearchBox() {
                     <Row
                       key={article.slug}
                       onClick={() => {
-                        navigate(`/huong-dan?bai=${article.slug}`);
+                        void navigate(`/huong-dan?bai=${article.slug}`);
                         close();
                       }}
                       primary={article.title}
@@ -320,7 +320,7 @@ export function SearchBox() {
                           title: c.name,
                           meta: 'Khách hàng',
                         });
-                        navigate(`/customers/${c.id}`);
+                        void navigate(`/customers/${c.id}`);
                         close();
                       }}
                       primary={c.name}
@@ -342,7 +342,7 @@ export function SearchBox() {
                           title: c.full_name,
                           meta: c.customer_name,
                         });
-                        navigate(`/customers/${c.customer_id}?contact=${c.id}`);
+                        void navigate(`/customers/${c.customer_id}?contact=${c.id}`);
                         close();
                       }}
                       primary={c.full_name}
@@ -364,7 +364,7 @@ export function SearchBox() {
                           title: d.title,
                           meta: d.customer_name,
                         });
-                        navigate(`/deals/${d.id}`);
+                        void navigate(`/deals/${d.id}`);
                         close();
                       }}
                       primary={d.title}
@@ -386,7 +386,7 @@ export function SearchBox() {
                           title: c.name,
                           meta: 'Hợp đồng',
                         });
-                        navigate(`/contracts?focus=${c.id}`);
+                        void navigate(`/contracts?focus=${c.id}`);
                         close();
                       }}
                       primary={c.name}
@@ -410,7 +410,7 @@ export function SearchBox() {
                           title: d.name,
                           meta: 'Tài liệu',
                         });
-                        navigate(`/documents?tab=files&focus=${d.id}`);
+                        void navigate(`/documents?tab=files&focus=${d.id}`);
                         close();
                       }}
                       primary={d.name}
@@ -436,7 +436,7 @@ export function SearchBox() {
                             title,
                             meta: 'Bảng tin',
                           });
-                          navigate(`/feed/posts/${p.id}`);
+                          void navigate(`/feed/posts/${p.id}`);
                           close();
                         }}
                         primary={title}

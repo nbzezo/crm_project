@@ -94,8 +94,8 @@ export function ProjectForm({
     },
     onSuccess: (saved) => {
       if (!project) onCreated?.(saved);
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      if (project) queryClient.invalidateQueries({ queryKey: ['project', project.id] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      if (project) void queryClient.invalidateQueries({ queryKey: ['project', project.id] });
       onClose();
     },
   });

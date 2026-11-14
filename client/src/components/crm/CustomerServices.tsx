@@ -38,8 +38,8 @@ export function CustomerServices({ customerId }: { customerId: number }) {
   const remove = useMutation({
     mutationFn: (id: number) => api.del(`/api/revenues/lines/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['revenues'] });
-      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      void queryClient.invalidateQueries({ queryKey: ['revenues'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
     },
   });
 

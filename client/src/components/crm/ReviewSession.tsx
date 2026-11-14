@@ -62,8 +62,8 @@ export function ReviewSession() {
       setDropped((n) => n + 1);
       setDroppedVnd((v) => v + deal.weighted_vnd);
       setLostReason('');
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['pipeline-health'] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['pipeline-health'] });
       setIndex((i) => i + 1);
     },
   });
@@ -104,7 +104,7 @@ export function ReviewSession() {
               <Button
                 onClick={() => {
                   setOpen(false);
-                  navigate(`/deals/${current.id}`);
+                  void navigate(`/deals/${current.id}`);
                 }}
               >
                 Chấm lại
@@ -155,7 +155,7 @@ export function ReviewSession() {
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  navigate(`/deals/${current.id}`);
+                  void navigate(`/deals/${current.id}`);
                 }}
                 className={`text-left text-base font-semibold text-tr-text hover:underline ${focusRing}`}
               >

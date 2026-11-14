@@ -167,7 +167,7 @@ export function CardModal() {
   const remove = useMutation({
     mutationFn: () => api.del(`/api/cards/${cardId}`),
     onSuccess: () => {
-      refresh();
+      void refresh();
       close();
     },
   });
@@ -175,7 +175,7 @@ export function CardModal() {
   const archive = useMutation({
     mutationFn: () => api.patch(`/api/cards/${cardId}`, { is_archived: true }),
     onSuccess: () => {
-      refresh();
+      void refresh();
       close();
       /* Thẻ lưu trữ biến khỏi mọi màn — phải chỉ ngay đường quay lại, không thì
          người dùng tưởng đã mất. Sau 8 giây vẫn khôi phục được ở Menu luồng việc. */
@@ -200,7 +200,7 @@ export function CardModal() {
   const copy = useMutation({
     mutationFn: () => api.post<CardDetail>(`/api/cards/${cardId}/copy`),
     onSuccess: (created) => {
-      refresh();
+      void refresh();
       menuPop.close();
       useUiStore.getState().openCard(created.id);
     },
@@ -1125,7 +1125,7 @@ function ActivityColumn({ card }: { card: CardDetail }) {
   const add = useMutation({
     mutationFn: () => api.post(`/api/cards/${card.id}/comments`, { body: draft.trim() }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['card', card.id] });
+      void queryClient.invalidateQueries({ queryKey: ['card', card.id] });
       setDraft('');
       setFocused(false);
     },
@@ -1385,7 +1385,7 @@ function CustomerPopover({
                   customer_id: card.customer_id,
                   title,
                 });
-                queryClient.invalidateQueries({
+                void queryClient.invalidateQueries({
                   queryKey: ['deals', 'byCustomer', card.customer_id],
                 });
                 return { id: created.id, label: created.title };
@@ -1698,7 +1698,7 @@ function MovePopover({ card, pop, onDone }: { card: CardDetail; pop: Pop; onDone
             allowClear={false}
             onQuickCreate={async (name) => {
               const created = await api.post<Board>('/api/boards', { name });
-              queryClient.invalidateQueries({ queryKey: ['boards'] });
+              void queryClient.invalidateQueries({ queryKey: ['boards'] });
               return { id: created.id, label: created.name };
             }}
             quickCreateLabel={(q) => `+ Tạo luồng việc "${q}"`}

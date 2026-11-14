@@ -263,7 +263,7 @@ export function DocumentsLibrary({
     mutationFn: (ids: number[]) => api.post('/api/documents/bulk/trash', { ids }),
     onSuccess: (_data, ids) => {
       setSelected([]);
-      invalidateDocuments();
+      void invalidateDocuments();
       pushToast(`Đã chuyển ${ids.length} tài liệu vào thùng rác`, 'success', {
         label: 'Hoàn tác',
         run: () => {
@@ -277,7 +277,7 @@ export function DocumentsLibrary({
     mutationFn: (ids: number[]) => api.post('/api/documents/bulk/restore', { ids }),
     onSuccess: (_data, ids) => {
       setSelected([]);
-      invalidateDocuments();
+      void invalidateDocuments();
       pushToast(`Đã khôi phục ${ids.length} tài liệu`, 'success');
     },
   });
@@ -286,7 +286,7 @@ export function DocumentsLibrary({
     mutationFn: (id: number) => api.del(`/api/documents/${id}/permanent`),
     onSuccess: () => {
       setSelected([]);
-      invalidateDocuments();
+      void invalidateDocuments();
       pushToast('Đã xóa vĩnh viễn tài liệu', 'success');
     },
   });
@@ -303,7 +303,7 @@ export function DocumentsLibrary({
       setSelected([]);
       setBulkType('');
       setBulkCustomer('');
-      invalidateDocuments();
+      void invalidateDocuments();
       pushToast('Đã cập nhật các tài liệu đã chọn', 'success');
     },
   });

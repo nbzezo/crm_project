@@ -170,7 +170,7 @@ export function CommitteeSimple({ deal }: { deal: Deal }) {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
-            refresh();
+            void refresh();
           }}
         />
       )}

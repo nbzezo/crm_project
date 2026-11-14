@@ -137,7 +137,7 @@ export function BoardView({
         pushToast(error instanceof Error ? error.message : t.common.saveError);
       }
       restoreDragSnapshot();
-      refetchBoard();
+      void refetchBoard();
     },
     [pushToast, refetchBoard, restoreDragSnapshot]
   );
@@ -177,7 +177,7 @@ export function BoardView({
     mutationFn: (vars: { listId: number; title: string }) =>
       api.post('/api/cards', { list_id: vars.listId, title: vars.title }),
     onSuccess: () => {
-      refetchBoard();
+      void refetchBoard();
       invalidateCardViews(queryClient, board.id);
     },
   });
@@ -196,7 +196,7 @@ export function BoardView({
   const copyList = useMutation({
     mutationFn: (listId: number) => api.post(`/api/lists/${listId}/copy`),
     onSuccess: () => {
-      refetchBoard();
+      void refetchBoard();
       invalidateCardViews(queryClient, board.id);
     },
   });
@@ -210,7 +210,7 @@ export function BoardView({
   const deleteList = useMutation({
     mutationFn: (listId: number) => api.del(`/api/lists/${listId}`),
     onSuccess: () => {
-      refetchBoard();
+      void refetchBoard();
       invalidateCardViews(queryClient, board.id);
     },
   });

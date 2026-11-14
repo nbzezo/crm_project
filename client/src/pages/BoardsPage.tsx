@@ -49,7 +49,7 @@ export default function BoardsPage() {
         customer_id: customerId === '' ? null : Number(customerId),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
       create.close();
       setName('');
       setCustomerId('');

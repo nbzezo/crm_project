@@ -154,7 +154,7 @@ export default function PipelinePage() {
     dragSnapshot.current = null;
   };
   const refreshAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['deals'] });
+    void queryClient.invalidateQueries({ queryKey: ['deals'] });
     invalidateCrmViews(queryClient);
   };
 
@@ -181,7 +181,7 @@ export default function PipelinePage() {
     },
     onMoveError: () => {
       restoreDragSnapshot();
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
     },
   });
 

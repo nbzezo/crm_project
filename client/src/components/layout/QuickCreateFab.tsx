@@ -69,7 +69,7 @@ export function QuickCreateFab({ hidden = false }: { hidden?: boolean }) {
       setOpen(false);
       setTemplateOpen(false);
       // `created`: trang Tai lieu dat con tro vao trinh soan cua trang vua tao.
-      navigate(`/documents?tab=pages&open=${note.id}`, { state: { created: true } });
+      void navigate(`/documents?tab=pages&open=${note.id}`, { state: { created: true } });
     },
     onError: (error) =>
       pushToast(error instanceof Error ? error.message : 'Không tạo được trang tài liệu'),

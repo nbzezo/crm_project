@@ -193,8 +193,8 @@ export function ReminderBell() {
   const groups = useMemo(() => groupItems(filteredItems), [filteredItems]);
 
   const refreshNotifications = (item?: NotificationItem) => {
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    queryClient.invalidateQueries({ queryKey: ['ai-notifications'] });
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    void queryClient.invalidateQueries({ queryKey: ['ai-notifications'] });
     if (item?.kind === 'task') invalidateCardViews(queryClient);
     else if (item?.kind === 'reminder' || item?.kind === 'event') invalidateCalendar(queryClient);
   };
@@ -265,7 +265,7 @@ export function ReminderBell() {
     if (!item.is_read) stateMutation.mutate({ item, is_read: true });
     popover.close();
     if (item.card_id) openCard(item.card_id, 'drawer');
-    else if (item.link) navigate(item.link);
+    else if (item.link) void navigate(item.link);
   };
 
   /* Thong bao he dieu hanh bat KHI TOI GIO, khong phai khi muc vua lot vao
@@ -570,7 +570,7 @@ export function ReminderBell() {
             type="button"
             onClick={() => {
               popover.close();
-              navigate('/calendar?cv=list');
+              void navigate('/calendar?cv=list');
             }}
             className="flex min-h-11 shrink-0 items-center justify-center gap-2 border-t border-tr-border px-4 text-xs font-semibold text-tr-primary transition hover:bg-tr-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tr-primary"
           >

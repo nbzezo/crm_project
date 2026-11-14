@@ -559,7 +559,7 @@ export function GroupSettings({ group }: { group: GroupDetail }) {
     mutationFn: () => feedApi.archiveGroup(group.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: feedKeys.all });
-      navigate('/feed');
+      void navigate('/feed');
     },
   });
   return (
@@ -694,7 +694,7 @@ export function DiscoverGroups({ onCreate }: { onCreate: () => void }) {
     mutationFn: (id: number) => feedApi.join(id),
     onSuccess: (group) => {
       void queryClient.invalidateQueries({ queryKey: feedKeys.all });
-      navigate(`/feed/groups/${group.id}`);
+      void navigate(`/feed/groups/${group.id}`);
     },
   });
   return (
@@ -781,7 +781,7 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
     onSuccess: (group) => {
       void queryClient.invalidateQueries({ queryKey: feedKeys.all });
       onClose();
-      navigate(`/feed/groups/${group.id}`);
+      void navigate(`/feed/groups/${group.id}`);
     },
   });
   return (

@@ -75,8 +75,8 @@ export function Scorecard({
   const setNextAction = useMutation({
     mutationFn: (text: string) => api.patch(`/api/deals/${dealId}`, { next_action: text }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
     },
   });
 
@@ -481,9 +481,9 @@ function FactorRow({
         source_id: source?.id ?? null,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+      void queryClient.invalidateQueries({ queryKey: ['deals'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 

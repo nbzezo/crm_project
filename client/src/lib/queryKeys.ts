@@ -2,20 +2,20 @@ import type { QueryClient } from '@tanstack/react-query';
 
 /** Lam moi moi khung nhin phu thuoc vao du lieu the: kanban, bang, lich, timeline, tong quan. */
 export function invalidateCardViews(queryClient: QueryClient, boardId?: number): void {
-  queryClient.invalidateQueries({ queryKey: ['notifications'] });
-  queryClient.invalidateQueries({ queryKey: ['tasks'] });
-  queryClient.invalidateQueries({ queryKey: ['calendar'] });
-  queryClient.invalidateQueries({ queryKey: ['timeline'] });
-  queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  queryClient.invalidateQueries({ queryKey: ['focus'] });
-  queryClient.invalidateQueries({ queryKey: ['reports'] });
+  void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  void queryClient.invalidateQueries({ queryKey: ['calendar'] });
+  void queryClient.invalidateQueries({ queryKey: ['timeline'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  void queryClient.invalidateQueries({ queryKey: ['focus'] });
+  void queryClient.invalidateQueries({ queryKey: ['reports'] });
   /* Chi tiet va danh sach du an deu tinh lai cong viec, tien do, suc khoe va
      nhan su tu cards. Thieu hai key nay lam PATCH da thanh cong nhung tab Du an
      van hien gia tri cu (ro nhat o cot Nguoi phu trach). */
-  queryClient.invalidateQueries({ queryKey: ['project'] });
-  queryClient.invalidateQueries({ queryKey: ['projects'] });
-  if (boardId) queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-  else queryClient.invalidateQueries({ queryKey: ['board'] });
+  void queryClient.invalidateQueries({ queryKey: ['project'] });
+  void queryClient.invalidateQueries({ queryKey: ['projects'] });
+  if (boardId) void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+  else void queryClient.invalidateQueries({ queryKey: ['board'] });
 }
 
 /**
@@ -26,30 +26,30 @@ export function invalidateCardViews(queryClient: QueryClient, boardId?: number):
  * sau khoa do chi vi nguoi dung keo mot su kien.
  */
 export function invalidateCalendar(queryClient: QueryClient): void {
-  queryClient.invalidateQueries({ queryKey: ['notifications'] });
-  queryClient.invalidateQueries({ queryKey: ['calendar'] });
-  queryClient.invalidateQueries({ queryKey: ['reminders'] });
-  queryClient.invalidateQueries({ queryKey: ['focus'] });
+  void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  void queryClient.invalidateQueries({ queryKey: ['calendar'] });
+  void queryClient.invalidateQueries({ queryKey: ['reminders'] });
+  void queryClient.invalidateQueries({ queryKey: ['focus'] });
 }
 
 /** Lam moi bang doanh thu, danh muc dich vu va ho so khach hang lien quan. */
 export function invalidateRevenueViews(queryClient: QueryClient, customerId?: number): void {
-  queryClient.invalidateQueries({ queryKey: ['revenues'] });
-  queryClient.invalidateQueries({ queryKey: ['services'] });
-  if (customerId) queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
-  else queryClient.invalidateQueries({ queryKey: ['customer'] });
+  void queryClient.invalidateQueries({ queryKey: ['revenues'] });
+  void queryClient.invalidateQueries({ queryKey: ['services'] });
+  if (customerId) void queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+  else void queryClient.invalidateQueries({ queryKey: ['customer'] });
 }
 
 /** Lam moi cac khung nhin CRM. */
 export function invalidateCrmViews(queryClient: QueryClient, customerId?: number): void {
-  queryClient.invalidateQueries({ queryKey: ['customers'] });
+  void queryClient.invalidateQueries({ queryKey: ['customers'] });
   // Trang To chuc & nhan su doc danh sach rieng ('orgs') — thieu dong nay thi tao/sua
   // cong ty/doi tac/nha cung cap khong lam moi duoc bang o trang do.
-  queryClient.invalidateQueries({ queryKey: ['orgs'] });
-  queryClient.invalidateQueries({ queryKey: ['deals'] });
-  queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  queryClient.invalidateQueries({ queryKey: ['focus'] });
-  queryClient.invalidateQueries({ queryKey: ['reports'] });
-  if (customerId) queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
-  else queryClient.invalidateQueries({ queryKey: ['customer'] });
+  void queryClient.invalidateQueries({ queryKey: ['orgs'] });
+  void queryClient.invalidateQueries({ queryKey: ['deals'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  void queryClient.invalidateQueries({ queryKey: ['focus'] });
+  void queryClient.invalidateQueries({ queryKey: ['reports'] });
+  if (customerId) void queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+  else void queryClient.invalidateQueries({ queryKey: ['customer'] });
 }

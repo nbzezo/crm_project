@@ -658,7 +658,7 @@ export function TaskFormDialog() {
                   name,
                   project_id: projectId ?? undefined,
                 });
-                queryClient.invalidateQueries({ queryKey: ['card-context'] });
+                void queryClient.invalidateQueries({ queryKey: ['card-context'] });
                 return { id: created.id, label: created.name };
               }}
               quickCreateLabel={(q) => `+ Tạo luồng việc "${q}"`}
@@ -787,7 +787,7 @@ export function TaskFormDialog() {
             options={customers.map((c) => ({ id: c.id, label: c.name }))}
             onQuickCreate={async (name) => {
               const created = await api.post<Customer>('/api/customers', { name });
-              queryClient.invalidateQueries({ queryKey: ['customers'] });
+              void queryClient.invalidateQueries({ queryKey: ['customers'] });
               return { id: created.id, label: created.name };
             }}
             quickCreateLabel={(q) => `+ Tạo nhanh khách hàng "${q}"`}
@@ -812,7 +812,7 @@ export function TaskFormDialog() {
                       `/api/customers/${valueOf('customer_id')}/contacts`,
                       { full_name }
                     );
-                    queryClient.invalidateQueries({ queryKey: ['card-context'] });
+                    void queryClient.invalidateQueries({ queryKey: ['card-context'] });
                     return { id: created.id, label: created.full_name };
                   }
             }
@@ -834,8 +834,8 @@ export function TaskFormDialog() {
                       customer_id: valueOf('customer_id'),
                       title,
                     });
-                    queryClient.invalidateQueries({ queryKey: ['card-context'] });
-                    queryClient.invalidateQueries({ queryKey: ['deals'] });
+                    void queryClient.invalidateQueries({ queryKey: ['card-context'] });
+                    void queryClient.invalidateQueries({ queryKey: ['deals'] });
                     return { id: created.id, label: created.title };
                   }
             }

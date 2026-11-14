@@ -308,7 +308,7 @@ export function ContractForm({
     onSuccess: (saved) => {
       const result = saved as { document_error?: string | null; customer_created?: boolean };
       if (result?.customer_created) {
-        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        void queryClient.invalidateQueries({ queryKey: ['customers'] });
         pushToast('Đã tạo khách hàng mới từ hợp đồng', 'success');
       }
       if (result?.document_error) {
@@ -317,12 +317,12 @@ export function ContractForm({
           'error'
         );
       }
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
       invalidateCrmViews(queryClient, Number(customerId));
       // Giá trị hợp đồng và ngưỡng phân loại A/B của dự án đều đọc từ đây.
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['project'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['project'] });
       onClose();
     },
   });

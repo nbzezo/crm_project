@@ -409,9 +409,9 @@ export default function RevenuePage() {
   });
 
   const refreshTotals = () => {
-    queryClient.invalidateQueries({ queryKey: ['revenues', 'summary'] });
-    queryClient.invalidateQueries({ queryKey: ['revenues', 'comparison'] });
-    queryClient.invalidateQueries({ queryKey: ['revenues', 'years'] });
+    void queryClient.invalidateQueries({ queryKey: ['revenues', 'summary'] });
+    void queryClient.invalidateQueries({ queryKey: ['revenues', 'comparison'] });
+    void queryClient.invalidateQueries({ queryKey: ['revenues', 'years'] });
   };
 
   /** Ghi một ô tháng (số tiền và/hoặc trạng thái) rồi vá thẳng vào cache cho khỏi nháy. */
@@ -429,7 +429,7 @@ export default function RevenuePage() {
     onSuccess: (cell) => {
       /* Bang con dang noi khuc: va vao ban tam se bi khuc cuoi ghi de — tai lai cho chac. */
       if (queryClient.getQueryData<RevenueLinesResponse>(listKey)?.progress) {
-        queryClient.invalidateQueries({ queryKey: listKey });
+        void queryClient.invalidateQueries({ queryKey: listKey });
         refreshTotals();
         return;
       }
@@ -461,7 +461,7 @@ export default function RevenuePage() {
         line_ids: lines.map((l) => l.id),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['revenues'] });
+      void queryClient.invalidateQueries({ queryKey: ['revenues'] });
     },
   });
 
@@ -1364,7 +1364,7 @@ export default function RevenuePage() {
                 period: retroSave.period,
                 amount_vnd: retroSave.amount_vnd,
               },
-              { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['revenues'] }) }
+              { onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['revenues'] }) }
             );
           setRetroSave(null);
         }}

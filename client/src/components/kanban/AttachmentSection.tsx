@@ -21,8 +21,8 @@ export function AttachmentSection({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['card', cardId] });
-    queryClient.invalidateQueries({ queryKey: ['documents'] });
+    void queryClient.invalidateQueries({ queryKey: ['card', cardId] });
+    void queryClient.invalidateQueries({ queryKey: ['documents'] });
     invalidateCardViews(queryClient);
   };
 
