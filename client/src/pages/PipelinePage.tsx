@@ -190,7 +190,7 @@ export default function PipelinePage() {
     if (!dealId || !data) return;
     dragSnapshot.current = cloneDeals(data);
     const found = locateDeal(data, dealId);
-    if (found) setActiveDeal(data.stages[found.stage][found.index]);
+    if (found) setActiveDeal(data.stages[found.stage]?.[found.index] ?? null);
   }
 
   function targetStageOf(overData: Record<string, unknown> | undefined): Stage | null {
@@ -210,18 +210,22 @@ export default function PipelinePage() {
     const from = locateDeal(next, dealId);
     if (!from || from.stage === targetStage) return;
 
-    const [moved] = next.stages[from.stage].splice(from.index, 1);
+    /* Giai doan la du lieu cau hinh (Stage = string, xem packages/contracts): neu
+       cau hinh pipeline doi giua hai lan tai thi cot co the khong con trong phan
+       hoi. Bo qua thao tac thay vi keo `undefined` vao state. */
+    const fromList = next.stages[from.stage];
+    const targetList = next.stages[targetStage];
+    if (!fromList || !targetList) return;
+
+    const [moved] = fromList.splice(from.index, 1);
+    if (!moved) return;
     const previousProbability = moved.probability;
     applyOptimisticStage(moved, targetStage);
     const overIdx =
       over.data.current?.type === 'deal'
-        ? next.stages[targetStage].findIndex((d) => d.id === over.data.current!.dealId)
+        ? targetList.findIndex((d) => d.id === over.data.current!.dealId)
         : -1;
-    next.stages[targetStage].splice(
-      overIdx >= 0 ? overIdx : next.stages[targetStage].length,
-      0,
-      moved
-    );
+    targetList.splice(overIdx >= 0 ? overIdx : targetList.length, 0, moved);
     refreshDealTotals(next, {
       fromStage: from.stage,
       toStage: targetStage,
@@ -258,33 +262,37 @@ export default function PipelinePage() {
        dung cot va dung cho trong cot. Sap xep lai trong cung mot cot thi
        prevStage trung targetStage nen hook tu bo qua toast. */
     const fromList = next.stages[from.stage];
+    const targetList = next.stages[targetStage];
+    if (!fromList || !targetList) {
+      restoreDragSnapshot();
+      return;
+    }
     const previous = {
       prevStage: from.stage,
-      prevBeforeId: from.index > 0 ? fromList[from.index - 1].id : null,
-      prevAfterId: from.index < fromList.length - 1 ? fromList[from.index + 1].id : null,
+      prevBeforeId: from.index > 0 ? (fromList[from.index - 1]?.id ?? null) : null,
+      prevAfterId: from.index < fromList.length - 1 ? (fromList[from.index + 1]?.id ?? null) : null,
     };
 
     if (from.stage === targetStage) {
-      const list = next.stages[targetStage];
       const overIdx =
         over.data.current?.type === 'deal'
-          ? list.findIndex((d) => d.id === over.data.current!.dealId)
-          : list.length - 1;
+          ? targetList.findIndex((d) => d.id === over.data.current!.dealId)
+          : targetList.length - 1;
       if (overIdx >= 0 && overIdx !== from.index)
-        next.stages[targetStage] = arrayMove(list, from.index, overIdx);
+        next.stages[targetStage] = arrayMove(targetList, from.index, overIdx);
     } else {
-      const [moved] = next.stages[from.stage].splice(from.index, 1);
+      const [moved] = fromList.splice(from.index, 1);
+      if (!moved) {
+        restoreDragSnapshot();
+        return;
+      }
       const previousProbability = moved.probability;
       applyOptimisticStage(moved, targetStage);
       const overIdx =
         over.data.current?.type === 'deal'
-          ? next.stages[targetStage].findIndex((d) => d.id === over.data.current!.dealId)
+          ? targetList.findIndex((d) => d.id === over.data.current!.dealId)
           : -1;
-      next.stages[targetStage].splice(
-        overIdx >= 0 ? overIdx : next.stages[targetStage].length,
-        0,
-        moved
-      );
+      targetList.splice(overIdx >= 0 ? overIdx : targetList.length, 0, moved);
       refreshDealTotals(next, {
         fromStage: from.stage,
         toStage: targetStage,
@@ -295,13 +303,14 @@ export default function PipelinePage() {
     }
     setData(next);
 
-    const finalList = next.stages[targetStage];
+    /* Doc lai vi nhanh cung-cot o tren co the da thay the ca mang. */
+    const finalList = next.stages[targetStage] ?? [];
     const idx = finalList.findIndex((d) => d.id === dealId);
     move({
       dealId,
       stage: targetStage,
-      beforeId: idx > 0 ? finalList[idx - 1].id : null,
-      afterId: idx < finalList.length - 1 ? finalList[idx + 1].id : null,
+      beforeId: idx > 0 ? (finalList[idx - 1]?.id ?? null) : null,
+      afterId: idx < finalList.length - 1 ? (finalList[idx + 1]?.id ?? null) : null,
       ...previous,
     });
   }
@@ -466,8 +475,8 @@ export default function PipelinePage() {
                 key={stage}
                 stage={stage}
                 deals={visibleDeals(stage)}
-                totals={data.totals[stage]}
-                more={pagedBoard ? (data as DealsPagedResponse).more[stage] : 0}
+                totals={data.totals[stage] ?? { count: 0, sum_vnd: 0, weighted_vnd: 0 }}
+                more={pagedBoard ? ((data as DealsPagedResponse).more[stage] ?? 0) : 0}
                 loadingMore={loadingStage === stage}
                 onLoadMore={() => loadMore(stage)}
                 labelMap={labelMap}

@@ -123,11 +123,11 @@ export async function rollbackTo(target: number): Promise<void> {
 
     /* Kiem tra TOAN BO chang duong truoc khi ghi mot byte nao: quay lui nua chung
        de lai CSDL o phien ban khong ai mo ta duoc, te hon la khong quay lui. */
-    const steps: number[] = [];
+    const steps: { version: number; file: string }[] = [];
     for (let version = current; version > target; version -= 1) {
       const file = ROLLBACKS[version];
       if (!file) throw new Error(`Chua co kich ban quay lui cho v${version}`);
-      steps.push(version);
+      steps.push({ version, file });
     }
 
     const saved = await backup(db, dbPath, current, target);
@@ -138,8 +138,8 @@ export async function rollbackTo(target: number): Promise<void> {
     db.pragma('foreign_keys = OFF');
     try {
       db.transaction(() => {
-        for (const version of steps) {
-          db.exec(fs.readFileSync(path.join(here, ROLLBACKS[version]), 'utf8'));
+        for (const { version, file } of steps) {
+          db.exec(fs.readFileSync(path.join(here, file), 'utf8'));
           db.pragma(`user_version = ${version - 1}`);
           console.log(`[db] Da quay lui v${version} -> v${version - 1}`);
         }

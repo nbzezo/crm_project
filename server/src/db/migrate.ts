@@ -85,7 +85,7 @@ function linkRevenueAmUsers(db: Database): void {
   }
   const match = (name: string): number | null => {
     const ids = byKey.get(fold(name.trim()));
-    return ids && ids.size === 1 ? [...ids][0] : null;
+    return ids && ids.size === 1 ? ([...ids][0] ?? null) : null;
   };
 
   const lines = db
@@ -531,7 +531,9 @@ function seedLabelPicklists(db: Database): void {
       const best = [...group.variants].sort(
         (a, b) => b.n - a.n || a.value.trim().localeCompare(b.value.trim())
       )[0];
-      const label = fromDefaults?.label ?? best.value.trim().replace(/\s+/g, ' ');
+      const label = fromDefaults?.label ?? best?.value.trim().replace(/\s+/g, ' ');
+      /* Khong co nhan mac dinh va group rong: khong suy ra duoc nhan chuan, bo qua. */
+      if (label === undefined) continue;
       canonical.set(folded, label);
       for (const variant of group.variants) {
         if (variant.value !== label) {

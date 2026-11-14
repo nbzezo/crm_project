@@ -2,6 +2,19 @@ import { db } from './connection.ts';
 import { buildSearchText } from '../lib/viSearch.ts';
 import { ensurePicklistValue } from '../lib/picklists.ts';
 
+/**
+ * Lay phan tu theo chi so co dinh trong du lieu mau. Danh sach do chinh file nay
+ * tao ra nen chi so luon hop le; neu ai sua danh sach ma lech thi bao loi ro ngay
+ * thay vi de `undefined` troi vao CSDL (MISRA Rule 18.1: truy cap trong bien).
+ */
+function at<T>(list: readonly T[], index: number): T {
+  const value = list[index];
+  if (value === undefined) {
+    throw new Error(`[seed] thieu phan tu ${index} (danh sach chi co ${list.length})`);
+  }
+  return value;
+}
+
 function dayOffset(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -257,8 +270,8 @@ db.transaction(() => {
   };
   const deals: DealSeed[] = [
     {
-      customer: customerIds[0],
-      contact: contactIds[0],
+      customer: at(customerIds, 0),
+      contact: at(contactIds, 0),
       title: 'Gói phần mềm quản lý sản xuất',
       product: 'Phần mềm MES',
       stage: 'quoted',
@@ -273,8 +286,8 @@ db.transaction(() => {
       notes: 'Đã gửi báo giá đầu tháng, chờ phản hồi.',
     },
     {
-      customer: customerIds[0],
-      contact: contactIds[0],
+      customer: at(customerIds, 0),
+      contact: at(contactIds, 0),
       title: 'Nâng cấp hệ thống năm 2025',
       product: 'Dịch vụ nâng cấp',
       stage: 'won',
@@ -287,8 +300,8 @@ db.transaction(() => {
       notes: '',
     },
     {
-      customer: customerIds[1],
-      contact: contactIds[2],
+      customer: at(customerIds, 1),
+      contact: at(contactIds, 2),
       title: 'Triển khai phần mềm quản lý kho',
       product: 'Phần mềm WMS',
       stage: 'negotiating',
@@ -302,8 +315,8 @@ db.transaction(() => {
       notes: 'Đang khảo sát quy trình kho tại 2 chi nhánh.',
     },
     {
-      customer: customerIds[1],
-      contact: contactIds[2],
+      customer: at(customerIds, 1),
+      contact: at(contactIds, 2),
       title: 'Dịch vụ bảo trì 12 tháng',
       product: 'Bảo trì',
       stage: 'won',
@@ -316,8 +329,8 @@ db.transaction(() => {
       notes: '',
     },
     {
-      customer: customerIds[2],
-      contact: contactIds[3],
+      customer: at(customerIds, 2),
+      contact: at(contactIds, 3),
       title: 'Hệ thống truy xuất nguồn gốc',
       product: 'Tem QR truy xuất',
       stage: 'approaching',
@@ -329,8 +342,8 @@ db.transaction(() => {
       notes: 'Mới tiếp cận qua hội chợ nông sản.',
     },
     {
-      customer: customerIds[2],
-      contact: contactIds[3],
+      customer: at(customerIds, 2),
+      contact: at(contactIds, 3),
       title: 'Gói tư vấn quy trình xuất khẩu',
       product: 'Tư vấn',
       stage: 'lost',
@@ -468,7 +481,7 @@ db.transaction(() => {
     return { boardId, listIds };
   };
 
-  const project = makeBoard('Dự án phần mềm Vĩnh Phát', '#0079bf', customerIds[0]);
+  const project = makeBoard('Dự án phần mềm Vĩnh Phát', '#0079bf', at(customerIds, 0));
   /* Bang trien khai that co hai cot nay. Chung cung la vi du cho cot ngoai bo mac
      dinh van khai bao duoc nghia vong doi — thu ma bon cot mac dinh khong the hien. */
   insertList.run(project.boardId, 'Chờ phản hồi', 5 * 1024, 'waiting_customer');
@@ -491,7 +504,7 @@ db.transaction(() => {
 
   const cardSeeds: CardSeed[] = [
     {
-      listId: project.listIds[0],
+      listId: at(project.listIds, 0),
       title: 'Chuẩn bị tài liệu phân tích nghiệp vụ',
       description: 'Tổng hợp quy trình 3 dây chuyền đã khảo sát.',
       start: dayOffset(1),
@@ -501,7 +514,7 @@ db.transaction(() => {
       dealId: dealIds[0],
     },
     {
-      listId: project.listIds[0],
+      listId: at(project.listIds, 0),
       title: 'Lên kế hoạch triển khai theo giai đoạn',
       start: dayOffset(6),
       due: dayOffset(20),
@@ -509,7 +522,7 @@ db.transaction(() => {
       customerId: customerIds[0],
     },
     {
-      listId: project.listIds[1],
+      listId: at(project.listIds, 1),
       title: 'Hoàn thiện báo giá chi tiết cho anh Thành',
       description: 'Tách rõ chi phí license và triển khai.',
       start: dayOffset(-3),
@@ -519,7 +532,7 @@ db.transaction(() => {
       dealId: dealIds[0],
     },
     {
-      listId: project.listIds[1],
+      listId: at(project.listIds, 1),
       title: 'Dựng bản demo phân hệ theo dõi sản lượng',
       start: dayOffset(-2),
       due: dayOffset(9),
@@ -527,14 +540,14 @@ db.transaction(() => {
       customerId: customerIds[0],
     },
     {
-      listId: project.listIds[2],
+      listId: at(project.listIds, 2),
       title: 'Rà soát hợp đồng nguyên tắc',
       due: dayOffset(4),
       priority: 'medium',
       customerId: customerIds[0],
     },
     {
-      listId: project.listIds[3],
+      listId: at(project.listIds, 3),
       title: 'Khảo sát hiện trạng nhà máy',
       start: dayOffset(-14),
       due: dayOffset(-9),
@@ -545,7 +558,7 @@ db.transaction(() => {
     },
 
     {
-      listId: sales.listIds[0],
+      listId: at(sales.listIds, 0),
       title: 'Gọi lại anh Hùng về lịch demo phân hệ kho',
       due: dayOffset(2),
       priority: 'urgent',
@@ -553,7 +566,7 @@ db.transaction(() => {
       dealId: dealIds[2],
     },
     {
-      listId: sales.listIds[0],
+      listId: at(sales.listIds, 0),
       title: 'Soạn đề xuất hệ thống truy xuất nguồn gốc',
       start: dayOffset(3),
       due: dayOffset(17),
@@ -562,21 +575,21 @@ db.transaction(() => {
       dealId: dealIds[4],
     },
     {
-      listId: sales.listIds[1],
+      listId: at(sales.listIds, 1),
       title: 'Chuẩn bị bộ tài liệu năng lực bản 2026',
       start: dayOffset(-5),
       due: dayOffset(6),
       priority: 'low',
     },
     {
-      listId: sales.listIds[2],
+      listId: at(sales.listIds, 2),
       title: 'Chốt điều khoản bảo trì với Đại Nam',
       due: dayOffset(-2),
       priority: 'high',
       customerId: customerIds[1],
     },
     {
-      listId: sales.listIds[3],
+      listId: at(sales.listIds, 3),
       title: 'Gửi báo giá gói phần mềm sản xuất',
       start: dayOffset(-24),
       due: dayOffset(-18),
@@ -587,7 +600,7 @@ db.transaction(() => {
       completedDays: -18,
     },
     {
-      listId: sales.listIds[3],
+      listId: at(sales.listIds, 3),
       title: 'Tổng kết doanh số quý trước',
       due: dayOffset(-32),
       priority: 'medium',
@@ -596,26 +609,26 @@ db.transaction(() => {
     },
 
     {
-      listId: personal.listIds[0],
+      listId: at(personal.listIds, 0),
       title: 'Đăng ký khóa học phân tích dữ liệu',
       due: dayOffset(25),
       priority: 'low',
     },
     {
-      listId: personal.listIds[0],
+      listId: at(personal.listIds, 0),
       title: 'Tìm hiểu quy định hóa đơn điện tử mới',
       description: 'Chưa xác định thời điểm — để trong mục chưa xếp lịch.',
       priority: 'low',
     },
     {
-      listId: personal.listIds[1],
+      listId: at(personal.listIds, 1),
       title: 'Sắp xếp lại hồ sơ hợp đồng năm nay',
       start: dayOffset(-1),
       due: dayOffset(12),
       priority: 'low',
     },
     {
-      listId: personal.listIds[3],
+      listId: at(personal.listIds, 3),
       title: 'Gia hạn tên miền công ty',
       due: dayOffset(-45),
       priority: 'medium',
@@ -625,8 +638,7 @@ db.transaction(() => {
   ];
 
   const cardIds: number[] = [];
-  for (let i = 0; i < cardSeeds.length; i++) {
-    const c = cardSeeds[i];
+  for (const [i, c] of cardSeeds.entries()) {
     const id = Number(
       insertCard.run(
         c.listId,
@@ -688,12 +700,12 @@ db.transaction(() => {
     `INSERT INTO checklist_items (card_id, content, is_done, position) VALUES (?, ?, ?, ?)`
   );
   const checklist: [number, string, number][] = [
-    [cardIds[2], 'Tổng hợp chi phí license', 1],
-    [cardIds[2], 'Tính công triển khai', 1],
-    [cardIds[2], 'Duyệt lại với kế toán', 0],
-    [cardIds[0], 'Phỏng vấn trưởng ca dây chuyền 1', 1],
-    [cardIds[0], 'Vẽ sơ đồ quy trình', 0],
-    [cardIds[6], 'Xem lại ghi chú cuộc gọi trước', 0],
+    [at(cardIds, 2), 'Tổng hợp chi phí license', 1],
+    [at(cardIds, 2), 'Tính công triển khai', 1],
+    [at(cardIds, 2), 'Duyệt lại với kế toán', 0],
+    [at(cardIds, 0), 'Phỏng vấn trưởng ca dây chuyền 1', 1],
+    [at(cardIds, 0), 'Vẽ sơ đồ quy trình', 0],
+    [at(cardIds, 6), 'Xem lại ghi chú cuộc gọi trước', 0],
   ];
   checklist.forEach(([cardId, content, done], i) =>
     insertChecklist.run(cardId, content, done, (i + 1) * 1024)
@@ -901,8 +913,9 @@ db.transaction(() => {
 
   /* Truot han (v18): mot the da bi doi han hai lan — de bo dem "da doi han N lan"
      tren man Can nhac va bieu do phan bo co du lieu that. */
-  if (openCards.length > 0) {
-    const slipped = openCards[0].id;
+  const [firstOpen, secondOpen] = openCards;
+  if (firstOpen) {
+    const slipped = firstOpen.id;
     db.prepare(`UPDATE cards SET baseline_due_date = ?, due_date = ? WHERE id = ?`).run(
       dayOffset(-10),
       dayOffset(4),
@@ -915,11 +928,11 @@ db.transaction(() => {
     insertSlip.run(slipped, dayOffset(-3), dayOffset(4), 'Thiếu dữ liệu đầu vào');
   }
   // Phu thuoc: viec thu hai phai doi viec dau tien xong.
-  if (openCards.length > 1) {
+  if (firstOpen && secondOpen) {
     db.prepare(
       `INSERT OR IGNORE INTO card_dependencies (predecessor_id, successor_id) VALUES (?, ?)`
-    ).run(openCards[0].id, openCards[1].id);
-    db.prepare(`UPDATE cards SET estimate_hours = 8 WHERE id = ?`).run(openCards[1].id);
+    ).run(firstOpen.id, secondOpen.id);
+    db.prepare(`UPDATE cards SET estimate_hours = 8 WHERE id = ?`).run(secondOpen.id);
   }
 
   /*
