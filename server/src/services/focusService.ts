@@ -365,7 +365,7 @@ export const WORK_HOURS = {
 };
 
 function toMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number);
+  const [h = 0, m = 0] = time.split(':').map(Number);
   return h * 60 + m;
 }
 
@@ -1137,6 +1137,7 @@ export function buildFocus(db: Database, options: BuildFocusOptions): FocusData 
     for (let j = i + 1; j < timed.length; j += 1) {
       const a = timed[i];
       const b = timed[j];
+      if (!a || !b) break;
       if (b.date !== a.date || b.time! >= a.end_time!) break;
       attention.push({
         key: `conflict-${a.id}-${b.id}`,
@@ -1405,15 +1406,18 @@ function freeSlots(events: AgendaItem[], days: DayLoad[], today: string, now: st
       const current = toMinutes(now);
       start = Math.max(start, Math.ceil(current / 30) * 30);
     }
-    const busy = [
+    /* Khai bao tuple de a[0]/a[1] khong con la `number | undefined`. Phai tach
+       khoi .sort() vi kieu ngu canh khong chay qua loi goi phuong thuc. */
+    const busyRanges: [number, number][] = [
       [toMinutes(WORK_HOURS.lunchStart), toMinutes(WORK_HOURS.lunchEnd)],
       ...events
         .filter((event) => event.date === day.date && event.time && event.end_time)
-        .map((event) => [toMinutes(event.time!), toMinutes(event.end_time!)]),
-    ].sort((a, b) => a[0] - b[0]);
+        .map((event): [number, number] => [toMinutes(event.time!), toMinutes(event.end_time!)]),
+    ];
+    const busy = busyRanges.sort((a, b) => a[0] - b[0]);
     const end = toMinutes(WORK_HOURS.end);
     let cursor = start;
-    for (const [busyStart, busyEnd] of [...busy, [end, end]]) {
+    for (const [busyStart, busyEnd] of [...busy, [end, end] as [number, number]]) {
       const slotEnd = Math.min(busyStart, end);
       if (slotEnd - cursor >= 30) {
         slots.push({

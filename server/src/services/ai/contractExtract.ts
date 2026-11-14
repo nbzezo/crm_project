@@ -60,7 +60,7 @@ export function normalizeMoney(value: unknown): number {
 export function addMonthsMinusOneDay(iso: string, months: number): string | null {
   const start = normalizeDate(iso);
   if (!start || !Number.isInteger(months) || months <= 0 || months > 600) return null;
-  const [y, m, d] = start.split('-').map(Number);
+  const [y = NaN, m = NaN, d = NaN] = start.split('-').map(Number);
   const end = new Date(Date.UTC(y, m - 1 + months, d));
   // Cong thang tran sang thang sau (31/01 + 1 thang) thi lui ve cuoi thang dich.
   if (end.getUTCDate() !== d) end.setUTCDate(0);

@@ -21,7 +21,12 @@ export function parseBody<T>(schema: ZodType<T>, req: Request): T {
   const result = schema.safeParse(req.body);
   if (!result.success) {
     const first = result.error.issues[0];
-    throw new HttpError(400, `Dữ liệu không hợp lệ: ${first.path.join('.')} — ${first.message}`);
+    throw new HttpError(
+      400,
+      first
+        ? `Dữ liệu không hợp lệ: ${first.path.join('.')} — ${first.message}`
+        : 'Dữ liệu không hợp lệ'
+    );
   }
   return result.data;
 }

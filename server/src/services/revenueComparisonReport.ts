@@ -18,7 +18,10 @@ export function buildRevenueComparisonReport(
   const rows = [];
   for (const line of lines) {
     const id = Number(line.id);
-    const periods = yearPeriods(year).filter((period) => !only || only.has(line.groups[period]));
+    const periods = yearPeriods(year).filter((period) => {
+      const group = line.groups[period];
+      return !only || (group !== undefined && only.has(group));
+    });
     if (periods.length === 0) continue;
     const months = Object.fromEntries(
       Object.entries(line.months).map(([period, cell]) => [period, cell.amount_vnd])
@@ -60,7 +63,9 @@ export function buildRevenueComparisonReport(
   };
   for (const row of rows) {
     for (const [period, value] of Object.entries(row.projection)) {
-      totals.projected_by_group[row.groups[period]] += value.value;
+      const group = row.groups[period];
+      if (group === undefined) continue;
+      totals.projected_by_group[group] += value.value;
     }
     totals.projected_total_vnd += row.projected_total_vnd;
     totals.prev_total_vnd += row.prev_total_vnd;

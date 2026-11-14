@@ -265,7 +265,9 @@ export function parseProfile(raw: unknown): ConfigProfile {
     const first = result.error.issues[0];
     throw new HttpError(
       422,
-      `Hồ sơ cấu hình không hợp lệ: ${first.path.join('.')} — ${first.message}`,
+      first
+        ? `Hồ sơ cấu hình không hợp lệ: ${first.path.join('.')} — ${first.message}`
+        : 'Hồ sơ cấu hình không hợp lệ',
       {
         code: 'PROFILE_INVALID',
       }

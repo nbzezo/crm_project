@@ -55,6 +55,8 @@ export function buildRevenueSummaryReport(
 
     for (const [period, cell] of Object.entries(line.months)) {
       const group = line.groups[period];
+      /* groupsOf() phu du 12 thang cua nam nen nhanh nay khong xay ra luc chay. */
+      if (group === undefined) continue;
       if (only && !only.has(group)) continue;
       if (!months.has(period)) months.set(period, emptyRevenueTotals());
       addRevenueCellToTotals(months.get(period)!, cell);

@@ -295,7 +295,8 @@ function attachMonths<L extends Record<string, unknown>>(
     const groups = groupsOf(line, anchor, year);
     const totals = emptyTotals();
     for (const [period, cell] of Object.entries(months)) {
-      if (!only || only.has(groups[period])) addRevenueCellToTotals(totals, cell);
+      const group = groups[period];
+      if (!only || (group !== undefined && only.has(group))) addRevenueCellToTotals(totals, cell);
     }
     return {
       ...line,
@@ -612,9 +613,8 @@ router.put('/lines/:id/revenue-bulk', (req, res) => {
     }
   })();
 
-  const year = body.cells.length
-    ? Number(body.cells[0].period.slice(0, 4))
-    : resolveYear(undefined);
+  const firstCell = body.cells[0];
+  const year = firstCell ? Number(firstCell.period.slice(0, 4)) : resolveYear(undefined);
   res.json(reloadLine(id, year));
 });
 
@@ -1217,17 +1217,19 @@ function planImport(req: Request, parsedRows: ParsedRow[], year: number): Planne
     if (row.customer !== undefined) {
       const matches = customers.get(fold(row.customer)) ?? [];
       const unique = [...new Map(matches.map((m) => [m.id, m])).values()];
+      const [onlyMatch] = unique;
       if (unique.length === 0) err(`Không tìm thấy khách hàng "${row.customer}" trong CRM`);
       else if (unique.length > 1) err(`Có ${unique.length} khách hàng tên "${row.customer}"`);
-      else customerId = unique[0].id;
+      else if (onlyMatch) customerId = onlyMatch.id;
     }
     if (row.am !== undefined) {
       const ids = usersByKey.get(fold(row.am.trim()));
       if (!ids || ids.size === 0) err(`AM "${row.am}" không phải người dùng trong hệ thống`);
       else if (ids.size > 1) err(`Có ${ids.size} người dùng khớp AM "${row.am}"`);
       else {
-        planned.am_user_id = [...ids][0];
-        planned.am_name = userNameById.get(planned.am_user_id) ?? row.am;
+        const [onlyAmId] = [...ids];
+        planned.am_user_id = onlyAmId;
+        planned.am_name = onlyAmId === undefined ? row.am : (userNameById.get(onlyAmId) ?? row.am);
       }
     }
     let serviceId: number | null | undefined;
@@ -1408,7 +1410,7 @@ router.post('/import', acceptImportFile, async (req, res) => {
     let amId: number | null = NO_AM;
     if (item.am) {
       const ids = userIdByName.get(fold(item.am)) ?? [];
-      amId = ids.length === 1 ? ids[0] : null;
+      amId = ids.length === 1 ? (ids[0] ?? null) : null;
       if (ids.length === 0) errors.push(`AM "${item.am}" không phải người dùng trong hệ thống`);
       else if (ids.length > 1) errors.push(`Có ${ids.length} người dùng tên "${item.am}"`);
     }

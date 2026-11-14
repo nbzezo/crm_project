@@ -277,12 +277,12 @@ router.get('/', (req, res) => {
   for (const row of rows) {
     /* Giai doan da xoa khoi cau hinh khong the con co hoi (khoa ngoai), nhung van
        phong ho: mot dong khong co cot thi tao cot thay vi nem loi. */
-    byStage[row.stage] ??= [];
-    totals[row.stage] ??= { count: 0, sum_vnd: 0, weighted_vnd: 0 };
-    byStage[row.stage].push(row);
-    totals[row.stage].count += 1;
-    totals[row.stage].sum_vnd += row.value_vnd;
-    totals[row.stage].weighted_vnd += Math.round((row.value_vnd * row.probability) / 100);
+    const stageList = (byStage[row.stage] ??= []);
+    const stageTotals = (totals[row.stage] ??= { count: 0, sum_vnd: 0, weighted_vnd: 0 });
+    stageList.push(row);
+    stageTotals.count += 1;
+    stageTotals.sum_vnd += row.value_vnd;
+    stageTotals.weighted_vnd += Math.round((row.value_vnd * row.probability) / 100);
   }
   res.json({ stages: byStage, totals });
 });

@@ -163,7 +163,7 @@ export function projectYear(input: ProjectionInput): Record<string, ProjectedMon
       for (const k of earlier) {
         const prev = input.prevMonths[samePeriodLastYear(k)] ?? 0;
         if (prev > 0) {
-          thisSum += input.months[k];
+          thisSum += input.months[k] ?? 0;
           prevSum += prev;
         }
       }
@@ -180,7 +180,7 @@ export function projectYear(input: ProjectionInput): Record<string, ProjectedMon
       }
     }
     if (earlier.length > 0) {
-      const sum = earlier.reduce((acc, k) => acc + input.months[k], 0);
+      const sum = earlier.reduce((acc, k) => acc + (input.months[k] ?? 0), 0);
       out[period] = { value: Math.round(sum / earlier.length), source: 'average' };
       continue;
     }

@@ -367,6 +367,7 @@ router.get('/:id/records', (req, res) => {
 
   for (let index = cursorIndex; index < ENTITY_TYPES.length && records.length <= limit; index++) {
     const type = ENTITY_TYPES[index];
+    if (!type) continue;
     const afterId = cursorType === type ? cursor?.id : null;
     const where = [`ll.label_id IN (${holes})`, 'll.entity_type = ?'];
     const params: unknown[] = [...ids, type];

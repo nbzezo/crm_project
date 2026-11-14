@@ -41,8 +41,9 @@ export function buildPipelineHealthReport(
   for (const row of rows) {
     const weighted = Math.round((row.value_vnd * row.probability) / 100);
     stageWeighted += weighted;
-    quadrantTotals[row.quadrant].count += 1;
-    quadrantTotals[row.quadrant].sum_vnd += row.value_vnd;
+    const quadrant = (quadrantTotals[row.quadrant] ??= { count: 0, sum_vnd: 0 });
+    quadrant.count += 1;
+    quadrant.sum_vnd += row.value_vnd;
     const flags = blockedBy(row);
     if (flags.length === 0) filteredWeighted += weighted;
     else excluded.push({ ...row, weighted_vnd: weighted, blocked_by: flags });

@@ -7,7 +7,8 @@
  */
 export function isRealDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
+  /* Regex o tren da bao dam du ba phan; mac dinh NaN chi de kieu khong con undefined. */
+  const [year = NaN, month = NaN, day = NaN] = value.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   return (
     date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
@@ -18,7 +19,7 @@ export function isRealDate(value: string): boolean {
 export function isRealLocalMinute(value: string): boolean {
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!match) return false;
-  return isRealDate(match[1]) && Number(match[2]) <= 23 && Number(match[3]) <= 59;
+  return isRealDate(match[1] ?? '') && Number(match[2]) <= 23 && Number(match[3]) <= 59;
 }
 
 /**

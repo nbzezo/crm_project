@@ -247,7 +247,8 @@ router.post('/extract', contractUpload.single('file'), async (req, res) => {
       const byValue = result.contract.value_vnd
         ? deals.find((d) => d.value_vnd === result.contract.value_vnd)
         : undefined;
-      result.suggested_deal_id = byValue?.id ?? (deals.length === 1 ? deals[0].id : null);
+      result.suggested_deal_id =
+        byValue?.id ?? (deals.length === 1 ? (deals[0]?.id ?? null) : null);
       if (result.contract.number) {
         const dup = db
           .prepare(`SELECT name FROM contracts WHERE customer_id = ? AND number = ? LIMIT 1`)
@@ -310,7 +311,12 @@ router.post('/from-file', contractUpload.single('file'), (req, res) => {
     const parsed = fromFileSchema.safeParse(raw);
     if (!parsed.success) {
       const first = parsed.error.issues[0];
-      throw new HttpError(400, `Dữ liệu không hợp lệ: ${first.path.join('.')} — ${first.message}`);
+      throw new HttpError(
+        400,
+        first
+          ? `Dữ liệu không hợp lệ: ${first.path.join('.')} — ${first.message}`
+          : 'Dữ liệu không hợp lệ'
+      );
     }
     const body = parsed.data;
     if (body.new_customer && !accessOf(req).can('customers', 'create')) {

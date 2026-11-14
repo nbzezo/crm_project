@@ -162,7 +162,7 @@ router.post('/send-pin', async (req, res, next) => {
 /** an@congty.vn -> a•@congty.vn: nguoi dung nhan ra hop thu, nguoi dung ngoai thi khong. */
 function maskEmail(email: string): string {
   const [name, domain] = email.split('@');
-  if (!domain) return email;
+  if (!name || !domain) return email;
   const head = name.slice(0, Math.min(2, Math.max(1, name.length - 1)));
   return `${head}${'•'.repeat(Math.max(1, name.length - head.length))}@${domain}`;
 }

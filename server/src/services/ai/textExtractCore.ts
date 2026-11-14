@@ -83,7 +83,7 @@ function extractXlsx(buffer: Buffer): string {
   const [shared] = readZipEntry(buffer, (name) => name === 'xl/sharedStrings.xml');
   const strings = shared
     ? [...shared.toString('utf8').matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) =>
-        xmlToText(m[1], /<\/t>/g)
+        xmlToText(m[1] ?? '', /<\/t>/g)
       )
     : [];
   const sheets = readZipEntry(buffer, (name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name));
@@ -91,9 +91,9 @@ function extractXlsx(buffer: Buffer): string {
   for (const sheet of sheets)
     for (const [, row] of sheet.toString('utf8').matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
       const cells: string[] = [];
-      for (const [, attrs, body] of row.matchAll(/<c([^>]*)>([\s\S]*?)<\/c>/g)) {
-        const value = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '';
-        if (value) cells.push(/t="s"/.test(attrs) ? (strings[Number(value)] ?? '') : value);
+      for (const [, attrs, body] of (row ?? '').matchAll(/<c([^>]*)>([\s\S]*?)<\/c>/g)) {
+        const value = /<v>([\s\S]*?)<\/v>/.exec(body ?? '')?.[1] ?? '';
+        if (value) cells.push(/t="s"/.test(attrs ?? '') ? (strings[Number(value)] ?? '') : value);
       }
       if (cells.length) lines.push(cells.join('\t'));
     }

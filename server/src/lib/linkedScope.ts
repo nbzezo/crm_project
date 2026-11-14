@@ -69,6 +69,7 @@ export function linkedBranch(
   action: PermissionAction
 ): ScopeClause {
   const spec = LINKED[kind];
+  if (!spec) throw new Error(`linkedScope: khong co cau hinh cho "${kind}"`);
   const linked = kind === 'quick_note' ? action : linkedAction(action);
   const clause = (spec.unowned ? scopeWhereOrUnowned : scopeWhere)(
     req,

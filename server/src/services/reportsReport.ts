@@ -18,8 +18,9 @@ export function buildScoreWinLoss(rows: ClosedScoreRow[]) {
     } catch {
       continue;
     }
-    if (byQuadrant[snapshot.quadrant]) {
-      byQuadrant[snapshot.quadrant][row.stage_category === 'won' ? 'won' : 'lost'] += 1;
+    const bucket = byQuadrant[snapshot.quadrant];
+    if (bucket) {
+      bucket[row.stage_category === 'won' ? 'won' : 'lost'] += 1;
     }
     if (row.stage_category !== 'lost' || !snapshot.scores) continue;
     const entries = Object.entries(snapshot.scores);

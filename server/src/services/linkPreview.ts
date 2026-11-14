@@ -30,7 +30,8 @@ const CACHE_MAX = 500;
 export function isBlockedAddress(address: string): boolean {
   const family = net.isIP(address);
   if (family === 4) {
-    const [a, b] = address.split('.').map(Number);
+    /* net.isIP da xac nhan la IPv4 nen luon co 4 octet; NaN chi de bo undefined. */
+    const [a = NaN, b = NaN] = address.split('.').map(Number);
     return (
       a === 0 ||
       a === 10 ||
@@ -46,8 +47,8 @@ export function isBlockedAddress(address: string): boolean {
   }
   if (family === 6) {
     const lower = address.toLowerCase();
-    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isBlockedAddress(mapped[1]);
+    const mappedV4 = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
+    if (mappedV4 !== undefined) return isBlockedAddress(mappedV4);
     return (
       lower === '::' ||
       lower === '::1' ||
@@ -97,7 +98,11 @@ const safeLookup: net.LookupFunction = (hostname, options, callback) => {
       return callback(Object.assign(new Error('Blocked address'), { code: 'EBLOCKED' }), '', 4);
     }
     if (options.all) return callback(null, allowed, 4);
-    callback(null, allowed[0].address, allowed[0].family);
+    const [first] = allowed;
+    if (!first) {
+      return callback(Object.assign(new Error('Blocked address'), { code: 'EBLOCKED' }), '', 4);
+    }
+    callback(null, first.address, first.family);
   });
 };
 
@@ -194,7 +199,10 @@ function decodeEntities(text: string): string {
     if (named) return named;
     /* &aacute; &ecirc; &otilde;...: chu cai + dau ghep, chuan hoa NFC. */
     const accent = /^([a-z])(acute|grave|circ|tilde|uml)$/i.exec(code);
-    return accent ? (accent[1] + MARKS[accent[2]]).normalize('NFC') : whole;
+    if (!accent) return whole;
+    const [, letter, markName] = accent;
+    const mark = markName === undefined ? undefined : MARKS[markName];
+    return letter !== undefined && mark !== undefined ? (letter + mark).normalize('NFC') : whole;
   });
 }
 

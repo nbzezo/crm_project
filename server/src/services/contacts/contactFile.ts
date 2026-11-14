@@ -51,7 +51,7 @@ function decodeQuotedPrintable(value: string): string {
       bytes.push(parseInt(hex, 16));
       i += 2;
     } else {
-      bytes.push(...Buffer.from(value[i], 'utf8'));
+      bytes.push(...Buffer.from(value[i] ?? '', 'utf8'));
     }
   }
   return Buffer.from(bytes).toString('utf8');
@@ -106,7 +106,7 @@ export function parseVCard(text: string): ParsedContact[] {
     const colon = line.indexOf(':');
     if (colon < 0) continue;
     const head = line.slice(0, colon).split(';');
-    const property = head[0].split('.').pop()!.toUpperCase();
+    const property = (head[0] ?? '').split('.').pop()!.toUpperCase();
     let value = line.slice(colon + 1);
     if (head.some((part) => /^ENCODING=QUOTED-PRINTABLE$/i.test(part))) {
       value = decodeQuotedPrintable(value);
@@ -220,7 +220,7 @@ function isPhoneHeader(h: string): boolean {
 export function parseContactsCsv(text: string): ParsedContact[] {
   const rows = parseCsvRows(text);
   if (rows.length < 2) return [];
-  const headers = rows[0].map((h) => fold(h).trim());
+  const headers = (rows[0] ?? []).map((h) => fold(h).trim());
   const index = (set: Set<string>) =>
     headers.map((h, i) => (set.has(h) ? i : -1)).filter((i) => i >= 0);
 

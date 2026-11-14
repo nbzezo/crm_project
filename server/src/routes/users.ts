@@ -165,7 +165,8 @@ router.post('/', async (req, res, next) => {
   try {
     const body = parseBody(createSchema, req);
     const access = accessOf(req);
-    const username = body.username?.trim() || uniqueUsername(body.email.split('@')[0]);
+    const username =
+      body.username?.trim() || uniqueUsername(body.email.split('@')[0] ?? body.email);
     assertContactChange(access, body.contact_id ?? null, null);
 
     /* Quan ly tai khoan (`admin.users`) KHONG keo theo quyen phan quyen: neu

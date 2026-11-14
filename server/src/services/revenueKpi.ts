@@ -61,6 +61,8 @@ export function computeKpi(lines: KpiLineInput[], year: number, current: string)
   for (const line of lines) {
     for (const period of yearPeriods(year)) {
       const group = line.groups[period];
+      /* groupsOf() phu du 12 thang cua nam nen nhanh nay khong xay ra luc chay. */
+      if (group === undefined) continue;
       const cell = line.cells[period];
       const amount = cell?.amount_vnd ?? 0;
       const reconciled = amount > 0 && cell !== undefined && KPI_STAGES.has(cell.stage);

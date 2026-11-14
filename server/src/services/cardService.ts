@@ -659,7 +659,7 @@ function parseRecurRule(raw: unknown): RecurRule | null {
  * ngay lich thuan tuy, khong mang thong tin mui gio.
  */
 export function shiftDate(date: string, rule: RecurRule): string {
-  const [year, month, day] = date.split('-').map(Number);
+  const [year = NaN, month = NaN, day = NaN] = date.split('-').map(Number);
   const base = new Date(Date.UTC(year, month - 1, day));
   if (rule.unit === 'day') base.setUTCDate(base.getUTCDate() + rule.interval);
   else if (rule.unit === 'week') base.setUTCDate(base.getUTCDate() + rule.interval * 7);
