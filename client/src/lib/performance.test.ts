@@ -20,14 +20,17 @@ const unit = (id: number, parent_id: number | null, name: string): PerfUnit => (
   head_name: null,
 });
 
-const person = (contact_id: number, org_unit_id: number | null, extra: Partial<PersonPerf> = {}) =>
-  ({
-    ...emptyTotals(),
-    contact_id,
-    name: `P${contact_id}`,
-    org_unit_id,
-    ...extra,
-  }) as PersonPerf;
+const person = (
+  contact_id: number,
+  org_unit_id: number | null,
+  extra: Partial<PersonPerf> = {}
+) => ({
+  ...emptyTotals(),
+  contact_id,
+  name: `P${contact_id}`,
+  org_unit_id,
+  ...extra,
+});
 
 describe('buildUnitTree', () => {
   const units = [

@@ -1208,7 +1208,7 @@ router.post('/posts/:id/task', (req, res) => {
       assignee_contact_id: body.assignee_contact_id ?? null,
       due_date: body.due_date ?? null,
       project_id: group.project_id ?? null,
-    } as Parameters<typeof createCard>[0],
+    },
     { actorContactId: me }
   ) as { id: number };
   db.prepare(`UPDATE feed_posts SET task_card_id = ? WHERE id = ?`).run(card.id, post.id);

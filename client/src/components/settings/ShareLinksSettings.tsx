@@ -113,10 +113,7 @@ export function ShareLinksSettings() {
         {links.isLoading ? (
           <SkeletonRows rows={4} cols={1} />
         ) : links.isError ? (
-          <ErrorState
-            message={(links.error as Error).message}
-            onRetry={() => void links.refetch()}
-          />
+          <ErrorState message={links.error.message} onRetry={() => void links.refetch()} />
         ) : rows.length === 0 ? (
           <p className="rounded-card border border-dashed border-tr-border p-6 text-center text-sm text-tr-muted">
             Chưa có liên kết nào. Bấm nút Chia sẻ trên một tài liệu, báo giá hoặc hợp đồng để tạo.

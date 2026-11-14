@@ -45,7 +45,7 @@ const google = {
   sendStatus: 200,
 };
 
-globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (!/googleapis\.com|accounts\.google\.com/.test(url)) return realFetch(input, init);
 
@@ -80,7 +80,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   }
   if (url === 'https://oauth2.googleapis.com/revoke') return new Response('', { status: 200 });
   return json({ error: 'unexpected' }, 404);
-}) as typeof fetch;
+};
 
 before(async () => {
   server = createApp().listen(0);

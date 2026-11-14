@@ -127,7 +127,7 @@ export default function PipelinePage() {
         itemNoun: 'cơ hội',
         resolve: (id) => {
           if (id.startsWith('stage-')) {
-            const stage = id.slice('stage-'.length) as Stage;
+            const stage = id.slice('stage-'.length);
             return `cột ${stageLabel(stage)}`;
           }
           if (!data) return null;
@@ -203,7 +203,7 @@ export default function PipelinePage() {
     const { active, over } = event;
     if (!over || !data || active.data.current?.type !== 'deal') return;
     const dealId = active.data.current.dealId as number;
-    const targetStage = targetStageOf(over.data.current as Record<string, unknown>);
+    const targetStage = targetStageOf(over.data.current);
     if (!targetStage) return;
 
     const next = cloneDeals(data);
@@ -241,7 +241,7 @@ export default function PipelinePage() {
     }
 
     const dealId = active.data.current.dealId as number;
-    const targetStage = targetStageOf(over.data.current as Record<string, unknown>);
+    const targetStage = targetStageOf(over.data.current);
     if (!targetStage) {
       restoreDragSnapshot();
       return;
@@ -407,7 +407,7 @@ export default function PipelinePage() {
             <Select
               aria-label="Lọc theo giai đoạn"
               value={stageFilter}
-              onChange={(event) => setStageFilter(event.target.value as Stage | 'all')}
+              onChange={(event) => setStageFilter(event.target.value)}
               className="min-w-0 max-md:flex-1 md:w-auto"
             >
               <option value="all">Giai đoạn</option>

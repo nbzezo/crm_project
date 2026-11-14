@@ -144,8 +144,8 @@ router.patch('/:id', (req, res) => {
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
-    customer_id: merged.customer_id as number,
-    deal_id: merged.deal_id as number | null,
+    customer_id: merged.customer_id,
+    deal_id: merged.deal_id,
   });
   assertCrmCustomer(db, merged.customer_id as number);
   assertQuotationDates(merged);

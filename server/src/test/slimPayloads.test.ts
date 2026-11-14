@@ -115,10 +115,10 @@ test('calendar card chi tra truong client doc, van dung du lieu dung', async () 
     board_name: 'Bảng lịch',
     customer_name: 'Khách lịch',
   });
-  assert.equal('description' in card!, false);
-  assert.equal('checklist_total' in card!, false);
-  assert.equal('label_ids' in card!, false);
-  assert.equal('assignee_name' in card!, false);
+  assert.equal('description' in card, false);
+  assert.equal('checklist_total' in card, false);
+  assert.equal('label_ids' in card, false);
+  assert.equal('assignee_name' in card, false);
 });
 
 test('calendar giu nguyen tap khoa cua cac muc khac', async () => {

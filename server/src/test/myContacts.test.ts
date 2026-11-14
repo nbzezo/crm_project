@@ -74,7 +74,7 @@ function toApi(p: FakePerson) {
   };
 }
 
-globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (!/googleapis\.com|accounts\.google\.com/.test(url)) return realFetch(input, init);
   google.calls.push(url);
@@ -122,7 +122,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
     });
   }
   return json({ error: { message: `unexpected ${url}` } }, 404);
-}) as typeof fetch;
+};
 
 before(async () => {
   server = createApp().listen(0);

@@ -97,11 +97,7 @@ export const DEFAULT_CRM_CONFIG: CrmConfig = {
   pipelines: [DEFAULT_PIPELINE],
   picklists: {
     lost_reason: seed('lost_reason', LOST_REASON_ORDER, t.lostReason),
-    interaction_type: seed(
-      'interaction_type',
-      Object.keys(t.interactionType),
-      t.interactionType as Record<string, string>
-    ),
+    interaction_type: seed('interaction_type', Object.keys(t.interactionType), t.interactionType),
     doc_type: seed('doc_type', DOC_TYPE_ORDER, t.docType),
     customer_industry: [],
     customer_size: seed('customer_size', ACCOUNT_SIZES, {}),

@@ -210,7 +210,7 @@ router.get('/:id', (req, res) => {
       `SELECT b.id, b.name, l.id AS list_id, l.name AS list_name
          FROM lists l JOIN boards b ON b.id = l.board_id WHERE l.id = ?`
     )
-    .get(card.list_id as number);
+    .get(card.list_id);
 
   const subtasks = db
     .prepare(
@@ -232,7 +232,7 @@ router.get('/:id', (req, res) => {
     return access != null && cardAllowed(req, access, 'read');
   });
   const parent = card.parent_id
-    ? db.prepare(`SELECT id, title FROM cards WHERE id = ?`).get(card.parent_id as number)
+    ? db.prepare(`SELECT id, title FROM cards WHERE id = ?`).get(card.parent_id)
     : null;
 
   const attachments = db

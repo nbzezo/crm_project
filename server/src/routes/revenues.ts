@@ -34,15 +34,8 @@ import {
 } from '@workflow/contracts';
 import { cacheResponse } from '../lib/responseCache.ts';
 import { isRealDate } from '../lib/dates.ts';
-import {
-  buildRevenueSummaryReport,
-  emptyRevenueTotals,
-  type RevenueSummaryLine,
-} from '../services/revenueSummaryReport.ts';
-import {
-  buildRevenueComparisonReport,
-  type RevenueComparisonLine,
-} from '../services/revenueComparisonReport.ts';
+import { buildRevenueSummaryReport, emptyRevenueTotals } from '../services/revenueSummaryReport.ts';
+import { buildRevenueComparisonReport } from '../services/revenueComparisonReport.ts';
 
 const router = Router();
 
@@ -507,9 +500,9 @@ router.patch('/lines/:id', (req, res) => {
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
-    customer_id: merged.customer_id as number,
-    service_id: merged.service_id as number | null,
-    contract_id: merged.contract_id as number | null,
+    customer_id: merged.customer_id,
+    service_id: merged.service_id,
+    contract_id: merged.contract_id,
   });
   assertCrmCustomer(db, merged.customer_id as number);
   assertLineDates(merged);
@@ -547,7 +540,7 @@ router.patch('/lines/:id', (req, res) => {
     merged.start_date ?? null,
     merged.end_date ?? null,
     merged.notes ?? '',
-    buildSearchText(am, merged.notes as string),
+    buildSearchText(am, merged.notes),
     id
   );
   res.json(reloadLine(id, resolveYear(req.query.year)));
@@ -663,7 +656,7 @@ router.put('/period-stage', (req, res) => {
 router.get('/summary', cacheResponse, (req, res) => {
   const year = resolveYear(req.query.year);
   const { only, lines } = selectLines(req, year);
-  res.json(buildRevenueSummaryReport(year, only, lines as RevenueSummaryLine[]));
+  res.json(buildRevenueSummaryReport(year, only, lines));
 });
 
 /** Thang hien tai theo gio may — moc tach "da qua" va "sap toi" cho so du kien. */
@@ -696,14 +689,7 @@ router.get('/comparison', cacheResponse, (req, res) => {
 
   const current = currentPeriod();
   res.json(
-    buildRevenueComparisonReport(
-      year,
-      current,
-      only,
-      lines as RevenueComparisonLine[],
-      prevByLine,
-      req.query.lines !== 'none'
-    )
+    buildRevenueComparisonReport(year, current, only, lines, prevByLine, req.query.lines !== 'none')
   );
 });
 

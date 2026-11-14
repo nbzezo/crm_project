@@ -369,7 +369,7 @@ test('automation chi canh bao co hoi Won qua han ma ho so chua du', async () => 
   // Qua gap doi SLA (30 ngay so voi 7) thi khong con la nhac viec nua.
   const alert = notes.find((n) => n.link === `/deals/${overdue}`);
   assert.equal(alert?.severity, 'critical');
-  assert.match(alert!.body, /SLA 7 ngày/);
+  assert.match(alert.body, /SLA 7 ngày/);
 });
 
 /* ---------- Man hinh cau hinh ----------

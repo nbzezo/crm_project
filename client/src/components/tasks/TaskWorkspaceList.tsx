@@ -8,7 +8,7 @@ import { PRIORITY_ORDER, t } from '../../i18n/vi';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { MD_QUERY, useMediaQuery } from '../../lib/useMediaQuery';
 import { useUiStore } from '../../stores/uiStore';
-import type { Assignee, Priority, TaskRow } from '../../types';
+import type { Priority, TaskRow } from '../../types';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import { EmptyState, InlineDate, focusRing } from '../common/ui';
@@ -254,7 +254,7 @@ function BulkBar({
           className="min-h-11 rounded-control border border-tr-border bg-tr-panel px-2 text-xs text-tr-text fine:min-h-0"
         >
           <option value="">Giao cho…</option>
-          {(assignees as Assignee[]).map((person) => (
+          {assignees.map((person) => (
             <option key={person.id} value={person.id}>
               {person.full_name}
             </option>

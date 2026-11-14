@@ -81,7 +81,7 @@ test('/labels/:id/records: toi da 200 dong va cursor khong lap, khong sot', asyn
   assert.ok(first.data.next_cursor);
 
   const second = await get<Page<{ entity_type: string; id: number; title: string }>>(
-    `/api/labels/${labelId}/records?paged=1&cursor=${encodeURIComponent(first.data.next_cursor!)}`
+    `/api/labels/${labelId}/records?paged=1&cursor=${encodeURIComponent(first.data.next_cursor)}`
   );
   assert.equal(second.data.items.length, 5);
   assert.equal(second.data.next_cursor, null);

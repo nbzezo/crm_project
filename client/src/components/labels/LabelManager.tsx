@@ -557,7 +557,7 @@ function LabelEditor({
           {t.labels.inactive}
         </label>
 
-        {save.error && <p className="text-xs text-tr-danger">{(save.error as Error).message}</p>}
+        {save.error && <p className="text-xs text-tr-danger">{save.error.message}</p>}
       </div>
     </Modal>
   );

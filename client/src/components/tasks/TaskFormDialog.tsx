@@ -418,7 +418,7 @@ export function TaskFormDialog() {
     title.trim() || description.trim() || checklistText.trim() || aiSource.trim()
   );
   const suggestedLinkName = (key: LinkKey, id: number): string => {
-    if (aiSuggestion?.labels[key]) return aiSuggestion.labels[key]!;
+    if (aiSuggestion?.labels[key]) return aiSuggestion.labels[key];
     if (key === 'customer_id') return customers.find((item) => item.id === id)?.name ?? `#${id}`;
     if (key === 'contact_id')
       return context?.contacts.find((item) => item.id === id)?.full_name ?? `#${id}`;

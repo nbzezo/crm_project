@@ -95,7 +95,7 @@ test('o lay tu 8 yeu to BANT/4P va tieu chi moi; diem AI de xuat khong tinh cho 
   assert.equal(cell(a, 4).score, 1, 'diem nguoi cham giu nguyen');
   assert.equal(cell(a, 16).score, null);
   assert.equal(cell(a, 16).suggested_score, 2);
-  const ai = a.decisions[0]!;
+  const ai = a.decisions[0];
   assert.equal(ai.author_kind, 'ai');
   assert.equal(ai.decision, 'pause');
   assert.deepEqual((ai.payload as { unknowns: unknown[] }).unknowns, []);
@@ -164,13 +164,13 @@ test('quyet dinh: ghi kem nhac ngay xet lai, chi xoa duoc cua minh, co hoi da ch
     me
   );
   assert.equal(a.decisions.length, 1);
-  assert.equal(a.decisions[0]!.author_name, 'Nguoi ban');
+  assert.equal(a.decisions[0].author_name, 'Nguoi ban');
   const reminder = db
     .prepare(`SELECT due_at, deal_id, owner_contact_id FROM reminders WHERE deal_id = ?`)
     .get(dealId);
   assert.deepEqual(reminder, { due_at: '2026-11-01T09:00', deal_id: dealId, owner_contact_id: me });
 
-  const id = a.decisions[0]!.id;
+  const id = a.decisions[0].id;
   assert.throws(() => deleteDecision(db, dealId, id, other), /chính bạn/);
   a = deleteDecision(db, dealId, id, me);
   assert.equal(a.decisions.length, 0);

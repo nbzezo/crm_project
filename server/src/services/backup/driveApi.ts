@@ -201,10 +201,10 @@ export async function uploadFile(
     return fetch(location, {
       method: 'PUT',
       headers: { 'content-type': mime, 'content-length': String(size) },
-      body: Readable.toWeb(fs.createReadStream(input.filePath)) as unknown as ReadableStream,
+      body: Readable.toWeb(fs.createReadStream(input.filePath)),
       duplex: 'half',
       signal: transferSignal(),
-    } as RequestInit);
+    });
   }, 'tải tệp lên');
   if (!response.ok) throw await driveError(response, 'tải tệp lên');
   return (await response.json()) as DriveFile;

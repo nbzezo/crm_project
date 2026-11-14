@@ -73,7 +73,7 @@ async function request<T>(
     if (!skip) {
       throw new ApiError(409, 'Đã giữ nguyên trạng thái', { ...error.details, cancelled: true });
     }
-    const data = await send<T>(method, url, { ...(body as object), skip_flow: true }, options);
+    const data = await send<T>(method, url, { ...body, skip_flow: true }, options);
     notifyFlowPrompt(data);
     return data;
   }

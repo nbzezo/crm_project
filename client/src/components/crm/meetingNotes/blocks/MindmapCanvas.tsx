@@ -20,7 +20,6 @@ import {
   parseMindmap,
   SIDE,
   treeToMindmap,
-  type MindmapDoc,
   type TopicTree,
 } from './diagramData';
 
@@ -137,9 +136,9 @@ function buildTheme(isDark: boolean, paletteKey: string): Theme {
 function initialData(raw: string): MindElixirData {
   const doc = parseMindmap(raw);
   if (!doc) return MindElixir.new('Chủ đề mới');
-  const copy = { ...doc } as MindmapDoc;
+  const copy = { ...doc };
   delete copy.theme;
-  return copy as unknown as MindElixirData;
+  return copy;
 }
 
 function exportName(instance: MindElixirInstance, ext: string) {
@@ -422,7 +421,7 @@ function MindmapEditor({
   const applyTree = (tree: TopicTree) => {
     const instance = instanceRef.current;
     if (!instance) return;
-    instance.refresh(treeToMindmap(tree, direction) as unknown as MindElixirData);
+    instance.refresh(treeToMindmap(tree, direction));
     instance.toCenter();
     save();
   };

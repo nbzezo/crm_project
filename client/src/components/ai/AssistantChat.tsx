@@ -399,7 +399,7 @@ export function AssistantChat({
                     result={quickTask.data}
                     onDismiss={() => quickTask.reset()}
                     onReview={() => {
-                      const result = quickTask.data!;
+                      const result = quickTask.data;
                       const links = Object.fromEntries(
                         TASK_LINK_KEYS.flatMap((key) =>
                           result.links[key] == null ? [] : [[key, result.links[key]]]

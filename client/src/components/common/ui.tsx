@@ -263,12 +263,7 @@ export function Textarea({
   className = '',
   ...props
 }: InputHTMLAttributes<HTMLTextAreaElement> & { rows?: number }) {
-  return (
-    <textarea
-      {...(props as object)}
-      className={`${inputBase} resize-y leading-relaxed ${className}`}
-    />
-  );
+  return <textarea {...props} className={`${inputBase} resize-y leading-relaxed ${className}`} />;
 }
 
 /* ---------- DateInput (chuoi 'YYYY-MM-DD', khong dung Date) ----------

@@ -266,7 +266,7 @@ function ProviderEditor({ config }: { config: AiProviderConfig }) {
           <FormError error={save.error} />
           {sync.error && (
             <p className="mt-2 text-xs text-tr-danger">
-              Đã lưu, nhưng nhận diện model lỗi: {(sync.error as Error).message}
+              Đã lưu, nhưng nhận diện model lỗi: {sync.error.message}
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -630,7 +630,7 @@ function WebSearchSettings({ providers }: { providers: AiProviderConfig[] }) {
       )}
       {ready && models.error && (
         <p className="mt-2 text-xs text-tr-warning">
-          Không đọc được danh sách model tìm kiếm từ 9Router: {(models.error as Error).message}
+          Không đọc được danh sách model tìm kiếm từ 9Router: {models.error.message}
         </p>
       )}
       {ready && models.data?.length === 0 && (

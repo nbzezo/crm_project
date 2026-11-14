@@ -1636,7 +1636,7 @@ test('trung tam thong bao hop nhat nguon va ho tro doc, snooze, hoan tac', async
 
   const firstFeed = await json('GET', '/api/notifications');
   assert.equal(firstFeed.status, 200);
-  const firstItems = firstFeed.data.items as unknown as {
+  const firstItems = firstFeed.data.items as {
     key: string;
     kind: string;
     is_read: boolean;
@@ -1653,7 +1653,7 @@ test('trung tam thong bao hop nhat nguon va ho tro doc, snooze, hoan tac', async
   assert.equal(read.status, 200);
   const readFeed = await json('GET', '/api/notifications');
   assert.equal(
-    (readFeed.data.items as unknown as { key: string; is_read: boolean }[]).find(
+    (readFeed.data.items as { key: string; is_read: boolean }[]).find(
       (item) => item.key === reminderKey
     )?.is_read,
     true
@@ -1666,9 +1666,7 @@ test('trung tam thong bao hop nhat nguon va ho tro doc, snooze, hoan tac', async
   assert.equal(snoozed.status, 200);
   const hiddenFeed = await json('GET', '/api/notifications');
   assert.equal(
-    (hiddenFeed.data.items as unknown as { key: string }[]).some(
-      (item) => item.key === reminderKey
-    ),
+    (hiddenFeed.data.items as { key: string }[]).some((item) => item.key === reminderKey),
     false
   );
   const unsnoozed = await json('PATCH', `/api/notifications/${reminderKey}/state`, {
@@ -1704,9 +1702,7 @@ test('trung tam thong bao hop nhat nguon va ho tro doc, snooze, hoan tac', async
   const taskId = Number(task.data.id);
   const taskKey = `task-${taskId}`;
   const taskFeed = await json('GET', '/api/notifications');
-  assert.ok(
-    (taskFeed.data.items as unknown as { key: string }[]).some((item) => item.key === taskKey)
-  );
+  assert.ok((taskFeed.data.items as { key: string }[]).some((item) => item.key === taskKey));
 
   const completedTask = await json('POST', `/api/notifications/${taskKey}/complete`, {
     done: true,

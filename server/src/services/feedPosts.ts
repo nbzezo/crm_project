@@ -2,7 +2,7 @@ import type { Request } from 'express';
 import { db } from '../db/connection.ts';
 import { accessOf } from '../middleware/currentUser.ts';
 import { documentScope } from '../lib/documentScope.ts';
-import { linkedBranch, taskBranch, type LinkedKind } from '../lib/linkedScope.ts';
+import { linkedBranch, taskBranch } from '../lib/linkedScope.ts';
 import type { ScopeClause } from '../lib/scope.ts';
 import { roleOf, type GroupRole, type GroupRow } from './feedService.ts';
 
@@ -53,7 +53,7 @@ const LINK_SOURCES: Record<LinkType, { table: string; label: string; sub: string
 /** Dieu kien "nguoi xem thay ban ghi CRM nay" — cung luat voi route goc cua no. */
 export function linkScope(req: Request, type: LinkType, column = 'x.id'): ScopeClause {
   if (type === 'card') return taskBranch(req, column);
-  return linkedBranch(req, column, type as LinkedKind, 'read');
+  return linkedBranch(req, column, type, 'read');
 }
 
 export function linkLabels(

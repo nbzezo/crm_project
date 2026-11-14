@@ -284,9 +284,7 @@ export function applyBoardTemplate(db: Database, boardId: number, key: string): 
     );
   })();
 
-  return db
-    .prepare(`SELECT * FROM lists WHERE board_id = ? ORDER BY position, id`)
-    .all(boardId) as unknown[];
+  return db.prepare(`SELECT * FROM lists WHERE board_id = ? ORDER BY position, id`).all(boardId);
 }
 
 /* ---------- R-13: so rui ro ---------- */
@@ -319,7 +317,7 @@ export function listRisks(db: Database, projectId: number): unknown[] {
                  CASE r.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
                  r.due_date IS NULL, r.due_date, r.id DESC`
     )
-    .all(projectId) as unknown[];
+    .all(projectId);
 }
 
 /* ---------- R-03: trang thai moc giai doan ---------- */

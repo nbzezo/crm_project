@@ -53,6 +53,9 @@ export default tseslint.config(
     rules: {
       'no-undef': 'off',
       'no-unused-vars': 'off',
+      // MISRA Rule 10.x: so sanh phai chat. Ngoai le duy nhat la `== null` (bat ca
+      // null va undefined) — idiom dung nhat quan 253 cho, xem docs/misra-compliance.md.
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',

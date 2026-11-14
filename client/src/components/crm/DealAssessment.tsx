@@ -59,7 +59,6 @@ import type {
   DealDecisionEntry,
   DealDecisionKind,
   Factor,
-  Stage,
 } from '../../types';
 
 const QUESTIONS: AssessmentQuestion[] = ['need', 'compete', 'close', 'worth'];
@@ -793,7 +792,7 @@ export function DecisionPanel({
               onClick={() =>
                 move({
                   dealId,
-                  stage: closedStageKey('lost') as Stage,
+                  stage: closedStageKey('lost'),
                   beforeId: null,
                   afterId: null,
                 })

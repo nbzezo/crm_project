@@ -51,7 +51,7 @@ router.put('/handover', (req, res) => {
     }
   }
 
-  saveHandoverSettings(db, body as Record<string, unknown>);
+  saveHandoverSettings(db, body);
   res.json(getHandoverSettings(db));
 });
 
@@ -116,7 +116,7 @@ router.put('/delivery', (req, res) => {
     }
   }
 
-  saveDeliverySettings(db, body as Record<string, unknown>);
+  saveDeliverySettings(db, body);
   res.json(getDeliverySettings(db));
 });
 

@@ -7,7 +7,7 @@ import { PRIORITY_COLORS, PRIORITY_ORDER, t } from '../../i18n/vi';
 import { isOverdue } from '../../lib/format';
 import { invalidateCardViews } from '../../lib/queryKeys';
 import { useUiStore } from '../../stores/uiStore';
-import type { Priority, SubTask } from '../../types';
+import type { SubTask } from '../../types';
 
 /** Danh sách việc con ngay trong cửa sổ thẻ — thêm, sửa, xóa tại chỗ. */
 export function SubtaskSection({ cardId, subtasks }: { cardId: number; subtasks: SubTask[] }) {
@@ -76,9 +76,7 @@ export function SubtaskSection({ cardId, subtasks }: { cardId: number; subtasks:
 
             <select
               value={task.priority}
-              onChange={(e) =>
-                update.mutate({ id: task.id, patch: { priority: e.target.value as Priority } })
-              }
+              onChange={(e) => update.mutate({ id: task.id, patch: { priority: e.target.value } })}
               className="w-24 shrink-0 rounded border border-tr-border bg-tr-panel px-1 py-0.5 text-xs font-medium transition hover:border-tr-primary"
               style={{ color: PRIORITY_COLORS[task.priority] }}
             >

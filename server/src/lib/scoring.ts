@@ -114,7 +114,7 @@ export function getScoringSettings(db: Database): ScoringSettings {
      khong con o app_settings. Giu nguyen dang tra ve cu cho man Cham diem. */
   const stageGate: Partial<Record<Stage, number>> = {};
   for (const stage of allStages(db)) {
-    if (stage.gate_bant_min !== null) stageGate[stage.key as Stage] = stage.gate_bant_min;
+    if (stage.gate_bant_min !== null) stageGate[stage.key] = stage.gate_bant_min;
   }
 
   return {

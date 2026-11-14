@@ -207,7 +207,7 @@ export function exportProfile(db: Database, name?: string): ConfigProfile {
           is_active: item.is_active === 1,
         })),
       ])
-    ) as ConfigProfile['picklists'],
+    ),
     pipeline: {
       name: pipeline.name,
       stages: pipeline.stages.map((stage) => ({
@@ -500,11 +500,11 @@ function applySettings(db: Database, profile: ConfigProfile, report: ImportRepor
         code: 'PROFILE_INVALID',
       });
     }
-    saveHandoverSettings(db, profile.handover as Record<string, unknown>);
+    saveHandoverSettings(db, profile.handover);
     report.updated.push('Bàn giao');
   }
   if (profile.delivery && Object.keys(profile.delivery).length > 0) {
-    saveDeliverySettings(db, profile.delivery as Record<string, unknown>);
+    saveDeliverySettings(db, profile.delivery);
     report.updated.push('Triển khai');
   }
   if (profile.task_statuses?.length) applyTaskStatuses(db, profile.task_statuses, report);

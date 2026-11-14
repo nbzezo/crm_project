@@ -456,8 +456,8 @@ router.patch('/:id', (req, res) => {
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
-    customer_id: merged.customer_id as number,
-    deal_id: merged.deal_id as number | null,
+    customer_id: merged.customer_id,
+    deal_id: merged.deal_id,
   });
   /*
    * assertEntityLinks chi doi chieu cac lien ket TREN hop dong (deal/du an). Chieu
@@ -482,8 +482,8 @@ router.patch('/:id', (req, res) => {
   assertProjectCustomerLink(
     db,
     {
-      project_id: merged.project_id as number | null,
-      customer_id: merged.customer_id as number,
+      project_id: merged.project_id,
+      customer_id: merged.customer_id,
     },
     'Hợp đồng'
   );
@@ -510,10 +510,10 @@ router.patch('/:id', (req, res) => {
       ? body.renewal_followed
         ? 1
         : 0
-      : (current.renewal_followed as number),
+      : current.renewal_followed,
     merged.notes ?? '',
     merged.project_id ?? null,
-    buildSearchText(merged.name as string, merged.number as string, merged.notes as string),
+    buildSearchText(merged.name, merged.number, merged.notes),
     id
   );
   res.json(reload(id));

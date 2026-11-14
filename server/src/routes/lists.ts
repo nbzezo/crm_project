@@ -171,11 +171,11 @@ router.post('/:id/copy', (req, res) => {
       const newCardId = Number(info2.lastInsertRowid);
       const labels = db
         .prepare(`SELECT label_id FROM card_labels WHERE card_id = ?`)
-        .all(card.id as number) as { label_id: number }[];
+        .all(card.id) as { label_id: number }[];
       for (const l of labels) insertLabel.run(newCardId, l.label_id);
       const items = db
         .prepare(`SELECT * FROM checklist_items WHERE card_id = ? ORDER BY position`)
-        .all(card.id as number) as Record<string, unknown>[];
+        .all(card.id) as Record<string, unknown>[];
       for (const item of items)
         insertItem.run(newCardId, item.content, item.is_done, item.position);
       copyFlows(card.id as number, newCardId);

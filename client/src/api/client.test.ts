@@ -31,12 +31,12 @@ describe('api cancellation', () => {
 
   it('dừng GET khi hết timeout', async () => {
     apiTimeout.getMs = 5;
-    globalThis.fetch = hangingFetch as typeof fetch;
+    globalThis.fetch = hangingFetch;
     await expect(api.get('/api/test')).rejects.toMatchObject({ status: 408 });
   });
 
   it('tôn trọng AbortSignal do caller truyền vào', async () => {
-    globalThis.fetch = hangingFetch as typeof fetch;
+    globalThis.fetch = hangingFetch;
     const controller = new AbortController();
     const pending = api.get('/api/test', { signal: controller.signal });
     controller.abort(new Error('user cancelled'));

@@ -113,7 +113,7 @@ const quotaError = () =>
     403
   );
 
-globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (!/googleapis\.com|accounts\.google\.com|upload\.fake/.test(url)) {
     return realFetch(input, init);
@@ -223,7 +223,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
     return json({ id: file.id, trashed: file.trashed });
   }
   return json({ error: { message: `unexpected ${method} ${url}` } }, 404);
-}) as typeof fetch;
+};
 
 before(async () => {
   server = createApp().listen(0);
@@ -557,10 +557,12 @@ test('tep mat khoi dia: khoi phuc duoc tep da len Drive, bao ro tep chua tung sa
 
   assert.equal((await call('POST', '/api/drive-backup/restore-missing')).status, 202);
   const after = await waitIdle();
-  assert.deepEqual(
-    after.last_restore as { restored: number; failed: number; notBackedUp: number },
-    { ...(after.last_restore as object), restored: 1, failed: 0, notBackedUp: 1 }
-  );
+  assert.deepEqual(after.last_restore, {
+    ...(after.last_restore as object),
+    restored: 1,
+    failed: 0,
+    notBackedUp: 1,
+  });
   assert.equal(
     fs.readFileSync(path.join(FILES_DIR, '1700000000000-111.pdf'), 'utf8'),
     'noi dung hop dong'

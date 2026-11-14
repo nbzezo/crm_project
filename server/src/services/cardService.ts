@@ -709,7 +709,7 @@ export function setCardStatus(
     'Không tìm thấy thẻ'
   ) as Record<string, unknown>;
   const previous = ((card.status_key ?? card.status) as TaskStatusKey | null) ?? 'todo';
-  const previousKind = ((card.status as CardStatus | null) ?? 'todo') as CardStatus;
+  const previousKind = (card.status as CardStatus | null) ?? 'todo';
   if (status === previous && options.blockedReason === undefined) return;
   /* `status` (cot) luu Y NGHIA cua trang thai: moi luat ben duoi — is_done, bi
      chan, viec lap lai — doc y nghia chu khong doc ten trang thai. */
@@ -764,7 +764,7 @@ export function setCardStatus(
       done ? 1 : 0,
       done ? 1 : 0,
       // Ly do chan chi co nghia khi dang bi chan — giu lai sau khi go la thong tin sai.
-      enteringBlocked ? (options.blockedReason ?? (card.blocked_reason as string | null)) : null,
+      enteringBlocked ? (options.blockedReason ?? card.blocked_reason) : null,
       enteringBlocked ? 1 : 0,
       id
     );

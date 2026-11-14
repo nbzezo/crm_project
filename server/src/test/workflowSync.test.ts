@@ -44,7 +44,7 @@ after(async () => {
 async function get(pathname: string) {
   const response = await fetch(`${baseUrl}${pathname}`);
   assert.equal(response.status, 200, pathname);
-  return (await response.json()) as unknown;
+  return await response.json();
 }
 
 const insert = (sql: string, ...args: unknown[]) =>

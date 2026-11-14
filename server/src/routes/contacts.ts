@@ -134,7 +134,7 @@ router.patch('/:id', (req, res) => {
   db.transaction(() => {
     if (body.is_primary)
       db.prepare(`UPDATE contacts SET is_primary = 0 WHERE customer_id = ?`).run(
-        current.customer_id as number
+        current.customer_id
       );
     // "Toi" la duy nhat trong toan bo so danh ba, khong phai duy nhat trong mot to chuc.
     if (body.is_me) db.prepare(`UPDATE contacts SET is_me = 0`).run();

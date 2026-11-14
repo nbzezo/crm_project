@@ -87,8 +87,7 @@ type Row = [label: string, value: string];
 function rowsFor(data: Payload): Row[] {
   const f = data.fields;
   const text = (key: string): string => (f[key] == null ? '' : String(f[key]));
-  const money = (key: string): string =>
-    typeof f[key] === 'number' ? formatVND(f[key] as number) : '';
+  const money = (key: string): string => (typeof f[key] === 'number' ? formatVND(f[key]) : '');
   const date = (key: string): string => formatDate(text(key));
   const rows: Row[] =
     data.type === 'quotation'
@@ -297,9 +296,7 @@ export default function PublicSharePage({ token }: { token: string }) {
           return;
         }
         setState(
-          json.requires_password
-            ? { kind: 'locked', data: json as Locked }
-            : { kind: 'ready', data: json as Payload }
+          json.requires_password ? { kind: 'locked', data: json } : { kind: 'ready', data: json }
         );
       } catch {
         setState({ kind: 'error', message: 'Không kết nối được máy chủ. Vui lòng thử lại.' });

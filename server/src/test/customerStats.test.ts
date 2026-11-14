@@ -39,7 +39,7 @@ async function call(method: string, pathname: string, body?: unknown) {
     headers: body === undefined ? {} : { 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  return { status: response.status, data: (await response.json()) as unknown };
+  return { status: response.status, data: await response.json() };
 }
 
 function customer(name: string): number {

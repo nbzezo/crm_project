@@ -145,14 +145,12 @@ router.patch('/:id', (req, res) => {
         SET name = ?, parent_id = ?, kind_id = ?, code = ?, head_contact_id = ?, is_active = ?
       WHERE id = ?`
   ).run(
-    body.name ?? (current.name as string),
+    body.name ?? current.name,
     parentId ?? null,
-    body.kind_id === undefined ? (current.kind_id as number | null) : body.kind_id,
-    body.code === undefined ? (current.code as string | null) : body.code,
-    body.head_contact_id === undefined
-      ? (current.head_contact_id as number | null)
-      : body.head_contact_id,
-    body.is_active === undefined ? (current.is_active as number) : body.is_active ? 1 : 0,
+    body.kind_id === undefined ? current.kind_id : body.kind_id,
+    body.code === undefined ? current.code : body.code,
+    body.head_contact_id === undefined ? current.head_contact_id : body.head_contact_id,
+    body.is_active === undefined ? current.is_active : body.is_active ? 1 : 0,
     id
   );
   res.json(db.prepare(`${UNIT_SELECT} WHERE o.id = ?`).get(id));

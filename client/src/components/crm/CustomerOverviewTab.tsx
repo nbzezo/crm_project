@@ -550,9 +550,9 @@ function timelineMeta(entry: TimelineEntry): string {
       return `${from ? stageLabel(from) : '—'} → ${stageLabel(to)}`;
     }
     case 'quotation':
-      return t.quotationStatus[entry.meta as keyof typeof t.quotationStatus] ?? entry.meta;
+      return t.quotationStatus[entry.meta] ?? entry.meta;
     case 'contract':
-      return t.contractStatus[entry.meta as keyof typeof t.contractStatus] ?? entry.meta;
+      return t.contractStatus[entry.meta] ?? entry.meta;
     case 'document':
       return pickLabel('doc_type', entry.meta);
     default:

@@ -671,14 +671,14 @@ db.transaction(() => {
     insertSubtask.run(
       parentList.list_id,
       parentCardId,
-      title as string,
+      title,
       (i + 1) * 1024,
-      priority as string,
-      due as string,
+      priority,
+      due,
       parentList.customer_id,
-      done as number,
-      done as number,
-      done as number,
+      done,
+      done,
+      done,
       buildSearchText(title as string)
     )
   );

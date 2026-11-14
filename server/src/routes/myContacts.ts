@@ -26,7 +26,6 @@ import {
   listPersonal,
   matchesFor,
   personalCounts,
-  type PersonalContact,
 } from '../services/contacts/personalContacts.ts';
 import { searchTextOf } from '../services/contacts/contactKeys.ts';
 
@@ -314,7 +313,7 @@ router.post('/:id/link', (req, res) => {
     }
     db.prepare(`UPDATE personal_contacts SET linked_contact_id = ? WHERE id = ?`).run(crm.id, id);
   })();
-  res.json(getOwned(db, userId, id) as PersonalContact);
+  res.json(getOwned(db, userId, id));
 });
 
 router.post('/:id/unlink', (req, res) => {

@@ -96,7 +96,7 @@ export function useSaveState(mutations: MutationLike[]): SaveState {
     if (pending) {
       wasPending.current = true;
       setShowSaved(false);
-      return;
+      return undefined;
     }
     if (wasPending.current && success) {
       wasPending.current = false;
@@ -105,6 +105,7 @@ export function useSaveState(mutations: MutationLike[]): SaveState {
       return () => window.clearTimeout(id);
     }
     wasPending.current = false;
+    return undefined;
   }, [pending, success]);
 
   if (pending) return 'saving';

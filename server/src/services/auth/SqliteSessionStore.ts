@@ -90,7 +90,7 @@ export class SqliteSessionStore extends Store {
     }
   }
 
-  touch(sid: string, session: SessionData, done: DoneErr): void {
+  override touch(sid: string, session: SessionData, done: DoneErr): void {
     try {
       const key = hashSid(sid);
       const now = Date.now();

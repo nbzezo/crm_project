@@ -103,14 +103,9 @@ router.patch('/:id', (req, res) => {
     merged.category ?? null,
     merged.unit ?? null,
     merged.default_price_vnd ?? 0,
-    body.is_active === undefined ? (current.is_active as number) : body.is_active ? 1 : 0,
+    body.is_active === undefined ? current.is_active : body.is_active ? 1 : 0,
     merged.notes ?? '',
-    buildSearchText(
-      merged.name as string,
-      merged.code as string,
-      merged.category as string,
-      merged.notes as string
-    ),
+    buildSearchText(merged.name, merged.code, merged.category, merged.notes),
     id
   );
   res.json(reload(id));

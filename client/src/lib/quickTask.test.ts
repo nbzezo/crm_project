@@ -17,7 +17,7 @@ describe('createQuickTask', () => {
 
   it('việc đã tạo vẫn thành công khi riêng lời nhắc lỗi', async () => {
     post
-      .mockResolvedValueOnce({ id: 7, title: 'Gọi khách' } as never)
+      .mockResolvedValueOnce({ id: 7, title: 'Gọi khách' })
       .mockRejectedValueOnce(new Error('lỗi nhắc'));
     await expect(
       createQuickTask(

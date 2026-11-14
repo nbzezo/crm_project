@@ -471,8 +471,8 @@ router.patch('/:id', (req, res) => {
   }
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
-    customer_id: merged.customer_id as number,
-    contact_id: merged.contact_id as number | null,
+    customer_id: merged.customer_id,
+    contact_id: merged.contact_id,
   });
   assertPocDates(merged);
   assertCrmCustomer(db, merged.customer_id as number);
@@ -481,7 +481,7 @@ router.patch('/:id', (req, res) => {
    * giu du an cu la dung kieu lech ma rang buoc nay sinh ra de chan.
    */
   if (body.project_id !== undefined || body.customer_id !== undefined)
-    assertProjectLink(id, merged.project_id as number | null, merged.customer_id as number | null);
+    assertProjectLink(id, merged.project_id, merged.customer_id);
 
   assertPicklistValue(db, 'lost_reason', body.lost_reason, current.lost_reason as string | null);
   if (body.source !== undefined)

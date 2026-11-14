@@ -369,16 +369,12 @@ router.patch('/deals/:id/committee/:contactId', (req, res) => {
             contact_depth = ?, note = ?
       WHERE deal_id = ? AND contact_id = ?`
   ).run(
-    body.role_override !== undefined
-      ? body.role_override
-      : (current.role_override as string | null),
+    body.role_override !== undefined ? body.role_override : current.role_override,
     stance,
     stance === 'mentor' ? 1 : 0,
-    body.influence ?? (current.influence as number),
-    body.contact_depth !== undefined
-      ? body.contact_depth
-      : (current.contact_depth as string | null),
-    body.note ?? (current.note as string),
+    body.influence ?? current.influence,
+    body.contact_depth !== undefined ? body.contact_depth : current.contact_depth,
+    body.note ?? current.note,
     dealId,
     contactId
   );
@@ -450,11 +446,11 @@ router.patch('/deals/:id/events/:eventId', (req, res) => {
     `UPDATE deal_events SET event_type = ?, description = ?, event_date = ?, confirmed = ?, is_primary = ?
       WHERE id = ?`
   ).run(
-    body.event_type ?? (current.event_type as string),
-    body.description ?? (current.description as string),
-    body.event_date !== undefined ? body.event_date || null : (current.event_date as string | null),
-    body.confirmed !== undefined ? (body.confirmed ? 1 : 0) : (current.confirmed as number),
-    body.is_primary !== undefined ? (body.is_primary ? 1 : 0) : (current.is_primary as number),
+    body.event_type ?? current.event_type,
+    body.description ?? current.description,
+    body.event_date !== undefined ? body.event_date || null : current.event_date,
+    body.confirmed !== undefined ? (body.confirmed ? 1 : 0) : current.confirmed,
+    body.is_primary !== undefined ? (body.is_primary ? 1 : 0) : current.is_primary,
     eventId
   );
   if (body.is_primary) clearPrimary(dealId, eventId);
@@ -619,14 +615,14 @@ router.patch('/deals/:id/competitors/:competitorId', (req, res) => {
   ).run(
     name,
     fold(name).replace(/\s+/g, ' ').trim(),
-    body.incumbent !== undefined ? (body.incumbent ? 1 : 0) : (current.incumbent as number),
+    body.incumbent !== undefined ? (body.incumbent ? 1 : 0) : current.incumbent,
     body.shaped_requirements !== undefined
       ? body.shaped_requirements
         ? 1
         : 0
-      : (current.shaped_requirements as number),
-    body.price_position ?? (current.price_position as string),
-    body.note ?? (current.note as string),
+      : current.shaped_requirements,
+    body.price_position ?? current.price_position,
+    body.note ?? current.note,
     competitorId
   );
   res.json(getCompetitors(db, dealId));
@@ -657,7 +653,7 @@ const settingsSchema = z.object({
 
 router.put('/settings/scoring', (req, res) => {
   const body = parseBody(settingsSchema, req);
-  saveScoringSettings(db, body as Record<string, unknown>);
+  saveScoringSettings(db, body);
   res.json(getScoringSettings(db));
 });
 

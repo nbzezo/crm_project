@@ -174,7 +174,7 @@ router.get('/:token/file/:fileId', (req, res) => {
   assertUnlocked(link, req);
   const payload = buildPayload(db, link);
   if (!payload) throw new HttpError(404, 'Nội dung này không còn tồn tại');
-  const fileId = intParam(req.params.fileId as string, 'fileId');
+  const fileId = intParam(req.params.fileId, 'fileId');
   /* Chi tep nam trong danh sach da chia se — khong cho do id tai lieu khac. */
   const shared = payload.files.find((f) => f.id === fileId);
   if (!shared) throw new HttpError(404, 'Không tìm thấy tệp');

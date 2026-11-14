@@ -98,9 +98,7 @@ export function createQuickNoteWindow(id: number, index: number): QuickNoteWindo
     return {
       ...fallback,
       pinned: Boolean(saved.pinned),
-      bounds: clampBounds(
-        wasShrunkByLegacyObserver ? fallback.bounds : (saved.bounds as QuickNoteWindowBounds)
-      ),
+      bounds: clampBounds(wasShrunkByLegacyObserver ? fallback.bounds : saved.bounds),
     };
   } catch {
     return fallback;
@@ -513,7 +511,7 @@ function QuickNoteBubbleStack({
       onMouseLeave={() => setExpanded(false)}
       onFocusCapture={() => setExpanded(true)}
       onBlurCapture={(event) => {
-        if (!trayRef.current?.contains(event.relatedTarget as Node | null)) setExpanded(false);
+        if (!trayRef.current?.contains(event.relatedTarget)) setExpanded(false);
       }}
       className="fixed right-5 bottom-24 z-[var(--z-index-quick-note-bubbles)] w-14"
       style={{ height: 56 + Math.max(0, windows.length - 1) * (expanded ? 58 : 13) }}

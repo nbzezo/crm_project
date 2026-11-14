@@ -78,7 +78,7 @@ export function parseQuickTask(input: string, now: Date = new Date()): QuickTask
     return true;
   };
   const each = (re: RegExp, fn: (m: RegExpExecArray) => void) => {
-    for (const m of folded.matchAll(re)) fn(m as RegExpExecArray);
+    for (const m of folded.matchAll(re)) fn(m);
   };
 
   /* Gom vao mot doi tuong: gan trong callback thi TS khong thu hep kieu sai. */

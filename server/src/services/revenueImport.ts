@@ -267,7 +267,7 @@ function plain(value: ExcelJS.CellValue): unknown {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value;
   if (typeof value === 'object') {
-    if ('result' in value) return plain(value.result as ExcelJS.CellValue);
+    if ('result' in value) return plain(value.result);
     if ('richText' in value) return value.richText.map((r) => r.text).join('');
     if ('text' in value) return value.text;
     if ('error' in value) return null;
@@ -445,7 +445,7 @@ export function validateRow(raw: RawRow): ParsedRow {
     else out.baseline = value;
   }
   for (let m = 1; m <= 12; m += 1) {
-    const cell = raw[`m${m}` as ColumnKey];
+    const cell = raw[`m${m}`];
     if (cell === undefined) continue;
     const value = parseAmount(cell);
     if (value === null) err(`T${m}: "${cell}" không phải số tiền hợp lệ`);

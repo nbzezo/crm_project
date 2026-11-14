@@ -36,7 +36,7 @@ import {
   useUiStore,
   type TaskFilters,
 } from '../../stores/uiStore';
-import type { Assignee, Board, Customer, Priority, Project, TaskRow } from '../../types';
+import type { Board, Customer, Priority, Project, TaskRow } from '../../types';
 import { Combobox } from '../common/Combobox';
 import { LoadMoreSentinel } from '../common/LoadMoreSentinel';
 import { useTaskCounts, type TaskCounts } from '../../hooks/useTaskCounts';
@@ -550,7 +550,7 @@ function FilterPanel({ onClose }: { onClose: () => void }) {
           <option value="">Mọi người</option>
           <option value="mine">Của tôi</option>
           <option value="none">Chưa giao</option>
-          {(assignees as Assignee[]).map((person) => (
+          {assignees.map((person) => (
             <option key={person.id} value={person.id}>
               {person.full_name}
             </option>

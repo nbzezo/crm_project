@@ -140,9 +140,9 @@ router.patch('/:id', (req, res) => {
   const merged = { ...current, ...body };
   assertPicklistValue(db, 'interaction_type', body.type, current.type as string);
   assertEntityLinks(db, {
-    customer_id: merged.customer_id as number,
-    contact_id: merged.contact_id as number | null,
-    deal_id: merged.deal_id as number | null,
+    customer_id: merged.customer_id,
+    contact_id: merged.contact_id,
+    deal_id: merged.deal_id,
   });
   db.prepare(
     `UPDATE interactions SET customer_id = ?, contact_id = ?, deal_id = ?, type = ?, occurred_at = ?, summary = ?, result = ?

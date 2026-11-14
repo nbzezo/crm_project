@@ -91,12 +91,12 @@ export function parsePreviewUrl(raw: string): URL {
 const safeLookup: net.LookupFunction = (hostname, options, callback) => {
   dns.lookup(hostname, { ...options, all: true }, (error, addresses) => {
     if (error) return callback(error, '', 4);
-    const list = addresses as dns.LookupAddress[];
+    const list = addresses;
     const allowed = list.filter((entry) => !isBlockedAddress(entry.address));
     if (allowed.length === 0 || allowed.length !== list.length) {
       return callback(Object.assign(new Error('Blocked address'), { code: 'EBLOCKED' }), '', 4);
     }
-    if ((options as dns.LookupOptions).all) return callback(null, allowed as never, 4);
+    if (options.all) return callback(null, allowed, 4);
     callback(null, allowed[0].address, allowed[0].family);
   });
 };

@@ -145,7 +145,7 @@ test('luu cau tra loi ghi de goi y; viec nen lam tiep uu tien nguoi duyet chi', 
     q.next_actions.map((a) => a.question),
     ['decision_maker', 'budget', 'deadline']
   );
-  assert.equal(q.next_actions[0]!.answer, 'no');
+  assert.equal(q.next_actions[0].answer, 'no');
   const budget = q.items.find((i) => i.question === 'budget')!;
   assert.deepEqual(
     [budget.answer, budget.note, budget.updated_by_name],

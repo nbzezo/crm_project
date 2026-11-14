@@ -314,7 +314,7 @@ export function DealForm({
         <PicklistField label="Nguồn" list="deal_source" value={source} onChange={setSource} />
 
         <Field label={t.deal.stage}>
-          <Select value={stage} onChange={(e) => changeStage(e.target.value as Stage)}>
+          <Select value={stage} onChange={(e) => changeStage(e.target.value)}>
             {stageKeys({ include: deal?.stage }).map((s) => (
               <option key={s} value={s}>
                 {stageLabel(s)}

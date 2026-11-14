@@ -250,7 +250,7 @@ function MemberModal({
         </label>
         <label className="block text-sm">
           Mức tiếp xúc
-          <Select value={depth} onChange={(e) => setDepth(e.target.value as typeof depth)}>
+          <Select value={depth} onChange={(e) => setDepth(e.target.value)}>
             {Object.entries(CONTACT_DEPTH_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
                 {label}

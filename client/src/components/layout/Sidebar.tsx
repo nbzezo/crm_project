@@ -79,7 +79,7 @@ function loadCollapsedGroups(): CollapsedGroups {
     if (!value || typeof value !== 'object') return {};
     return Object.fromEntries(
       NAV_GROUPS.map((group) => [group.id, (value as Record<string, unknown>)[group.id] === true])
-    ) as CollapsedGroups;
+    );
   } catch {
     return {};
   }

@@ -164,7 +164,7 @@ router.post('/:id/convert/crm-note', (req, res) => {
     },
     actorContactId(req)
   );
-  res.status(201).json(markConverted(db, id, 'crm_note', crmNote.id as number));
+  res.status(201).json(markConverted(db, id, 'crm_note', crmNote.id));
 });
 
 export default router;

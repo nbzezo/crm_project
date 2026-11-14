@@ -134,7 +134,7 @@ function refreshProposal(db: Database, message: ChatMessageRow): ChatMessageRow 
   if (!live) return message;
   return {
     ...message,
-    meta: { ...meta, proposal: { ...meta!.proposal, status: live.status } },
+    meta: { ...meta, proposal: { ...meta.proposal, status: live.status } },
   };
 }
 

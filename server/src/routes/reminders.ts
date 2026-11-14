@@ -334,9 +334,9 @@ router.patch('/:id', (req, res) => {
   ) as Record<string, unknown>;
   const merged = { ...current, ...body };
   assertEntityLinks(db, {
-    card_id: merged.card_id as number | null,
-    customer_id: merged.customer_id as number | null,
-    deal_id: merged.deal_id as number | null,
+    card_id: merged.card_id,
+    customer_id: merged.customer_id,
+    deal_id: merged.deal_id,
   });
   // Truoc day cac cot lien ket duoc zod chap nhan nhung KHONG duoc ghi —
   // sua card_id/customer_id/deal_id im lang khong co tac dung.
