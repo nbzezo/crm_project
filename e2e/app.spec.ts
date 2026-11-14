@@ -1226,14 +1226,13 @@ async function expectNoViolations(page: import('@playwright/test').Page, label: 
      mau da bi tong hop voi nen va bao sai tuong phan — dung kieu loi do ma ban
      ra soat 18/09/2026 mac phai. Bo qua animation lap vo han (spinner) vi chung
      khong bao gio `finished`. */
-  await page.evaluate(
-    () =>
-      Promise.race([
-        Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
-        // Tran cung: mot so animation (lap vo han, hoac bi huy giua chung) khong
-        // bao gio `finished`, doi mai se treo ca bai test.
-        new Promise((resolve) => setTimeout(resolve, 400)),
-      ]) as Promise<unknown>
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+      // Tran cung: mot so animation (lap vo han, hoac bi huy giua chung) khong
+      // bao gio `finished`, doi mai se treo ca bai test.
+      new Promise((resolve) => setTimeout(resolve, 400)),
+    ])
   );
   const scan = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   expect(

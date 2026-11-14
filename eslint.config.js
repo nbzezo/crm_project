@@ -74,11 +74,11 @@ export default tseslint.config(
       'no-undef': 'off',
       'no-unused-vars': 'off',
       // MISRA Rule 10.x: so sanh phai chat. Ngoai le duy nhat la `== null` (bat ca
-      // null va undefined) — idiom dung nhat quan 253 cho, xem docs/misra-compliance.md.
+      // null va undefined) — idiom dung nhat quan 254 cho, xem docs/MISRA-COMPLIANCE.md.
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/no-explicit-any': 'error',
       // MISRA Rule 17.7: gia tri tra ve phai duoc dung, hoac loai bo tuong minh
-      // bang `void`. Hai mien tru duoc ghi trong docs/misra-compliance.md:
+      // bang `void`. Hai mien tru duoc ghi trong docs/MISRA-COMPLIANCE.md (D-04, D-05):
       //  - `test()` cua node:test tra ve Promise do chinh test runner quan ly;
       //  - thuoc tinh JSX (onClick, onSubmit...): React bo qua gia tri tra ve cua
       //    handler, va cac handler trong du an deu da tu bao bang try/catch.

@@ -14,9 +14,19 @@ export interface ReleaseNote {
  * một nguồn. Khi phát hành, cập nhật ngày và thêm ghi chú mới ở đầu danh sách.
  */
 export const APP_VERSION = clientPackage.version;
-export const APP_UPDATED_AT = '2026-11-09';
+export const APP_UPDATED_AT = '2026-11-14';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {
+    version: '1.44.0',
+    date: '2026-11-14',
+    title: 'Siết kiểm tra an toàn trên toàn bộ mã nguồn',
+    changes: [
+      'Nút Copy ở hộp thoại Đôn đốc: khi trình duyệt từ chối quyền sao chép (trang không chạy HTTPS, hoặc quyền bị chặn), nay hiện thông báo và gợi ý sao chép thủ công — trước đây bấm vào không có phản hồi nào.',
+      'Phần còn lại của bản này là siết kiểm tra nội bộ và không thay đổi tính năng nào: bật thêm bảy cơ chế kiểm tra của TypeScript (đáng kể nhất là kiểm mọi truy cập mảng ngoài biên) cùng hai quy tắc về xử lý lỗi bất đồng bộ, rồi xử lý 570 điểm mà các cơ chế này phát hiện. Mục đích là chặn những lỗi thuộc các nhóm đó lọt vào các bản sau.',
+      'Chi tiết phương pháp và các miễn trừ được ghi trong docs/MISRA-COMPLIANCE.md.',
+    ],
+  },
   {
     version: '1.43.2',
     date: '2026-11-09',

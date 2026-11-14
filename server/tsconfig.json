@@ -7,7 +7,7 @@
     "types": ["node"],
     "strict": true,
     // MISRA Dir 2.1 / Rule 16.3, 17.4, 2.x: cac co an toan duoc bat tuong minh.
-    // Xem docs/misra-compliance.md (Guideline Enforcement Plan).
+    // Xem docs/MISRA-COMPLIANCE.md (Guideline Enforcement Plan).
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
