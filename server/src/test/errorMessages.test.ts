@@ -26,6 +26,7 @@ function matchingParenthesis(source: string, open: number): number {
   let escaped = false;
   for (let index = open; index < source.length; index += 1) {
     const character = source[index];
+    if (character === undefined) continue;
     if (quote) {
       if (escaped) escaped = false;
       else if (character === '\\\\') escaped = true;
@@ -51,6 +52,7 @@ function argumentsOf(source: string, start: number, end: number): string[] {
   let escaped = false;
   for (let index = start; index < end; index += 1) {
     const character = source[index];
+    if (character === undefined) continue;
     if (quote) {
       if (escaped) escaped = false;
       else if (character === '\\\\') escaped = true;
@@ -109,7 +111,7 @@ test('mọi thông báo lỗi máy chủ dạng literal đều có dấu tiếng
     const messageProperties = /\bmessage\s*:\s*(['"`])([\s\S]*?)\1/g;
     let property: RegExpExecArray | null;
     while ((property = messageProperties.exec(source))) {
-      const message = property[2];
+      const message = property[2] ?? '';
       if (VIETNAMESE_DIACRITIC.test(message) || EXCEPTIONS.has(message)) continue;
       const line = source.slice(0, property.index).split('\n').length;
       violations.push(

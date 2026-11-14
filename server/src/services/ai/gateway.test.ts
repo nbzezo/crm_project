@@ -106,8 +106,8 @@ test('ghim provider + model thi chi goi dung nha cung cap do, dung dung model do
       // Mot lan goi duy nhat: khong fallback, va khong bi bang nang luc chan lai
       // du model nay khong duoc danh dau audioInput.
       assert.equal(calls.length, 1);
-      assert.match(calls[0].url, /\/v1\/messages$/);
-      assert.equal(calls[0].model, 'claude-sonnet-4');
+      assert.match(calls[0]?.url ?? '', /\/v1\/messages$/);
+      assert.equal(calls[0]?.model, 'claude-sonnet-4');
     }
   );
 });

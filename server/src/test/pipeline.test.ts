@@ -226,7 +226,7 @@ interface StageRow {
 
 async function stages(): Promise<StageRow[]> {
   const config = await json('GET', '/api/crm-config');
-  return (config.data.pipelines as { stages: StageRow[] }[])[0].stages;
+  return (config.data.pipelines as { stages: StageRow[] }[])[0]?.stages ?? [];
 }
 
 test('them giai doan sau Gui bao gia: khoa tu sinh, dung vi tri, keo tha va cong hoat dong', async () => {
@@ -462,7 +462,7 @@ test('ho so them giai doan va danh muc moi, giu muc chi co o ban cai, khong an g
   const keys = (await stages()).map((stage) => stage.key);
   assert.deepEqual(keys.slice(0, 3), ['lead', 'approaching', 'khao_sat']);
   assert.equal((await stages()).find((stage) => stage.key === 'approaching')!.is_active, 1);
-  assert.equal((await stages())[0].label, 'Khách tiềm năng');
+  assert.equal((await stages())[0]?.label, 'Khách tiềm năng');
   assert.equal(category(id), 'open');
   assert.ok(
     db

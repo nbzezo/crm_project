@@ -15,7 +15,7 @@ describe('mau so do logic', () => {
         expect(ids).toContain((arrow.end as { id: string }).id);
       }
       // Lan (neu co) nam duoi cung de khong che hinh.
-      if (template.lanes) expect(skeleton[0].strokeStyle).toBe('dashed');
+      if (template.lanes) expect(skeleton[0]?.strokeStyle).toBe('dashed');
     }
   );
 });

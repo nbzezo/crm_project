@@ -71,8 +71,8 @@ test('chua doi soat: cho doi soat, khong ghi nhan cung khong Lost', () => {
     2026,
     '2026-10'
   ).filter((e) => e.period === '2026-03');
-  assert.equal(entry.status, 'pending');
-  assert.equal(entry.lost_vnd, 0);
+  assert.equal(entry?.status, 'pending');
+  assert.equal(entry?.lost_vnd, 0);
 });
 
 test('Nen khong co doanh thu: Lost toan bo TB nam truoc chi cho thang da qua', () => {
@@ -87,6 +87,6 @@ test('Nen chua co TB nam truoc: khong ghi nhan, danh dau canh bao', () => {
     2026,
     '2026-10'
   ).filter((e) => e.period === '2026-02');
-  assert.equal(entry.status, 'missing_baseline');
-  assert.equal(entry.kpi_vnd, 0);
+  assert.equal(entry?.status, 'missing_baseline');
+  assert.equal(entry?.kpi_vnd, 0);
 });

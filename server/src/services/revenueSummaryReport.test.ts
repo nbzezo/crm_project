@@ -21,8 +21,8 @@ test('revenue summary cong dung stage va loc group tai mot noi', () => {
   assert.equal(all.totals.amount_vnd, 150);
   assert.equal(all.totals.stage_paid_vnd, 100);
   assert.equal(all.totals.stage_invoiced_vnd, 50);
-  assert.equal(all.by_service[0].amount_vnd, 150);
-  assert.equal(all.by_customer[0].amount_vnd, 150);
+  assert.equal(all.by_service[0]?.amount_vnd, 150);
+  assert.equal(all.by_customer[0]?.amount_vnd, 150);
 
   const base = buildRevenueSummaryReport(2026, new Set(['base']), lines);
   assert.equal(base.totals.amount_vnd, 50);

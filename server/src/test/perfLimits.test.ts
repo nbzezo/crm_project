@@ -101,7 +101,7 @@ test('/views/tasks: limit va q chi tra dung so dong can', async () => {
     matched.data.map((row) => row.title),
     ['Việc số 10', 'Việc số 20', 'Việc số 30']
   );
-  assert.ok(Array.isArray(matched.data[0].label_ids), 'van gan nhan theo lo');
+  assert.ok(Array.isArray(matched.data[0]?.label_ids), 'van gan nhan theo lo');
 
   const all = await get<unknown[]>('/api/views/tasks?done=0');
   assert.equal(all.data.length, 30, 'khong truyen limit thi giu hanh vi cu');
@@ -126,7 +126,7 @@ test('/views/calendar: khong tham so khong quet het, khoang qua dai bi cat', asy
 test('fields=basic: o chon chi nhan cot can thiet', async () => {
   const deals = await get<Record<string, unknown>[]>('/api/deals?fields=basic');
   assert.ok(Array.isArray(deals.data));
-  assert.deepEqual(Object.keys(deals.data[0]).sort(), [
+  assert.deepEqual(Object.keys(deals.data[0] ?? {}).sort(), [
     'customer_id',
     'customer_name',
     'id',
@@ -134,10 +134,10 @@ test('fields=basic: o chon chi nhan cot can thiet', async () => {
     'title',
   ]);
   const contracts = await get<Record<string, unknown>[]>('/api/contracts?fields=basic');
-  assert.equal(contracts.data[0].name, 'HĐ hiệu năng');
+  assert.equal(contracts.data[0]?.name, 'HĐ hiệu năng');
   assert.equal('days_left' in contracts.data[0], false);
   const quotations = await get<Record<string, unknown>[]>('/api/quotations?fields=basic');
-  assert.equal(quotations.data[0].code, 'BG-01');
+  assert.equal(quotations.data[0]?.code, 'BG-01');
   assert.equal('document_count' in quotations.data[0], false);
 });
 
@@ -148,7 +148,7 @@ test('xuat CSV theo luong van co BOM, tieu de va dong du lieu', async () => {
   assert.deepEqual([...bytes.slice(0, 3)], [0xef, 0xbb, 0xbf], 'BOM de Excel doc dung tieng Viet');
   const text = new TextDecoder().decode(bytes.slice(3));
   const [header, ...lines] = text.split('\r\n');
-  assert.ok(header.split(',').length > 1);
+  assert.ok((header?.split(',').length ?? 0) > 1);
   assert.ok(lines.some((line) => line.includes('Khách hiệu năng')));
 });
 

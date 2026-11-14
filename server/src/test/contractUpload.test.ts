@@ -280,7 +280,7 @@ test('ban scan: model chua xac nhan nang luc van duoc thu, loi thi quay ve doc c
   let res = await post('/api/contracts/extract', multipart({ name: 'scan.txt', body: SCAN_TEXT }));
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal(res.data.contract.name, 'HĐ scan');
-  assert.match(bodies[0], /inline_data|inlineData/, 'tep duoc gui kem');
+  assert.match(bodies[0] ?? '', /inline_data|inlineData/, 'tep duoc gui kem');
 
   // 2) Nha cung cap tu choi tep (400) nhung co chu tach duoc -> thu lai chi bang chu.
   bodies.length = 0;

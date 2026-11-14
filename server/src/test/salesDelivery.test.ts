@@ -140,8 +140,8 @@ test('co hoi da dong truoc khi migrate khong bi coi la dang cho ban giao', () =>
     const rows = legacy
       .prepare(`SELECT title, stage, handover_ready FROM deals ORDER BY id`)
       .all() as { title: string; stage: string; handover_ready: number }[];
-    assert.equal(rows[0].handover_ready, 1, 'co hoi Won cu phai duoc coi la da ban giao xong');
-    assert.equal(rows[1].handover_ready, 0, 'co hoi dang mo chua ban giao gi ca');
+    assert.equal(rows[0]?.handover_ready, 1, 'co hoi Won cu phai duoc coi la da ban giao xong');
+    assert.equal(rows[1]?.handover_ready, 0, 'co hoi dang mo chua ban giao gi ca');
   } finally {
     legacy.close();
   }
@@ -214,8 +214,8 @@ test('lien ket hai chieu: co hoi thay du an, du an thay co hoi nguon', async () 
   const detail = await json('GET', `/api/projects/${projectId}`);
   const deals = detail.data.deals as { id: number; title: string }[];
   assert.equal(deals.length, 1);
-  assert.equal(deals[0].id, dealId);
-  assert.equal(deals[0].title, 'Co hoi Epsilon');
+  assert.equal(deals[0]?.id, dealId);
+  assert.equal(deals[0]?.title, 'Co hoi Epsilon');
 });
 
 /* ---------- Nhat ky thay doi ---------- */
@@ -236,8 +236,8 @@ test('nhat ky ghi lai gia tri truoc/sau va bo qua truong khong theo doi', async 
 
   const values = changes.filter((c) => c.field === 'value_vnd');
   assert.equal(values.length, 2);
-  assert.equal(values[0].old_value, '200000000');
-  assert.equal(values[0].new_value, '350000000');
+  assert.equal(values[0]?.old_value, '200000000');
+  assert.equal(values[0]?.new_value, '350000000');
   // `notes` khong nam trong danh sach theo doi — nhat ky phai doc duoc, khong phai day du.
   assert.ok(!changes.some((c) => c.field === 'notes'));
 });
@@ -270,7 +270,7 @@ test('doi baseline cua du an duoc ghi nhat ky kem ly do', async () => {
   const changes = detail.data.changes as { field: string; note: string | null }[];
   const fields = changes.map((c) => c.field).sort();
   assert.deepEqual(fields, ['budget_vnd', 'plan_end']);
-  assert.equal(changes[0].note, 'Khach hang doi mo rong pham vi');
+  assert.equal(changes[0]?.note, 'Khach hang doi mo rong pham vi');
 });
 
 /* ---------- Quay lui ---------- */

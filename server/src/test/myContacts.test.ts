@@ -237,14 +237,14 @@ test('doc vCard: dong gap, QUOTED-PRINTABLE, nhieu so, ten tu N khi thieu FN', (
   ].join('\r\n');
   const cards = parseVCard(vcf);
   assert.equal(cards.length, 2, 'the rong bi bo qua');
-  assert.equal(cards[0].full_name, 'Nguyễn Văn An');
-  assert.equal(cards[0].org_name, 'Công ty ABC - Phòng Kinh doanh');
-  assert.equal(cards[0].title, 'Trưởng phòng');
-  assert.deepEqual(cards[0].phones, ['+84 901 234 567', '028 3822 1111']);
-  assert.deepEqual(cards[0].emails, ['An@abc.vn']);
-  assert.equal(cards[0].notes, 'Gặp ở hội thảo\nlần 2');
-  assert.equal(cards[1].full_name, 'Bánh Lê');
-  assert.deepEqual(cards[1].phones, ['0912 345 678']);
+  assert.equal(cards[0]?.full_name, 'Nguyễn Văn An');
+  assert.equal(cards[0]?.org_name, 'Công ty ABC - Phòng Kinh doanh');
+  assert.equal(cards[0]?.title, 'Trưởng phòng');
+  assert.deepEqual(cards[0]?.phones, ['+84 901 234 567', '028 3822 1111']);
+  assert.deepEqual(cards[0]?.emails, ['An@abc.vn']);
+  assert.equal(cards[0]?.notes, 'Gặp ở hội thảo\nlần 2');
+  assert.equal(cards[1]?.full_name, 'Bánh Lê');
+  assert.deepEqual(cards[1]?.phones, ['0912 345 678']);
 });
 
 test('doc CSV Google: ten ghep tu Ho/Ten, nhieu cot dien thoai/email, o co dau phay trong ngoac kep', () => {
@@ -256,12 +256,12 @@ test('doc CSV Google: ten ghep tu Ho/Ten, nhieu cot dien thoai/email, o co dau p
   ].join('\n');
   const rows = parseContactsCsv(csv);
   assert.equal(rows.length, 2);
-  assert.equal(rows[0].full_name, 'Văn Bình Trần');
-  assert.equal(rows[0].org_name, 'Công ty X, Y');
-  assert.deepEqual(rows[0].emails, ['binh@x.vn', 'binh2@x.vn']);
-  assert.deepEqual(rows[0].phones, ['0903 111 222', '0904 333 444']);
-  assert.equal(rows[0].notes, 'ghi chú, có phẩy');
-  assert.equal(rows[1].full_name, 'Chỉ Công Ty');
+  assert.equal(rows[0]?.full_name, 'Văn Bình Trần');
+  assert.equal(rows[0]?.org_name, 'Công ty X, Y');
+  assert.deepEqual(rows[0]?.emails, ['binh@x.vn', 'binh2@x.vn']);
+  assert.deepEqual(rows[0]?.phones, ['0903 111 222', '0904 333 444']);
+  assert.equal(rows[0]?.notes, 'ghi chú, có phẩy');
+  assert.equal(rows[1]?.full_name, 'Chỉ Công Ty');
   assert.throws(() => parseContactsCsv('a,b,c\n1,2,3'), /Không nhận ra cột/);
 });
 
@@ -561,7 +561,7 @@ test('lien he da dua vao CRM khong bi mat khi ngat ket noi; tuy chon xoa phan co
   const google1 = (await list('?source=google')).items;
   assert.ok(google1.length >= 2);
   const target = await call('POST', '/api/my-contacts/promote', {
-    ids: [google1[0].id],
+    ids: [google1[0]?.id],
     customer_id: (db.prepare(`SELECT id FROM customers LIMIT 1`).get() as { id: number }).id,
     allow_duplicates: true,
   });
@@ -572,7 +572,7 @@ test('lien he da dua vao CRM khong bi mat khi ngat ket noi; tuy chon xoa phan co
   assert.equal((off.data.google as { connected: boolean }).connected, false);
   const remain = await list();
   assert.ok(
-    remain.items.some((i) => i.id === google1[0].id),
+    remain.items.some((i) => i.id === google1[0]?.id),
     'dong da dua vao CRM duoc giu'
   );
   assert.equal(remain.items.filter((i) => i.source === 'google').length, 1);

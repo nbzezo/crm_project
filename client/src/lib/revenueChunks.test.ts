@@ -22,7 +22,9 @@ describe('loadRevenueLinesInChunks', () => {
     const result = await loadRevenueLinesInChunks(
       async (limit, offset) => {
         calls.push([limit, offset]);
-        return pages[calls.length - 1];
+        const page = pages[calls.length - 1];
+        if (!page) throw new Error('het khuc du lieu mau');
+        return page;
       },
       (partial) => progress.push([partial.lines.map((l) => l.id), partial.progress])
     );

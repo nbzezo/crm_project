@@ -181,7 +181,7 @@ test('poc la mot giai doan that, keo duoc va mang ho so rieng', async () => {
   // Va no phai nam trong phan nhom theo giai doan cua danh sach pipeline.
   const board = await json('GET', '/api/deals');
   const stages = board.data.stages as Record<string, { id: number }[]>;
-  assert.ok(stages.poc.some((d) => d.id === dealId));
+  assert.ok(stages.poc?.some((d) => d.id === dealId));
 });
 
 /* ---------- S08: tam dung ---------- */

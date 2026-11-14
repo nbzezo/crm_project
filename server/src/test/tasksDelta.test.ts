@@ -87,7 +87,7 @@ test('since chỉ trả thẻ đã cập nhật, ids vẫn đầy đủ', async 
     afterUpdate.data.items.map((row) => row.id),
     [firstId]
   );
-  assert.equal(afterUpdate.data.items[0].title, 'Việc delta đã đổi');
+  assert.equal(afterUpdate.data.items[0]?.title, 'Việc delta đã đổi');
 });
 
 test('thêm checklist làm thẻ xuất hiện trong delta và tăng tổng', async () => {
@@ -101,8 +101,8 @@ test('thêm checklist làm thẻ xuất hiện trong delta và tăng tổng', as
   const delta = await request<{ items: { id: number; checklist_total: number }[] }>(
     '/api/views/tasks?done=0&delta=1&since=2001-01-01%2000:00:00'
   );
-  assert.equal(delta.data.items[0].id, secondId);
-  assert.equal(delta.data.items[0].checklist_total, 1);
+  assert.equal(delta.data.items[0]?.id, secondId);
+  assert.equal(delta.data.items[0]?.checklist_total, 1);
 });
 
 test('xóa thẻ loại id khỏi delta', async () => {
@@ -149,7 +149,7 @@ test('tải theo khúc: đủ mọi việc, không trùng, có tổng và server
   assert.equal(first.data.total, all.data.ids.length);
   assert.match(first.data.server_time, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   assert.equal(first.data.items.length, 2);
-  assert.ok(Array.isArray(first.data.items[0].label_ids));
+  assert.ok(Array.isArray(first.data.items[0]?.label_ids));
   const seen = first.data.items.map((row) => row.id);
   let next = first.data.next_before_id;
   let rounds = 0;

@@ -46,18 +46,18 @@ describe('buildUnitTree', () => {
       person(11, 4, { completed: 9, completed_with_due: 9, on_time: 0 }),
     ];
     const [root] = buildUnitTree(units, people);
-    expect(root.headcount).toBe(2);
-    expect(root.totals.completed).toBe(10);
+    expect(root?.headcount).toBe(2);
+    expect(root?.totals.completed).toBe(10);
     /* Trung binh ty le se ra 50% — sai: 1/10 viec dung han. */
-    expect(onTimeRate(root.totals)).toBeCloseTo(0.1);
+    expect(root && onTimeRate(root.totals)).toBeCloseTo(0.1);
   });
 
   it('cat don vi khong co ai va dua nguoi chua xep don vi vao nut rieng', () => {
     const roots = buildUnitTree(units, [person(10, 3), person(12, null)]);
     expect(roots).toHaveLength(2);
-    expect(roots[1].unit).toBeNull();
-    const khoi = roots[0].children[0];
-    expect(khoi.children.map((c) => c.unit?.name)).toEqual(['P1']);
+    expect(roots[1]?.unit).toBeNull();
+    const khoi = roots[0]?.children[0];
+    expect(khoi?.children.map((c) => c.unit?.name)).toEqual(['P1']);
   });
 
   it('bo chuoi mot nhanh phia tren de truong phong thay thang phong minh', () => {
@@ -102,6 +102,6 @@ describe('doi tuong dang xem va chuoi tuan', () => {
     const series = weeklySeries(data.weekly, new Set([10]), data.from, data.to);
     expect(series.map((p) => p.week_start)).toEqual(['2026-08-31', '2026-09-07', '2026-09-14']);
     expect(series[1]).toEqual({ week_start: '2026-09-07', on_time: 1, late: 1, no_due: 1 });
-    expect(series[0].on_time + series[2].on_time).toBe(0);
+    expect((series[0]?.on_time ?? 0) + (series[2]?.on_time ?? 0)).toBe(0);
   });
 });

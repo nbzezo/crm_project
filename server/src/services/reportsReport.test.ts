@@ -14,8 +14,8 @@ test('report bo snapshot hong va dem yeu to thap nhat cua deal thua', () => {
       }),
     },
   ]);
-  assert.equal(result.by_quadrant.reshape.lost, 1);
-  assert.equal(result.lost_reason_by_factor.price.budget, 1);
+  assert.equal(result.by_quadrant.reshape?.lost, 1);
+  assert.equal(result.lost_reason_by_factor.price?.budget, 1);
 });
 
 test('report assignee ghep dong open va completed-only, roi sap qua han truoc', () => {

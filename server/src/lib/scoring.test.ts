@@ -269,7 +269,7 @@ test('AC-SCR-07 veto khong doi o ma tran nhung chan forecast', () => {
     true
   );
   assert.equal(card.forecast_eligible, false);
-  assert.equal(card.recommendations[0].code, 'veto');
+  assert.equal(card.recommendations[0]?.code, 'veto');
   f.db.close();
 });
 

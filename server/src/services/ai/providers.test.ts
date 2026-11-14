@@ -78,7 +78,7 @@ test('ban ghi am duoc gui qua 9Router bang phan noi dung input_audio', async () 
     assert.equal(result.text, 'Noi dung ban ghi');
     const messages = sent.messages as { role: string; content: unknown }[];
     // Tham so codecs bi cat va `format` la ten dinh dang chu khong phai mime.
-    assert.deepEqual(messages[1].content, [
+    assert.deepEqual(messages[1]?.content, [
       { type: 'input_audio', input_audio: { data: 'QUJD', format: 'webm' } },
       { type: 'text', text: 'Chuyen doan ghi am dinh kem thanh van ban.' },
     ]);
@@ -108,7 +108,7 @@ test('cau hoi khong kem tep van gui noi dung dang chuoi tran', async () => {
       prompt: 'Viec gi can lam?',
     });
     const messages = sent.messages as { role: string; content: unknown }[];
-    assert.equal(messages[1].content, 'Viec gi can lam?');
+    assert.equal(messages[1]?.content, 'Viec gi can lam?');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -200,10 +200,10 @@ test('Claude tim web: khong moi "{", chay tiep pause_turn, chi lay chu sau lan t
       { model: 'claude-x', system: 's', prompt: 'p', json: true, webSearch: true }
     );
     assert.equal(bodies.length, 2);
-    const firstMessages = bodies[0].messages as { role: string }[];
+    const firstMessages = bodies[0]?.messages as { role: string }[];
     assert.equal(firstMessages.length, 1, 'khong co luot assistant moi "{"');
-    assert.equal((bodies[0].tools as { name: string }[])[0].name, 'web_search');
-    const secondMessages = bodies[1].messages as { role: string }[];
+    assert.equal((bodies[0]?.tools as { name: string }[])[0]?.name, 'web_search');
+    const secondMessages = bodies[1]?.messages as { role: string }[];
     assert.equal(secondMessages.at(-1)?.role, 'assistant', 'gui lai phan da sinh de chay tiep');
     assert.equal(result.text, '{"name":"Sao Mai"}');
     assert.equal(result.webSearched, true);
@@ -245,10 +245,14 @@ test('9Router tim web: tim truoc qua /search roi chen ket qua vao prompt chat', 
     });
     const searches = calls.filter((call) => call.url.endsWith('/search'));
     assert.equal(searches.length, 2);
-    assert.equal(searches[0].body.model, 'tavily/search');
+    assert.equal(searches[0]?.body.model, 'tavily/search');
     const chat = calls.find((call) => call.url.endsWith('/chat/completions'))!;
     const messages = chat.body.messages as { content: string }[];
-    assert.match(messages[1].content, /https:\/\/saomai\.vn/, 'ket qua tim duoc chen vao prompt');
+    assert.match(
+      messages[1]?.content ?? '',
+      /https:\/\/saomai\.vn/,
+      'ket qua tim duoc chen vao prompt'
+    );
     assert.equal(result.webSearched, true, 'mot truy van loi khong lam hong ca lan tim');
     assert.deepEqual(result.webSources, [{ url: 'https://saomai.vn', title: 'Sao Mai' }]);
 

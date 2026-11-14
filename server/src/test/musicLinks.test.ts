@@ -93,7 +93,7 @@ test('luu link, luu lai cung link thi doi ten chu khong tao dong trung', async (
   assert.equal((again.data as Row).id, (first.data as Row).id);
   const rows = await list();
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].title, 'Lofi học bài');
+  assert.equal(rows[0]?.title, 'Lofi học bài');
 });
 
 test('chan du lieu rac: khong phai http(s), thieu ten, qua dai', async () => {
@@ -139,8 +139,8 @@ test('RIENG TU: tai khoan khac khong thay va khong xoa duoc link cua nguoi kia',
   });
   await signIn('nhacsi@congty.vn', 'nhacsi-password-1');
   assert.deepEqual(await list(), []);
-  assert.equal((await call('DELETE', `/api/music-links/${adminRows[0].id}`)).status, 404);
-  assert.ok(db.prepare('SELECT 1 FROM user_music_links WHERE id = ?').get(adminRows[0].id));
+  assert.equal((await call('DELETE', `/api/music-links/${adminRows[0]?.id}`)).status, 404);
+  assert.ok(db.prepare('SELECT 1 FROM user_music_links WHERE id = ?').get(adminRows[0]?.id));
 
   /* Cung link o tai khoan nay la dong rieng. */
   const own = await call('POST', '/api/music-links', {

@@ -66,7 +66,7 @@ interface Item {
 
 async function items(list: string): Promise<Item[]> {
   const config = await json('GET', '/api/crm-config');
-  return (config.data.picklists as Record<string, Item[]>)[list];
+  return (config.data.picklists as Record<string, Item[]>)[list] ?? [];
 }
 
 async function newCustomer(name: string): Promise<number> {

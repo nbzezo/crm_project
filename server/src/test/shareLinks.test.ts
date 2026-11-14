@@ -475,7 +475,7 @@ test('nhac theo doi: lan mo dau tien bao vao chuong thong bao, khong tao nhac he
     .prepare(`SELECT title, link FROM ai_notifications WHERE title LIKE 'Khách vừa mở liên kết%'`)
     .all() as { title: string; link: string | null }[];
   assert.equal(alerts.length, 1, 'chi bao mot lan');
-  assert.equal(alerts[0].link, `/customers/${customerId}`, 'thong bao dan toi khach hang');
+  assert.equal(alerts[0]?.link, `/customers/${customerId}`, 'thong bao dan toi khach hang');
   const reminders = db
     .prepare(`SELECT COUNT(*) AS n FROM reminders WHERE title LIKE 'Khách vừa mở liên kết%'`)
     .get() as { n: number };
@@ -604,7 +604,7 @@ test('Trang tai lieu: chia se noi dung da loc, khong lo nguoi tham du / id / kho
     .prepare(`SELECT link FROM ai_notifications WHERE title LIKE '%Ke hoach Q4%'`)
     .all() as { link: string | null }[];
   assert.equal(alert.length, 1);
-  assert.equal(alert[0].link, `/customers/${customerId}`);
+  assert.equal(alert[0]?.link, `/customers/${customerId}`);
 
   /* Dong bang: sua trang sau khi chia se khong doi thu nguoi nhan thay. */
   const locked = await call('POST', '/api/shares', {

@@ -328,8 +328,8 @@ test('quy trinh gan voi trang thai tu tao va tu chuyen sang trang thai tu tao', 
   assert.equal(blocked.status, 409);
   assert.equal(blocked.data.status, intake);
 
-  await json('PATCH', `/api/task-flows/steps/${flow.steps[0].id}`, { done: true });
-  const last = await json('PATCH', `/api/task-flows/steps/${flow.steps[1].id}`, { done: true });
+  await json('PATCH', `/api/task-flows/steps/${flow.steps[0]?.id}`, { done: true });
+  const last = await json('PATCH', `/api/task-flows/steps/${flow.steps[1]?.id}`, { done: true });
   assert.equal(last.data.advanced_to, sign);
   assert.equal(card(id).status_key, sign);
   assert.equal(card(id).status, 'waiting_customer');

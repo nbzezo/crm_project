@@ -40,12 +40,12 @@ function visibleStrings(source: string): string[] {
     .split('\n')
     .flatMap((line) =>
       [...line.matchAll(/(['"])(.*?)\1/g), ...line.matchAll(/`([^`\n$]*)`/g)].map(
-        (match) => match[2] ?? match[1]
+        (match) => match[2] ?? match[1] ?? ''
       )
     );
-  const jsxText = [...source.matchAll(/>([A-Za-zÀ-ỹ][^<\n]*)</g)].map((match) => match[1]);
+  const jsxText = [...source.matchAll(/>([A-Za-zÀ-ỹ][^<\n]*)</g)].map((match) => match[1] ?? '');
   return [...quoted, ...jsxText]
-    .map((value) => value.replace(/\\(['"`])/g, '$1').trim())
+    .map((value) => value?.replace(/\\(['"`])/g, '$1').trim())
     .filter(
       (value) =>
         value &&

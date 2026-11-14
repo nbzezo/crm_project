@@ -42,14 +42,14 @@ describe('Quy trình: lớp gọi API hỏi bỏ qua rồi gửi lại', () => {
 
     const pending = api.patch('/api/cards/7', { status: 'review' });
     await waitForSkips(1);
-    expect(useTaskFlowStore.getState().skips[0].details.remaining).toEqual([
+    expect(useTaskFlowStore.getState().skips[0]?.details.remaining).toEqual([
       'Cấu hình',
       'Kiểm thử',
     ]);
     useTaskFlowStore.getState().answerSkip(true);
 
     await expect(pending).resolves.toMatchObject({ id: 7, status: 'review' });
-    const retry = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const retry = JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string);
     expect(retry).toEqual({ status: 'review', skip_flow: true });
   });
 

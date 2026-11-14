@@ -120,8 +120,8 @@ test('tao tai khoan kem vi tri va don vi — dang nhap vao co quyen ngay', async
   assert.equal(res.data.org_unit_name, 'Phòng P1');
   const positions = res.data.positions as { position_name: string; is_primary: boolean }[];
   assert.equal(positions.length, 1);
-  assert.equal(positions[0].position_name, 'Nhân viên');
-  assert.equal(positions[0].is_primary, true);
+  assert.equal(positions[0]?.position_name, 'Nhân viên');
+  assert.equal(positions[0]?.is_primary, true);
 
   const userId = Number(res.data.id);
   const access = buildAccess(userId, contactId);
@@ -282,5 +282,5 @@ test('sua vi tri qua /assignments dung chung rao chan', async () => {
   });
   assert.equal(ok.status, 200);
   const rows = ok.data as unknown as { is_primary: number }[];
-  assert.equal(rows[0].is_primary, 1);
+  assert.equal(rows[0]?.is_primary, 1);
 });

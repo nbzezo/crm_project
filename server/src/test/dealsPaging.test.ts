@@ -63,7 +63,7 @@ test('per_stage trả trang đầu, more và totals toàn bộ khớp phản h�
   }>('/api/deals?per_stage=3');
   assert.equal(paged.status, 200);
   assert.deepEqual(
-    paged.data.stages.lead.map((deal) => deal.position),
+    paged.data.stages.lead?.map((deal) => deal.position),
     [1, 2, 3]
   );
   assert.equal(paged.data.more.lead, 4);

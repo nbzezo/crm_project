@@ -94,7 +94,7 @@ test('vuot DUNG MOT nguong da du de de xuat Mo hinh A', async () => {
   assert.equal(res.data.suggested, 'A');
   const crossed = (res.data.signals as Signal[]).filter((s) => s.crossed);
   assert.equal(crossed.length, 1);
-  assert.equal(crossed[0].key, 'duration_days');
+  assert.equal(crossed[0]?.key, 'duration_days');
 });
 
 test('gia tri phan loai lay tu hop dong, thieu hop dong thi lay tu co hoi nguon', async () => {
@@ -159,9 +159,9 @@ test('do bo mau P01-P09 thay cot mac dinh va gan dung anh xa trang thai', async 
     .data as unknown as { name: string; status_mapping: string | null }[];
 
   assert.equal(lists.length, 9, 'chin buoc P01-P09 cua dac ta 6.4');
-  assert.match(lists[0].name, /^P01/);
-  assert.match(lists[8].name, /^P09/);
-  assert.equal(lists[8].status_mapping, 'done');
+  assert.match(lists[0]?.name ?? '', /^P01/);
+  assert.match(lists[8]?.name ?? '', /^P09/);
+  assert.equal(lists[8]?.status_mapping, 'done');
   // UAT la buoc CHO KHACH HANG, khong phai 'doing' — phan biet duoc moi biet nen nhac ai.
   const uat = lists.find((l) => /UAT/.test(l.name));
   assert.equal(uat?.status_mapping, 'waiting_customer');
@@ -186,7 +186,7 @@ test('bang da co cong viec thi khong do mau duoc — khong xoa viec dang co', as
   const full = (await json('GET', `/api/boards/${boardId}/full`)).data as unknown as {
     lists: { id: number }[];
   };
-  await json('POST', '/api/cards', { list_id: full.lists[0].id, title: 'Viec dang lam' });
+  await json('POST', '/api/cards', { list_id: full.lists[0]?.id, title: 'Viec dang lam' });
 
   const blocked = await json('POST', `/api/boards/${boardId}/template`, { key: 'large' });
   assert.equal(blocked.status, 409);
@@ -275,9 +275,9 @@ test('tao du an thi co san mot luong viec ngam mang ten du an', async () => {
   const detail = await json('GET', `/api/projects/${projectId}`);
   const boards = detail.data.boards as { id: number; name: string }[];
   assert.equal(boards.length, 1);
-  assert.equal(boards[0].name, 'Du an luong ngam');
+  assert.equal(boards[0]?.name, 'Du an luong ngam');
 
-  const full = await json('GET', `/api/boards/${boards[0].id}/full`);
+  const full = await json('GET', `/api/boards/${boards[0]?.id}/full`);
   assert.deepEqual(
     (full.data.lists as { status_mapping: string }[]).map((l) => l.status_mapping),
     ['todo', 'doing', 'review', 'done']
@@ -286,7 +286,7 @@ test('tao du an thi co san mot luong viec ngam mang ten du an', async () => {
   /* Doi ten du an thi luong ngam doi theo. */
   await json('PATCH', `/api/projects/${projectId}`, { name: 'Du an doi ten' });
   const renamed = await json('GET', `/api/projects/${projectId}`);
-  assert.equal((renamed.data.boards as { name: string }[])[0].name, 'Du an doi ten');
+  assert.equal((renamed.data.boards as { name: string }[])[0]?.name, 'Du an doi ten');
 });
 
 test('doi ten du an khong dong vao luong viec khi du an co nhieu luong', async () => {
@@ -304,7 +304,7 @@ test('cong viec da luu tru liet ke theo luong va khoi phuc duoc', async () => {
   const board = await json('POST', '/api/boards', { name: 'Luong luu tru' });
   const boardId = Number(board.data.id);
   const full = await json('GET', `/api/boards/${boardId}/full`);
-  const listId = (full.data.lists as { id: number }[])[0].id;
+  const listId = (full.data.lists as { id: number }[])[0]?.id;
   const card = await json('POST', '/api/cards', { list_id: listId, title: 'Viec se luu tru' });
   const cardId = Number(card.data.id);
 
@@ -366,9 +366,9 @@ test('so rui ro gom bon loai va sap theo muc do can xu ly', async () => {
   }[];
 
   assert.equal(risks.length, 3);
-  assert.equal(risks[0].title, 'Change Request mo rong pham vi', 'nghiem trong va con mo len dau');
-  assert.equal(risks[2].status, 'closed', 'muc da dong xuong cuoi');
-  assert.ok(risks[2].closed_at, 'dong thi phai co moc thoi gian');
+  assert.equal(risks[0]?.title, 'Change Request mo rong pham vi', 'nghiem trong va con mo len dau');
+  assert.equal(risks[2]?.status, 'closed', 'muc da dong xuong cuoi');
+  assert.ok(risks[2]?.closed_at, 'dong thi phai co moc thoi gian');
 });
 
 test('mo lai mot muc da dong thi xoa moc thoi gian dong', async () => {

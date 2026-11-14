@@ -46,7 +46,9 @@ describe('dan y <-> so do tu duy', () => {
   });
 
   it('mot muc goc thi muc do lam goc', () => {
-    expect(listBlocksToTree([list[0]], 'Chủ đề').topic).toBe('Mục tiêu');
+    const [firstList] = list;
+    if (!firstList) throw new Error('thieu du lieu mau');
+    expect(listBlocksToTree([firstList], 'Chủ đề').topic).toBe('Mục tiêu');
   });
 
   it('doi qua lai khong mat nhanh', () => {

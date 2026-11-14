@@ -180,7 +180,7 @@ test('CRM va du an giu cung mot khach hang tren moi duong ghi', async () => {
     id: number;
   }[];
   const wrongTask = await json('POST', '/api/cards', {
-    list_id: lists[0].id,
+    list_id: lists[0]?.id,
     customer_id: customerB,
     title: 'Viec sai khach hang',
   });
@@ -270,7 +270,7 @@ test('ngay du an va cong hoan thanh chan trang thai khong trung thuc', async () 
     id: number;
   }[];
   const task = await json('POST', '/api/cards', {
-    list_id: lists[0].id,
+    list_id: lists[0]?.id,
     title: 'Viec chua xong',
   });
   const blocked = await json('PATCH', `/api/projects/${projectId}`, {
@@ -299,13 +299,13 @@ test('reorder chi chap nhan hang xom trong dung scope va rollback khi loi', asyn
   const lists = full.data.lists as { id: number }[];
   assert.ok(lists.length >= 2);
 
-  const cardA = await json('POST', '/api/cards', { list_id: lists[0].id, title: 'The A' });
-  const cardB = await json('POST', '/api/cards', { list_id: lists[1].id, title: 'The B' });
+  const cardA = await json('POST', '/api/cards', { list_id: lists[0]?.id, title: 'The A' });
+  const cardB = await json('POST', '/api/cards', { list_id: lists[1]?.id, title: 'The B' });
   const cardAId = Number(cardA.data.id);
   const cardBId = Number(cardB.data.id);
 
   const invalidMove = await json('PATCH', `/api/cards/${cardAId}/move`, {
-    list_id: lists[0].id,
+    list_id: lists[0]?.id,
     beforeId: cardBId,
     afterId: null,
   });
@@ -313,22 +313,22 @@ test('reorder chi chap nhan hang xom trong dung scope va rollback khi loi', asyn
   const afterInvalid = db.prepare(`SELECT list_id FROM cards WHERE id = ?`).get(cardAId) as {
     list_id: number;
   };
-  assert.equal(afterInvalid.list_id, lists[0].id);
+  assert.equal(afterInvalid.list_id, lists[0]?.id);
 
   const selfNeighbor = await json('PATCH', `/api/cards/${cardAId}/move`, {
-    list_id: lists[0].id,
+    list_id: lists[0]?.id,
     beforeId: cardAId,
     afterId: null,
   });
   assert.equal(selfNeighbor.status, 422);
 
   const validMove = await json('PATCH', `/api/cards/${cardAId}/move`, {
-    list_id: lists[1].id,
+    list_id: lists[1]?.id,
     beforeId: cardBId,
     afterId: null,
   });
   assert.equal(validMove.status, 200);
-  assert.equal(validMove.data.list_id, lists[1].id);
+  assert.equal(validMove.data.list_id, lists[1]?.id);
 });
 
 test('tao cong viec tu mot khoa CRM tu suy ra cac lien ket cap tren', async () => {
@@ -745,7 +745,7 @@ test('du an gom bang va cong viec, suc khoe tinh khi doc', async () => {
   assert.equal(board.status, 201);
   const boardId = Number(board.data.id);
   const full = await json('GET', `/api/boards/${boardId}/full`);
-  const listId = (full.data.lists as { id: number }[])[0].id;
+  const listId = (full.data.lists as { id: number }[])[0]?.id;
 
   // Cong viec tao trong bang cua du an tu mang project_id — khong phai gui kem.
   const card = await json('POST', '/api/cards', { list_id: listId, title: 'Khao sat' });
@@ -791,7 +791,7 @@ test('du an gom bang va cong viec, suc khoe tinh khi doc', async () => {
      khong, bao cao du an se bo qua toan bo phan lam truoc khi gan. */
   const other = await json('POST', '/api/boards', { name: 'Bang roi' });
   const otherFull = await json('GET', `/api/boards/${Number(other.data.id)}/full`);
-  const otherList = (otherFull.data.lists as { id: number }[])[0].id;
+  const otherList = (otherFull.data.lists as { id: number }[])[0]?.id;
   const orphan = await json('POST', '/api/cards', { list_id: otherList, title: 'Viec co truoc' });
   assert.equal(orphan.data.project_id, null);
   await json('PATCH', `/api/boards/${Number(other.data.id)}`, { project_id: projectId });
@@ -845,7 +845,7 @@ test('doi han de lai dau vet, phu thuoc chan chu trinh', async () => {
     reason: string | null;
   }[];
   assert.equal(changes.length, 2);
-  assert.equal(changes[1].reason, 'Khách chưa duyệt yêu cầu');
+  assert.equal(changes[1]?.reason, 'Khách chưa duyệt yêu cầu');
 
   // Dat lai cung mot ngay khong sinh dong lich su rong.
   await json('PATCH', `/api/cards/${cardId}`, { due_date: '2026-03-20' });
@@ -975,12 +975,12 @@ test('du an suy tu bang, khong con cot rieng tren the', async () => {
     (await json('GET', `/api/boards/${Number(boardIn.data.id)}/full`)).data.lists as {
       id: number;
     }[]
-  )[0].id;
+  )[0]?.id;
   const listOut = (
     (await json('GET', `/api/boards/${Number(boardOut.data.id)}/full`)).data.lists as {
       id: number;
     }[]
-  )[0].id;
+  )[0]?.id;
 
   // Cot project_id da bien mat khoi `cards` — khong the mang du an khac voi bang.
   const columns = db.prepare(`PRAGMA table_info(cards)`).all() as { name: string }[];
@@ -1154,7 +1154,7 @@ test('stage gate rollback khi bi chan va ghi history khi override', async () => 
     )
     .all(dealId) as { reason: string }[];
   assert.equal(history.length, 1);
-  assert.match(history[0].reason, /lead -> quoted/);
+  assert.match(history[0]?.reason ?? '', /lead -> quoted/);
 });
 
 test('upload sai metadata khong de lai file mo coi', async () => {

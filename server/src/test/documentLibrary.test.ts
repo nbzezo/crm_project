@@ -86,7 +86,7 @@ test('thu vien trang: tim khong dau, loc mau va noi gan, dem facet, khong tra co
     'Biên bản chốt hợp đồng',
     'Kế hoạch gia hạn hợp đồng',
   ]);
-  assert.equal(items[0].content_json, undefined);
+  assert.equal(items[0]?.content_json, undefined);
 
   const linked = await json('GET', '/api/meeting-notes/page?linked=deal');
   assert.deepEqual(

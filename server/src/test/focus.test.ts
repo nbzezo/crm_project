@@ -220,7 +220,7 @@ test('canh bao: lui han nhieu lan va trung lich', () => {
   assert.ok(data.attention.some((a) => a.kind === 'slipping' && a.card_id === slipping));
   const conflicts = data.attention.filter((a) => a.kind === 'conflict');
   assert.equal(conflicts.length, 1);
-  assert.match(conflicts[0].title, /Họp khách A/);
+  assert.match(conflicts[0]?.title ?? '', /Họp khách A/);
 });
 
 test('khung gio trong tranh lich hop va gio nghi trua', () => {

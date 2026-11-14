@@ -103,9 +103,9 @@ test('v24 tao bang checklist, cot nguoi thuc hien va nap cau hinh mac dinh', () 
     .get('handover.templates') as { value: string } | undefined;
   assert.ok(raw, 'phai co khoa handover.templates');
   const templates = JSON.parse(raw.value) as Record<string, { content: string }[]>;
-  assert.equal(templates.default.length, 10, 'dung 10 muc cua dac ta 7.2');
-  assert.match(templates.default[0].content, /Hợp đồng\/PO/);
-  assert.match(templates.default[9].content, /phiên bản/);
+  assert.equal(templates.default?.length, 10, 'dung 10 muc cua dac ta 7.2');
+  assert.match(templates.default[0]?.content ?? '', /Hợp đồng\/PO/);
+  assert.match(templates.default[9]?.content ?? '', /phiên bản/);
 
   const sla = db
     .prepare(`SELECT value FROM app_settings WHERE key = ?`)
@@ -161,11 +161,11 @@ test('tick het muc bat buoc thi co ban giao tu bat, bo tick thi tu tat', async (
   };
   assert.equal(stored.handover_ready, 1);
 
-  const reopened = await json('PATCH', `/api/deals/${dealId}/handover/${items[0].id}`, {
+  const reopened = await json('PATCH', `/api/deals/${dealId}/handover/${items[0]?.id}`, {
     is_done: false,
   });
   assert.equal(reopened.data.handover_ready, 0, 'bo tick mot muc thi khong con san sang');
-  assert.equal((reopened.data.items as HandoverItem[])[0].done_at, null);
+  assert.equal((reopened.data.items as HandoverItem[])[0]?.done_at, null);
 });
 
 test('muc tham khao khong chan co ban giao', async () => {
@@ -193,7 +193,7 @@ test('xoa muc bat buoc con lai lam co ban giao bat lai', async () => {
   const item = (added.data.items as HandoverItem[])[0];
   assert.equal(added.data.handover_ready, 0);
 
-  const removed = await json('DELETE', `/api/deals/${dealId}/handover/${item.id}`);
+  const removed = await json('DELETE', `/api/deals/${dealId}/handover/${item?.id}`);
   assert.equal((removed.data.items as HandoverItem[]).length, 0);
   assert.equal(
     removed.data.handover_ready,
@@ -380,7 +380,7 @@ test('cau hinh ban giao doc va ghi duoc qua API', async () => {
   const before = await json('GET', '/api/settings/handover');
   assert.equal(before.status, 200);
   assert.equal(before.data.slaDays, 7);
-  assert.equal((before.data.templates as Record<string, unknown[]>).default.length, 10);
+  assert.equal((before.data.templates as Record<string, unknown[]>).default?.length, 10);
 
   const saved = await json('PUT', '/api/settings/handover', {
     sla_days: 14,
@@ -409,7 +409,7 @@ test('bo mau default la bat buoc — khong luu duoc cau hinh thieu no', async ()
 
   // Cau hinh cu phai con nguyen sau hai lan bi tu choi.
   const current = await json('GET', '/api/settings/handover');
-  assert.equal((current.data.templates as Record<string, unknown[]>).default.length, 2);
+  assert.equal((current.data.templates as Record<string, unknown[]>).default?.length, 2);
 });
 
 test('doi bo mau chi anh huong checklist tao MOI, khong viet lai cai da co', async () => {
@@ -430,7 +430,7 @@ test('doi bo mau chi anh huong checklist tao MOI, khong viet lai cai da co', asy
   const untouched = await json('GET', `/api/deals/${older}/handover`);
   const items = untouched.data.items as HandoverItem[];
   assert.equal(items.length, 2, 'checklist da tao khong bi mau moi ghi de');
-  assert.equal(items[0].content, 'Hop dong da ky');
+  assert.equal(items[0]?.content, 'Hop dong da ky');
 
   const newer = await newDeal('Co hoi lap checklist sau');
   const fresh = await json('POST', `/api/deals/${newer}/handover/template`, {});

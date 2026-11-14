@@ -22,7 +22,7 @@ describe('groupLinesByCustomer', () => {
   it('gom dòng theo khách hàng, giữ thứ tự xuất hiện', () => {
     const groups = groupLinesByCustomer([line(1, 7, 11, 1), line(2, 3, 10, 1), line(3, 7, 13, 2)]);
     expect(groups.map((g) => g.customer_id)).toEqual([7, 3]);
-    expect(groups[0].lines.map((l) => l.id)).toEqual([1, 3]);
+    expect(groups[0]?.lines.map((l) => l.id)).toEqual([1, 3]);
   });
 
   it('đếm hợp đồng và dịch vụ khác nhau, bỏ qua dòng chưa gắn', () => {
@@ -33,8 +33,8 @@ describe('groupLinesByCustomer', () => {
       line(3, 5, 12, 1),
       line(4, 5, null, null),
     ]);
-    expect(group.contract_count).toBe(2);
-    expect(group.service_count).toBe(2);
+    expect(group?.contract_count).toBe(2);
+    expect(group?.service_count).toBe(2);
   });
 
   it('xếp các dòng cùng hợp đồng liền nhau, dòng chưa gắn hợp đồng xuống cuối', () => {
@@ -44,7 +44,7 @@ describe('groupLinesByCustomer', () => {
       line(3, 5, 12, 1),
       line(4, 5, 10, 3),
     ]);
-    expect(group.lines.map((l) => l.id)).toEqual([1, 4, 3, 2]);
+    expect(group?.lines.map((l) => l.id)).toEqual([1, 4, 3, 2]);
   });
 });
 

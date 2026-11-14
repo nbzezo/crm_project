@@ -280,7 +280,7 @@ test('tim web: gui google_search, tra nguon; bi tu choi thi lui ve khong tim', a
   };
   const { status, data } = await assist('Sao Mai', true);
   assert.equal(status, 200);
-  assert.ok(sent[0].tools, 'co bat cong cu tim web');
+  assert.ok(sent[0]?.tools, 'co bat cong cu tim web');
   assert.equal(data.web_searched, true);
   assert.deepEqual(data.web_sources, [{ url: 'https://saomai.vn', title: 'Sao Mai' }]);
   assert.equal(data.suggestion.phone, '024 1234 5678');

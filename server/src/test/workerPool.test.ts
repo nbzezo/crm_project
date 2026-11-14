@@ -143,8 +143,8 @@ test('tối đa hai job chạy và tám job chờ; job thứ 11 bị từ chối
   );
   const rejected = results.filter((result) => result.status === 'rejected');
   assert.equal(rejected.length, 1);
-  assert.equal(rejected[0].reason.status, 503);
-  assert.equal(rejected[0].reason.details.code, 'WORKER_POOL_BUSY');
+  assert.equal(rejected[0]?.reason.status, 503);
+  assert.equal(rejected[0]?.reason.details.code, 'WORKER_POOL_BUSY');
 });
 
 test('parse workbook qua worker bằng kết quả trực tiếp', async () => {

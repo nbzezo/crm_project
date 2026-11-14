@@ -55,7 +55,7 @@ test('xuat du lieu theo luong: JSON hop le, du dong, anh chup nhat quan', async 
     data: Record<string, unknown[]>;
   };
   assert.equal(typeof body.exported_at, 'string');
-  assert.equal(body.data.customers.length, expected);
+  assert.equal(body.data.customers?.length, expected);
   assert.ok(Array.isArray(body.data.card_labels), 'VIEW card_labels van duoc xuat');
 
   /* Trong luc xuat, ket noi chinh van phuc vu request khac. */

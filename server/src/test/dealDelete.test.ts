@@ -166,22 +166,22 @@ test('xem truoc liet ke tung muc kem lien ket dung chung', async () => {
   assert.equal(status, 200);
   const groups = data.groups as Record<string, { id: number; links: { kind: string }[] }[]>;
   assert.deepEqual(
-    groups.documents.map((d) => d.id).sort(),
+    groups.documents?.map((d) => d.id).sort(),
     [f.docId, f.sharedDocId].sort(),
     'chi tai lieu gan truc tiep, khong gom tai lieu trong thung rac hay dinh kem bien ban'
   );
-  const shared = groups.documents.find((d) => d.id === f.sharedDocId);
+  const shared = groups.documents?.find((d) => d.id === f.sharedDocId);
   assert.deepEqual(
     shared?.links.map((l) => l.kind),
     ['contract']
   );
   assert.deepEqual(
-    groups.meeting_notes.map((n) => n.id),
+    groups.meeting_notes?.map((n) => n.id),
     [f.noteId],
     'trang da o thung rac khong hien de chon'
   );
   for (const group of ['quotations', 'contracts', 'cards', 'interactions', 'reminders']) {
-    assert.equal(groups[group].length, 1, group);
+    assert.equal(groups[group]?.length, 1, group);
   }
 });
 
@@ -269,7 +269,7 @@ test('hop dong con dong doanh thu: khong cho xoa theo, co hoi van con', async ()
   );
   const preview = await json('GET', `/api/deals/${f.dealId}/delete-preview`);
   const contracts = (preview.data.groups as Record<string, { blocked: string | null }[]>).contracts;
-  assert.ok(contracts[0].blocked);
+  assert.ok(contracts?.[0]?.blocked);
 
   const { status } = await json('DELETE', `/api/deals/${f.dealId}`, {
     delete: { contracts: [f.contractId] },

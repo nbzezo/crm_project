@@ -112,7 +112,8 @@ async function addFlow(cardId: number, status: string, steps?: string[]): Promis
   return res.data.flow as Flow;
 }
 
-async function tick(stepId: number, done = true) {
+async function tick(stepId: number | undefined, done = true) {
+  if (stepId === undefined) throw new Error('tick: thieu stepId (du lieu mau sai?)');
   return json('PATCH', `/api/task-flows/steps/${stepId}`, { done });
 }
 
@@ -163,9 +164,9 @@ test('mac dinh tinh nang tat: khong tao quy trinh, doi trang thai khong bi chan'
   const settings = await json('GET', '/api/task-flows/settings');
   assert.equal(settings.data.enabled, false);
   const templates = settings.data.templates as Record<string, { ask: string; next_status: string }>;
-  assert.equal(templates.doing.ask, 'always');
-  assert.equal(templates.doing.next_status, 'review');
-  assert.equal(templates.todo.ask, 'never');
+  assert.equal(templates.doing?.ask, 'always');
+  assert.equal(templates.doing?.next_status, 'review');
+  assert.equal(templates.todo?.ask, 'never');
 
   const created = await newCard('Viec khi tat');
   const refused = await json('POST', `/api/task-flows/cards/${created.id}`, {
@@ -299,18 +300,18 @@ test('buoc lam lan luot; xong buoc cuoi thi tu chuyen sang trang thai ke tiep', 
   const flow = await addFlow(created.id, 'doing', ['B1', 'B2', 'B3']);
   const [s1, s2, s3] = flow.steps;
 
-  const outOfOrder = await tick(s2.id);
+  const outOfOrder = await tick(s2?.id);
   assert.equal(outOfOrder.status, 409);
   assert.equal(outOfOrder.data.code, 'FLOW_STEP_ORDER');
 
-  assert.equal((await tick(s1.id)).status, 200);
-  assert.equal((await tick(s2.id)).status, 200);
+  assert.equal((await tick(s1?.id)).status, 200);
+  assert.equal((await tick(s2?.id)).status, 200);
   // Chi bo duoc buoc xong sau cung.
-  assert.equal((await tick(s1.id, false)).status, 409);
-  assert.equal((await tick(s2.id, false)).status, 200);
-  assert.equal((await tick(s2.id)).status, 200);
+  assert.equal((await tick(s1?.id, false)).status, 409);
+  assert.equal((await tick(s2?.id, false)).status, 200);
+  assert.equal((await tick(s2?.id)).status, 200);
 
-  const last = await tick(s3.id);
+  const last = await tick(s3?.id);
   assert.equal(last.status, 200);
   assert.equal(last.data.advanced_to, 'review');
   // Cho duyet dat ask=always va chua co quy trinh: giao dien phai hoi tiep.
@@ -332,7 +333,7 @@ test('chuoi tu chuyen: mau tu ap cua trang thai moi, xong thi sang Hoan thanh', 
   const created = await newCard('Viec chuoi');
   await json('PATCH', `/api/cards/${created.id}`, { status: 'doing' });
   const flow = await addFlow(created.id, 'doing', ['Lam']);
-  assert.equal((await tick(flow.steps[0].id)).data.advanced_to, 'review');
+  assert.equal((await tick(flow.steps[0]?.id)).data.advanced_to, 'review');
 
   const detail = await json('GET', `/api/cards/${created.id}`);
   const flows = detail.data.flows as Flow[];
@@ -345,8 +346,8 @@ test('chuoi tu chuyen: mau tu ap cua trang thai moi, xong thi sang Hoan thanh', 
   assert.equal(detail.data.flow_total, 2);
   assert.equal(detail.data.flow_done, 0);
 
-  await tick(review.steps[0].id);
-  const final = await tick(review.steps[1].id);
+  await tick(review.steps[0]?.id);
+  const final = await tick(review.steps[1]?.id);
   assert.equal(final.data.advanced_to, 'done');
   assert.equal(card(created.id).is_done, 1);
 });
@@ -363,7 +364,7 @@ test('luong viec khong co cot cho trang thai dich: van chuyen dung trang thai', 
   try {
     const before = card(created.id).list_id;
     const flow = await addFlow(created.id, 'doing', ['Lam']);
-    assert.equal((await tick(flow.steps[0].id)).data.advanced_to, 'review');
+    assert.equal((await tick(flow.steps[0]?.id)).data.advanced_to, 'review');
     assert.equal(card(created.id).status, 'review');
     assert.equal(card(created.id).is_done, 0);
     assert.equal(card(created.id).list_id, before);
@@ -376,7 +377,7 @@ test('quy trinh chuan bi truoc cho trang thai khac khong keo cong viec di', asyn
   await setEnabled(true, DOING_REVIEW);
   const created = await newCard('Viec chuan bi');
   const flow = await addFlow(created.id, 'review', ['Chuan bi']);
-  const res = await tick(flow.steps[0].id);
+  const res = await tick(flow.steps[0]?.id);
   assert.equal(res.data.advanced_to, null);
   assert.equal(card(created.id).status, 'todo');
 });
@@ -389,8 +390,8 @@ test('tao viec kem flow_steps tao quy trinh cho trang thai ban dau', async () =>
   const detail = await json('GET', `/api/cards/${created.id}`);
   const flows = detail.data.flows as Flow[];
   assert.equal(flows.length, 1);
-  assert.equal(flows[0].status, created.status);
-  assert.equal(flows[0].steps.length, 2);
+  assert.equal(flows[0]?.status, created.status);
+  assert.equal(flows[0]?.steps.length, 2);
 });
 
 test('mau ask=always khong tu tao — giao dien hoi nguoi dung', async () => {
@@ -423,7 +424,7 @@ test('sao chep the va viec lap lai chep quy trinh, dat lai chua xong', async () 
     recur_rule: JSON.stringify({ unit: 'week', interval: 1 }),
   });
   const flow = await addFlow(source.id, 'doing', ['X', 'Y']);
-  await tick(flow.steps[0].id);
+  await tick(flow.steps[0]?.id);
 
   const copy = await json('POST', `/api/cards/${source.id}/copy`, {});
   assert.equal(copy.status, 201);
@@ -436,7 +437,7 @@ test('sao chep the va viec lap lai chep quy trinh, dat lai chua xong', async () 
   assert.equal(copied.length, 2);
   assert.ok(copied.every((s) => s.done_at === null));
 
-  await tick(flow.steps[1].id); // xong -> review
+  await tick(flow.steps[1]?.id); // xong -> review
   const done = await json('PATCH', `/api/cards/${source.id}`, { status: 'done' });
   assert.equal(done.status, 200);
   const next = db

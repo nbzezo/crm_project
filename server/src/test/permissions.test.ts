@@ -338,7 +338,7 @@ test('o `none` khong duoc luu — khong co dong nghia la khong co quyen', async 
   assert.equal(res.status, 200);
   const rows = res.data as unknown as { resource: string; action: string }[];
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].action, 'read');
+  assert.equal(rows[0]?.action, 'read');
 });
 
 test('o khong co trong danh muc bi tu choi', async () => {

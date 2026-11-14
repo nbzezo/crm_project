@@ -210,7 +210,7 @@ globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => 
   }
   const single = /^\/drive\/v3\/files\/([^/]+)$/.exec(parsed.pathname);
   if (single) {
-    const file = drive.files.get(decodeURIComponent(single[1]));
+    const file = drive.files.get(decodeURIComponent(single[1] ?? ''));
     if (method === 'DELETE') {
       if (!file) return json({ error: { message: 'not found' } }, 404);
       drive.files.delete(file.id);
@@ -475,8 +475,10 @@ test('lan dau: tao thu muc, day ban sao CSDL da nen va moi tep, kem ten goc', as
 
   const backups = dbBackups();
   assert.equal(backups.length, 1);
-  assert.match(backups[0].name, /^app-\d{8}-\d{6}\.db\.gz$/);
-  const raw = zlib.gunzipSync(backups[0].content);
+  const [firstBackup] = backups;
+  if (!firstBackup) throw new Error('thieu ban sao luu');
+  assert.match(firstBackup.name, /^app-\d{8}-\d{6}\.db\.gz$/);
+  const raw = zlib.gunzipSync(firstBackup.content);
   assert.equal(raw.subarray(0, 15).toString(), 'SQLite format 3');
 
   const files = driveFiles();

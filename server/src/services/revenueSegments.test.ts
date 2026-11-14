@@ -79,10 +79,10 @@ test('du kien: thang da qua khong co so -> 0, so du kien da nhap duoc giu', () =
 
 test('du kien: dong da ngung hoac het han hop dong khong du kien them', () => {
   const stopped = projectYear(input({ months: { '2026-01': 100 }, status: 'stopped' }));
-  assert.equal(stopped['2026-06'].value, 0);
+  assert.equal(stopped['2026-06']?.value, 0);
   const ended = projectYear(input({ months: { '2026-01': 100 }, end_date: '2026-06-30' }));
-  assert.equal(ended['2026-06'].value, 100);
-  assert.equal(ended['2026-07'].value, 0);
+  assert.equal(ended['2026-06']?.value, 100);
+  assert.equal(ended['2026-07']?.value, 0);
 });
 
 test('so sanh chi tinh tren cac thang cua nhom, thieu cung ky thi lay TB va danh dau', () => {

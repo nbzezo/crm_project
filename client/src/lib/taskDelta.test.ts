@@ -68,7 +68,9 @@ describe('loadTasksInChunks', () => {
     const result = await loadTasksInChunks(
       async (limit, beforeId) => {
         calls.push([limit, beforeId]);
-        return pages[calls.length - 1];
+        const page = pages[calls.length - 1];
+        if (!page) throw new Error('het khuc du lieu mau');
+        return page;
       },
       (rows, total) => progress.push([rows.length, total])
     );

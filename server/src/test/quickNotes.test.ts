@@ -125,8 +125,8 @@ test('Gan CRM Object sau khi tao, khong tao Customer/Deal/Project moi (FR15, AC1
   assert.equal(linked.status, 200);
   const relations = linked.data.relations as { object_type: string; object_id: number }[];
   assert.equal(relations.length, 1);
-  assert.equal(relations[0].object_type, 'customer');
-  assert.equal(relations[0].object_id, customerId);
+  assert.equal(relations[0]?.object_type, 'customer');
+  assert.equal(relations[0]?.object_id, customerId);
 
   // So khach hang trong he thong khong doi — khong co ban ghi moi nao duoc tao am tham.
   const customerCount = (db.prepare(`SELECT COUNT(*) AS n FROM customers`).get() as { n: number })

@@ -19,15 +19,15 @@ describe('appendStagePage', () => {
   it('nối đúng cột, giữ thứ tự và không đổi dữ liệu đầu vào', () => {
     const before = data();
     const result = appendStagePage(before, 'lead', [deal(2, 'lead'), deal(3, 'lead')]);
-    expect(result.stages.lead.map((item) => item.id)).toEqual([1, 2, 3]);
+    expect(result.stages.lead?.map((item) => item.id)).toEqual([1, 2, 3]);
     expect(result.more.lead).toBe(0);
-    expect(before.stages.lead.map((item) => item.id)).toEqual([1]);
+    expect(before.stages.lead?.map((item) => item.id)).toEqual([1]);
     expect(before.more.lead).toBe(2);
   });
 
   it('bỏ id trùng và chỉ giảm more theo số cơ hội mới', () => {
     const result = appendStagePage(data(), 'lead', [deal(1, 'lead'), deal(2, 'lead')]);
-    expect(result.stages.lead.map((item) => item.id)).toEqual([1, 2]);
+    expect(result.stages.lead?.map((item) => item.id)).toEqual([1, 2]);
     expect(result.more.lead).toBe(1);
   });
 

@@ -326,7 +326,7 @@ test('ban cheo theo khach cung nganh; co hoi thua lau thi goi y mo lai', async (
     [crm],
     'chi goi y dich vu cua khach cung nganh'
   );
-  assert.match(cross[0].reason, /3\/3 khách cùng ngành/);
+  assert.match(cross[0]?.reason ?? '', /3\/3 khách cùng ngành/);
   assert.ok(list.some((s) => s.kind === 'reopen_lost'));
 
   /* Da dung roi thi thoi goi y. */
@@ -359,7 +359,7 @@ test('kich ban sau ban: nhan goi y tao 3 nhac hen ngay 7/30/90, buoc da qua dat 
     reminders.map((r) => r.due),
     [today, day(20), day(80)]
   );
-  assert.match(reminders[0].title, /^Sau bán ngày 7/);
+  assert.match(reminders[0]?.title ?? '', /^Sau bán ngày 7/);
 });
 
 /* ---------- Sinh nhat + Trong tam ---------- */
@@ -399,7 +399,7 @@ test('sinh nhat nguoi lien he va ky niem hop dong hien o ho so va tab Trong tam'
       ['birthday', day(5)],
     ]
   );
-  assert.match(upcoming[0].title, /Kỷ niệm 2 năm/);
+  assert.match(upcoming[0]?.title ?? '', /Kỷ niệm 2 năm/);
 
   const focus = buildFocus(db, {
     from: today,

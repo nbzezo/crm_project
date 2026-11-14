@@ -44,7 +44,7 @@ describe('settingsNav', () => {
 
   it('tim theo tu khong dau, tu khoa phu va xep khop ten len truoc', () => {
     const tabs = SETTINGS_TABS;
-    expect(searchSettings(tabs, 'sao luu')[0].key).toBe('backup');
+    expect(searchSettings(tabs, 'sao luu')[0]?.key).toBe('backup');
     expect(searchSettings(tabs, 'smtp').map((tab) => tab.key)).toEqual(['email']);
     expect(searchSettings(tabs, 'google drive').map((tab) => tab.key)).toContain('backup');
     expect(searchSettings(tabs, 'khong-co-gi-khop')).toEqual([]);

@@ -78,11 +78,11 @@ describe('anh minh hoa', () => {
     for (const [slug, body] of Object.entries(GUIDE_BODIES)) {
       for (const match of body.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)) {
         const src = match[1];
-        if (!src.startsWith('/guide/img/')) {
+        if (!src?.startsWith('/guide/img/')) {
           missing.push(`${slug}: ${src} (anh huong dan phai nam trong /guide/img/)`);
           continue;
         }
-        const file = path.join(IMG_DIR, src.slice('/guide/img/'.length));
+        const file = path.join(IMG_DIR, src?.slice('/guide/img/'.length));
         if (!fs.existsSync(file)) missing.push(`${slug}: ${src}`);
       }
     }
@@ -107,7 +107,7 @@ describe('anh minh hoa', () => {
     const silent: string[] = [];
     for (const [slug, body] of Object.entries(GUIDE_BODIES)) {
       for (const match of body.matchAll(/!\[([^\]]*)\]\(/g)) {
-        if (match[1].trim().length < 8) silent.push(`${slug}: ![${match[1]}]`);
+        if ((match[1]?.trim().length ?? 0) < 8) silent.push(`${slug}: ![${match[1]}]`);
       }
     }
     expect(silent).toEqual([]);
