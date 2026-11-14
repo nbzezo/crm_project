@@ -18,6 +18,15 @@ export const APP_UPDATED_AT = '2026-11-14';
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: '1.44.1',
+    date: '2026-11-14',
+    title: 'Nút sao chép hoạt động được khi máy chủ chạy HTTP',
+    changes: [
+      'Nút Copy ở hộp thoại Đôn đốc và nút Sao chép câu trả lời của trợ lý AI nay sao chép được cả khi mở ứng dụng qua HTTP trong mạng nội bộ. Trước đây trình duyệt chặn clipboard trong trường hợp này và cả hai nút không có phản hồi gì — bấm vào không biết đã sao chép hay chưa.',
+      'Nếu sao chép vẫn không được, hai nút này nay báo rõ để bạn chọn và sao chép thủ công.',
+    ],
+  },
+  {
     version: '1.44.0',
     date: '2026-11-14',
     title: 'Siết kiểm tra an toàn trên toàn bộ mã nguồn',

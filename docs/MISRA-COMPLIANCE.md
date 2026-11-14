@@ -1,6 +1,6 @@
 # Tuân thủ MISRA (ánh xạ) — WorkFlow CRM
 
-Cập nhật: 2026-11-14 · Phiên bản: 1.44.0
+Cập nhật: 2026-11-14 · Phiên bản: 1.44.1
 
 ## 0. Phạm vi và cách gọi tên
 
@@ -96,11 +96,20 @@ Mỗi bản ghi nêu nguyên tắc bị lệch, phạm vi, lý do, và biện ph
 - **Nguyên tắc:** Rule 17.7 · **Số chỗ:** 55
 - **Lý do:** React bỏ qua giá trị trả về của event handler. Bọc mọi `onClick={fn}` thành
   `onClick={() => void fn()}` ở 55 chỗ chỉ thêm nhiễu mà không đổi hành vi.
-- **Bằng chứng an toàn:** đã rà soát bằng AST toàn bộ handler liên quan
+- **Bằng chứng an toàn:** đã rà soát bằng AST toàn bộ handler mà rule báo
   (`VoiceNoteRecorder`, `Combobox`, `LoginPage`, `ResetPasswordPage`,
   `ForceChangePasswordPage`, `PublicSharePage`, `CareAssistant`, `MeetingNoteBody`) —
-  **mỗi handler đều đã tự bao bằng `try/catch`** và hiển thị lỗi cho người dùng. Đúng một
-  chỗ thiếu (`FollowUpPage.copy`) và đã được sửa ở 1.44.0.
+  mỗi handler đều đã tự bao bằng `try/catch` và hiển thị lỗi cho người dùng. Một chỗ thiếu
+  (`FollowUpPage.copy`) đã được sửa ở 1.44.0.
+- ⚠️ **Điểm mù đã biết của miễn trừ này.** Phép rà soát trên chỉ phủ các handler mà rule
+  *báo ra*. Nếu nơi gọi đã có sẵn `onClick={() => void handler()}` thì `no-floating-promises`
+  coi là đã xử lý và `no-misused-promises` (với `attributes: false`) cũng không xét — nhưng
+  `void` **loại bỏ** promise chứ **không bắt** rejection. Một handler như vậy vẫn thất bại
+  trong im lặng mà không rule nào thấy.
+  Đúng trường hợp đó đã xảy ra: `AssistantChat.copyAnswer` (đã có `void` từ trước) thất bại
+  âm thầm và **không** bị phát hiện ở 1.44.0; chỉ tìm ra khi rà soát tay các lệnh gọi
+  `navigator.clipboard` ở 1.44.1. Khi thêm handler bất đồng bộ mới, `void` ở nơi gọi
+  **không** thay thế được `try/catch` trong thân handler.
 - **Biện pháp bù:** `checksVoidReturn: { attributes: false }` chỉ tắt kiểm cho *thuộc tính*
   JSX. Hai dạng còn lại (`property`, `argument`) **vẫn được kiểm** và cả hai chỗ vi phạm
   đã được sửa tường minh.
@@ -226,6 +235,12 @@ Những việc đã đo nhưng **chưa** làm, kèm chi phí thực tế:
 | Enforce `no-non-null-assertion` | 173 chỗ | D-06 chưa có cổng chặn tự động. Nên làm sau khi khảo sát xem bao nhiêu chỗ còn thật sự cần. |
 | Logger tập trung | 116 lệnh `console.*` | `server/src/lib/` chưa có `logger.ts`. Không thuộc nguyên tắc MISRA nào nhưng ảnh hưởng khả năng chẩn đoán production. |
 | Tách file lớn | 13 file > 1200 dòng | Lớn nhất `server/src/routes/feed.ts`. Xem R-03: chỉ là advisory. |
+| Dùng `copyText()` cho 4 chỗ clipboard còn lại | 4 chỗ | `FocusAiPanel`, `CareAssistant`, `DriveBackupSettings`, `GoogleMailConnect` đều có `try/catch` nên **không** thất bại im lặng, nhưng vẫn báo "không sao chép được" trên HTTP thay vì lùi về `execCommand` và sao chép thành công. Không phải lỗi, là cải thiện. |
+
+**Về clipboard trên HTTP:** `nginx.conf` chỉ `listen 80` (không TLS), nên với mọi host khác
+`localhost` trình duyệt coi là non-secure context và để `navigator.clipboard` là `undefined`.
+Mọi lệnh gọi clipboard mới **phải** đi qua `copyText()` trong `client/src/lib/share.ts`, hàm
+này tự lùi về `document.execCommand('copy')`.
 
 ## 7. Giới hạn của tài liệu này
 

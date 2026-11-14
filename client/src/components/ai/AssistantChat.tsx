@@ -46,6 +46,7 @@ import { AnswerText } from './AnswerText';
 import { ProposalCard } from './ProposalCard';
 import { t } from '../../i18n/vi';
 import { formatDate, formatDateTime } from '../../lib/format';
+import { copyText } from '../../lib/share';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore, type TaskContext } from '../../stores/uiStore';
 
@@ -762,11 +763,20 @@ function Turn({
   onDecide: (decision: 'approve' | 'reject') => void;
   onFollowUp: (text: string) => void;
 }) {
+  const pushToast = useUiStore((state) => state.pushToast);
   const [copied, setCopied] = useState(false);
 
   async function copyAnswer() {
-    await navigator.clipboard.writeText(result.answer);
-    setCopied(true);
+    /* Truoc 1.44.1: `await navigator.clipboard.writeText(...)` khong co try/catch.
+       Clipboard API bi chan (HTTP, iframe) thi promise reject, `setCopied` khong
+       chay, va `void` o noi goi khong bat rejection — nguoi dung bam ma khong
+       thay dau hieu gi. `copyText` tu lui ve execCommand va bao ro khi that bai. */
+    const ok = await copyText(result.answer);
+    setCopied(ok);
+    if (!ok) {
+      pushToast('Không sao chép được — hãy chọn và sao chép thủ công', 'error');
+      return;
+    }
     window.setTimeout(() => setCopied(false), 1600);
   }
 

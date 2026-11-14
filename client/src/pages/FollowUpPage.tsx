@@ -33,6 +33,7 @@ import { t } from '../i18n/vi';
 import { formatDateShort } from '../lib/format';
 import { NUDGE_HORIZON_DAYS, selectNeedsNudge } from '../lib/followUp';
 import { invalidateCardViews } from '../lib/queryKeys';
+import { copyText } from '../lib/share';
 import { useUiStore } from '../stores/uiStore';
 import { useMyContactId } from '../stores/authStore';
 import type { NudgeChannel, TaskRow } from '../types';
@@ -245,12 +246,13 @@ function NudgeDialog({ group, onClose }: { group: Group | null; onClose: () => v
   });
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(message);
-      pushToast('Đã copy nội dung đôn đốc', 'success');
-    } catch {
-      pushToast('Trình duyệt không cho sao chép — hãy chọn và sao chép thủ công.');
-    }
+    /* `copyText` lui ve execCommand khi clipboard API bi chan (trang chay HTTP,
+       hoac trong iframe), nen tren mang noi bo nut nay van sao chep duoc that. */
+    const ok = await copyText(message);
+    pushToast(
+      ok ? 'Đã copy nội dung đôn đốc' : 'Không sao chép được — hãy chọn và sao chép thủ công',
+      ok ? 'success' : 'error'
+    );
   };
 
   return (
